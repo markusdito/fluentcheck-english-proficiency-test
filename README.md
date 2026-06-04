@@ -1,6 +1,6 @@
 # FluentCheck
 
-A comprehensive English proficiency assessment platform with secure authentication, timed tests, webcam recording, automated evaluation, and detailed score reporting.
+A comprehensive English proficiency assessment platform with secure authentication, timed tests, webcam recording, expert jury evaluation, and detailed score reporting.
 
 ## Tech Stack
 
