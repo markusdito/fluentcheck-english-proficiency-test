@@ -43,8 +43,40 @@ export async function register(req: Request, res: Response) {
     })
 }
 
-export function login(req: Request, res: Response) {
-    res.json({
-        message: "Login successful",
+export async function login(req: Request, res: Response) {
+    const { email, password } = req.body
+
+    //check if user email exist in the table
+    const user = await prisma.user.findUnique({
+        where: {
+            email: email
+        }
+    })
+
+    if (!user) {
+        return res.status(401).json({
+            error: "Invalid email or password"
+        })
+    }
+
+    //verify pw
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+
+    if (!isPasswordValid) {
+        return res.status(401).json({
+            error: "Invalid email or password"
+        })
+    }
+
+    //generate JWT
+
+    res.status(201).json({
+        status: "success",
+        data: {
+            user: {
+                id: user.id,
+                password: user.password
+            }
+        }
     })
 }
