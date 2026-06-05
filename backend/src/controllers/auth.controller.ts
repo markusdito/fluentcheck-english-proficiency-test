@@ -1,6 +1,7 @@
 import {Request, Response} from "express";
 import { prisma } from"../config/db.js"
 import bcrypt from "bcryptjs"
+import {generateToken} from "../utils/auth.util.js";
 
 export async function register(req: Request, res: Response) {
     const { username, email, password } = req.body
@@ -69,6 +70,7 @@ export async function login(req: Request, res: Response) {
     }
 
     //generate JWT
+    const token = generateToken(user.id)
 
     res.status(201).json({
         status: "success",
@@ -76,7 +78,8 @@ export async function login(req: Request, res: Response) {
             user: {
                 id: user.id,
                 password: user.password
-            }
+            },
+            token: token,
         }
     })
 }
