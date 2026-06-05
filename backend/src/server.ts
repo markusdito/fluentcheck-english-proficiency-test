@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import "dotenv/config";
-import authRoutes from "./routes/auth.routes";
-import { connectDB, disconnectDB } from "./config/db";
+import authRoutes from "./routes/auth.routes.js";
+import { connectDB, disconnectDB } from "./config/db.js";
 
 connectDB()
 
@@ -10,7 +10,11 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 
 app.use(cors())
+
+//Body parser middleware
 app.use(express.json())
+app.use(express.urlencoded({extended: true}))
+
 
 app.use("/api/auth", authRoutes);
 
