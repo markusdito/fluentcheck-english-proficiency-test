@@ -1,6 +1,6 @@
 # FluentCheck
 
-A comprehensive English proficiency assessment platform with secure authentication, timed tests, webcam recording, automated evaluation, and detailed score reporting.
+A comprehensive English proficiency assessment platform with secure authentication, timed tests, webcam recording, expert jury evaluation, and detailed score reporting.
 
 ## Tech Stack
 
@@ -16,7 +16,7 @@ A comprehensive English proficiency assessment platform with secure authenticati
 
 - Node.js with TypeScript 6
 - Express 5
-- Prisma 6 ORM and Prisma Client
+- Prisma 7 ORM and Prisma Client
 - PostgreSQL
 - dotenv for environment configuration
 - CORS middleware
