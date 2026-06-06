@@ -1,7 +1,7 @@
-import {Request, Response} from "express";
+import { Request, Response } from "express";
 import { prisma } from"../config/db.js"
-import bcrypt from "bcryptjs"
-import {generateToken} from "../utils/auth.util.js";
+import { generateToken } from "../utils/jwt.js";
+import { authenticateUser, createUser } from "../service/auth.service.js"
 
 export async function register(req: Request, res: Response) {
     const { username, email, password } = req.body
@@ -19,18 +19,8 @@ export async function register(req: Request, res: Response) {
         })
     }
 
-    //Hash password
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(password, salt)
-
-    //create user
-    const user = await prisma.user.create({
-        data: {
-            username,
-            email,
-            password: hashedPassword
-        }
-    })
+    //Create User
+    const user = await createUser(username, email, password)
 
     res.status(201).json({
         status: "success",
@@ -38,7 +28,8 @@ export async function register(req: Request, res: Response) {
             user: {
                 id: user.id,
                 name: user.username,
-                password: user.password
+                email: user.email,
+                createdAt: user.createdAt
             }
         }
     })
@@ -61,7 +52,7 @@ export async function login(req: Request, res: Response) {
     }
 
     //verify pw
-    const isPasswordValid = await bcrypt.compare(password, user.password)
+    const isPasswordValid = authenticateUser(password, user.password)
 
     if (!isPasswordValid) {
         return res.status(401).json({

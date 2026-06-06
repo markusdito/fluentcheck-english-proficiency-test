@@ -1,13 +1,5 @@
-import jwt, { Secret, SignOptions } from 'jsonwebtoken'
+import jwt, { SignOptions } from 'jsonwebtoken'
 import { env } from "../config/env.js"
-
-export async function createUser() {
-    // Logic
-}
-
-export async function authenticateUser() {
-    //Logic
-}
 
 export function generateToken(userId: string) {
     const payload = { id: userId }
