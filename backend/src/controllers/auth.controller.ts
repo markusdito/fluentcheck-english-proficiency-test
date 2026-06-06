@@ -1,7 +1,7 @@
-import {Request, Response} from "express";
+import { Request, Response } from "express";
 import { prisma } from"../config/db.js"
-import bcrypt from "bcryptjs"
-import {authenticateUser, createUser, generateToken} from "../utils/auth.util.js";
+import { generateToken } from "../utils/jwt.js";
+import { authenticateUser, createUser } from "../service/auth.service.js"
 
 export async function register(req: Request, res: Response) {
     const { username, email, password } = req.body
