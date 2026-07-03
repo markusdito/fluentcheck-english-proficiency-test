@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { prisma } from"../config/db.js"
 import { generateToken } from "../utils/jwt.js";
 import { authenticateUser, createUser } from "../service/auth.service.js"
-import {type} from "node:os";
 
 export async function register(req: Request, res: Response) {
     const { username, email, password } = req.body
