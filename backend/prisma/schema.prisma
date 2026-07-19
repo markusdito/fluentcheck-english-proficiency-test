@@ -7,16 +7,194 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+// ---------------- ENUMS ----------------
+
+enum Role {
+  STUDENT
+  EXAMINER
+  ADMIN
 }
 
-enum role {
-  STUDENT
-  ADMIN
-  LECTURER
+enum QuestionCategory {
+  PART_1
+  PART_2
+  PART_3
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS // student is recording
+  AWAITING_PAYMENT // all videos uploaded, waiting for payment
+  PAID // paid, examiners can be assigned
+  SCORING // examiners are grading
+  SCORED // all scores submitted
+  CERTIFIED // certificate issued
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum UploadStatus {
+  PENDING // recorded, background upload not finished
+  UPLOADED
+  FAILED
+}
+
+// ---------------- MODELS ----------------
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  username  String    @unique
+  email     String    @unique
+  password  String // bcrypt hash — name kept for compatibility with existing auth code
+  role      Role      @default(STUDENT)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // soft delete: account deactivated, history preserved
+
+  submissions      Submission[]         @relation("StudentSubmissions")
+  assignments      ExaminerAssignment[] @relation("ExaminerAssignments")
+  questionsCreated Question[]           @relation("QuestionAuthor")
+
+  @@index([role])
+}
+
+model Question {
+  id                 String           @id @default(uuid()) @db.Uuid
+  category           QuestionCategory
+  promptText         String
+  order              Int
+  preparationSeconds Int              @default(30)
+  recordingSeconds   Int              @default(120)
+  createdById        String?          @db.Uuid
+  createdBy          User?            @relation("QuestionAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  tasks              Task[]
+  answers            Answer[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedAt          DateTime? // retire a question without breaking historical answers
+
+  @@unique([category, order])
+  @@index([category])
+}
+
+model Task {
+  id         String    @id @default(uuid()) @db.Uuid
+  questionId String    @db.Uuid
+  question   Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  promptText String // sub-prompt answered within the question's single video
+  order      Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  @@unique([questionId, order])
+  @@index([questionId])
+}
+
+model Submission {
+  id          String           @id @default(uuid()) @db.Uuid
+  studentId   String           @db.Uuid
+  student     User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Restrict)
+  status      SubmissionStatus @default(IN_PROGRESS)
+  answers     Answer[]
+  payments    Payment[]
+  assignments ExaminerAssignment[]
+  certificate Certificate?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([studentId, status])
+  @@index([status])
+}
+
+model Answer {
+  id           String     @id @default(uuid()) @db.Uuid
+  submissionId String     @db.Uuid
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId   String     @db.Uuid
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  // Video lives in Cloudflare R2 / S3 — DB stores metadata only
+  storageKey      String
+  bucket          String?
+  mimeType        String?
+  sizeBytes       Int?
+  durationSeconds Int?
+  uploadStatus    UploadStatus @default(PENDING)
+
+  scores    Score[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([submissionId, questionId]) // one video per question per attempt
+  @@index([questionId])
+}
+
+model Payment {
+  id           String        @id @default(uuid()) @db.Uuid
+  submissionId String        @db.Uuid
+  submission   Submission    @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  amount       Int // minor units (e.g. rupiah/cents) — never float
+  currency     String        @default("IDR") @db.Char(3)
+  provider     String? // e.g. "midtrans", "xendit", "stripe"
+  providerRef  String? // external transaction id for reconciliation
+  status       PaymentStatus @default(PENDING)
+  paidAt       DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([submissionId, status])
+  @@index([status])
+}
+
+model ExaminerAssignment {
+  id           String           @id @default(uuid()) @db.Uuid
+  submissionId String           @db.Uuid
+  submission   Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  examinerId   String           @db.Uuid
+  examiner     User             @relation("ExaminerAssignments", fields: [examinerId], references: [id], onDelete: Restrict)
+  status       AssignmentStatus @default(ASSIGNED)
+  scores       Score[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // exactly 2 rows per submission — enforced transactionally at creation
+  @@unique([submissionId, examinerId])
+  @@index([examinerId, status]) // examiner's work queue
+}
+
+model Score {
+  id           String             @id @default(uuid()) @db.Uuid
+  assignmentId String             @db.Uuid
+  assignment   ExaminerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  answerId     String             @db.Uuid
+  answer       Answer             @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  value        Decimal            @db.Decimal(5, 2) // validated 0–100 at app level
+  comment      String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([assignmentId, answerId]) // an examiner scores each answer exactly once
+  @@index([answerId])
+}
+
+model Certificate {
+  id           String     @id @default(uuid()) @db.Uuid
+  submissionId String     @unique @db.Uuid // one certificate per submission
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  finalScore   Decimal    @db.Decimal(5, 2) // snapshot at issuance — immutable by design
+  storageKey   String? // generated PDF in R2/S3
+  issuedAt     DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }

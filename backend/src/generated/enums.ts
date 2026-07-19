@@ -9,10 +9,59 @@
 * 🟢 You can import this file directly.
 */
 
-export const role = {
+export const Role = {
   STUDENT: 'STUDENT',
-  ADMIN: 'ADMIN',
-  LECTURER: 'LECTURER'
+  EXAMINER: 'EXAMINER',
+  ADMIN: 'ADMIN'
 } as const
 
-export type role = (typeof role)[keyof typeof role]
+export type Role = (typeof Role)[keyof typeof Role]
+
+
+export const QuestionCategory = {
+  PART_1: 'PART_1',
+  PART_2: 'PART_2',
+  PART_3: 'PART_3'
+} as const
+
+export type QuestionCategory = (typeof QuestionCategory)[keyof typeof QuestionCategory]
+
+
+export const SubmissionStatus = {
+  IN_PROGRESS: 'IN_PROGRESS',
+  AWAITING_PAYMENT: 'AWAITING_PAYMENT',
+  PAID: 'PAID',
+  SCORING: 'SCORING',
+  SCORED: 'SCORED',
+  CERTIFIED: 'CERTIFIED'
+} as const
+
+export type SubmissionStatus = (typeof SubmissionStatus)[keyof typeof SubmissionStatus]
+
+
+export const PaymentStatus = {
+  PENDING: 'PENDING',
+  PAID: 'PAID',
+  FAILED: 'FAILED',
+  REFUNDED: 'REFUNDED'
+} as const
+
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus]
+
+
+export const AssignmentStatus = {
+  ASSIGNED: 'ASSIGNED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED'
+} as const
+
+export type AssignmentStatus = (typeof AssignmentStatus)[keyof typeof AssignmentStatus]
+
+
+export const UploadStatus = {
+  PENDING: 'PENDING',
+  UPLOADED: 'UPLOADED',
+  FAILED: 'FAILED'
+} as const
+
+export type UploadStatus = (typeof UploadStatus)[keyof typeof UploadStatus]
