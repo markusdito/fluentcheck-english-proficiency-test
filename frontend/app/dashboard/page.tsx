@@ -29,9 +29,9 @@ export default function DashboardPage() {
           window.location.href = "/login";
           return;
         }
-        const data = await api.get<User>("/auth/me");
+        const data = await api.get<{ status: string; data: { user: User } }>("/auth/me");
         if (!cancelled) {
-          setUser(data);
+          setUser(data.data.user);
         }
       } catch (err) {
         if (cancelled) return;
