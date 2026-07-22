@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermissionModal";
 
 interface User {
   id: string;
@@ -13,9 +15,11 @@ interface User {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,12 +183,12 @@ export default function DashboardPage() {
                 Start a new speaking assessment and get expert feedback.
               </p>
             </div>
-            <Link
-              href="/test/hardware-check"
+            <button
+              onClick={() => setShowPermissionModal(true)}
               className="inline-flex h-12 shrink-0 items-center justify-center rounded-lg bg-white px-8 text-sm font-medium text-[var(--primary)] shadow-sm transition-colors hover:bg-blue-50"
             >
               Start New Test
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -212,6 +216,16 @@ export default function DashboardPage() {
           </div>
         </section>
       </main>
+
+      {/* Camera & Mic Permission Modal */}
+      <CameraMicPermissionModal
+        open={showPermissionModal}
+        onClose={() => setShowPermissionModal(false)}
+        onComplete={() => {
+          setShowPermissionModal(false);
+          router.push("/test/hardware-check");
+        }}
+      />
     </div>
   );
 }
