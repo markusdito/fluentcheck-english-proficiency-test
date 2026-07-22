@@ -9,4 +9,12 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/User.js'
+export type * from './models/Question.js'
+export type * from './models/Task.js'
+export type * from './models/Submission.js'
+export type * from './models/Answer.js'
+export type * from './models/Payment.js'
+export type * from './models/ExaminerAssignment.js'
+export type * from './models/Score.js'
+export type * from './models/Certificate.js'
 export type * from './commonInputTypes.js'

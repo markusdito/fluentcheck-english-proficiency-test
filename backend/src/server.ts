@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import "dotenv/config";
 import authRoutes from "./routes/auth.routes.js";
 import { connectDB, disconnectDB } from "./config/db.js";
@@ -9,12 +10,17 @@ connectDB()
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-app.use(cors())
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+}))
 
 //Body parser middleware
 app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 
+//Cookie parser middleware (needed by verifyToken middleware)
+app.use(cookieParser())
 
 app.use("/api/auth", authRoutes);
 
