@@ -55,7 +55,7 @@ export async function login(req: Request, res: Response) {
     }
 
     //verify pw
-    const isPasswordValid = authenticateUser(password, user.password)
+    const isPasswordValid = await authenticateUser(password, user.password)
 
     if (!isPasswordValid) {
         return res.status(401).json({
@@ -71,7 +71,9 @@ export async function login(req: Request, res: Response) {
         data: {
             user: {
                 id: user.id,
-                password: user.password
+                name: user.username,
+                email: user.email,
+                createdAt: user.createdAt
             },
             token: token,
         }
@@ -87,5 +89,45 @@ export async function logout(req: Request, res: Response) {
     res.status(200).json({
         status: "success",
         message: "Logout successfully"
+    })
+}
+
+// GET /api/auth/me — returns the current authenticated user
+export async function getMe(req: Request, res: Response) {
+    // The JWT middleware should have attached user info to req
+    // req.user is set by the verifyToken middleware
+    const userId = (req as any).user?.id
+    if (!userId) {
+        return res.status(401).json({
+            error: "Not authenticated"
+        })
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            username: true,
+            email: true,
+            createdAt: true,
+        }
+    })
+
+    if (!user) {
+        return res.status(404).json({
+            error: "User not found"
+        })
+    }
+
+    res.status(200).json({
+        status: "success",
+        data: {
+            user: {
+                id: user.id,
+                name: user.username,
+                email: user.email,
+                createdAt: user.createdAt
+            }
+        }
     })
 }

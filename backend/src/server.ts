@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import "dotenv/config";
 import authRoutes from "./routes/auth.routes.js";
 import { connectDB, disconnectDB } from "./config/db.js";
@@ -18,6 +19,8 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 
+//Cookie parser middleware (needed by verifyToken middleware)
+app.use(cookieParser())
 
 app.use("/api/auth", authRoutes);
 
