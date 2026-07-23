@@ -6,7 +6,7 @@ description: >-
   hardware permission handling with real-time mic visualization.
   Use when users ask about "frontend", "Next.js", "React component",
   "login page", "dashboard", "test session", "recording flow",
-  "hardware check", "mic level", "Tailwind CSS", "useMediaDevices",
+  "mic level", "Tailwind CSS", "useMediaDevices",
   "MediaRecorder", "AuthContext", "TestContext", or any frontend feature.
 ---
 
@@ -48,11 +48,9 @@ frontend/
 │   │   ├── page.tsx               # Dashboard — stats, test history, "Start New Test" CTA
 │   │   └── loading.tsx            # Dashboard loading skeleton
 │   ├── test/
-│   │   ├── [testId]/
-│   │   │   ├── page.tsx           # Active test session — full-screen, no header
-│   │   │   └── layout.tsx         # Test layout — omits navigation header
-│   │   └── hardware-check/
-│   │       └── page.tsx           # Webcam/mic permission check
+│   │   └── [testId]/
+│   │       ├── page.tsx           # Active test session — full-screen, no header
+│   │       └── layout.tsx         # Test layout — omits navigation header
 │   ├── results/
 │   │   ├── page.tsx               # All results listing — filter, sort, score previews
 │   │   └── [resultId]/
@@ -133,7 +131,7 @@ frontend/
 | Contexts | PascalCase + `Context` suffix | `AuthContext`, `TestContext` |
 | Hooks | camelCase with `use` prefix | `useAuth`, `useCountdown` |
 | Constants | UPPER_SNAKE_CASE | `API_URL`, `MAX_RETRIES` |
-| Page files | kebab-case | `app/test/hardware-check/page.tsx` |
+| Page files | kebab-case | `app/login/page.tsx` |
 | Component files | PascalCase | `Button.tsx`, `LoginForm.tsx` |
 | Lib/hook files | camelCase | `useAuth.ts`, `api.ts` |
 
@@ -567,34 +565,21 @@ Basic links, copyright info.
 - Show validation errors inline
 - Submit with loading state
 - Link to login page
-- On success, auto-login and redirect to `/hardware-check` (first-time flow)
+- On success, auto-login and redirect to `/test/demo-test` (first-time flow)
 
 ### 4. Dashboard (`app/dashboard/page.tsx`)
 
 - Protected route (redirect to `/login` if not authenticated)
 - Welcome message with user's name
 - Stats summary card: total tests taken, average score, best score
-- "Start New Test" prominent CTA button → navigates to `/test/hardware-check`
+- "Start New Test" prominent CTA button → navigates to `/test/demo-test`
 - Test history list (paginated, scrollable)
 - Each history item shows: date, score badge (if graded) or "Pending" badge, section name
 - Loading skeleton state (`loading.tsx`)
 
-### 5. Hardware Check (`app/test/hardware-check/page.tsx`)
+### 5. Test Session (`app/test/[testId]/page.tsx`)
 
-- Large webcam preview (real-time from `getUserMedia`)
-- Mic level indicator (audio volume visualization using AnalyserNode with animated sound bars)
-- Check items with status indicators:
-  - ✅ Webcam detected / ❌ No webcam
-  - ✅ Microphone detected / ❌ No mic
-  - ✅ Permission granted / ❌ Permission denied
-- "Retry" button for each failed check
-- "Continue to Test" button (enabled only when all checks pass)
-- Explanation text about why webcam/mic are needed
-- Edge cases: handle no devices, permission denied with instructions to enable in browser settings
-
-### 6. Test Session (`app/test/[testId]/page.tsx`)
-
-Full-screen layout, no navigation header. This is the core of the app.
+Full-screen layout, no navigation header. This is the core of the app. Permissions (camera & mic) are requested directly on mount — no separate hardware check page.
 
 **Test flow state machine:**
 
@@ -619,14 +604,14 @@ INTRODUCTION → SECTION_START → PREPARATION → RECORDING → UPLOADING → N
 - Upload via `POST` with FormData
 - Retry up to 3 times with exponential backoff on network failure
 
-### 7. Results Page (`app/results/page.tsx`)
+### 6. Results Page (`app/results/page.tsx`)
 
 - Protected route
 - List of all completed tests with score previews
 - Filter/sort options (date, score, pending vs graded)
 - Click on a result → navigate to individual result detail
 
-### 8. Result Detail (`app/results/[resultId]/page.tsx`)
+### 7. Result Detail (`app/results/[resultId]/page.tsx`)
 
 - Large score display (overall score, e.g., "7.5 / 9.0")
 - Score breakdown per category: Pronunciation, Fluency, Vocabulary, Grammar
@@ -636,7 +621,7 @@ INTRODUCTION → SECTION_START → PREPARATION → RECORDING → UPLOADING → N
 - Date taken, test name metadata
 - "Back to Results" link
 
-### 9. Profile Page (`app/profile/page.tsx`)
+### 8. Profile Page (`app/profile/page.tsx`)
 
 - User information display/edit: name, email (read-only), target score
 - Change password form (current password, new password, confirm)
@@ -727,11 +712,10 @@ INTRODUCTION → SECTION_START → PREPARATION → RECORDING → UPLOADING → N
 1. **Foundation**: Types (`types/`), API layer (`lib/api.ts`), `AuthContext`, layout components (`Header`, `Footer`)
 2. **Auth**: Login and Signup pages with `LoginForm` / `SignupForm` components
 3. **Dashboard**: Stats summary, test history list, protected route logic
-4. **Hardware Check**: `DeviceCheckPanel`, `useMediaDevices` hook with real-time mic level
-5. **Test Session**: `TestContext`, all test components (`PromptDisplay`, `PrepTimer`, `WebcamPreview`, `RecordingController`, `RecordingTimer`, `SectionNavigator`, `TestCompletionScreen`), MediaRecorder integration
-6. **Results**: Results list, result detail with score visualization
-7. **Profile**: Profile page with password change
-8. **Polish**: Responsive refinements, loading states, error handling, accessibility audit
+4. **Test Session**: `TestContext`, all test components (`PromptDisplay`, `PrepTimer`, `WebcamPreview`, `RecordingController`, `RecordingTimer`, `SectionNavigator`, `TestCompletionScreen`), `useMediaDevices` hook with real-time mic level, MediaRecorder integration
+5. **Results**: Results list, result detail with score visualization
+6. **Profile**: Profile page with password change
+7. **Polish**: Responsive refinements, loading states, error handling, accessibility audit
 
 ## Boundaries
 
