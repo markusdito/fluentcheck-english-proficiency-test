@@ -31,6 +31,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   const [isMicActive, setIsMicActive] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
 
   /** Enumerate all media devices */
@@ -117,6 +118,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       });
 
       setStream(mediaStream);
+      streamRef.current = mediaStream;
       await enumerateDevices();
       startMicMonitor(mediaStream);
       setIsLoading(false);
@@ -147,14 +149,16 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     }
   }, [enumerateDevices, startMicMonitor]);
 
-  /** Stop all tracks and clean up */
+  /** Stop all tracks and clean up — uses ref to avoid recreating on stream state change */
   const stopStream = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
+    const currentStream = streamRef.current;
+    if (currentStream) {
+      currentStream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
       setStream(null);
     }
     stopMicMonitor();
-  }, [stream, stopMicMonitor]);
+  }, [stopMicMonitor]);
 
   /** Enumerate devices on mount in case permissions already granted */
   useEffect(() => {
@@ -172,15 +176,17 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     };
   }, [enumerateDevices]);
 
-  /** Cleanup on unmount */
+  /** Cleanup on unmount — uses ref to avoid recreating on stream state change */
   useEffect(() => {
     return () => {
       stopMicMonitor();
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      const currentStream = streamRef.current;
+      if (currentStream) {
+        currentStream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
     };
-  }, [stream, stopMicMonitor]);
+  }, [stopMicMonitor]);
 
   return {
     stream,

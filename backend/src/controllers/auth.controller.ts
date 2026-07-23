@@ -31,6 +31,7 @@ export async function register(req: Request, res: Response) {
                 id: user.id,
                 name: user.username,
                 email: user.email,
+                role: user.role,
                 createdAt: user.createdAt
             },
             token: token,
@@ -73,7 +74,8 @@ export async function login(req: Request, res: Response) {
                 id: user.id,
                 name: user.username,
                 email: user.email,
-                createdAt: user.createdAt
+                createdAt: user.createdAt,
+                role: user.role
             },
             token: token,
         }
@@ -109,6 +111,7 @@ export async function getMe(req: Request, res: Response) {
             id: true,
             username: true,
             email: true,
+            role: true,
             createdAt: true,
         }
     })
@@ -126,6 +129,7 @@ export async function getMe(req: Request, res: Response) {
                 id: user.id,
                 name: user.username,
                 email: user.email,
+                role: user.role,
                 createdAt: user.createdAt
             }
         }

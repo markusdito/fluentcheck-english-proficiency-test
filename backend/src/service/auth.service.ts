@@ -15,6 +15,7 @@ export async function createUser(username:string, email:string, password:string)
             id: true,
             username: true,
             email: true,
+            role: true,
             createdAt: true,
         }
     })
