@@ -42,6 +42,7 @@ const DEMO_QUESTIONS = [
 type TestPhase = "preparation" | "recording" | "stopped" | "completed";
 
 export default function TestPage({ params }: { params: Promise<{ testId: string }> }) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { testId } = use(params);
   const router = useRouter();
 
@@ -51,7 +52,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const [initError, setInitError] = useState(false);
 
   // Recording
-  const { state: recState, duration: recDuration, error: recError, startRecording, stopRecording, resetRecording } = useRecording();
+  const { duration: recDuration, error: recError, startRecording, stopRecording, resetRecording } = useRecording();
 
   // Question state
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -96,15 +97,27 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     return () => {
       stopStream();
     };
-  }, [requestPermissions, stopStream, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // When recording stops naturally
+  // Guard: stop camera stream on any navigation away from the test page.
+  // Covers browser back/forward buttons, direct URL changes, tab close, and reload.
   useEffect(() => {
-    if (recState === "stopped" && phase === "recording") {
-      setPhase("stopped");
-      recCountdown.pause();
-    }
-  }, [recState, phase, recCountdown]);
+    const handleBeforeUnload = () => {
+      stopStream();
+    };
+    const handlePopState = () => {
+      stopStream();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [stopStream]);
 
   // Start preparation countdown when question loads and stream is ready
   useEffect(() => {
@@ -149,10 +162,17 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   };
 
   const handleFinishTest = () => {
+    // Forcefully stop all media tracks synchronously
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
     stopStream();
     sessionStorage.removeItem("fluentcheck_hardware_passed");
     sessionStorage.removeItem("fluentcheck_hardware_video");
-    router.push("/dashboard");
+    // Use hard navigation to guarantee the browser releases all media resources.
+    // router.push() is a client-side transition that may not fully tear down
+    // the previous page's media stream references (e.g., video element srcObject).
+    window.location.href = "/dashboard";
   };
 
   // Loading while stream initializes
