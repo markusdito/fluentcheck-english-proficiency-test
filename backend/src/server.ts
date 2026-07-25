@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import "dotenv/config";
 import authRoutes from "./routes/auth.routes.js";
+import questionRoutes from "./routes/question.routes.js";
 import { connectDB, disconnectDB } from "./config/db.js";
 
 connectDB()
@@ -23,6 +24,7 @@ app.use(express.urlencoded({extended: true}))
 app.use(cookieParser())
 
 app.use("/api/auth", authRoutes);
+app.use("/api/questions", questionRoutes);
 
 app.get("/", (req, res) => {
     res.json({
