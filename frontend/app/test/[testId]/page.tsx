@@ -10,36 +10,10 @@ import { PromptDisplay } from "@/components/test/PromptDisplay";
 import { RecordingTimer } from "@/components/test/RecordingTimer";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
+import { fetchQuestions } from "@/lib/test-api";
+import type { Prompt } from "@/types/test";
 
-// Mock prompts for demo — 3 questions
-const DEMO_QUESTIONS = [
-  {
-    id: "q1",
-    text: "Describe a memorable vacation you have taken.",
-    task: "Talk about where you went, what you did, and why it was memorable. Include details about the location, activities, and people you were with.",
-    prepTime: 30,
-    recordingDuration: 120,
-    order: 1,
-  },
-  {
-    id: "q2",
-    text: "What are the advantages and disadvantages of living in a big city?",
-    task: "Discuss at least three advantages and three disadvantages. Give specific examples from your own experience or knowledge.",
-    prepTime: 30,
-    recordingDuration: 120,
-    order: 2,
-  },
-  {
-    id: "q3",
-    text: "If you could start a business, what would it be and why?",
-    task: "Describe the type of business, who your target customers would be, and how you would make it successful. Consider challenges you might face.",
-    prepTime: 30,
-    recordingDuration: 120,
-    order: 3,
-  },
-];
-
-type TestPhase = "preparation" | "recording" | "stopped" | "completed";
+type TestPhase = "loading" | "preparation" | "recording" | "stopped" | "completed";
 
 export default function TestPage({ params }: { params: Promise<{ testId: string }> }) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -54,14 +28,38 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Recording
   const { duration: recDuration, error: recError, startRecording, stopRecording, resetRecording } = useRecording();
 
-  // Question state
+  // Questions state — fetched from backend
+  const [questions, setQuestions] = useState<Prompt[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Question phase
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [phase, setPhase] = useState<TestPhase>("preparation");
+  const [phase, setPhase] = useState<TestPhase>("loading");
   const [completedQuestions, setCompletedQuestions] = useState<string[]>([]);
   const [showCompletion, setShowCompletion] = useState(false);
 
-  const currentQuestion = DEMO_QUESTIONS[currentQuestionIndex];
-  const totalQuestions = DEMO_QUESTIONS.length;
+  const currentQuestion = questions[currentQuestionIndex];
+  const totalQuestions = questions.length;
+
+  // Fetch questions from backend on mount
+  useEffect(() => {
+    fetchQuestions()
+      .then((data) => {
+        const mapped: Prompt[] = data.map((q) => ({
+          id: q.id,
+          text: q.promptText,
+          tasks: q.tasks.map((t) => t.promptText),
+          task: q.tasks.map((t) => t.promptText).join("\n"),
+          prepTime: q.preparationSeconds,
+          recordingDuration: q.recordingSeconds,
+          order: q.order,
+        }));
+        setQuestions(mapped);
+      })
+      .catch((err: Error) => {
+        setFetchError(err.message);
+      });
+  }, []);
 
   // Countdown for preparation
   const onPrepComplete = useCallback(() => {
@@ -119,9 +117,16 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     };
   }, [stopStream]);
 
+  // Transition from loading to preparation once questions and stream are ready
+  useEffect(() => {
+    if (questions.length > 0 && streamReady && phase === "loading") {
+      setPhase("preparation");
+    }
+  }, [questions, streamReady, phase]);
+
   // Start preparation countdown when question loads and stream is ready
   useEffect(() => {
-    if (phase === "preparation" && streamReady) {
+    if (phase === "preparation") {
       prepCountdown.start();
     }
     return () => {
@@ -129,7 +134,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       recCountdown.pause();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, streamReady, currentQuestionIndex]);
+  }, [phase, currentQuestionIndex]);
 
   const handleStartRecording = () => {
     if (stream) {
@@ -175,13 +180,36 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     window.location.href = "/dashboard";
   };
 
-  // Loading while stream initializes
-  if (!streamReady && !initError) {
+  // Loading while questions are being fetched and stream initialises
+  if (phase === "loading" && !fetchError && !initError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
         <div className="text-center">
           <Spinner size="lg" />
-          <p className="mt-4 text-zinc-400">Starting test session...</p>
+          <p className="mt-4 text-zinc-400">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error fetching questions
+  if (fetchError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
+        <div className="max-w-md text-center">
+          <h1 className="mb-4 text-2xl font-bold text-white">Failed to load test</h1>
+          <p className="mb-2 text-zinc-400">{fetchError}</p>
+          <p className="mb-6 text-sm text-zinc-500">
+            Please check your connection and try again.
+          </p>
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </Button>
         </div>
       </div>
     );
@@ -260,7 +288,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       {/* Top bar — question progress dots */}
       <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
         <div className="flex items-center gap-2">
-          {DEMO_QUESTIONS.map((q, i) => (
+          {questions.map((q, i) => (
             <div
               key={q.id}
               className={`h-2 w-8 rounded-full transition-colors ${
@@ -299,7 +327,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               questionNumber={currentQuestionIndex + 1}
               totalQuestions={totalQuestions}
               text={currentQuestion.text}
-              task={currentQuestion.task}
+              tasks={currentQuestion.tasks}
             />
 
             {/* Timer section */}
