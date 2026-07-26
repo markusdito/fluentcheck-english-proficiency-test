@@ -32,3 +32,11 @@ export async function createSubmission(): Promise<string> {
   const res = await api.post<CreateSubmissionResponse>("/submissions");
   return res.data.id;
 }
+
+/**
+ * Mark a submission as complete after all answers have been uploaded.
+ * POST /api/submissions/:id/complete
+ */
+export async function completeSubmission(submissionId: string): Promise<void> {
+  await api.post(`/submissions/${submissionId}/complete`);
+}

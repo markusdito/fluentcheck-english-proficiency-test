@@ -110,22 +110,4 @@ export async function confirmUpload(
       durationSeconds: metadata?.durationSeconds,
     },
   });
-
-  // After confirming this answer, check if all answers for the submission are now UPLOADED.
-  // If so, transition the submission from IN_PROGRESS to AWAITING_PAYMENT.
-  const [totalAnswers, uploadedAnswers] = await Promise.all([
-    prisma.answer.count({
-      where: { submissionId },
-    }),
-    prisma.answer.count({
-      where: { submissionId, uploadStatus: "UPLOADED" },
-    }),
-  ]);
-
-  if (totalAnswers > 0 && totalAnswers === uploadedAnswers) {
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: { status: "AWAITING_PAYMENT" },
-    });
-  }
 }
