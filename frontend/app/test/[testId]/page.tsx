@@ -10,7 +10,7 @@ import { PromptDisplay } from "@/components/test/PromptDisplay";
 import { RecordingTimer } from "@/components/test/RecordingTimer";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
-import { fetchQuestions, createSubmission } from "@/lib/test-api";
+import { fetchQuestions, createSubmission, completeSubmission } from "@/lib/test-api";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
 
@@ -59,11 +59,17 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const questionsRef = useRef<Prompt[]>([]);
   questionsRef.current = questions;
 
+  // Guard against React StrictMode double-mount in dev mode
+  const initCalled = useRef(false);
+
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
 
   // Fetch questions + create submission on mount
   useEffect(() => {
+    if (initCalled.current) return;
+    initCalled.current = true;
+
     const init = async () => {
       try {
         // Create submission first
@@ -164,6 +170,25 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, currentQuestionIndex]);
+
+  // Track whether we've already called completeSubmission
+  const [submissionCompleted, setSubmissionCompleted] = useState(false);
+
+  // Derive whether all uploads are done from the current upload states
+  const allUploaded = Object.values(uploadStates).every((s) => s.status === "uploaded");
+
+  // When on the completion screen and all uploads finish, mark submission as complete
+  useEffect(() => {
+    if (!showCompletion || !allUploaded || submissionCompleted) return;
+    const sid = submissionIdRef.current;
+    if (!sid) return;
+
+    setSubmissionCompleted(true);
+    completeSubmission(sid).catch((err) => {
+      console.error("Failed to complete submission:", err);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCompletion, allUploaded]);
 
   // Upload tracking — when a new question finishes recording and blob becomes available, start upload
   const [pendingUploadTrigger, setPendingUploadTrigger] = useState<{ qId: string } | null>(null);
@@ -365,25 +390,25 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Completion screen
   if (showCompletion) {
-    const pendingUploads = Object.entries(uploadStates).filter(
+    const pendingUploadsCount = Object.entries(uploadStates).filter(
       ([, s]) => {
         const st = getUploadStatus(s);
         return st === "uploading" || st === "getting-url";
       }
     ).length;
-    const failedUploads = Object.entries(uploadStates).filter(
+    const failedUploadsCount = Object.entries(uploadStates).filter(
       ([, s]) => getUploadStatus(s) === "error"
     ).length;
-    const allUploaded = pendingUploads === 0 && failedUploads === 0;
+    const allDone = allUploaded && failedUploadsCount === 0;
 
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
         <div className="w-full max-w-lg text-center">
           <div className="mb-6">
             <div className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full ${
-              allUploaded ? "bg-emerald-500/20" : "bg-amber-500/20"
+              allDone ? "bg-emerald-500/20" : "bg-amber-500/20"
             }`}>
-              {allUploaded ? (
+              {allDone ? (
                 <svg className="h-10 w-10 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
@@ -395,14 +420,14 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             <p className="mt-2 text-zinc-400">
               You have answered all {totalQuestions} questions.
             </p>
-            {!allUploaded && (
+            {!allDone && (
               <p className="mt-2 text-sm text-amber-400">
-                Uploading {pendingUploads} remaining video{pendingUploads !== 1 ? "s" : ""} in background...
+                Uploading {pendingUploadsCount} remaining video{pendingUploadsCount !== 1 ? "s" : ""} in background...
               </p>
             )}
-            {failedUploads > 0 && (
+            {failedUploadsCount > 0 && (
               <p className="mt-2 text-sm text-red-400">
-                {failedUploads} upload{failedUploads !== 1 ? "s" : ""} failed. Please retry or contact support.
+                {failedUploadsCount} upload{failedUploadsCount !== 1 ? "s" : ""} failed. Please retry or contact support.
               </p>
             )}
           </div>
@@ -424,9 +449,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               size="lg"
               fullWidth
               onClick={handleFinishTest}
-              disabled={!allUploaded}
+              disabled={!allDone}
             >
-              {allUploaded ? "Return to Dashboard" : `Uploading (${pendingUploads} remaining)...`}
+              {allDone ? "Return to Dashboard" : `Uploading (${pendingUploadsCount} remaining)...`}
             </Button>
           </div>
         </div>

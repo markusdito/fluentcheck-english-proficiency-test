@@ -1,4 +1,4 @@
-import { PutObjectCommand, PutObjectCommandInput } from "@aws-sdk/client-s3";
+import { PutObjectCommand, PutObjectCommandInput, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2Client } from "../config/r2.js";
 import { env } from "../config/env.js";
@@ -110,4 +110,55 @@ export async function confirmUpload(
       durationSeconds: metadata?.durationSeconds,
     },
   });
+}
+
+/**
+ * Generate a presigned GET URL for viewing a video.
+ * Verifies the user owns the submission before generating the URL.
+ */
+export async function createPresignedViewUrl(
+  submissionId: string,
+  questionId: string,
+  userId: string
+): Promise<string> {
+  // Verify the submission belongs to the user
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { studentId: true },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found");
+  }
+
+  if (submission.studentId !== userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // Fetch the answer record to get the storage key
+  const answer = await prisma.answer.findUnique({
+    where: {
+      submissionId_questionId: { submissionId, questionId },
+    },
+    select: { storageKey: true, bucket: true, uploadStatus: true },
+  });
+
+  if (!answer) {
+    throw new Error("Answer not found");
+  }
+
+  if (answer.uploadStatus !== "UPLOADED") {
+    throw new Error("Video not yet uploaded");
+  }
+
+  const bucket = answer.bucket ?? env.R2_BUCKET_NAME;
+
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: answer.storageKey,
+  });
+
+  // URL valid for 1 hour
+  const presignedUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 });
+  return presignedUrl;
 }

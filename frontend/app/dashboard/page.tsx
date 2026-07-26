@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-api";
 import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermissionModal";
 
 interface User {
@@ -18,6 +19,7 @@ interface User {
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -34,9 +36,13 @@ export default function DashboardPage() {
           window.location.href = "/login";
           return;
         }
-        const data = await api.get<{ status: string; data: { user: User } }>("/auth/me");
+        const [userData, dashboardData] = await Promise.all([
+          api.get<{ status: string; data: { user: User } }>("/auth/me"),
+          fetchDashboardStats(),
+        ]);
         if (!cancelled) {
-          setUser(data.data.user);
+          setUser(userData.data.user);
+          setDashboard(dashboardData);
         }
       } catch (err) {
         if (cancelled) return;
@@ -209,15 +215,21 @@ export default function DashboardPage() {
             <div className="mb-8 grid gap-4 sm:grid-cols-3">
               <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
                 <p className="text-sm font-medium text-[var(--muted)]">Total Tests</p>
-                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">0</p>
+                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
+                  {dashboard?.totalTests ?? 0}
+                </p>
               </div>
               <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
                 <p className="text-sm font-medium text-[var(--muted)]">Average Score</p>
-                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">—</p>
+                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
+                  {dashboard?.averageScore != null ? dashboard.averageScore : "—"}
+                </p>
               </div>
               <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
                 <p className="text-sm font-medium text-[var(--muted)]">Best Score</p>
-                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">—</p>
+                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
+                  {dashboard?.bestScore != null ? dashboard.bestScore : "—"}
+                </p>
               </div>
             </div>
 
@@ -244,23 +256,76 @@ export default function DashboardPage() {
               <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
                 Test History
               </h2>
-              <div className="rounded-xl border border-[var(--border)] bg-white p-10 text-center shadow-sm">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
-                  <svg className="h-7 w-7 text-[var(--muted)]" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path
-                      fillRule="evenodd"
-                      d="M4 1a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V4.414A1 1 0 0016.707 3.95l-2.657-2.657A1 1 0 0013.586 1H4zm7 1v4a1 1 0 01-1 1H6a1 1 0 01-1-1V2H4v16h12V2h-1v4a1 1 0 01-1 1H9a1 1 0 01-1-1V2H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+              {dashboard && dashboard.submissions.length > 0 ? (
+                <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
+                  <ul className="divide-y divide-[var(--border)]" role="list">
+                    {dashboard.submissions.map((sub) => (
+                      <li key={sub.id}>
+                        <Link
+                          href={`/results/${sub.id}`}
+                          className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <p className="text-sm font-medium text-[var(--foreground)]">
+                                {new Date(sub.createdAt).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </p>
+                              <p className="text-xs text-[var(--muted)]">
+                                {new Date(sub.createdAt).toLocaleTimeString("en-US", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {sub.score != null && (
+                              <span className="text-sm font-semibold text-[var(--foreground)]">
+                                {sub.score}
+                              </span>
+                            )}
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                sub.status === "CERTIFIED"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : sub.status === "SCORED"
+                                    ? "bg-blue-50 text-blue-700"
+                                    : sub.status === "IN_PROGRESS"
+                                      ? "bg-amber-50 text-amber-700"
+                                      : "bg-zinc-100 text-zinc-600"
+                              }`}
+                            >
+                              {sub.status.replace(/_/g, " ")}
+                            </span>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <h3 className="mt-4 text-base font-medium text-[var(--foreground)]">
-                  No tests yet
-                </h3>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  Start your first assessment to see your history here.
-                </p>
-              </div>
+              ) : (
+                <div className="rounded-xl border border-[var(--border)] bg-white p-10 text-center shadow-sm">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
+                    <svg className="h-7 w-7 text-[var(--muted)]" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path
+                        fillRule="evenodd"
+                        d="M4 1a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V4.414A1 1 0 0016.707 3.95l-2.657-2.657A1 1 0 0013.586 1H4zm7 1v4a1 1 0 01-1 1H6a1 1 0 01-1-1V2H4v16h12V2h-1v4a1 1 0 01-1 1H9a1 1 0 01-1-1V2H9z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="mt-4 text-base font-medium text-[var(--foreground)]">
+                    No tests yet
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    Start your first assessment to see your history here.
+                  </p>
+                </div>
+              )}
             </section>
           </>
         )}
