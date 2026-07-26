@@ -54,8 +54,6 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   blobRef.current = blob;
   const submissionIdRef = useRef<string | null>(null);
   submissionIdRef.current = submissionId;
-  const recDurationRef = useRef(0);
-  recDurationRef.current = recDuration;
   const questionsRef = useRef<Prompt[]>([]);
   questionsRef.current = questions;
 
@@ -100,22 +98,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Countdown for preparation
   const onPrepComplete = useCallback(() => {
     if (stream && streamReady && phase === "preparation") {
-      startRecording(stream);
+      startRecording(stream, currentQuestion?.recordingDuration);
       setPhase("recording");
     }
-  }, [stream, streamReady, phase, startRecording]);
+  }, [stream, streamReady, phase, startRecording, currentQuestion]);
 
   const prepCountdown = useCountdown(currentQuestion?.prepTime || 30, onPrepComplete);
 
-  // Countdown for recording max duration
-  const onRecordingTimeComplete = useCallback(() => {
-    stopRecording();
-    setPhase("stopped");
-  }, [stopRecording]);
-
-  const recCountdown = useCountdown(currentQuestion?.recordingDuration || 120, onRecordingTimeComplete);
-
-  // On mount: request camera & mic permissions directly
   useEffect(() => {
     const initStream = async () => {
       try {
@@ -166,13 +155,25 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     }
     return () => {
       prepCountdown.pause();
-      recCountdown.pause();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, currentQuestionIndex]);
 
   // Track whether we've already called completeSubmission
   const [submissionCompleted, setSubmissionCompleted] = useState(false);
+
+  // Watch for recording auto-stop (duration reached max, triggered inside useRecording)
+  useEffect(() => {
+    const currentBlob = blobRef.current;
+    if (phase === "recording" && currentBlob && currentBlob.size > 0) {
+      setPhase("stopped");
+      const qId = currentQuestion?.id;
+      if (qId) {
+        setPendingUploadTrigger({ qId, durationSeconds: recDuration });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blob, phase]);
 
   // Derive whether all uploads are done from the current upload states
   const allUploaded = Object.values(uploadStates).every((s) => s.status === "uploaded");
@@ -191,22 +192,23 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   }, [showCompletion, allUploaded]);
 
   // Upload tracking — when a new question finishes recording and blob becomes available, start upload
-  const [pendingUploadTrigger, setPendingUploadTrigger] = useState<{ qId: string } | null>(null);
+  // The durationSeconds is captured at stop-time so it isn't lost if resetRecording() zeroes the hook duration.
+  const [pendingUploadTrigger, setPendingUploadTrigger] = useState<{ qId: string; durationSeconds: number } | null>(null);
   useEffect(() => {
     if (!pendingUploadTrigger) return;
-    const { qId } = pendingUploadTrigger;
+    const { qId, durationSeconds } = pendingUploadTrigger;
     const currentBlob = blobRef.current;
     if (!currentBlob) return; // blob not ready yet — will be retriggered by state change
 
     const state = getUploadStatus(uploadStatesRef.current[qId]);
     if (state === "uploaded" || state === "uploading") return;
 
-    startUpload(qId, currentBlob);
+    startUpload(qId, currentBlob, durationSeconds);
     setPendingUploadTrigger(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingUploadTrigger]);
 
-  const startUpload = useCallback(async (questionId: string, videoBlob: Blob) => {
+  const startUpload = useCallback(async (questionId: string, videoBlob: Blob, durationSeconds: number) => {
     // If already uploading or uploaded, or no submissionId yet, skip
     if (uploadRef.current.has(questionId)) return;
 
@@ -229,7 +231,6 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         await uploadToR2(presignedUrl, videoBlob);
 
         // Step 3: Confirm upload to backend
-        const durationSeconds = recDurationRef.current;
         const sizeBytes = videoBlob.size;
         await confirmUpload(currentSubmissionId, questionId, { sizeBytes, durationSeconds });
 
@@ -255,9 +256,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     setCurrentQuestionIndex(questions.findIndex((q) => q.id === questionId));
     resetRecording();
     prepCountdown.reset();
-    recCountdown.reset();
     setPhase("preparation");
-  }, [questions, resetRecording, prepCountdown, recCountdown]);
+  }, [questions, resetRecording, prepCountdown]);
 
   const getUploadStatusText = (status: UploadStatus): string | null => {
     switch (status) {
@@ -277,22 +277,20 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const handleStartRecording = () => {
     if (stream) {
       prepCountdown.pause();
-      startRecording(stream);
-      recCountdown.start();
+      startRecording(stream, currentQuestion?.recordingDuration);
       setPhase("recording");
     }
   };
 
   const handleStopRecording = () => {
     stopRecording(); // This schedules onstop asynchronously — blob will be set after
-    recCountdown.pause();
     setPhase("stopped");
 
     // Defer upload trigger so the MediaRecorder onstop fires and blob is available
     const qId = currentQuestion?.id;
     if (qId) {
       setTimeout(() => {
-        setPendingUploadTrigger({ qId });
+        setPendingUploadTrigger({ qId, durationSeconds: recDuration });
       }, 100);
     }
   };
@@ -301,7 +299,6 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     setCompletedQuestions((prev) => [...prev, currentQuestion.id]);
     resetRecording();
     prepCountdown.reset();
-    recCountdown.reset();
 
     if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
@@ -530,7 +527,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               )}
               {phase === "recording" && (
                 <RecordingTimer
-                  seconds={recDuration}
+                  elapsed={recDuration}
                   maxSeconds={currentQuestion.recordingDuration}
                 />
               )}

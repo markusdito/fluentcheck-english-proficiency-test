@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 type RecordingState = "idle" | "preparing" | "recording" | "stopped" | "uploading" | "error";
 
@@ -9,7 +9,7 @@ interface UseRecordingReturn {
   blob: Blob | null;
   duration: number;
   error: string | null;
-  startRecording: (stream: MediaStream) => void;
+  startRecording: (stream: MediaStream, maxDuration?: number) => void;
   stopRecording: () => void;
   resetRecording: () => void;
 }
@@ -34,9 +34,24 @@ export function useRecording(): UseRecordingReturn {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const maxDurationRef = useRef<number | undefined>(undefined);
 
-  const startRecording = useCallback((stream: MediaStream) => {
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  // Auto-stop when recording reaches max duration
+  useEffect(() => {
+    if (state === "recording" && maxDurationRef.current && duration >= maxDurationRef.current) {
+      stopRecording();
+    }
+  }, [duration, state, stopRecording]);
+
+  const startRecording = useCallback((stream: MediaStream, maxDuration?: number) => {
     chunksRef.current = [];
+    maxDurationRef.current = maxDuration;
     setBlob(null);
     setDuration(0);
     setError(null);
@@ -75,19 +90,13 @@ export function useRecording(): UseRecordingReturn {
       recorder.start(1000); // timeslice: 1000ms for duration tracking
       setState("recording");
 
-      // Track duration
+      // Track duration (counts upward — remaining is derived by the consumer)
       durationRef.current = setInterval(() => {
         setDuration((prev) => prev + 1);
       }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start recording.");
       setState("error");
-    }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
     }
   }, []);
 
