@@ -1,5 +1,17 @@
 import { prisma } from "../config/db.js";
 
+export interface DashboardData {
+  totalTests: number;
+  averageScore: number | null;
+  bestScore: number | null;
+  submissions: Array<{
+    id: string;
+    status: string;
+    score: string | null;
+    createdAt: Date;
+  }>;
+}
+
 /**
  * Create a new submission for the authenticated student.
  * Status starts as IN_PROGRESS.
@@ -33,6 +45,47 @@ export async function createSubmission(userId: string): Promise<{ id: string; st
   });
 
   return submission;
+}
+
+/**
+ * Fetch dashboard stats and submission history for the authenticated student.
+ */
+export async function getStudentDashboard(userId: string): Promise<DashboardData> {
+  const submissions = await prisma.submission.findMany({
+    where: { studentId: userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      certificate: {
+        select: { finalScore: true },
+      },
+    },
+  });
+
+  const scores = submissions
+    .map((s) => s.certificate?.finalScore)
+    .filter((s): s is { toString: () => string } => s != null);
+
+  const totalTests = submissions.length;
+  const bestScore = scores.length > 0
+    ? Math.max(...scores.map((s) => Number(s)))
+    : null;
+  const averageScore = scores.length > 0
+    ? Math.round(
+        (scores.reduce((sum, s) => sum + Number(s), 0) / scores.length) * 100
+      ) / 100
+    : null;
+
+  return {
+    totalTests,
+    averageScore,
+    bestScore,
+    submissions: submissions.map((s) => ({
+      id: s.id,
+      status: s.status,
+      score: s.certificate?.finalScore?.toString() ?? null,
+      createdAt: s.createdAt,
+    })),
+  };
 }
 
 /**

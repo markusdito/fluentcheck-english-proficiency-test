@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { createSubmission, completeSubmission } from "../service/submission.service.js";
+import { createSubmission, completeSubmission, getStudentDashboard } from "../service/submission.service.js";
 
 /**
  * POST /api/submissions
@@ -50,5 +50,23 @@ export async function finishSubmission(req: Request, res: Response) {
         ? 400
         : 500;
     res.status(status).json({ error: message });
+  }
+}
+
+/**
+ * GET /api/submissions
+ * Fetch dashboard stats and submission history for the authenticated student.
+ */
+export async function getDashboard(req: Request, res: Response) {
+  try {
+    const userId = req.user!.id;
+    const data = await getStudentDashboard(userId);
+    res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    console.error("Get dashboard error:", error);
+    res.status(500).json({ error: "Failed to load dashboard data" });
   }
 }
