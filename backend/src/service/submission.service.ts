@@ -1,4 +1,5 @@
 import { prisma } from "../config/db.js";
+import { createPresignedViewUrl } from "./upload.service.js";
 
 export interface DashboardData {
   totalTests: number;
@@ -10,6 +11,23 @@ export interface DashboardData {
     score: string | null;
     createdAt: Date;
   }>;
+}
+
+export interface AnswerDetail {
+  id: string;
+  questionId: string;
+  questionCategory: string;
+  promptText: string;
+  durationSeconds: number | null;
+  videoUrl: string | null;
+}
+
+export interface SubmissionDetail {
+  id: string;
+  status: string;
+  score: string | null;
+  createdAt: Date;
+  answers: AnswerDetail[];
 }
 
 /**
@@ -85,6 +103,74 @@ export async function getStudentDashboard(userId: string): Promise<DashboardData
       score: s.certificate?.finalScore?.toString() ?? null,
       createdAt: s.createdAt,
     })),
+  };
+}
+
+/**
+ * Fetch a single submission with its answers and presigned video URLs.
+ */
+export async function getSubmissionDetail(
+  submissionId: string,
+  userId: string
+): Promise<SubmissionDetail> {
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    include: {
+      certificate: {
+        select: { finalScore: true },
+      },
+      answers: {
+        include: {
+          question: {
+            select: { category: true, promptText: true },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found");
+  }
+
+  if (submission.studentId !== userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const answers: AnswerDetail[] = await Promise.all(
+    submission.answers.map(async (answer) => {
+      let videoUrl: string | null = null;
+      if (answer.uploadStatus === "UPLOADED") {
+        try {
+          videoUrl = await createPresignedViewUrl(
+            submissionId,
+            answer.questionId,
+            userId
+          );
+        } catch {
+          // If presigned URL generation fails, return null
+          videoUrl = null;
+        }
+      }
+
+      return {
+        id: answer.id,
+        questionId: answer.questionId,
+        questionCategory: answer.question.category,
+        promptText: answer.question.promptText,
+        durationSeconds: answer.durationSeconds,
+        videoUrl,
+      };
+    })
+  );
+
+  return {
+    id: submission.id,
+    status: submission.status,
+    score: submission.certificate?.finalScore?.toString() ?? null,
+    createdAt: submission.createdAt,
+    answers,
   };
 }
 

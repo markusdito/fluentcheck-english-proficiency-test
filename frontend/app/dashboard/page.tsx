@@ -260,44 +260,49 @@ export default function DashboardPage() {
                 <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
                   <ul className="divide-y divide-[var(--border)]" role="list">
                     {dashboard.submissions.map((sub) => (
-                      <li key={sub.id} className="flex items-center justify-between px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <p className="text-sm font-medium text-[var(--foreground)]">
-                              {new Date(sub.createdAt).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </p>
-                            <p className="text-xs text-[var(--muted)]">
-                              {new Date(sub.createdAt).toLocaleTimeString("en-US", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
+                      <li key={sub.id}>
+                        <Link
+                          href={`/results/${sub.id}`}
+                          className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <p className="text-sm font-medium text-[var(--foreground)]">
+                                {new Date(sub.createdAt).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </p>
+                              <p className="text-xs text-[var(--muted)]">
+                                {new Date(sub.createdAt).toLocaleTimeString("en-US", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {sub.score != null && (
-                            <span className="text-sm font-semibold text-[var(--foreground)]">
-                              {sub.score}
+                          <div className="flex items-center gap-3">
+                            {sub.score != null && (
+                              <span className="text-sm font-semibold text-[var(--foreground)]">
+                                {sub.score}
+                              </span>
+                            )}
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                sub.status === "CERTIFIED"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : sub.status === "SCORED"
+                                    ? "bg-blue-50 text-blue-700"
+                                    : sub.status === "IN_PROGRESS"
+                                      ? "bg-amber-50 text-amber-700"
+                                      : "bg-zinc-100 text-zinc-600"
+                              }`}
+                            >
+                              {sub.status.replace(/_/g, " ")}
                             </span>
-                          )}
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              sub.status === "CERTIFIED"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : sub.status === "SCORED"
-                                  ? "bg-blue-50 text-blue-700"
-                                  : sub.status === "IN_PROGRESS"
-                                    ? "bg-amber-50 text-amber-700"
-                                    : "bg-zinc-100 text-zinc-600"
-                            }`}
-                          >
-                            {sub.status.replace(/_/g, " ")}
-                          </span>
-                        </div>
+                          </div>
+                        </Link>
                       </li>
                     ))}
                   </ul>

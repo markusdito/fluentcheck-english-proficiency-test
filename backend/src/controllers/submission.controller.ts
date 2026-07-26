@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { createSubmission, completeSubmission, getStudentDashboard } from "../service/submission.service.js";
+import { createSubmission, completeSubmission, getStudentDashboard, getSubmissionDetail } from "../service/submission.service.js";
 
 /**
  * POST /api/submissions
@@ -68,5 +68,35 @@ export async function getDashboard(req: Request, res: Response) {
   } catch (error) {
     console.error("Get dashboard error:", error);
     res.status(500).json({ error: "Failed to load dashboard data" });
+  }
+}
+
+/**
+ * GET /api/submissions/:id
+ * Fetch a single submission with answers and presigned video URLs.
+ */
+export async function getSubmissionById(req: Request, res: Response) {
+  try {
+    const submissionId = req.params.id as string;
+    const userId = req.user!.id;
+
+    if (!submissionId) {
+      res.status(400).json({ error: "Submission ID is required" });
+      return;
+    }
+
+    const data = await getSubmissionDetail(submissionId, userId);
+    res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load submission";
+    const status = message === "Submission not found" || message === "Unauthorized"
+      ? 404
+      : message === "Answer not found" || message === "Video not yet uploaded"
+        ? 404
+        : 500;
+    res.status(status).json({ error: message });
   }
 }
