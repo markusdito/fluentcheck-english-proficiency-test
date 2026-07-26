@@ -14,3 +14,21 @@ export async function fetchQuestions(): Promise<ApiQuestion[]> {
   const res = await api.get<QuestionsResponse>("/questions");
   return res.data;
 }
+
+interface CreateSubmissionResponse {
+  status: string;
+  data: {
+    id: string;
+    status: string;
+    createdAt: string;
+  };
+}
+
+/**
+ * Create a new test submission.
+ * POST /api/submissions
+ */
+export async function createSubmission(): Promise<string> {
+  const res = await api.post<CreateSubmissionResponse>("/submissions");
+  return res.data.id;
+}

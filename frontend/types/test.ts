@@ -47,3 +47,11 @@ export interface Recording {
   status: "pending" | "uploaded" | "failed";
   duration: number;
 }
+
+/** Upload status for each question's video */
+export type UploadStatus = "idle" | "getting-url" | "uploading" | "uploaded" | "error";
+
+export interface QuestionUploadState {
+  status: UploadStatus;
+  error?: string;
+}
