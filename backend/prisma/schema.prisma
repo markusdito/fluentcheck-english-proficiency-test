@@ -57,9 +57,9 @@ model User {
   email     String    @unique
   password  String // bcrypt hash — name kept for compatibility with existing auth code
   role      Role      @default(STUDENT)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime? // soft delete: account deactivated, history preserved
+  createdAt DateTime  @default(now()) @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @db.Timestamptz()
+  deletedAt DateTime? @db.Timestamptz() // soft delete: account deactivated, history preserved
 
   submissions      Submission[]
   assignments      ExaminerAssignment[]
@@ -79,9 +79,9 @@ model Question {
   createdBy          User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
   tasks              Task[]
   answers            Answer[]
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  deletedAt          DateTime? // retire a question without breaking historical answers
+  createdAt          DateTime         @default(now()) @db.Timestamptz()
+  updatedAt          DateTime         @updatedAt @db.Timestamptz()
+  deletedAt          DateTime? @db.Timestamptz() // retire a question without breaking historical answers
 
   @@unique([category, order])
   @@index([category])
@@ -93,9 +93,9 @@ model Task {
   question   Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
   promptText String // sub-prompt answered within the question's single video
   order      Int
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  createdAt  DateTime  @default(now()) @db.Timestamptz()
+  updatedAt  DateTime  @updatedAt @db.Timestamptz()
+  deletedAt  DateTime? @db.Timestamptz()
 
   @@unique([questionId, order])
   @@index([questionId])
@@ -110,8 +110,8 @@ model Submission {
   payments    Payment[]
   assignments ExaminerAssignment[]
   certificate Certificate?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  createdAt   DateTime             @default(now()) @db.Timestamptz()
+  updatedAt   DateTime             @updatedAt @db.Timestamptz()
 
   @@index([studentId, status])
   @@index([status])
@@ -133,8 +133,8 @@ model Answer {
   uploadStatus    UploadStatus @default(PENDING)
 
   scores    Score[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
 
   @@unique([submissionId, questionId]) // one video per question per attempt
   @@index([questionId])
@@ -149,9 +149,9 @@ model Payment {
   provider     String? // e.g. "midtrans", "xendit", "stripe"
   providerRef  String? // external transaction id for reconciliation
   status       PaymentStatus @default(PENDING)
-  paidAt       DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  paidAt       DateTime? @db.Timestamptz()
+  createdAt    DateTime      @default(now()) @db.Timestamptz()
+  updatedAt    DateTime      @updatedAt @db.Timestamptz()
 
   @@index([submissionId, status])
   @@index([status])
@@ -165,8 +165,8 @@ model ExaminerAssignment {
   examiner     User             @relation(fields: [examinerId], references: [id], onDelete: Restrict)
   status       AssignmentStatus @default(ASSIGNED)
   scores       Score[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt    DateTime         @default(now()) @db.Timestamptz()
+  updatedAt    DateTime         @updatedAt @db.Timestamptz()
 
   // exactly 2 rows per submission — enforced transactionally at creation
   @@unique([submissionId, examinerId])
@@ -181,8 +181,8 @@ model Score {
   answer       Answer             @relation(fields: [answerId], references: [id], onDelete: Cascade)
   value        Decimal            @db.Decimal(5, 2) // validated 0–100 at app level
   comment      String?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  createdAt    DateTime           @default(now()) @db.Timestamptz()
+  updatedAt    DateTime           @updatedAt @db.Timestamptz()
 
   @@unique([assignmentId, answerId]) // an examiner scores each answer exactly once
   @@index([answerId])
@@ -194,7 +194,7 @@ model Certificate {
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
   finalScore   Decimal    @db.Decimal(5, 2) // snapshot at issuance — immutable by design
   storageKey   String? // generated PDF in R2/S3
-  issuedAt     DateTime   @default(now())
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  issuedAt     DateTime   @default(now()) @db.Timestamptz()
+  createdAt    DateTime   @default(now()) @db.Timestamptz()
+  updatedAt    DateTime   @updatedAt @db.Timestamptz()
 }

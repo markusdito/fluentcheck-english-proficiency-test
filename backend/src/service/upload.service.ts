@@ -156,6 +156,9 @@ export async function createPresignedViewUrl(
   const command = new GetObjectCommand({
     Bucket: bucket,
     Key: answer.storageKey,
+    ResponseContentDisposition: "inline",
+    ResponseContentType: "video/webm",
+    ResponseCacheControl: "no-cache",
   });
 
   // URL valid for 1 hour

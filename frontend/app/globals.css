@@ -10,6 +10,27 @@
   --foreground: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
+
+  /* Epic Design — Depth System */
+  --depth-0-factor: 0.10;
+  --depth-1-factor: 0.25;
+  --depth-2-factor: 0.50;
+  --depth-3-factor: 0.80;
+  --depth-4-factor: 1.00;
+  --depth-5-factor: 1.20;
+  --depth-0-blur: 8px;
+  --depth-1-blur: 4px;
+  --depth-2-blur: 0px;
+  --depth-3-blur: 0px;
+  --depth-4-blur: 0px;
+  --depth-5-blur: 0px;
+  --depth-0-scale: 0.70;
+  --depth-1-scale: 0.85;
+  --depth-2-scale: 1.00;
+  --depth-3-scale: 1.05;
+  --depth-4-scale: 1.00;
+  --depth-5-scale: 1.10;
+  --scroll-y: 0;
 }
 
 @theme inline {
@@ -20,8 +41,8 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: #0a0a0f;
+  color: #ffffff;
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -31,7 +52,135 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Form autofill styling — match input background */
+/* ---- Epic Design — Depth System ---- */
+
+.scene {
+  position: relative;
+  overflow: hidden;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.layer.depth-4 {
+  pointer-events: auto;
+}
+
+/* Parallax driven by --scroll-y (set by JS) */
+.depth-0 {
+  filter: blur(var(--depth-0-blur));
+  transform: scale(var(--depth-0-scale))
+             translateY(calc(var(--scroll-y) * var(--depth-0-factor) * -1px));
+  z-index: 0;
+}
+.depth-1 {
+  filter: blur(var(--depth-1-blur));
+  transform: scale(var(--depth-1-scale))
+             translateY(calc(var(--scroll-y) * var(--depth-1-factor) * -1px));
+  z-index: 1;
+}
+.depth-2 {
+  transform: scale(var(--depth-2-scale))
+             translateY(calc(var(--scroll-y) * var(--depth-2-factor) * -1px));
+  z-index: 2;
+}
+.depth-3 {
+  transform: scale(var(--depth-3-scale))
+             translateY(calc(var(--scroll-y) * var(--depth-3-factor) * -1px));
+  z-index: 3;
+  filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5));
+}
+.depth-4 {
+  transform: translateY(calc(var(--scroll-y) * var(--depth-4-factor) * -1px));
+  z-index: 4;
+}
+.depth-5 {
+  transform: scale(var(--depth-5-scale))
+             translateY(calc(var(--scroll-y) * var(--depth-5-factor) * -1px));
+  z-index: 5;
+}
+
+.depth-1 .glow-blob {
+  mix-blend-mode: screen;
+}
+
+/* ---- Floating Animations ---- */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-18px); }
+}
+@keyframes float-rotate {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%      { transform: translateY(-12px) rotate(2deg); }
+  66%      { transform: translateY(-6px) rotate(-1deg); }
+}
+@keyframes float-orbit {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  25%  { transform: translate(8px, -12px) rotate(2deg); }
+  50%  { transform: translate(0, -20px) rotate(0deg); }
+  75%  { transform: translate(-8px, -12px) rotate(-2deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+@keyframes float-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50%      { transform: scale(1.08); opacity: 0.6; }
+}
+
+.depth-2 .float-loop { animation: float-y 10s ease-in-out infinite; }
+.depth-3 .float-loop { animation: float-orbit 8s ease-in-out infinite; }
+.depth-5 .float-loop { animation: float-rotate 6s ease-in-out infinite; }
+.float-breathe { animation: float-breathe 12s ease-in-out infinite; }
+
+/* ---- SplitText / Text animations ---- */
+.anim-text {
+  overflow: hidden;
+  line-height: 1.15;
+}
+
+.ghost-bg-text {
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.08);
+  font-weight: 900;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+}
+
+.bleed-title {
+  font-size: clamp(80px, 18vw, 220px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  position: relative;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ---- Directional Reveals ---- */
+.clip-reveal {
+  clip-path: inset(0 0 100% 0);
+}
+
+/* ---- Theatrical CSS-only entry ---- */
+@keyframes theatrical-enter {
+  from { opacity: 0; transform: translateY(60px); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0px); }
+}
+.theatrical {
+  animation: theatrical-enter linear both;
+  animation-timeline: view();
+  animation-range: entry 0% entry 40%;
+}
+
+/* ---- Form autofill ---- */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
@@ -41,27 +190,9 @@ input:-webkit-autofill:focus {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* Subtle entrance animation for auth cards */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out both;
-}
-
-/* Respect reduced motion preferences */
+/* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -69,7 +200,7 @@ input:-webkit-autofill:focus {
   }
 }
 
-/* Smooth focus ring offset for dark mode */
 :focus-visible {
-  outline: none;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }

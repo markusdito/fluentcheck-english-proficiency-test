@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { fetchSubmissionDetail, type SubmissionDetail } from "@/lib/dashboard-api";
+import VideoPlayer from "@/components/VideoPlayer";
 
 interface User {
   id: string;
@@ -199,14 +200,7 @@ export default function SubmissionResultPage({
                     {answer.promptText}
                   </p>
                   {answer.videoUrl ? (
-                    <video
-                      controls
-                      className="w-full max-h-96 rounded-lg bg-black"
-                      preload="metadata"
-                    >
-                      <source src={answer.videoUrl} type="video/webm" />
-                      Your browser does not support the video tag.
-                    </video>
+                    <VideoPlayer src={answer.videoUrl} durationSeconds={answer.durationSeconds ?? undefined} />
                   ) : (
                     <div className="rounded-lg border border-dashed border-[var(--border)] bg-zinc-50 p-8 text-center">
                       <p className="text-sm text-[var(--muted)]">
