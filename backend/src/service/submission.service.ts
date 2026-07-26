@@ -3,8 +3,23 @@ import { prisma } from "../config/db.js";
 /**
  * Create a new submission for the authenticated student.
  * Status starts as IN_PROGRESS.
+ * If there's already an IN_PROGRESS submission, returns it instead of creating a duplicate.
  */
 export async function createSubmission(userId: string): Promise<{ id: string; status: string; createdAt: Date }> {
+  // Reuse any existing IN_PROGRESS submission to prevent duplicates from race conditions
+  const existing = await prisma.submission.findFirst({
+    where: { studentId: userId, status: "IN_PROGRESS" },
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
   const submission = await prisma.submission.create({
     data: {
       studentId: userId,

@@ -59,11 +59,17 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const questionsRef = useRef<Prompt[]>([]);
   questionsRef.current = questions;
 
+  // Guard against React StrictMode double-mount in dev mode
+  const initCalled = useRef(false);
+
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
 
   // Fetch questions + create submission on mount
   useEffect(() => {
+    if (initCalled.current) return;
+    initCalled.current = true;
+
     const init = async () => {
       try {
         // Create submission first

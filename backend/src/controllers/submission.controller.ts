@@ -26,7 +26,7 @@ export async function startSubmission(req: Request, res: Response) {
  */
 export async function finishSubmission(req: Request, res: Response) {
   try {
-    const submissionId = req.params.id;
+    const submissionId = req.params.id as string;
     const userId = req.user!.id;
 
     if (!submissionId) {
