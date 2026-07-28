@@ -21,6 +21,7 @@ export function useCountdown(
   const [isComplete, setIsComplete] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onCompleteRef = useRef(onComplete);
+  const hasCompletedRef = useRef(false);
 
   onCompleteRef.current = onComplete;
 
@@ -33,21 +34,29 @@ export function useCountdown(
 
   const start = useCallback(() => {
     clearTimer();
+    setSeconds(initialSeconds);
     setIsRunning(true);
     setIsComplete(false);
+    hasCompletedRef.current = false;
     intervalRef.current = setInterval(() => {
       setSeconds((prev) => {
         if (prev <= 1) {
           clearTimer();
           setIsRunning(false);
-          setIsComplete(true);
-          onCompleteRef.current?.();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-  }, [clearTimer]);
+  }, [clearTimer, initialSeconds]);
+
+  useEffect(() => {
+    if (seconds === 0 && !isRunning && !hasCompletedRef.current) {
+      hasCompletedRef.current = true;
+      setIsComplete(true);
+      onCompleteRef.current?.();
+    }
+  }, [seconds, isRunning]);
 
   const pause = useCallback(() => {
     clearTimer();
@@ -59,6 +68,7 @@ export function useCountdown(
     setSeconds(initialSeconds);
     setIsRunning(false);
     setIsComplete(false);
+    hasCompletedRef.current = false;
   }, [clearTimer, initialSeconds]);
 
   useEffect(() => {
