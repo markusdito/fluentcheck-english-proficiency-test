@@ -81,7 +81,7 @@ export async function getStudentDashboard(userId: string): Promise<DashboardData
 
   const scores = submissions
     .map((s) => s.certificate?.finalScore)
-    .filter((s): s is { toString: () => string } => s != null);
+    .flatMap((s) => (s != null ? [Number(s)] : []));
 
   const totalTests = submissions.length;
   const bestScore = scores.length > 0

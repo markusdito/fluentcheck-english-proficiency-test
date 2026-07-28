@@ -1,4 +1,5 @@
 import { prisma } from "../config/db.js";
+import { createPresignedViewUrl } from "./upload.service.js";
 /**
  * Create a new submission for the authenticated student.
  * Status starts as IN_PROGRESS.
@@ -29,6 +30,95 @@ export async function createSubmission(userId) {
         },
     });
     return submission;
+}
+/**
+ * Fetch dashboard stats and submission history for the authenticated student.
+ */
+export async function getStudentDashboard(userId) {
+    const submissions = await prisma.submission.findMany({
+        where: { studentId: userId },
+        orderBy: { createdAt: "desc" },
+        include: {
+            certificate: {
+                select: { finalScore: true },
+            },
+        },
+    });
+    const scores = submissions
+        .map((s) => s.certificate?.finalScore)
+        .flatMap((s) => (s != null ? [Number(s)] : []));
+    const totalTests = submissions.length;
+    const bestScore = scores.length > 0
+        ? Math.max(...scores.map((s) => Number(s)))
+        : null;
+    const averageScore = scores.length > 0
+        ? Math.round((scores.reduce((sum, s) => sum + Number(s), 0) / scores.length) * 100) / 100
+        : null;
+    return {
+        totalTests,
+        averageScore,
+        bestScore,
+        submissions: submissions.map((s) => ({
+            id: s.id,
+            status: s.status,
+            score: s.certificate?.finalScore?.toString() ?? null,
+            createdAt: s.createdAt,
+        })),
+    };
+}
+/**
+ * Fetch a single submission with its answers and presigned video URLs.
+ */
+export async function getSubmissionDetail(submissionId, userId) {
+    const submission = await prisma.submission.findUnique({
+        where: { id: submissionId },
+        include: {
+            certificate: {
+                select: { finalScore: true },
+            },
+            answers: {
+                include: {
+                    question: {
+                        select: { category: true, promptText: true },
+                    },
+                },
+                orderBy: { createdAt: "asc" },
+            },
+        },
+    });
+    if (!submission) {
+        throw new Error("Submission not found");
+    }
+    if (submission.studentId !== userId) {
+        throw new Error("Unauthorized");
+    }
+    const answers = await Promise.all(submission.answers.map(async (answer) => {
+        let videoUrl = null;
+        if (answer.uploadStatus === "UPLOADED") {
+            try {
+                videoUrl = await createPresignedViewUrl(submissionId, answer.questionId, userId);
+            }
+            catch {
+                // If presigned URL generation fails, return null
+                videoUrl = null;
+            }
+        }
+        return {
+            id: answer.id,
+            questionId: answer.questionId,
+            questionCategory: answer.question.category,
+            promptText: answer.question.promptText,
+            durationSeconds: answer.durationSeconds,
+            videoUrl,
+        };
+    }));
+    return {
+        id: submission.id,
+        status: submission.status,
+        score: submission.certificate?.finalScore?.toString() ?? null,
+        createdAt: submission.createdAt,
+        answers,
+    };
 }
 /**
  * Mark a submission as complete when all answers have been uploaded.
