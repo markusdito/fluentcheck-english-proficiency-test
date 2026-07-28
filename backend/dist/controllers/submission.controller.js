@@ -1,4 +1,4 @@
-import { createSubmission, completeSubmission } from "../service/submission.service.js";
+import { createSubmission, completeSubmission, getStudentDashboard, getSubmissionDetail } from "../service/submission.service.js";
 /**
  * POST /api/submissions
  * Create a new test submission for the authenticated student.
@@ -44,6 +44,52 @@ export async function finishSubmission(req, res) {
                 message === "No answers recorded" ||
                 message.startsWith("Not all answers uploaded")
                 ? 400
+                : 500;
+        res.status(status).json({ error: message });
+    }
+}
+/**
+ * GET /api/submissions
+ * Fetch dashboard stats and submission history for the authenticated student.
+ */
+export async function getDashboard(req, res) {
+    try {
+        const userId = req.user.id;
+        const data = await getStudentDashboard(userId);
+        res.status(200).json({
+            status: "success",
+            data,
+        });
+    }
+    catch (error) {
+        console.error("Get dashboard error:", error);
+        res.status(500).json({ error: "Failed to load dashboard data" });
+    }
+}
+/**
+ * GET /api/submissions/:id
+ * Fetch a single submission with answers and presigned video URLs.
+ */
+export async function getSubmissionById(req, res) {
+    try {
+        const submissionId = req.params.id;
+        const userId = req.user.id;
+        if (!submissionId) {
+            res.status(400).json({ error: "Submission ID is required" });
+            return;
+        }
+        const data = await getSubmissionDetail(submissionId, userId);
+        res.status(200).json({
+            status: "success",
+            data,
+        });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to load submission";
+        const status = message === "Submission not found" || message === "Unauthorized"
+            ? 404
+            : message === "Answer not found" || message === "Video not yet uploaded"
+                ? 404
                 : 500;
         res.status(status).json({ error: message });
     }

@@ -62,3 +62,14 @@ export async function fetchSubmissionDetail(
   );
   return res.data;
 }
+
+/**
+ * Simulate payment for a submission.
+ * POST /api/payments/submissions/:id/pay
+ */
+export async function paySubmission(submissionId: string): Promise<void> {
+  await api.post(`/payments/submissions/${submissionId}/pay`, {
+    amount: 0,
+    provider: "simulation",
+  });
+}

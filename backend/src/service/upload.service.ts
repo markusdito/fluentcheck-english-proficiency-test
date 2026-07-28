@@ -135,7 +135,25 @@ export async function createPresignedViewUrl(
     throw new Error("Unauthorized");
   }
 
-  // Fetch the answer record to get the storage key
+  return getPresignedViewUrl(submissionId, questionId);
+}
+
+/**
+ * Generate a presigned GET URL for viewing a video.
+ * Skips the student-ownership check — caller must verify authorization.
+ * Used by the examiner service which checks ExaminerAssignment instead.
+ */
+export async function createPresignedViewUrlForAccessor(
+  submissionId: string,
+  questionId: string
+): Promise<string> {
+  return getPresignedViewUrl(submissionId, questionId);
+}
+
+async function getPresignedViewUrl(
+  submissionId: string,
+  questionId: string
+): Promise<string> {
   const answer = await prisma.answer.findUnique({
     where: {
       submissionId_questionId: { submissionId, questionId },
@@ -161,7 +179,6 @@ export async function createPresignedViewUrl(
     ResponseCacheControl: "no-cache",
   });
 
-  // URL valid for 1 hour
   const presignedUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 });
   return presignedUrl;
 }

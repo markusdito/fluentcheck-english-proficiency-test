@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-api";
+import { fetchExaminerAssignments } from "@/lib/examiner-api";
+import { AssignmentList } from "@/components/examiner/AssignmentList";
 import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermissionModal";
+import type { ExaminerAssignmentSummary } from "@/types/examiner";
 
 interface User {
   id: string;
@@ -20,6 +23,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
+  const [examinerAssignments, setExaminerAssignments] = useState<ExaminerAssignmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -40,9 +44,21 @@ export default function DashboardPage() {
           api.get<{ status: string; data: { user: User } }>("/auth/me"),
           fetchDashboardStats(),
         ]);
+
+        const user = userData.data.user;
+        let assignments: ExaminerAssignmentSummary[] = [];
+        if (user.role === "EXAMINER") {
+          try {
+            assignments = await fetchExaminerAssignments();
+          } catch {
+            // non-critical — dashboard still loads
+          }
+        }
+
         if (!cancelled) {
-          setUser(userData.data.user);
+          setUser(user);
           setDashboard(dashboardData);
+          setExaminerAssignments(assignments);
         }
       } catch (err) {
         if (cancelled) return;
@@ -180,23 +196,7 @@ export default function DashboardPage() {
               <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
                 Assigned Submissions
               </h2>
-              <div className="rounded-xl border border-[var(--border)] bg-white p-10 text-center shadow-sm">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
-                  <svg className="h-7 w-7 text-[var(--muted)]" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path
-                      fillRule="evenodd"
-                      d="M4 1a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V4.414A1 1 0 0016.707 3.95l-2.657-2.657A1 1 0 0013.586 1H4zm7 1v4a1 1 0 01-1 1H6a1 1 0 01-1-1V2H4v16h12V2h-1v4a1 1 0 01-1 1H9a1 1 0 01-1-1V2H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <h3 className="mt-4 text-base font-medium text-[var(--foreground)]">
-                  No pending submissions
-                </h3>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  Submissions assigned to you for scoring will appear here.
-                </p>
-              </div>
+              <AssignmentList assignments={examinerAssignments} />
             </section>
           </>
         ) : (

@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
-import { fetchSubmissionDetail, type SubmissionDetail } from "@/lib/dashboard-api";
+import { fetchSubmissionDetail, paySubmission, type SubmissionDetail } from "@/lib/dashboard-api";
 import VideoPlayer from "@/components/VideoPlayer";
 
 interface User {
@@ -25,6 +25,8 @@ export default function SubmissionResultPage({
   const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +64,20 @@ export default function SubmissionResultPage({
       cancelled = true;
     };
   }, [submissionId]);
+
+  const handlePay = async () => {
+    setPaying(true);
+    setPayError("");
+    try {
+      await paySubmission(submissionId);
+      const updated = await fetchSubmissionDetail(submissionId);
+      setSubmission(updated);
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "Payment failed");
+    } finally {
+      setPaying(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -164,9 +180,11 @@ export default function SubmissionResultPage({
                   ? "bg-emerald-50 text-emerald-700"
                   : submission.status === "SCORED"
                     ? "bg-blue-50 text-blue-700"
-                    : submission.status === "IN_PROGRESS"
+                    : submission.status === "AWAITING_PAYMENT"
                       ? "bg-amber-50 text-amber-700"
-                      : "bg-zinc-100 text-zinc-600"
+                      : submission.status === "IN_PROGRESS"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-zinc-100 text-zinc-600"
               }`}
             >
               {submission.status.replace(/_/g, " ")}
@@ -178,6 +196,37 @@ export default function SubmissionResultPage({
             )}
           </div>
         </div>
+
+        {/* Pay CTA for AWAITING_PAYMENT submissions */}
+        {submission.status === "AWAITING_PAYMENT" && (
+          <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-[var(--foreground)]">Payment Required</h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Your answers have been recorded. Pay to have them scored by our examiners.
+                </p>
+              </div>
+              <button
+                onClick={handlePay}
+                disabled={paying}
+                className="inline-flex h-11 shrink-0 items-center justify-center rounded-lg bg-emerald-600 px-6 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {paying ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    Processing...
+                  </span>
+                ) : (
+                  "Pay Now (Simulation)"
+                )}
+              </button>
+            </div>
+            {payError && (
+              <p className="mt-3 text-sm text-red-600">{payError}</p>
+            )}
+          </div>
+        )}
 
         {/* Video answers */}
         {submission.answers.length > 0 ? (

@@ -40,6 +40,30 @@ async function main() {
   }
 
   // ──────────────────────────────────────────────
+  // EXAMINERS
+  // ──────────────────────────────────────────────
+  const examinerData = [
+    { username: "examiner_sarah", email: "sarah@fluentcheck.com" },
+    { username: "examiner_mike", email: "mike@fluentcheck.com" },
+  ];
+
+  for (const ex of examinerData) {
+    const existing = await prisma.user.findFirst({ where: { email: ex.email } });
+    if (!existing) {
+      await prisma.user.create({
+        data: {
+          ...ex,
+          password: "$2a$10$placeholder",
+          role: "EXAMINER",
+        },
+      });
+      console.log(`👤 Created examiner user: ${ex.email}`);
+    } else {
+      console.log(`👤 Using existing examiner: ${ex.email}`);
+    }
+  }
+
+  // ──────────────────────────────────────────────
   // PART 1 — Introduction & Interview (3 questions, 5+ tasks each)
   // ──────────────────────────────────────────────
   const part1Questions = [
@@ -352,10 +376,10 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error("❌ Seed failed:", e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+    .catch((e) => {
+      console.error("❌ Seed failed:", e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
