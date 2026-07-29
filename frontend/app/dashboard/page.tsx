@@ -155,12 +155,6 @@ export default function DashboardPage() {
             FluentCheck
           </Link>
 
-          {isExaminer && (
-            <span className="rounded-md bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-              Examiner
-            </span>
-          )}
-
           <div className="flex items-center gap-4">
             <span className="hidden text-sm font-medium text-[var(--muted)] sm:block">
               {user?.name}
