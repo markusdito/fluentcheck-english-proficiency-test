@@ -206,17 +206,11 @@ export default function DashboardPage() {
             </div>
 
             {/* Stats cards */}
-            <div className="mb-8 grid gap-4 sm:grid-cols-3">
+            <div className="mb-8 grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
                 <p className="text-sm font-medium text-[var(--muted)]">Total Tests</p>
                 <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
                   {dashboard?.totalTests ?? 0}
-                </p>
-              </div>
-              <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
-                <p className="text-sm font-medium text-[var(--muted)]">Average Score</p>
-                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-                  {dashboard?.averageScore != null ? dashboard.averageScore : "—"}
                 </p>
               </div>
               <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">

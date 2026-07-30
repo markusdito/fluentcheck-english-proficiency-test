@@ -3,7 +3,6 @@ import { createPresignedViewUrl } from "./upload.service.js";
 
 export interface DashboardData {
   totalTests: number;
-  averageScore: number | null;
   bestScore: number | null;
   submissions: Array<{
     id: string;
@@ -87,15 +86,9 @@ export async function getStudentDashboard(userId: string): Promise<DashboardData
   const bestScore = scores.length > 0
     ? Math.max(...scores.map((s) => Number(s)))
     : null;
-  const averageScore = scores.length > 0
-    ? Math.round(
-        (scores.reduce((sum, s) => sum + Number(s), 0) / scores.length) * 100
-      ) / 100
-    : null;
 
   return {
     totalTests,
-    averageScore,
     bestScore,
     submissions: submissions.map((s) => ({
       id: s.id,

@@ -9,7 +9,6 @@ export interface SubmissionSummary {
 
 export interface DashboardStats {
   totalTests: number;
-  averageScore: number | null;
   bestScore: number | null;
   submissions: SubmissionSummary[];
 }
