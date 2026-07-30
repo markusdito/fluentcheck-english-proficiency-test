@@ -497,7 +497,7 @@ See component files for prop tables. Key behaviors:
 
 - Protected route (redirect to `/login` if unauthenticated)
 - Welcome message with user's name
-- Stats summary: total tests, average score, best score
+- Stats summary: total tests, best score
 - "Start New Test" CTA → `/test/demo-test`
 - Test history list (paginated, scrollable)
 - Loading skeleton (`loading.tsx`)
