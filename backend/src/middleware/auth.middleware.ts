@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
+import { AUTH_COOKIE_NAME } from "../utils/jwt.js";
 
 interface JwtPayload {
   id: string;
@@ -17,23 +18,10 @@ declare global {
   }
 }
 
-// Reads JWT from:
-//   1. Authorization: Bearer <token> header
-//   2. jwt cookie (httpOnly)
-// Attaches decoded payload to req.user
+// Reads the JWT from the httpOnly auth cookie and attaches the decoded payload
+// to req.user.
 export function verifyToken(req: Request, res: Response, next: NextFunction) {
-  let token: string | undefined;
-
-  // Try Authorization header first
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.slice(7);
-  }
-
-  // Fallback to cookie
-  if (!token && req.cookies?.jwt) {
-    token = req.cookies.jwt;
-  }
+  const token = req.cookies?.[AUTH_COOKIE_NAME] as string | undefined;
 
   if (!token) {
     res.status(401).json({ error: "Not authenticated — no token provided" });

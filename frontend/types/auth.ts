@@ -20,5 +20,4 @@ export interface SignupRequest {
 
 export interface AuthResponse {
   user: User;
-  token: string;
 }

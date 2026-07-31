@@ -77,16 +77,11 @@ export function SignupForm() {
 
     setLoading(true);
     try {
-      const response = await api.post<{ data: { user: unknown; token: string } }>("/auth/register", {
+      await api.post<{ data: { user: unknown } }>("/auth/register", {
         username: normalizeUsername(username),
         email,
         password,
       });
-      // Save token to localStorage so dashboard/auth-guard can find it
-      const token = response?.data?.token;
-      if (token) {
-        localStorage.setItem("token", token);
-      }
       router.push("/dashboard");
       router.refresh();
     } catch (err) {

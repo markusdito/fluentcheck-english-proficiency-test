@@ -20,6 +20,8 @@ export interface AnswerDetail {
   promptText: string;
   durationSeconds: number | null;
   videoUrl: string | null;
+  score: number | null;
+  comments: string[];
 }
 
 export interface SubmissionDetail {

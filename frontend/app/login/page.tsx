@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -12,20 +12,12 @@ export default function LoginPage() {
     let cancelled = false;
     (async () => {
       try {
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        if (!token) {
-          setCheckingAuth(false);
-          return;
-        }
         await api.get("/auth/me");
         if (!cancelled) {
           window.location.href = "/dashboard";
         }
-      } catch (err) {
+      } catch {
         if (cancelled) return;
-        if (err instanceof ApiError && err.statusCode === 401) {
-          localStorage.removeItem("token");
-        }
         setCheckingAuth(false);
       }
     })();

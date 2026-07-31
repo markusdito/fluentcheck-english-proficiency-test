@@ -18,19 +18,8 @@ export class ApiError extends Error {
   }
 }
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
-
 function buildHeaders(body?: unknown): Record<string, string> {
   const headers: Record<string, string> = {};
-
-  // Attach JWT if available
-  const token = getToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   // Only set Content-Type for JSON bodies, NOT for FormData
   if (body !== undefined && !(body instanceof FormData)) {
@@ -42,7 +31,6 @@ function buildHeaders(body?: unknown): Record<string, string> {
 
 async function handle401() {
   if (typeof window === "undefined") return;
-  localStorage.removeItem("token");
   // Only redirect if not already on login/signup
   const path = window.location.pathname;
   if (path !== "/login" && path !== "/signup") {

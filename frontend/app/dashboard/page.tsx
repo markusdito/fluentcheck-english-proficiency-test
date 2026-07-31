@@ -32,14 +32,6 @@ export default function DashboardPage() {
     let cancelled = false;
     (async () => {
       try {
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("token")
-            : null;
-        if (!token) {
-          window.location.href = "/login";
-          return;
-        }
         const [userData, dashboardData] = await Promise.all([
           api.get<{ status: string; data: { user: User } }>("/auth/me"),
           fetchDashboardStats(),
@@ -63,7 +55,6 @@ export default function DashboardPage() {
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.statusCode === 401) {
-          localStorage.removeItem("token");
           window.location.href = "/login";
           return;
         }
@@ -126,6 +117,14 @@ export default function DashboardPage() {
 
   const isExaminer = user?.role === "EXAMINER";
 
+  async function handleLogout() {
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      window.location.href = "/";
+    }
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50">
       {/* Skip link */}
@@ -160,10 +159,7 @@ export default function DashboardPage() {
               {user?.name}
             </span>
             <button
-              onClick={() => {
-                localStorage.removeItem("token");
-                window.location.href = "/";
-              }}
+              onClick={handleLogout}
               className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--danger)]"
             >
               Sign out
@@ -201,7 +197,7 @@ export default function DashboardPage() {
                 Welcome back{user?.name ? `, ${user.name}` : ""}
               </h1>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Here's a summary of your assessment progress.
+                Here&apos;s a summary of your assessment progress.
               </p>
             </div>
 

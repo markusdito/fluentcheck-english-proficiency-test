@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { fetchSubmissionDetail, paySubmission, type SubmissionDetail } from "@/lib/dashboard-api";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -20,7 +19,6 @@ export default function SubmissionResultPage({
   params: Promise<{ submissionId: string }>;
 }) {
   const { submissionId } = use(params);
-  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,14 +30,6 @@ export default function SubmissionResultPage({
     let cancelled = false;
     (async () => {
       try {
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("token")
-            : null;
-        if (!token) {
-          window.location.href = "/login";
-          return;
-        }
         const [userData, submissionData] = await Promise.all([
           api.get<{ status: string; data: { user: User } }>("/auth/me"),
           fetchSubmissionDetail(submissionId),
@@ -51,7 +41,6 @@ export default function SubmissionResultPage({
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.statusCode === 401) {
-          localStorage.removeItem("token");
           window.location.href = "/login";
           return;
         }
@@ -78,6 +67,14 @@ export default function SubmissionResultPage({
       setPaying(false);
     }
   };
+
+  async function handleLogout() {
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      window.location.href = "/";
+    }
+  }
 
   if (loading) {
     return (
@@ -139,10 +136,7 @@ export default function SubmissionResultPage({
               {user?.name}
             </span>
             <button
-              onClick={() => {
-                localStorage.removeItem("token");
-                window.location.href = "/";
-              }}
+              onClick={handleLogout}
               className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--danger)]"
             >
               Sign out
@@ -264,6 +258,57 @@ export default function SubmissionResultPage({
                       Duration: {answer.durationSeconds}s
                     </p>
                   )}
+
+                  <section
+                    aria-label={`Score and feedback for question ${index + 1}`}
+                    className="mt-5 rounded-lg border border-[var(--border)] bg-zinc-50 p-4"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                          Video score
+                        </h3>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">
+                          Based on examiner evaluations
+                        </p>
+                      </div>
+                      {answer.score != null ? (
+                        <p className="text-lg font-bold text-[var(--primary)]">
+                          {answer.score.toFixed(2)} / 100
+                        </p>
+                      ) : (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                          Pending
+                        </span>
+                      )}
+                    </div>
+
+                    {answer.score == null ? (
+                      <p className="mt-3 text-sm text-[var(--muted)]">
+                        This video has not been scored yet.
+                      </p>
+                    ) : answer.comments.length > 0 ? (
+                      <div className="mt-4 border-t border-[var(--border)] pt-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                          Examiner comments
+                        </h4>
+                        <ul className="mt-2 space-y-2">
+                          {answer.comments.map((comment, commentIndex) => (
+                            <li
+                              key={`${answer.id}-comment-${commentIndex}`}
+                              className="text-sm leading-6 text-[var(--foreground)]"
+                            >
+                              {comment}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-[var(--muted)]">
+                        No comments were provided for this video.
+                      </p>
+                    )}
+                  </section>
                 </div>
               </div>
             ))}
