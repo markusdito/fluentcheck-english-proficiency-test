@@ -19,6 +19,8 @@ export interface AnswerDetail {
   promptText: string;
   durationSeconds: number | null;
   videoUrl: string | null;
+  score: number | null;
+  comments: string[];
 }
 
 export interface SubmissionDetail {
@@ -75,6 +77,13 @@ export async function getStudentDashboard(userId: string): Promise<DashboardData
       certificate: {
         select: { finalScore: true },
       },
+      answers: {
+        include: {
+          scores: {
+            select: { value: true },
+          },
+        },
+      },
     },
   });
 
@@ -90,12 +99,25 @@ export async function getStudentDashboard(userId: string): Promise<DashboardData
   return {
     totalTests,
     bestScore,
-    submissions: submissions.map((s) => ({
-      id: s.id,
-      status: s.status,
-      score: s.certificate?.finalScore?.toString() ?? null,
-      createdAt: s.createdAt,
-    })),
+    submissions: submissions.map((s) => {
+      let dynamicScore: string | null = null;
+      if (!s.certificate && (s.status === "SCORED" || s.status === "CERTIFIED")) {
+        const answerScores = s.answers.flatMap((a) =>
+          a.scores.length > 0 ? [a.scores.reduce((sum, sc) => sum + Number(sc.value), 0) / a.scores.length] : []
+        );
+        if (answerScores.length === s.answers.length && answerScores.length > 0) {
+          const overall = answerScores.reduce((sum, v) => sum + v, 0) / answerScores.length;
+          dynamicScore = overall.toFixed(2);
+        }
+      }
+
+      return {
+        id: s.id,
+        status: s.status,
+        score: s.certificate?.finalScore?.toString() ?? dynamicScore,
+        createdAt: s.createdAt,
+      };
+    }),
   };
 }
 
@@ -116,6 +138,9 @@ export async function getSubmissionDetail(
         include: {
           question: {
             select: { category: true, promptText: true },
+          },
+          scores: {
+            select: { value: true, comment: true },
           },
         },
         orderBy: { createdAt: "asc" },
@@ -147,6 +172,15 @@ export async function getSubmissionDetail(
         }
       }
 
+      const scores = answer.scores.map((score) => Number(score.value));
+      const score = scores.length > 0
+        ? scores.reduce((total, value) => total + value, 0) / scores.length
+        : null;
+      const comments = answer.scores.flatMap(({ comment }) => {
+        const trimmed = comment?.trim();
+        return trimmed ? [trimmed] : [];
+      });
+
       return {
         id: answer.id,
         questionId: answer.questionId,
@@ -154,14 +188,28 @@ export async function getSubmissionDetail(
         promptText: answer.question.promptText,
         durationSeconds: answer.durationSeconds,
         videoUrl,
+        score: score == null ? null : Number(score.toFixed(2)),
+        comments,
       };
     })
   );
 
+  const scoredAnswers = answers.flatMap((answer) =>
+    answer.score == null ? [] : [answer.score]
+  );
+  const calculatedOverallScore =
+    (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
+    answers.length > 0 &&
+    scoredAnswers.length === answers.length
+      ? scoredAnswers.reduce((total, value) => total + value, 0) / scoredAnswers.length
+      : null;
+
   return {
     id: submission.id,
     status: submission.status,
-    score: submission.certificate?.finalScore?.toString() ?? null,
+    score:
+      submission.certificate?.finalScore?.toString() ??
+      (calculatedOverallScore == null ? null : calculatedOverallScore.toFixed(2)),
     createdAt: submission.createdAt,
     answers,
   };

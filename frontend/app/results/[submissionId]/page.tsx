@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { fetchSubmissionDetail, paySubmission, type SubmissionDetail } from "@/lib/dashboard-api";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -20,7 +20,8 @@ export default function SubmissionResultPage({
   params: Promise<{ submissionId: string }>;
 }) {
   const { submissionId } = use(params);
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const paymentResult = searchParams.get("payment");
   const [user, setUser] = useState<User | null>(null);
   const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,14 +33,6 @@ export default function SubmissionResultPage({
     let cancelled = false;
     (async () => {
       try {
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("token")
-            : null;
-        if (!token) {
-          window.location.href = "/login";
-          return;
-        }
         const [userData, submissionData] = await Promise.all([
           api.get<{ status: string; data: { user: User } }>("/auth/me"),
           fetchSubmissionDetail(submissionId),
@@ -51,7 +44,6 @@ export default function SubmissionResultPage({
       } catch (err) {
         if (cancelled) return;
         if (err instanceof ApiError && err.statusCode === 401) {
-          localStorage.removeItem("token");
           window.location.href = "/login";
           return;
         }
@@ -69,15 +61,50 @@ export default function SubmissionResultPage({
     setPaying(true);
     setPayError("");
     try {
-      await paySubmission(submissionId);
-      const updated = await fetchSubmissionDetail(submissionId);
-      setSubmission(updated);
+      const checkout = await paySubmission(submissionId);
+      window.location.assign(checkout.paymentUrl);
     } catch (err) {
       setPayError(err instanceof Error ? err.message : "Payment failed");
     } finally {
       setPaying(false);
     }
   };
+
+  useEffect(() => {
+    if (paymentResult !== "success" || submission?.status !== "AWAITING_PAYMENT") {
+      return;
+    }
+
+    let cancelled = false;
+    const pollPaymentStatus = async () => {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (cancelled) return;
+
+        try {
+          const updated = await fetchSubmissionDetail(submissionId);
+          if (cancelled) return;
+          setSubmission(updated);
+          if (updated.status !== "AWAITING_PAYMENT") return;
+        } catch {
+          return;
+        }
+      }
+    };
+
+    void pollPaymentStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentResult, submission?.status, submissionId]);
+
+  async function handleLogout() {
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      window.location.href = "/";
+    }
+  }
 
   if (loading) {
     return (
@@ -139,10 +166,7 @@ export default function SubmissionResultPage({
               {user?.name}
             </span>
             <button
-              onClick={() => {
-                localStorage.removeItem("token");
-                window.location.href = "/";
-              }}
+              onClick={handleLogout}
               className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--danger)]"
             >
               Sign out
@@ -198,6 +222,18 @@ export default function SubmissionResultPage({
         </div>
 
         {/* Pay CTA for AWAITING_PAYMENT submissions */}
+        {paymentResult === "success" && submission.status === "AWAITING_PAYMENT" && (
+          <div className="mb-8 rounded-xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-800">
+            Payment submitted. We are waiting for iPaymu to confirm your payment.
+          </div>
+        )}
+
+        {paymentResult === "cancelled" && submission.status === "AWAITING_PAYMENT" && (
+          <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+            Payment was cancelled. You can try again when you are ready.
+          </div>
+        )}
+
         {submission.status === "AWAITING_PAYMENT" && (
           <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -218,7 +254,7 @@ export default function SubmissionResultPage({
                     Processing...
                   </span>
                 ) : (
-                  "Pay Now (Simulation)"
+                  "Pay IDR 150,000 with iPaymu"
                 )}
               </button>
             </div>
@@ -264,6 +300,57 @@ export default function SubmissionResultPage({
                       Duration: {answer.durationSeconds}s
                     </p>
                   )}
+
+                  <section
+                    aria-label={`Score and feedback for question ${index + 1}`}
+                    className="mt-5 rounded-lg border border-[var(--border)] bg-zinc-50 p-4"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                          Video score
+                        </h3>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">
+                          Based on examiner evaluations
+                        </p>
+                      </div>
+                      {answer.score != null ? (
+                        <p className="text-lg font-bold text-[var(--primary)]">
+                          {answer.score.toFixed(2)} / 100
+                        </p>
+                      ) : (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                          Pending
+                        </span>
+                      )}
+                    </div>
+
+                    {answer.score == null ? (
+                      <p className="mt-3 text-sm text-[var(--muted)]">
+                        This video has not been scored yet.
+                      </p>
+                    ) : answer.comments.length > 0 ? (
+                      <div className="mt-4 border-t border-[var(--border)] pt-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                          Examiner comments
+                        </h4>
+                        <ul className="mt-2 space-y-2">
+                          {answer.comments.map((comment, commentIndex) => (
+                            <li
+                              key={`${answer.id}-comment-${commentIndex}`}
+                              className="text-sm leading-6 text-[var(--foreground)]"
+                            >
+                              {comment}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-[var(--muted)]">
+                        No comments were provided for this video.
+                      </p>
+                    )}
+                  </section>
                 </div>
               </div>
             ))}

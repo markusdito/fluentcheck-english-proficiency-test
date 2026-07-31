@@ -1,38 +1,28 @@
 import type { Request, Response } from "express";
-import { confirmPayment } from "../service/payment.service.js";
-
-interface PaymentBody {
-  amount?: number;
-  currency?: string;
-  provider?: string;
-  providerRef?: string;
-}
+import {
+  createIpaymuCheckout,
+  processIpaymuNotification,
+} from "../service/payment.service.js";
 
 /**
  * POST /api/payments/submissions/:id/pay
- * Confirm payment for a submission and auto-assign examiners.
+ * Create an iPaymu hosted checkout for a submission.
  */
 export async function paySubmission(req: Request, res: Response) {
   try {
     const submissionId = req.params.id as string;
     const userId = req.user!.id;
-    const body = req.body as PaymentBody;
 
     if (!submissionId) {
       res.status(400).json({ error: "Submission ID is required" });
       return;
     }
 
-    await confirmPayment(submissionId, userId, {
-      amount: body.amount,
-      currency: body.currency,
-      provider: body.provider,
-      providerRef: body.providerRef,
-    });
+    const checkout = await createIpaymuCheckout(submissionId, userId);
 
-    res.status(200).json({
+    res.status(201).json({
       status: "success",
-      message: "Payment confirmed and examiners assigned",
+      data: checkout,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to process payment";
@@ -41,11 +31,36 @@ export async function paySubmission(req: Request, res: Response) {
         ? 404
         : message === "Unauthorized"
           ? 403
-          : message === "Submission is not awaiting payment"
+          : message === "Submission is not awaiting payment" ||
+              message === "Invalid iPaymu payment configuration" ||
+              message === "iPaymu sandbox configuration is incomplete"
             ? 400
             : message === "No examiners available" || message.startsWith("No examiners available")
               ? 400
               : 500;
     res.status(status).json({ error: message });
+  }
+}
+
+/**
+ * POST /api/payments/ipaymu/notify
+ * Receive and process iPaymu payment notifications.
+ */
+export async function ipaymuNotification(req: Request, res: Response) {
+  try {
+    const signatureHeader = req.headers["x-signature"];
+    const signature = Array.isArray(signatureHeader)
+      ? signatureHeader[0]
+      : signatureHeader;
+    await processIpaymuNotification(req.body as Record<string, unknown>, signature);
+    res.status(200).json({ status: "success" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to process iPaymu notification";
+    if (message === "Invalid iPaymu callback signature") {
+      res.status(400).json({ error: message });
+      return;
+    }
+    console.error("iPaymu notification error:", error);
+    res.status(500).json({ error: message });
   }
 }
