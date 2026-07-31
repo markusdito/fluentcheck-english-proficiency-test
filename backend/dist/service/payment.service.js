@@ -214,8 +214,18 @@ export async function processIpaymuNotification(body, receivedSignature) {
         }
         return;
     }
-    const callbackAmount = Number(callbackValue(body, "total", "amount"));
-    if (callbackAmount !== payment.amount) {
+    const callbackAmount = Number(body.amount);
+    const callbackSubtotal = Number(body.sub_total);
+    const callbackTotal = Number(body.total);
+    const callbackFee = Number(body.fee);
+    const baseAmountCandidates = [
+        callbackAmount,
+        callbackSubtotal,
+        Number.isFinite(callbackTotal) && Number.isFinite(callbackFee)
+            ? callbackTotal - callbackFee
+            : Number.NaN,
+    ];
+    if (!baseAmountCandidates.some((value) => value === payment.amount)) {
         throw new Error("iPaymu payment amount mismatch");
     }
     const providerRef = String(callbackValue(body, "trx_id", "sid") ?? payment.providerRef ?? referenceId);
