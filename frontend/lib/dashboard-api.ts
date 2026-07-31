@@ -64,13 +64,22 @@ export async function fetchSubmissionDetail(
   return res.data;
 }
 
+export interface PaymentCheckout {
+  paymentUrl: string;
+  referenceId: string;
+  amount: number;
+  currency: string;
+}
+
 /**
- * Simulate payment for a submission.
+ * Create an iPaymu hosted checkout for a submission.
  * POST /api/payments/submissions/:id/pay
  */
-export async function paySubmission(submissionId: string): Promise<void> {
-  await api.post(`/payments/submissions/${submissionId}/pay`, {
-    amount: 0,
-    provider: "simulation",
-  });
+export async function paySubmission(
+  submissionId: string
+): Promise<PaymentCheckout> {
+  const res = await api.post<{ status: string; data: PaymentCheckout }>(
+    `/payments/submissions/${submissionId}/pay`
+  );
+  return res.data;
 }

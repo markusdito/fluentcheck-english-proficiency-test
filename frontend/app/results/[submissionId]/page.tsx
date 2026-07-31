@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { fetchSubmissionDetail, paySubmission, type SubmissionDetail } from "@/lib/dashboard-api";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -19,6 +20,8 @@ export default function SubmissionResultPage({
   params: Promise<{ submissionId: string }>;
 }) {
   const { submissionId } = use(params);
+  const searchParams = useSearchParams();
+  const paymentResult = searchParams.get("payment");
   const [user, setUser] = useState<User | null>(null);
   const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,15 +61,42 @@ export default function SubmissionResultPage({
     setPaying(true);
     setPayError("");
     try {
-      await paySubmission(submissionId);
-      const updated = await fetchSubmissionDetail(submissionId);
-      setSubmission(updated);
+      const checkout = await paySubmission(submissionId);
+      window.location.assign(checkout.paymentUrl);
     } catch (err) {
       setPayError(err instanceof Error ? err.message : "Payment failed");
     } finally {
       setPaying(false);
     }
   };
+
+  useEffect(() => {
+    if (paymentResult !== "success" || submission?.status !== "AWAITING_PAYMENT") {
+      return;
+    }
+
+    let cancelled = false;
+    const pollPaymentStatus = async () => {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (cancelled) return;
+
+        try {
+          const updated = await fetchSubmissionDetail(submissionId);
+          if (cancelled) return;
+          setSubmission(updated);
+          if (updated.status !== "AWAITING_PAYMENT") return;
+        } catch {
+          return;
+        }
+      }
+    };
+
+    void pollPaymentStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentResult, submission?.status, submissionId]);
 
   async function handleLogout() {
     try {
@@ -192,6 +222,18 @@ export default function SubmissionResultPage({
         </div>
 
         {/* Pay CTA for AWAITING_PAYMENT submissions */}
+        {paymentResult === "success" && submission.status === "AWAITING_PAYMENT" && (
+          <div className="mb-8 rounded-xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-800">
+            Payment submitted. We are waiting for iPaymu to confirm your payment.
+          </div>
+        )}
+
+        {paymentResult === "cancelled" && submission.status === "AWAITING_PAYMENT" && (
+          <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+            Payment was cancelled. You can try again when you are ready.
+          </div>
+        )}
+
         {submission.status === "AWAITING_PAYMENT" && (
           <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -212,7 +254,7 @@ export default function SubmissionResultPage({
                     Processing...
                   </span>
                 ) : (
-                  "Pay Now (Simulation)"
+                  "Pay IDR 150,000 with iPaymu"
                 )}
               </button>
             </div>

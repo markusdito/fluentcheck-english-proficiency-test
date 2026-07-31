@@ -42,6 +42,13 @@ export async function getStudentDashboard(userId) {
             certificate: {
                 select: { finalScore: true },
             },
+            answers: {
+                include: {
+                    scores: {
+                        select: { value: true },
+                    },
+                },
+            },
         },
     });
     const scores = submissions
@@ -51,19 +58,25 @@ export async function getStudentDashboard(userId) {
     const bestScore = scores.length > 0
         ? Math.max(...scores.map((s) => Number(s)))
         : null;
-    const averageScore = scores.length > 0
-        ? Math.round((scores.reduce((sum, s) => sum + Number(s), 0) / scores.length) * 100) / 100
-        : null;
     return {
         totalTests,
-        averageScore,
         bestScore,
-        submissions: submissions.map((s) => ({
-            id: s.id,
-            status: s.status,
-            score: s.certificate?.finalScore?.toString() ?? null,
-            createdAt: s.createdAt,
-        })),
+        submissions: submissions.map((s) => {
+            let dynamicScore = null;
+            if (!s.certificate && (s.status === "SCORED" || s.status === "CERTIFIED")) {
+                const answerScores = s.answers.flatMap((a) => a.scores.length > 0 ? [a.scores.reduce((sum, sc) => sum + Number(sc.value), 0) / a.scores.length] : []);
+                if (answerScores.length === s.answers.length && answerScores.length > 0) {
+                    const overall = answerScores.reduce((sum, v) => sum + v, 0) / answerScores.length;
+                    dynamicScore = overall.toFixed(2);
+                }
+            }
+            return {
+                id: s.id,
+                status: s.status,
+                score: s.certificate?.finalScore?.toString() ?? dynamicScore,
+                createdAt: s.createdAt,
+            };
+        }),
     };
 }
 /**
@@ -80,6 +93,9 @@ export async function getSubmissionDetail(submissionId, userId) {
                 include: {
                     question: {
                         select: { category: true, promptText: true },
+                    },
+                    scores: {
+                        select: { value: true, comment: true },
                     },
                 },
                 orderBy: { createdAt: "asc" },
@@ -103,6 +119,14 @@ export async function getSubmissionDetail(submissionId, userId) {
                 videoUrl = null;
             }
         }
+        const scores = answer.scores.map((score) => Number(score.value));
+        const score = scores.length > 0
+            ? scores.reduce((total, value) => total + value, 0) / scores.length
+            : null;
+        const comments = answer.scores.flatMap(({ comment }) => {
+            const trimmed = comment?.trim();
+            return trimmed ? [trimmed] : [];
+        });
         return {
             id: answer.id,
             questionId: answer.questionId,
@@ -110,12 +134,21 @@ export async function getSubmissionDetail(submissionId, userId) {
             promptText: answer.question.promptText,
             durationSeconds: answer.durationSeconds,
             videoUrl,
+            score: score == null ? null : Number(score.toFixed(2)),
+            comments,
         };
     }));
+    const scoredAnswers = answers.flatMap((answer) => answer.score == null ? [] : [answer.score]);
+    const calculatedOverallScore = (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
+        answers.length > 0 &&
+        scoredAnswers.length === answers.length
+        ? scoredAnswers.reduce((total, value) => total + value, 0) / scoredAnswers.length
+        : null;
     return {
         id: submission.id,
         status: submission.status,
-        score: submission.certificate?.finalScore?.toString() ?? null,
+        score: submission.certificate?.finalScore?.toString() ??
+            (calculatedOverallScore == null ? null : calculatedOverallScore.toFixed(2)),
         createdAt: submission.createdAt,
         answers,
     };

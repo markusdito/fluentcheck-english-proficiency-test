@@ -1,5 +1,5 @@
 import { prisma } from "../config/db.js";
-import { generateToken } from "../utils/jwt.js";
+import { AUTH_COOKIE_NAME, authCookieOptions, generateToken } from "../utils/jwt.js";
 import { authenticateUser, createUser } from "../service/auth.service.js";
 export async function register(req, res) {
     const { username, email, password } = req.body;
@@ -16,7 +16,7 @@ export async function register(req, res) {
     }
     //Create User
     const user = await createUser(username, email, password);
-    const token = generateToken(user.id, res);
+    generateToken(user.id, res);
     res.status(201).json({
         status: "success",
         data: {
@@ -27,7 +27,6 @@ export async function register(req, res) {
                 role: user.role,
                 createdAt: user.createdAt
             },
-            token: token,
         }
     });
 }
@@ -52,7 +51,7 @@ export async function login(req, res) {
         });
     }
     //generate JWT
-    const token = generateToken(user.id, res);
+    generateToken(user.id, res);
     res.status(201).json({
         status: "success",
         data: {
@@ -63,15 +62,16 @@ export async function login(req, res) {
                 createdAt: user.createdAt,
                 role: user.role
             },
-            token: token,
         }
     });
 }
 //removing cookie with JWT token
 export async function logout(req, res) {
-    res.cookie("jwt", "", {
-        httpOnly: true,
-        expires: new Date(0),
+    res.clearCookie(AUTH_COOKIE_NAME, {
+        httpOnly: authCookieOptions.httpOnly,
+        secure: authCookieOptions.secure,
+        sameSite: authCookieOptions.sameSite,
+        path: authCookieOptions.path,
     });
     res.status(200).json({
         status: "success",

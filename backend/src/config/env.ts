@@ -6,4 +6,11 @@ export const env = {
     R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID!,
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY!,
     R2_BUCKET_NAME: process.env.R2_BUCKET_NAME!,
+    IPAYMU_VA_NUMBER: process.env.IPAYMU_VA_NUMBER,
+    IPAYMU_API_KEY: process.env.IPAYMU_API_KEY,
+    IPAYMU_ENV: process.env.IPAYMU_ENV ?? "sandbox",
+    IPAYMU_NOTIFY_URL: process.env.IPAYMU_NOTIFY_URL,
+    IPAYMU_PAYMENT_AMOUNT: process.env.IPAYMU_PAYMENT_AMOUNT ?? "150000",
+    IPAYMU_CURRENCY: process.env.IPAYMU_CURRENCY ?? "IDR",
+    FRONTEND_URL: process.env.FRONTEND_URL ?? "http://localhost:3000",
 };
