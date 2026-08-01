@@ -8,6 +8,7 @@ import uploadRoutes from "./routes/upload.routes.js";
 import submissionRoutes from "./routes/submission.routes.js";
 import examinerRoutes from "./routes/examiner.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 import { connectDB, disconnectDB } from "./config/db.js";
 
 connectDB()
@@ -33,6 +34,7 @@ app.use("/api/uploads", uploadRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/examiner", examinerRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/", (req, res) => {
     res.json({
