@@ -45,6 +45,8 @@ export default function DashboardPage() {
           } catch {
             // non-critical — dashboard still loads
           }
+        } else if (user.role === "ADMIN") {
+            router.push("/admin")
         }
 
         if (!cancelled) {
@@ -116,6 +118,7 @@ export default function DashboardPage() {
   }
 
   const isExaminer = user?.role === "EXAMINER";
+  const isAdmin = user?.role === "ADMIN";
 
   async function handleLogout() {
     try {
@@ -155,14 +158,6 @@ export default function DashboardPage() {
           </Link>
 
           <div className="flex items-center gap-4">
-            {user?.role === "ADMIN" && (
-              <Link
-                href="/admin"
-                className="inline-flex h-9 items-center rounded-lg border border-[var(--border)] bg-white px-4 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-zinc-50"
-              >
-                Admin Panel
-              </Link>
-            )}
             <span className="hidden text-sm font-medium text-[var(--muted)] sm:block">
               {user?.name}
             </span>
