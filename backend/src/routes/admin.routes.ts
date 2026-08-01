@@ -7,6 +7,7 @@ import {
   getExaminers,
   assignSubmission,
   getStats,
+  listSubmissions,
 } from "../controllers/admin.controller.js";
 
 const router = Router();
@@ -18,6 +19,7 @@ router.get("/users", listUsers);
 router.put("/users/:id/role", updateUserRole);
 router.get("/examiners", getExaminers);
 router.post("/submissions/:id/assign", assignSubmission);
+router.get("/submissions", listSubmissions);
 router.get("/stats", getStats);
 
 export default router;

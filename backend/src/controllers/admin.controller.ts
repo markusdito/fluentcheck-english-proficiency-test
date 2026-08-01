@@ -5,8 +5,9 @@ import {
   listAdminExaminers,
   assignExaminers,
   getAdminStats,
+  listAdminSubmissions,
 } from "../service/admin.service.js";
-import { Role } from "../generated/enums.js";
+import { Role, SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 
 const ADMIN_ROLES: readonly string[] = ["STUDENT", "EXAMINER", "ADMIN"];
@@ -155,6 +156,48 @@ export async function assignSubmission(req: Request, res: Response) {
           ? 400
           : 500;
     res.status(status).json({ error: message });
+  }
+}
+
+/**
+ * GET /api/admin/submissions
+ * List submissions with pagination and optional status filtering.
+ */
+export async function listSubmissions(req: Request, res: Response) {
+  try {
+    const pageRaw = Number(req.query.page ?? 1);
+    if (!Number.isInteger(pageRaw) || pageRaw < 1) {
+      res.status(400).json({ error: "page must be a positive integer" });
+      return;
+    }
+    const page = pageRaw;
+
+    const limitRaw = Number(req.query.limit ?? 20);
+    const limit = Number.isFinite(limitRaw)
+      ? Math.min(100, Math.max(1, Math.trunc(limitRaw)))
+      : 20;
+
+    let status: SubmissionStatus | undefined;
+    if (req.query.status !== undefined) {
+      const rawStatus = String(req.query.status);
+      if (!Object.values(SubmissionStatus).includes(rawStatus as SubmissionStatus)) {
+        res.status(400).json({
+          error: `status must be one of ${Object.values(SubmissionStatus).join(", ")}`,
+        });
+        return;
+      }
+      status = rawStatus as SubmissionStatus;
+    }
+
+    const data = await listAdminSubmissions({ page, limit, status });
+
+    res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    console.error("List submissions error:", error);
+    res.status(500).json({ error: "Failed to load submissions" });
   }
 }
 

@@ -1,6 +1,6 @@
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
-import { Role } from "../generated/enums.js";
+import { Role, SubmissionStatus } from "../generated/enums.js";
 import {
   assignExaminersToSubmission,
   type AssignedExaminer,
@@ -11,6 +11,76 @@ export interface ListUsersParams {
   limit: number;
   role?: Role;
   q?: string;
+}
+
+export interface ListSubmissionsParams {
+  page: number;
+  limit: number;
+  status?: SubmissionStatus;
+}
+
+/**
+ * List non-deleted submissions with optional status filtering and pagination.
+ */
+export async function listAdminSubmissions(params: ListSubmissionsParams) {
+  const { page, limit, status } = params;
+
+  const where: Prisma.SubmissionWhereInput = {
+    ...(status ? { status } : {}),
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.submission.findMany({
+      where,
+      include: {
+        student: { select: { username: true, email: true } },
+        payments: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            status: true,
+            amount: true,
+            currency: true,
+            paidAt: true,
+          },
+        },
+        assignments: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            status: true,
+            examiner: { select: { username: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.submission.count({ where }),
+  ]);
+
+  const mapped = items.map((submission) => ({
+    id: submission.id,
+    status: submission.status,
+    studentName: submission.student.username,
+    studentEmail: submission.student.email,
+    createdAt: submission.createdAt,
+    latestPayment: submission.payments[0] ?? null,
+    assignments: submission.assignments.map((a) => ({
+      id: a.id,
+      status: a.status,
+      examinerName: a.examiner.username,
+    })),
+  }));
+
+  return {
+    items: mapped,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 }
 
 /**
@@ -187,8 +257,12 @@ export async function getAdminStats() {
     ]);
 
   return {
-    usersByRole,
-    submissionsByStatus,
+    usersByRole: Object.fromEntries(
+      usersByRole.map((r) => [r.role, r._count._all])
+    ),
+    submissionsByStatus: Object.fromEntries(
+      submissionsByStatus.map((r) => [r.status, r._count._all])
+    ),
     paidRevenue: paidRevenueAgg._sum.amount ?? 0,
     pendingGrading,
     recentSubmissions: recent,
