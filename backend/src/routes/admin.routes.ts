@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
-import { listUsers } from "../controllers/admin.controller.js";
+import { listUsers, updateUserRole, getExaminers } from "../controllers/admin.controller.js";
 
 const router = Router();
 
@@ -9,5 +9,7 @@ const router = Router();
 router.use(verifyToken, requireRole("ADMIN"));
 
 router.get("/users", listUsers);
+router.put("/users/:id/role", updateUserRole);
+router.get("/examiners", getExaminers);
 
 export default router;

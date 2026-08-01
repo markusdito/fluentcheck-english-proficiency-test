@@ -1,5 +1,9 @@
 import type { Request, Response } from "express";
-import { listAdminUsers } from "../service/admin.service.js";
+import {
+  listAdminUsers,
+  changeUserRole,
+  listAdminExaminers,
+} from "../service/admin.service.js";
 import { Role } from "../generated/enums.js";
 
 const ADMIN_ROLES: readonly string[] = ["STUDENT", "EXAMINER", "ADMIN"];
@@ -48,5 +52,65 @@ export async function listUsers(req: Request, res: Response) {
   } catch (error) {
     console.error("List users error:", error);
     res.status(500).json({ error: "Failed to load users" });
+  }
+}
+
+/**
+ * PUT /api/admin/users/:id/role
+ * Change a user's role.
+ */
+export async function updateUserRole(req: Request, res: Response) {
+  try {
+    const userId = req.params.id as string;
+    if (!userId) {
+      res.status(400).json({ error: "User ID is required" });
+      return;
+    }
+
+    const { role } = req.body as { role?: unknown };
+    if (typeof role !== "string" || !ADMIN_ROLES.includes(role)) {
+      res
+        .status(400)
+        .json({ error: "role must be one of STUDENT, EXAMINER, ADMIN" });
+      return;
+    }
+
+    if (userId === req.user!.id) {
+      res.status(400).json({ error: "Cannot change your own role" });
+      return;
+    }
+
+    const user = await changeUserRole(userId, role as Role);
+    res.status(200).json({
+      status: "success",
+      data: { user },
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update user role";
+    const status =
+      message === "User not found"
+        ? 404
+        : message === "Cannot demote the last admin"
+          ? 400
+          : 500;
+    res.status(status).json({ error: message });
+  }
+}
+
+/**
+ * GET /api/admin/examiners
+ * List examiners with their open assignment counts.
+ */
+export async function getExaminers(req: Request, res: Response) {
+  try {
+    const items = await listAdminExaminers();
+    res.status(200).json({
+      status: "success",
+      data: { items },
+    });
+  } catch (error) {
+    console.error("List examiners error:", error);
+    res.status(500).json({ error: "Failed to load examiners" });
   }
 }
