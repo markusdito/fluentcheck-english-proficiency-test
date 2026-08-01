@@ -3,8 +3,10 @@ import {
   listAdminUsers,
   changeUserRole,
   listAdminExaminers,
+  assignExaminers,
 } from "../service/admin.service.js";
 import { Role } from "../generated/enums.js";
+import { Prisma } from "../generated/client.js";
 
 const ADMIN_ROLES: readonly string[] = ["STUDENT", "EXAMINER", "ADMIN"];
 
@@ -114,3 +116,44 @@ export async function getExaminers(req: Request, res: Response) {
     res.status(500).json({ error: "Failed to load examiners" });
   }
 }
+
+/**
+ * POST /api/admin/submissions/:id/assign
+ * Assign examiners to a PAID submission.
+ */
+export async function assignSubmission(req: Request, res: Response) {
+  try {
+    const submissionId = req.params.id as string;
+    if (!submissionId) {
+      res.status(400).json({ error: "Submission ID is required" });
+      return;
+    }
+
+    const assignedExaminers = await assignExaminers(submissionId);
+    res.status(200).json({
+      status: "success",
+      data: { assignedExaminers },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      res.status(409).json({ error: "Examiners already assigned" });
+      return;
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Failed to assign examiners";
+    const status =
+      message === "Submission not found"
+        ? 404
+        : message === "Submission must be in PAID status" ||
+            message === "No examiners available" ||
+            message.startsWith("No examiners available")
+          ? 400
+          : 500;
+    res.status(status).json({ error: message });
+  }
+}
+

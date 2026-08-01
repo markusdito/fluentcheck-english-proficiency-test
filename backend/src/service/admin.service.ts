@@ -1,6 +1,10 @@
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
 import { Role } from "../generated/enums.js";
+import {
+  assignExaminersToSubmission,
+  type AssignedExaminer,
+} from "./examiner.service.js";
 
 export interface ListUsersParams {
   page: number;
@@ -117,4 +121,35 @@ export async function listAdminExaminers() {
     openAssignments: e._count.assignments,
   }));
 }
+
+/**
+ * Assign examiners to a PAID submission that has no existing assignments yet.
+ * Reuses the shared assignExaminersToSubmission service.
+ */
+export async function assignExaminers(
+  submissionId: string
+): Promise<AssignedExaminer[]> {
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { status: true },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found");
+  }
+
+  if (submission.status !== "PAID") {
+    throw new Error("Submission must be in PAID status");
+  }
+
+  const existing = await prisma.examinerAssignment.count({
+    where: { submissionId },
+  });
+  if (existing > 0) {
+    throw new Error("Examiners already assigned");
+  }
+
+  return assignExaminersToSubmission(submissionId);
+}
+
 
