@@ -4,6 +4,7 @@ import {
   changeUserRole,
   listAdminExaminers,
   assignExaminers,
+  getAdminStats,
 } from "../service/admin.service.js";
 import { Role } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
@@ -154,6 +155,23 @@ export async function assignSubmission(req: Request, res: Response) {
           ? 400
           : 500;
     res.status(status).json({ error: message });
+  }
+}
+
+/**
+ * GET /api/admin/stats
+ * Aggregate dashboard statistics.
+ */
+export async function getStats(req: Request, res: Response) {
+  try {
+    const stats = await getAdminStats();
+    res.status(200).json({
+      status: "success",
+      data: stats,
+    });
+  } catch (error) {
+    console.error("Get stats error:", error);
+    res.status(500).json({ error: "Failed to load stats" });
   }
 }
 

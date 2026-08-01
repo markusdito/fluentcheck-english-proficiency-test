@@ -152,4 +152,48 @@ export async function assignExaminers(
   return assignExaminersToSubmission(submissionId);
 }
 
+/**
+ * Aggregate dashboard stats for the admin overview.
+ */
+export async function getAdminStats() {
+  const [usersByRole, submissionsByStatus, paidRevenueAgg, pendingGrading, recent] =
+    await Promise.all([
+      prisma.user.groupBy({
+        by: ["role"],
+        where: { deletedAt: null },
+        _count: { _all: true },
+      }),
+      prisma.submission.groupBy({
+        by: ["status"],
+        _count: { _all: true },
+      }),
+      prisma.payment.aggregate({
+        where: { status: "PAID" },
+        _sum: { amount: true },
+      }),
+      prisma.submission.count({
+        where: { status: { in: ["PAID", "SCORING"] } },
+      }),
+      prisma.submission.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          student: { select: { username: true } },
+        },
+      }),
+    ]);
+
+  return {
+    usersByRole,
+    submissionsByStatus,
+    paidRevenue: paidRevenueAgg._sum.amount ?? 0,
+    pendingGrading,
+    recentSubmissions: recent,
+  };
+}
+
+
 
