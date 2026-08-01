@@ -77,6 +77,15 @@ frontend/
 │   │   ├── page.tsx              # All results listing (filter, sort)
 │   │   └── [resultId]/
 │   │       └── page.tsx          # Score breakdown + feedback
+│   ├── admin/
+│   │   ├── layout.tsx            # Client — gates non-admins → redirect /dashboard
+│   │   ├── page.tsx              # Overview — dashboard stats
+│   │   ├── users/
+│   │   │   └── page.tsx          # User list + role management
+│   │   ├── submissions/
+│   │   │   └── page.tsx          # Submission list + examiner assignment
+│   │   └── questions/
+│   │       └── page.tsx          # Question/task CRUD
 │   └── profile/
 │       └── page.tsx              # Edit info, change password, stats
 ├── components/
@@ -110,8 +119,10 @@ frontend/
 │   │   ├── ScoreBreakdown.tsx
 │   │   ├── FeedbackSection.tsx
 │   │   └── ResultsListCard.tsx
-│   └── hardware/
-│       └── CameraMicPermissionModal.tsx
+│   ├── hardware/
+│   │   └── CameraMicPermissionModal.tsx
+│   └── admin/
+│       └── StatusBadge.tsx       # Admin status pill (submission/payment/assignment)
 ├── contexts/
 │   ├── AuthContext.tsx           # JWT auth state — login/logout/signup
 │   └── TestContext.tsx           # Active test session state
@@ -128,11 +139,13 @@ frontend/
 │   ├── test-api.ts               # Test/session API calls
 │   ├── upload-api.ts             # Video upload API calls
 │   ├── dashboard-api.ts          # Dashboard/stats API calls
-│   └── results-api.ts            # Results/feedback API calls
+│   ├── results-api.ts            # Results/feedback API calls
+│   └── admin-api.ts              # Admin API calls (users, submissions, questions, stats)
 ├── types/
 │   ├── auth.ts                   # User, LoginRequest, SignupRequest, AuthResponse
 │   ├── test.ts                   # TestSession, TestSection, Prompt, Recording
 │   ├── results.ts                # TestResult, ScoreBreakdown, Feedback
+│   ├── admin.ts                  # AdminUser, AdminSubmission, AdminStats, AdminQuestion, etc.
 │   └── api.ts                    # ApiResponse<T>, ApiError
 ├── public/                       # Static assets
 └── docs/
@@ -269,6 +282,83 @@ export class ApiError extends Error {
 }
 ```
 
+### `types/admin.ts`
+
+Defines the shapes returned by the admin pages (`lib/admin-api.ts`):
+
+```typescript
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface AdminExaminer {
+  id: string;
+  username: string;
+  email: string;
+  openAssignments: number;
+}
+
+export interface AdminSubmission {
+  id: string;
+  status: string;
+  studentName: string;
+  studentEmail: string;
+  createdAt: string;
+  latestPayment: AdminPaymentSummary | null;
+  assignments: AdminAssignmentSummary[];
+}
+
+export interface AdminPaymentSummary {
+  status: string;
+  amount: number;
+  currency: string;
+  paidAt: string | null;
+}
+
+export interface AdminAssignmentSummary {
+  id: string;
+  status: string;
+  examinerName: string;
+}
+
+export interface AdminStats {
+  usersByRole: Record<string, number>;
+  submissionsByStatus: Record<string, number>;
+  paidRevenue: number;
+  pendingGrading: number;
+  recentSubmissions: Array<{ id: string; status: string; createdAt: string; studentName?: string }>;
+}
+
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface AdminQuestion {
+  id: string;
+  category: string;
+  promptText: string;
+  order: number;
+  preparationSeconds: number;
+  recordingSeconds: number;
+  createdAt: string;
+  tasks: AdminTask[];
+}
+
+export interface AdminTask {
+  id: string;
+  promptText: string;
+  order: number;
+}
+```
+
 ---
 
 ## 5. API Layer (`lib/`)
@@ -310,7 +400,24 @@ POST   /api/sessions/:sessionId/sections/:sectionId/prompts/:promptId/recordings
 
 GET    /api/results                                → List user's results
 GET    /api/results/:resultId                      → Get result detail with scores/feedback
+
+# Admin (lib/admin-api.ts — all via credentialed fetch, cookie auth)
+GET    /api/admin/users                            → Paginated<AdminUser> (page, limit, role, q)
+PUT    /api/admin/users/:id/role                   → Update user role ({ role })
+GET    /api/admin/examiners                        → AdminExaminer[]
+GET    /api/admin/submissions                      → Paginated<AdminSubmission> (page, limit, status)
+POST   /api/admin/submissions/:id/assign           → Assign examiners to a PAID submission
+GET    /api/admin/stats                            → AdminStats
+GET    /api/questions                              → AdminQuestion[] (public list, order=2) — used for the Questions page
+POST   /api/questions                              → Create question (admin)
+PUT    /api/questions/:id                          → Update question (admin)
+DELETE /api/questions/:id                          → Retire question (soft delete, admin)
+POST   /api/questions/:id/tasks                    → Create task (admin)
+PUT    /api/questions/:id/tasks/:taskId            → Update task (admin)
+DELETE /api/questions/:id/tasks/:taskId            → Delete task (admin)
 ```
+
+`lib/admin-api.ts` wraps the base `api` client and exposes `fetchAdminUsers`, `updateUserRole`, `fetchAdminExaminers`, `fetchAdminSubmissions`, `assignExaminers`, `fetchAdminStats`, `fetchAdminQuestions`, `createQuestion`, `updateQuestion`, `deleteQuestion`, `createTask`, `updateTask`, `deleteTask`. All requests go through `credentials: "include"` (httpOnly cookie auth); abort-on-non-2xx and 401→login are handled by the base wrapper.
 
 ---
 
@@ -502,6 +609,7 @@ See component files for prop tables. Key behaviors:
 - Test history list (paginated, scrollable)
 - Loading skeleton (`loading.tsx`)
 - Empty state: "No tests yet. Start your first assessment!"
+- Shows an **"Admin Panel"** link (`href="/admin"`) in the header for users whose `role === "ADMIN"`
 
 ### 5. Test Session (`app/test/[testId]/page.tsx`)
 
@@ -528,6 +636,19 @@ See [Section 10: Test Session State Machine](#10-test-session-state-machine).
 - Change password form (current, new, confirm)
 - Account stats: total tests, join date, improvement trend
 - Save with confirmation toast
+
+### 9. Admin Section (`app/admin/`)
+
+Admin management area, reachable via the "Admin Panel" link on the dashboard (shown only to `ADMIN` users). All admin pages are **client components**.
+
+- **`app/admin/layout.tsx`** — a client layout that acts as the admin gate: on mount it calls `GET /api/auth/me` and, if the user's `role !== "ADMIN"` (or the fetch fails), it `router.replace("/dashboard")`. Renders the admin top nav (Overview, Users, Submissions, Questions), the signed-in admin's name, and a sign-out button while children render beneath.
+- **`app/admin/page.tsx`** (Overview) — loads stats via `fetchAdminStats()` and renders: users-by-role counts, submissions-by-status counts, paid revenue (formatted in IDR), pending-grading count, and the 5 most recent submissions (each with a `StatusBadge` and a "View all" link to `/admin/submissions`).
+- **`app/admin/users/page.tsx`** — calls `fetchAdminUsers({ page, role, q })` with search (username/email) and role filters plus pagination. Each row has a role `<select>`; changing it calls `updateUserRole(user.id, role)`. Selecting your own role is disabled (the backend also rejects self-changes); backend errors (e.g. `Cannot demote the last admin`) are surfaced inline.
+- **`app/admin/submissions/page.tsx`** — calls `fetchAdminSubmissions({ page, limit: 10, status })` with status-filter chips and pagination. For `PAID` submissions with no assignments yet it shows an **"Assign examiners"** button that calls `assignExaminers(submission.id)` and then re-fetches to show the assigned examiner names. Payment and assignment statuses are rendered via `StatusBadge`.
+- **`app/admin/questions/page.tsx`** — loads questions via `fetchAdminQuestions()` (the public `GET /api/questions`, `order=2`), grouped by category. Supports creating questions (`createQuestion`), editing scalar fields (`updateQuestion`), retiring (soft-delete via `deleteQuestion`), and managing per-question tasks (`createTask`/`updateTask`/`deleteTask`). Duplicate-order `409` errors are shown inline.
+- **`components/admin/StatusBadge.tsx`** — a small presentational pill showing a status label with one of four tones (`amber`/`blue`/`emerald`/`zinc`) used for submission, payment, and assignment statuses across admin pages.
+
+All admin pages fetch through **`lib/admin-api.ts`** against the `/api/admin` endpoints (plus the shared `/api/questions` for the Questions page). The base `api` wrapper supplies credentialed (cookie) requests, JSON serialization, `ApiError` on non-2xx, and automatic redirect to `/login` on 401.
 
 ---
 
@@ -713,6 +834,7 @@ graph TD
         RESULTS[Results /results]
         DETAIL[Result Detail /results/[id]]
         PROFILE[Profile /profile]
+        ADMIN[Admin /admin + /admin/users, /submissions, /questions]
     end
 
     subgraph "Components"
@@ -744,6 +866,7 @@ graph TD
     RESULTS --> FEATURE
     DETAIL --> FEATURE
     PROFILE --> FEATURE
+    ADMIN --> FEATURE
 
     FEATURE --> HOOKS
     FEATURE --> UI

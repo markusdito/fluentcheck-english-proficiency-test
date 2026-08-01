@@ -44,7 +44,7 @@ FluentCheck is an English proficiency assessment platform. Students record video
 | Language | TypeScript | 6.x | Strict mode, `NodeNext` module resolution |
 | ORM | Prisma | 7.8.0 | Custom generator outputs to `src/generated/` |
 | Database | PostgreSQL | 15+ | Via `@prisma/adapter-pg` driver adapter |
-| Auth | JWT (jsonwebtoken) + bcryptjs | — | httpOnly cookie + Bearer header |
+| Auth | JWT (jsonwebtoken) + bcryptjs | — | httpOnly cookie only (no Bearer header) |
 | Storage | Cloudflare R2 (S3-compatible) | — | Presigned URLs via `@aws-sdk/*` |
 | Validation | Manual (controller-level) | — | Consider Zod for future hardening |
 
@@ -76,12 +76,14 @@ backend/
 │   │   ├── question.controller.ts
 │   │   ├── submission.controller.ts
 │   │   ├── upload.controller.ts
+│   │   ├── admin.controller.ts
 │   │   └── ...
 │   ├── service/               # Business logic — thick, domain rules, DB queries
 │   │   ├── auth.service.ts
 │   │   ├── question.service.ts
 │   │   ├── submission.service.ts
-│   │   └── upload.service.ts
+│   │   ├── upload.service.ts
+│   │   └── admin.service.ts
 │   ├── routes/                # Express Router instances
 │   │   ├── auth.routes.ts
 │   │   ├── question.routes.ts
@@ -237,25 +239,32 @@ erDiagram
 ### Architecture
 
 ```
-POST /api/auth/register → hash password → create User → sign JWT → set cookie + return token
-POST /api/auth/login    → verify password → sign JWT → set cookie + return token
+POST /api/auth/register → hash password → create User → sign JWT → set httpOnly cookie
+POST /api/auth/login    → verify password → sign JWT → set httpOnly cookie
 GET  /api/auth/me       → verifyToken middleware → fetch user by ID → return user (no password)
+POST /api/auth/logout   → clear httpOnly cookie
 ```
+
+> **Auth delivery is cookie-only.** The JWT is delivered exclusively via an httpOnly cookie named `jwt` (set by `generateToken` in `src/utils/jwt.ts`, with `httpOnly`, `secure` in production, `sameSite: "lax"`, 7-day `maxAge`). There is **no Bearer header** and **no `token` field in the response body** — the API is consumed by the browser via credentialed `fetch` (`credentials: "include"`).
 
 ### JWT Design
 
 | Property | Value |
 |----------|-------|
 | Payload | `{ id: userId }` — minimal |
-| Expiry | 7 days |
-| Delivery | (1) httpOnly cookie `jwt` + (2) response body `token` field |
+| Expiry | Cookie `maxAge` 7 days; token expiry from `env.JWT_EXPIRES_IN` |
+| Delivery | httpOnly cookie `jwt` (no Bearer header, no body token) |
 | Signing | `jsonwebtoken.sign()` with `env.JWT_SECRET` |
 
 ### Token Verification (Middleware)
 
-1. Check `Authorization: Bearer <token>` header
-2. Fall back to `req.cookies.jwt` (httpOnly)
-3. Return 401 if neither is valid
+`verifyToken` (`src/middleware/auth.middleware.ts`) reads the token **only** from the httpOnly cookie:
+
+1. Read `req.cookies.jwt` (cookie name `AUTH_COOKIE_NAME = "jwt"`)
+2. If no cookie → 401 `{ "error": "Not authenticated — no token provided" }`
+3. Verify signature/expiry with `env.JWT_SECRET`
+4. Invalid/expired → 401 `{ "error": "Invalid or expired token" }`
+5. On success, attach the decoded payload to `req.user = { id }` and call `next()`
 
 ### Authorization (Role-Based)
 
@@ -291,11 +300,14 @@ router.get("/admin/users", verifyToken, requireRole("ADMIN"), listUsers);
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/` | Public | List active questions grouped by category |
+| GET | `/` | Public | List active questions, filtered to `order = 2` across all categories (`retrieveQuestions(2)`) with their tasks |
 | GET | `/:id` | Public | Single question with tasks |
-| POST | `/` | Admin | Create question |
-| PUT | `/:id` | Admin | Update question |
-| DELETE | `/:id` | Admin | Soft delete (set `deletedAt`) |
+| POST | `/` | Admin | Create question with optional nested tasks (201); validation 400; duplicate `[category, order]` → 409 `"A question or task with the same order already exists"` |
+| PUT | `/:id` | Admin | Update question scalar fields (category, promptText, order, preparationSeconds, recordingSeconds) |
+| DELETE | `/:id` | Admin | Soft delete (set `deletedAt`) — never hard delete |
+| POST | `/:id/tasks` | Admin | Create task under a question (201); duplicate `[questionId, order]` → 409; missing question → 404 |
+| PUT | `/:id/tasks/:taskId` | Admin | Update task (promptText, order); missing task → 404 |
+| DELETE | `/:id/tasks/:taskId` | Admin | Soft delete task (set `deletedAt`); missing task → 404 |
 
 ### Submissions (`/api/submissions`)
 
@@ -340,14 +352,44 @@ router.get("/admin/users", verifyToken, requireRole("ADMIN"), listUsers);
 
 ### Admin (`/api/admin`)
 
+All admin routes are mounted at `/api/admin` (`src/routes/admin.routes.ts`) and are protected by `verifyToken` + `requireRole("ADMIN")` (applied router-wide via `router.use`).
+
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/users` | Admin | List users (paginated) |
+| GET | `/users` | Admin | List users (paginated, filtered) |
 | PUT | `/users/:id/role` | Admin | Change user role |
 | GET | `/submissions` | Admin | List submissions (filterable) |
 | POST | `/submissions/:id/assign` | Admin | Assign 2 examiners |
 | GET | `/examiners` | Admin | List available examiners |
 | GET | `/stats` | Admin | Dashboard statistics |
+
+> **Note:** The frontend also reads admin question data through the **public** `GET /api/questions` (which returns questions at `order = 2`) and drives question/task creation via the admin-protected `POST/PUT/DELETE /api/questions...` endpoints above.
+
+#### Admin endpoint details
+
+**`GET /api/admin/users`** → `{ status: "success", data: { items, total, page, limit, totalPages } }`
+- Query: `page` (default 1; must be integer ≥ 1 else `400 { error: "page must be a positive integer" }`), `limit` (default 20, clamped 1–100), `role` (one of `STUDENT | EXAMINER | ADMIN` else `400 { error: "role must be one of STUDENT, EXAMINER, ADMIN" }`), `q` (case-insensitive substring search on `username`/`email`)
+- `items` exclude deleted users and never include the password field
+
+**`PUT /api/admin/users/:id/role`** — body `{ role }` → `{ status: "success", data: { user } }`
+- Bad role → `400 "role must be one of STUDENT, EXAMINER, ADMIN"`
+- Changing your own role → `400 "Cannot change your own role"`
+- Demoting the last ADMIN → `400 "Cannot demote the last admin"`
+- Unknown user → `404 "User not found"`
+
+**`GET /api/admin/examiners`** → `{ status: "success", data: { items: [{ id, username, email, openAssignments }] } }`
+- Lists non-deleted `EXAMINER` users with their open (non-`COMPLETED`) assignment count
+
+**`GET /api/admin/submissions`** → `{ status: "success", data: { items, total, page, limit, totalPages } }`
+- Query: `page`/`limit` (as above), `status` (one of `SubmissionStatus` else `400` with the valid list in the message)
+- `items` shape: `[{ id, status, studentName, studentEmail, createdAt, latestPayment, assignments: [{ id, status, examinerName }] }]`
+
+**`POST /api/admin/submissions/:id/assign`** → `{ status: "success", data: { assignedExaminers } }`
+- Reuses `assignExaminersToSubmission` (`src/service/examiner.service.ts`)
+- Missing submission → `404 "Submission not found"`; not PAID → `400 "Submission must be in PAID status"`; already assigned → `409 { error: "Examiners already assigned" }`; no examiners → `400`
+
+**`GET /api/admin/stats`** → `{ status: "success", data }`
+- `data`: `{ usersByRole: Record<Role, number>, submissionsByStatus: Record<SubmissionStatus, number>, paidRevenue: number, pendingGrading: number, recentSubmissions: [{ id, status, createdAt, student: { username } }] }`
 
 ### Health Check
 
@@ -531,7 +573,7 @@ export function verifyWebhookSignature(req: Request, res: Response, next: NextFu
 ### Authentication
 
 - [x] httpOnly cookies with `secure: true` in production, `sameSite: "lax"`
-- [x] Dual delivery: Bearer header (for API clients) + cookie (for browser)
+- [x] Cookie-only delivery: JWT in httpOnly `jwt` cookie (no Bearer header, no body token)
 - [x] All routes except `/api/auth/register` and `/api/auth/login` protected by `verifyToken`
 - [x] Role-based routes protected by `requireRole()`
 - [x] CORS restricted to configured frontend origin with credentials

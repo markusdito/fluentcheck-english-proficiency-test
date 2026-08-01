@@ -265,7 +265,12 @@ export async function getAdminStats() {
     ),
     paidRevenue: paidRevenueAgg._sum.amount ?? 0,
     pendingGrading,
-    recentSubmissions: recent,
+    recentSubmissions: recent.map((r) => ({
+      id: r.id,
+      status: r.status,
+      createdAt: r.createdAt,
+      studentName: r.student.username,
+    })),
   };
 }
 
