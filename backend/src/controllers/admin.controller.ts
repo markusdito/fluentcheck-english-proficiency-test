@@ -150,11 +150,13 @@ export async function assignSubmission(req: Request, res: Response) {
     const status =
       message === "Submission not found"
         ? 404
-        : message === "Submission must be in PAID status" ||
-            message === "No examiners available" ||
-            message.startsWith("No examiners available")
-          ? 400
-          : 500;
+        : message === "Examiners already assigned"
+          ? 409
+          : message === "Submission must be in PAID status" ||
+              message === "No examiners available" ||
+              message.startsWith("No examiners available")
+            ? 400
+            : 500;
     res.status(status).json({ error: message });
   }
 }

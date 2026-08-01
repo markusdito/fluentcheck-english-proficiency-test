@@ -218,6 +218,11 @@ export async function getAdminStats() {
         submissionsByStatus: Object.fromEntries(submissionsByStatus.map((r) => [r.status, r._count._all])),
         paidRevenue: paidRevenueAgg._sum.amount ?? 0,
         pendingGrading,
-        recentSubmissions: recent,
+        recentSubmissions: recent.map((r) => ({
+            id: r.id,
+            status: r.status,
+            createdAt: r.createdAt,
+            studentName: r.student.username,
+        })),
     };
 }
