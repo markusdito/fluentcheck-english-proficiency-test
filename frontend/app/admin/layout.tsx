@@ -81,10 +81,10 @@ export default function AdminLayout({
     <div className="min-h-screen bg-zinc-50">
       {/* Top navigation bar */}
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
+        <div className="mx-auto grid h-16 max-w-6xl grid-cols-3 items-center gap-6 px-6">
           <Link
             href="/admin"
-            className="flex shrink-0 items-center gap-2 text-xl font-bold tracking-tight text-[var(--foreground)]"
+            className="flex shrink-0 items-center justify-self-start gap-2 text-xl font-bold tracking-tight text-[var(--foreground)]"
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] text-white">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -98,7 +98,7 @@ export default function AdminLayout({
             FluentCheck — Admin
           </Link>
 
-          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
+          <nav className="flex min-w-0 items-center justify-self-center gap-1 overflow-x-auto">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -110,7 +110,7 @@ export default function AdminLayout({
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-4">
+          <div className="flex shrink-0 items-center justify-self-end gap-4">
             <span className="hidden text-sm font-medium text-[var(--muted)] sm:block">
               {user?.name}
             </span>
