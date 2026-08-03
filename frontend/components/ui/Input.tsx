@@ -27,16 +27,16 @@ export function Input({
     <div className="w-full">
       <label
         htmlFor={inputId}
-        className="mb-1.5 block text-sm font-medium text-[var(--foreground)]"
+        className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft"
       >
         {label}
-        {required && <span className="ml-0.5 text-[var(--danger)]">*</span>}
+        {required && <span className="ml-0.5 text-signal">*</span>}
       </label>
 
       <div className="relative">
         {icon && (
           <span
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"
+            className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-ink-faint"
             aria-hidden="true"
           >
             {icon}
@@ -52,15 +52,10 @@ export function Input({
                 ? `${inputId}-helper`
                 : undefined
           }
+          data-invalid={error ? "true" : undefined}
           className={cn(
-            "block w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-[var(--foreground)] transition-colors",
-            "placeholder:text-[var(--muted)] outline-none",
-            "focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary)]",
-            "disabled:cursor-not-allowed disabled:opacity-60",
-            icon ? "pl-10" : "",
-            error
-              ? "border-[var(--danger)] focus:ring-[var(--danger)] focus:border-[var(--danger)]"
-              : "border-[var(--border)]",
+            "ruled-field w-full text-sm",
+            icon ? "pl-7" : "",
             className,
           )}
           {...rest}
@@ -68,11 +63,11 @@ export function Input({
       </div>
 
       {error ? (
-        <p id={`${inputId}-error`} className="mt-1.5 text-xs text-[var(--danger)]">
+        <p id={`${inputId}-error`} className="mt-1.5 text-xs text-signal">
           {error}
         </p>
       ) : helperText ? (
-        <p id={`${inputId}-helper`} className="mt-1.5 text-xs text-[var(--muted)]">
+        <p id={`${inputId}-helper`} className="mt-1.5 text-xs text-ink-faint">
           {helperText}
         </p>
       ) : null}

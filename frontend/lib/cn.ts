@@ -1,7 +1,6 @@
 /**
- * Tiny className combiner — filters falsy values and joins with spaces.
- * No external dependency required.
+ * Re-export of the shadcn `cn` helper (clsx + tailwind-merge).
+ * Existing components import { cn } from "@/lib/cn"; this keeps them working
+ * while adopting tailwind-merge deduping. Canonical source: "@/lib/utils".
  */
-export function cn(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(" ");
-}
+export { cn } from "@/lib/utils";
