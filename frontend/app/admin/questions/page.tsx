@@ -12,9 +12,9 @@ import {
   deleteTask,
 } from "@/lib/admin-api";
 import type { AdminQuestion, AdminTask } from "@/types/admin";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { Loader2 } from "lucide-react";
 
 const CATEGORIES = ["PART_1", "PART_2", "PART_3"] as const;
 
@@ -48,7 +48,7 @@ function ToNumberInput({
   disabled?: boolean;
 }) {
   return (
-    <Input
+    <FormField
       id={id}
       label={label}
       type="number"
@@ -111,7 +111,7 @@ function QuestionFormFields({
         </select>
       </div>
 
-      <Input
+      <FormField
         id="promptText"
         label="Prompt text"
         placeholder="Describe the scenario for this question"
@@ -509,7 +509,7 @@ export default function AdminQuestionsPage() {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Spinner size="lg" />
+        <Loader2 className="size-8 animate-spin text-ink-faint" />
       </div>
     );
   }
@@ -578,7 +578,7 @@ export default function AdminQuestionsPage() {
               disabled={createLoading}
             />
             <div className="flex justify-end">
-              <Button type="submit" variant="primary" loading={createLoading}>
+              <Button type="submit" variant="default" loading={createLoading}>
                 Create question
               </Button>
             </div>
@@ -637,7 +637,7 @@ export default function AdminQuestionsPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary" loading={editLoading}>
+                  <Button type="submit" variant="default" loading={editLoading}>
                     Save changes
                   </Button>
                 </div>
@@ -759,7 +759,7 @@ export default function AdminQuestionsPage() {
                               Edit
                             </Button>
                             <Button
-                              variant="danger"
+                              variant="destructive"
                               size="sm"
                               onClick={() => requestRetire(q.id)}
                             >

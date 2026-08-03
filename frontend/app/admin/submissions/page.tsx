@@ -7,8 +7,8 @@ import {
   assignExaminers,
 } from "@/lib/admin-api";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import type { AdminSubmission } from "@/types/admin";
 
 const SUBMISSION_STATUSES = [
@@ -182,14 +182,14 @@ export default function AdminSubmissionsPage() {
 
       {loading ? (
         <div className="flex h-64 items-center justify-center">
-          <Spinner size="lg" />
+          <Loader2 className="size-8 animate-spin text-ink-faint" />
         </div>
       ) : error ? (
         <div className="flex h-64 items-center justify-center">
           <div className="max-w-sm rounded-xl border border-[var(--border)] bg-white p-8 text-center shadow-sm">
             <p className="text-sm text-[var(--muted)]">{error}</p>
             <Button
-              variant="primary"
+              variant="default"
               className="mt-4"
               onClick={() => window.location.reload()}
             >

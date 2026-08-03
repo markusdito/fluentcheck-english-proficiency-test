@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { AssignmentAnswer } from "@/types/examiner";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 interface ScoringPanelProps {
   answers: AssignmentAnswer[];
@@ -99,7 +99,7 @@ export function ScoringPanel({ answers, onSubmit, isSubmitting }: ScoringPanelPr
 
       <div className="mt-6 flex justify-end">
         <Button
-          variant="primary"
+          variant="default"
           size="lg"
           loading={isSubmitting}
           disabled={isSubmitting}

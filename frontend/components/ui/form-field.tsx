@@ -1,16 +1,25 @@
-import React from "react";
-import { cn } from "@/lib/cn";
+"use client"
 
-export interface InputProps
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
+
+export interface FormFieldProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
-  label: string;
-  error?: string;
-  helperText?: string;
-  icon?: React.ReactNode;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  label: string
+  error?: string
+  helperText?: string
+  icon?: React.ReactNode
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
 }
 
-export function Input({
+/**
+ * Brand form field: ruled (borderless bottom-rule) input with a mono uppercase
+ * micro-label, optional leading icon, and error / helper text. Built on the
+ * shadcn `Input` primitive so every field stays inside the one component system.
+ */
+export function FormField({
   label,
   error,
   helperText,
@@ -19,15 +28,15 @@ export function Input({
   className,
   required,
   ...rest
-}: InputProps) {
-  const generatedId = React.useId();
-  const inputId = id ?? generatedId;
+}: FormFieldProps) {
+  const generatedId = React.useId()
+  const inputId = id ?? generatedId
 
   return (
     <div className="w-full">
       <label
         htmlFor={inputId}
-        className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-ink-soft"
+        className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-ink-soft"
       >
         {label}
         {required && <span className="ml-0.5 text-signal">*</span>}
@@ -42,7 +51,7 @@ export function Input({
             {icon}
           </span>
         )}
-        <input
+        <Input
           id={inputId}
           aria-invalid={!!error}
           aria-describedby={
@@ -54,8 +63,8 @@ export function Input({
           }
           data-invalid={error ? "true" : undefined}
           className={cn(
-            "ruled-field w-full text-sm",
-            icon ? "pl-7" : "",
+            "ruled-field h-auto border-0 rounded-none bg-transparent px-0 text-sm shadow-none",
+            icon ? "pl-7!" : "",
             className,
           )}
           {...rest}
@@ -72,5 +81,5 @@ export function Input({
         </p>
       ) : null}
     </div>
-  );
+  )
 }

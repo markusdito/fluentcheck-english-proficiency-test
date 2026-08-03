@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { Footer } from "@/components/layout/Footer";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { BandGauge } from "@/components/ui/BandGauge";
 
 const protocol = [
@@ -44,10 +45,19 @@ export default function Home() {
             className="flex items-center gap-2 sm:gap-3"
             aria-label="Account"
           >
-            <Button variant="ghost" size="sm" href="/login">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Sign in"
+              render={<Link href="/login" />}
+            >
               Sign in
             </Button>
-            <Button variant="primary" size="sm" href="/signup">
+            <Button
+              variant="default"
+              size="sm"
+              render={<Link href="/signup" />}
+            >
               Start your assessment
             </Button>
           </nav>
@@ -74,10 +84,18 @@ export default function Home() {
               </p>
 
               <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button variant="primary" size="lg" href="/signup">
+                <Button
+                  variant="default"
+                  size="lg"
+                  render={<Link href="/signup" />}
+                >
                   Start your assessment
                 </Button>
-                <Button variant="outline" size="lg" href="#how-it-works">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  render={<Link href="#how-it-works" />}
+                >
                   See how it works
                 </Button>
               </div>
@@ -259,7 +277,7 @@ export default function Home() {
               <Button
                 variant="invert"
                 size="lg"
-                href="/signup"
+                render={<Link href="/signup" />}
               >
                 Start your assessment
               </Button>

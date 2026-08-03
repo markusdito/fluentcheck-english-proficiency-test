@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { api } from "@/lib/api";
+import { Wordmark } from "@/components/layout/Wordmark";
+import { BandGauge } from "@/components/ui/BandGauge";
 
 export default function SignupPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -28,85 +30,73 @@ export default function SignupPage() {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <div
-          className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--primary)]"
-          role="status"
-          aria-label="Loading"
-        />
+      <div className="flex min-h-screen items-center justify-center bg-paper">
+        <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 lg:flex-row">
+    <div className="flex min-h-screen flex-col bg-paper lg:flex-row">
       {/* Skip link for accessibility */}
       <a
         href="#signup-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[var(--primary)] focus:px-4 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
       >
         Skip to sign up form
       </a>
 
-      {/* Left: brand panel (hidden on mobile) */}
-      <aside className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-gradient-to-br from-[var(--primary)] via-blue-700 to-indigo-800 p-12 text-white lg:flex">
-        {/* Decorative orbs */}
-        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-indigo-300/20 blur-3xl" />
-
-        <Link
-          href="/"
-          className="relative z-10 flex items-center gap-2 text-2xl font-bold tracking-tight focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 rounded-lg"
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-            </svg>
-          </span>
-          FluentCheck
-        </Link>
-
-        <div className="relative z-10 max-w-md">
-          <h2 className="text-3xl font-bold leading-tight">
-            Begin your English assessment journey
-          </h2>
-          <p className="mt-4 text-lg text-blue-100">
-            Create your free account and start practicing with real-world
-            speaking prompts designed by language professionals.
-          </p>
-
-          {/* Feature bullets */}
-          <ul className="mt-8 space-y-4">
-            {[
-              "Personalized feedback on pronunciation & fluency",
-              "Expert jury evaluation for every recording",
-              "Track your progress with detailed analytics",
-            ].map((feature) => (
-              <li key={feature} className="flex items-start gap-3">
-                <svg
-                  className="mt-0.5 h-6 w-6 flex-shrink-0 text-emerald-300"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className="text-blue-50">{feature}</span>
-              </li>
-            ))}
-          </ul>
+      {/* Left: brand panel — band-scale motif (desktop) */}
+      <aside className="hidden flex-1 flex-col justify-between border-r border-rule lg:flex">
+        <div className="flex h-16 items-center border-b border-rule px-8">
+          <Wordmark />
         </div>
 
-        <p className="relative z-10 text-sm text-blue-200">
-          &copy; {new Date().getFullYear()} FluentCheck. All rights reserved.
+        <div className="px-8 pb-8">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+            FluentCheck · Speaking assessment
+          </p>
+          <h2 className="mt-5 max-w-md font-display text-4xl font-medium leading-[1.04] tracking-tight text-ink">
+            A certified band score, <em className="text-signal">on camera.</em>
+          </h2>
+          <p className="mt-5 max-w-md text-[15px] leading-7 text-ink-soft">
+            Create your account, then record short video answers to real
+            speaking prompts. Two certified examiners score your
+            pronunciation, fluency, vocabulary and grammar.
+          </p>
+
+          <div className="mt-10 max-w-sm border border-rule bg-paper-raised px-5 py-5 animate-rise">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+              The band scale
+            </p>
+            <p className="mt-2 font-display text-2xl font-medium tracking-tight text-ink">
+              Bands run 0 to 9, in half steps.
+            </p>
+            <div className="mt-4">
+              <BandGauge band={6.5} size="md" />
+              <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                Most universities & employers look for 6.5 and above
+              </p>
+            </div>
+            <dl className="mt-5 divide-y divide-rule">
+              {[
+                ["Speaking test", "6–9 video prompts with prep time"],
+                ["Marking", "Two independent certified examiners"],
+                ["Report", "Band score and notes for every skill"],
+              ].map(([term, desc]) => (
+                <div key={term} className="flex items-start justify-between gap-6 py-2.5">
+                  <dt className="text-sm font-medium text-ink">{term}</dt>
+                  <dd className="max-w-[12rem] text-right text-sm leading-5 text-ink-soft">
+                    {desc}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+
+        <p className="border-t border-rule px-8 py-5 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+          © {new Date().getFullYear()} FluentCheck · English proficiency test
         </p>
       </aside>
 
@@ -116,33 +106,24 @@ export default function SignupPage() {
         className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6"
       >
         <div className="w-full max-w-sm">
-          {/* Mobile brand (shown only on small screens) */}
-          <Link
-            href="/"
-            className="mb-8 flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded-lg lg:hidden"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] text-white">
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
-            </span>
-            FluentCheck
-          </Link>
+          <div className="mb-8 flex justify-center lg:hidden">
+            <Wordmark />
+          </div>
 
-          {/* Card */}
-          <div className="animate-fade-in-up rounded-xl border border-[var(--border)] bg-white p-8 shadow-lg shadow-zinc-200/50">
-            <h1 className="mb-1 text-2xl font-semibold text-[var(--foreground)]">
+          <div className="border border-rule bg-paper-raised px-6 py-8 sm:px-8">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+              Candidate registration
+            </p>
+            <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-ink">
               Create your account
             </h1>
-            <p className="mb-6 text-sm text-[var(--muted)]">
-              Start your English proficiency journey
+            <p className="mt-1.5 text-sm leading-6 text-ink-soft">
+              Start your English proficiency journey.
             </p>
 
-            <SignupForm />
+            <div className="mt-8">
+              <SignupForm />
+            </div>
           </div>
         </div>
       </main>

@@ -8,8 +8,8 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { WebcamPreview } from "@/components/test/WebcamPreview";
 import { PromptDisplay } from "@/components/test/PromptDisplay";
 import { RecordingTimer } from "@/components/test/RecordingTimer";
-import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { fetchQuestions, createSubmission, completeSubmission } from "@/lib/test-api";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
@@ -325,7 +325,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
         <div className="text-center">
-          <Spinner size="lg" />
+          <Loader2 className="mx-auto size-8 animate-spin text-zinc-400" />
           <p className="mt-4 text-zinc-400">Loading questions...</p>
         </div>
       </div>
@@ -343,9 +343,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             Please check your connection and try again.
           </p>
           <Button
-            variant="primary"
+            variant="default"
             size="lg"
-            fullWidth
+            className="w-full"
             onClick={() => window.location.reload()}
           >
             Try Again
@@ -373,9 +373,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             </ul>
           </div>
           <Button
-            variant="primary"
+            variant="default"
             size="lg"
-            fullWidth
+            className="w-full"
             onClick={() => window.location.reload()}
           >
             Try Again
@@ -410,7 +410,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
               ) : (
-                <Spinner size="lg" />
+                <Loader2 className="mx-auto size-10 animate-spin text-zinc-400" />
               )}
             </div>
             <h1 className="text-3xl font-bold text-white">Test Complete!</h1>
@@ -442,9 +442,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
           </div>
           <div className="flex flex-col gap-3">
             <Button
-              variant="primary"
+              variant="default"
               size="lg"
-              fullWidth
+              className="w-full"
               onClick={handleFinishTest}
               disabled={!allDone}
             >
@@ -551,7 +551,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                     }`}>
                       {uploadStatus === "uploading" || uploadStatus === "getting-url" ? (
                         <span className="inline-flex items-center gap-1">
-                          <Spinner size="sm" />
+                          <Loader2 className="size-4 animate-spin" />
                           {uploadStatusText}
                         </span>
                       ) : (
@@ -586,9 +586,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               {phase === "preparation" && (
                 <>
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="lg"
-                    fullWidth
+                    className="w-full"
                     onClick={handleStartRecording}
                   >
                     Start Recording
@@ -600,9 +600,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               )}
               {phase === "recording" && (
                 <Button
-                  variant="danger"
+                  variant="destructive"
                   size="lg"
-                  fullWidth
+                  className="w-full"
                   onClick={handleStopRecording}
                 >
                   <span className="flex items-center gap-2">
@@ -614,9 +614,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               {phase === "stopped" && (
                 <div className="space-y-2">
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="lg"
-                    fullWidth
+                    className="w-full"
                     onClick={handleNextQuestion}
                   >
                     {currentQuestionIndex < totalQuestions - 1
@@ -627,7 +627,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                     <Button
                       variant="outline"
                       size="lg"
-                      fullWidth
+                      className="w-full"
                       onClick={() => retryUpload(currentQuestion.id)}
                     >
                       Re-record This Question

@@ -7,9 +7,9 @@ import {
   updateUserRole,
 } from "@/lib/admin-api";
 import type { AdminUser } from "@/types/admin";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { Loader2 } from "lucide-react";
 
 const ROLE_OPTIONS = ["STUDENT", "EXAMINER", "ADMIN"];
 
@@ -117,7 +117,7 @@ export default function AdminUsersPage() {
       {/* Filters */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end">
         <form onSubmit={handleSearch} className="flex w-full max-w-sm items-end gap-2">
-          <Input
+          <FormField
             label="Search"
             placeholder="Username or email"
             value={q}
@@ -156,7 +156,7 @@ export default function AdminUsersPage() {
         </div>
       ) : loading ? (
         <div className="flex h-64 items-center justify-center">
-          <Spinner size="lg" />
+          <Loader2 className="size-8 animate-spin text-ink-faint" />
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-[var(--border)] bg-white p-10 text-center shadow-sm">

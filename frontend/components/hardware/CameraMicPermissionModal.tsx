@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 interface CameraMicPermissionModalProps {
@@ -250,7 +250,7 @@ export function CameraMicPermissionModal({
             Skip for now
           </Button>
           <Button
-            variant="primary"
+            variant="default"
             onClick={onComplete}
             disabled={!allChecksPassed || isLoading}
             loading={isLoading}

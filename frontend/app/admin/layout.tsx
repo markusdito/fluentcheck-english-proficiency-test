@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { Spinner } from "@/components/ui/Spinner";
+import { Loader2 } from "lucide-react";
 
 interface User {
   id: string;
@@ -64,8 +64,8 @@ export default function AdminLayout({
 
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <Spinner size="lg" />
+      <div className="flex min-h-screen items-center justify-center bg-paper">
+        <Loader2 className="size-8 animate-spin text-ink-faint" />
       </div>
     );
   }

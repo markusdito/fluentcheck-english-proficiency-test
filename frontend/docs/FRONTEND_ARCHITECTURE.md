@@ -2,8 +2,12 @@
 
 > **Consolidated from:** `frontend/docs/AGENTS.md`, `frontend/docs/SKILL.md`
 >
-> **Version:** 1.0.0
-> **Last Updated:** 2026-07-26
+> **Version:** 1.1.0
+> **Last Updated:** 2026-08-03
+>
+> **1.1.0:** §8/§9 updated for the shadcn adoption — the app is now composed
+> from shadcn primitives themed by the "Examination Room" brand tokens. See
+> `frontend/docs/UI_REDESIGN.md` for the redesign plan.
 
 ---
 
@@ -89,14 +93,15 @@ frontend/
 │   └── profile/
 │       └── page.tsx              # Edit info, change password, stats
 ├── components/
-│   ├── ui/                       # Reusable primitives
-│   │   ├── Button.tsx
-│   │   ├── Card.tsx
-│   │   ├── Input.tsx
-│   │   ├── Modal.tsx
-│   │   ├── Badge.tsx
-│   │   ├── Spinner.tsx
-│   │   └── ProgressBar.tsx
+│   ├── ui/                       # shadcn primitives (button, card, input, …) + brand artifacts
+│   │   ├── button.tsx            # shadcn button (supersedes Button.tsx)
+│   │   ├── card.tsx
+│   │   ├── input.tsx / label.tsx
+│   │   ├── badge.tsx
+│   │   ├── dialog.tsx / alert-dialog.tsx / sheet.tsx
+│   │   ├── table.tsx / select.tsx / tabs.tsx / …
+│   │   ├── BandGauge.tsx         # brand artifact — 9-cell band gauge
+│   │   └── Stamp.tsx             # brand artifact — verdict stamp
 │   ├── layout/
 │   │   ├── Header.tsx            # Nav bar with auth state, hamburger on mobile
 │   │   └── Footer.tsx
@@ -538,43 +543,50 @@ Monitors browser online/offline state for network resilience.
 
 ## 8. UI Components (`components/ui/`)
 
-### Button.tsx
+> **Design system:** the app is composed from **shadcn/ui primitives** themed by
+> the "Examination Room" brand tokens (paper/ink/rule/signal, radius 0.375rem).
+> The brand palette is mapped to shadcn's CSS-variable contract in
+> `app/globals.css`, so stock components render in brand colors automatically.
+> See `frontend/docs/UI_REDESIGN.md` for the full redesign plan.
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'primary' \| 'secondary' \| 'outline' \| 'ghost' \| 'danger'` | `'primary'` | Visual style |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Button size |
-| `loading` | `boolean` | `false` | Show spinner, disable interaction |
-| `disabled` | `boolean` | `false` | Disable button |
-| `fullWidth` | `boolean` | `false` | Stretch to container |
-| `type` | `'button' \| 'submit' \| 'reset'` | `'button'` | HTML type |
+### Installed shadcn components (`components/ui/`, lowercase filenames)
 
-**Styling:** `rounded-lg`, `font-medium`, `transition-all`, `aria-busy` during loading
+`button`, `card`, `input`, `label`, `badge`, `separator`, `skeleton`,
+`progress`, `tooltip`, `avatar`, `alert`, `dialog`, `alert-dialog`, `sheet`,
+`dropdown-menu`, `breadcrumb`, `accordion`, `tabs`, `table`, `select`, `sonner`,
+`pagination`.
 
-### Input.tsx
+- **Button:** variants `default` (ink), `secondary` (verified), `outline`,
+  `ghost`, `destructive` (signal); link usage via `asChild` + `next/link`.
+- **Input + Label:** control forms; the mono uppercase micro-label / error /
+  helper wrapper from the old `Input.tsx` is kept as a thin presentational layer
+  in the small forms that need it.
+- **Status pills:** operational statuses are shadcn `Badge` with `data-tone`
+  (`verified` / `signal` / `amber` / `neutral`) utilities.
+- **Spinner:** replaced by lucide `Loader2` + `animate-spin`.
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `label` | `string` | — | `<label>` element (accessibility) |
-| `error` | `string` | — | Red border + error message below |
-| `helperText` | `string` | — | Helper text below |
-| `type` | `string` | `'text'` | HTML input type |
-| `value` | `string` | — | Controlled value |
-| `onChange` | `(value: string) => void` | — | Change handler |
-| `required` | `boolean` | `false` | Required indicator |
-| `disabled` | `boolean` | `false` | Disabled state |
+### Brand artifacts (kept — no shadcn equivalent)
 
-### Card.tsx, Modal.tsx, Badge.tsx, Spinner.tsx, ProgressBar.tsx
+- **`BandGauge.tsx`** — the 9-cell IELTS-style band gauge (0–9, half bands).
+- **`Stamp.tsx`** — bordered mono uppercase pill for verdict/certification
+  moments (CERTIFIED / PASSED / AWAITING / REC).
+- **`Wordmark.tsx`** (`components/layout/Wordmark.tsx`) — the FC brand mark.
 
-See component files for prop tables. Key behaviors:
-- **Modal:** Backdrop click to close, ESC key, focus trap, animate in/out
-- **Badge:** Score display and status indicators
-- **Spinner:** CSS-only `animate-spin` via Tailwind
-- **ProgressBar:** Animated width transitions
+### Removed (superseded by shadcn)
+
+`Button.tsx`, `Input.tsx`, `Spinner.tsx`, `Modal.tsx` (now `dialog` /
+`alert-dialog`), `ProgressBar.tsx` (now `progress`).
 
 ---
 
 ## 9. Pages
+
+> **Presentation:** all pages are composed from the shadcn primitives in §8 and
+> themed by the brand tokens. Light "paper" surfaces everywhere except the test
+> session, which uses the dark `--studio*` tokens (the on-camera moment). The
+> migration matrix and per-page changes live in
+> `frontend/docs/UI_REDESIGN.md` §6. The behavior described below is unchanged
+> by the redesign.
 
 ### 1. Landing Page (`app/page.tsx`)
 
@@ -897,7 +909,7 @@ graph TD
 | Hooks | camelCase + `use` prefix | `useAuth`, `useCountdown` |
 | Constants | UPPER_SNAKE_CASE | `API_URL`, `MAX_RETRIES` |
 | Page files | kebab-case | `app/login/page.tsx` |
-| Component files | PascalCase | `Button.tsx`, `LoginForm.tsx` |
+| Component files | PascalCase for feature/brand components (`BandGauge.tsx`, `LoginForm.tsx`); lowercase-kebab for shadcn primitives (`button.tsx`, `card.tsx`) |
 | Lib/hook files | camelCase | `useAuth.ts`, `api.ts` |
 
 ---

@@ -208,6 +208,36 @@ body {
   color: var(--signal);
 }
 
+/* ---- Badge tone variants ----
+   Applied as data-[tone=...] on the shadcn Badge. Unlayered rules win over
+   Tailwind's layered utility stack, so the tone overrides variant text color. */
+[data-tone="verified"] {
+  color: var(--verified);
+  border-color: var(--verified);
+}
+[data-tone="signal"] {
+  color: var(--signal);
+  border-color: var(--signal);
+}
+[data-tone="amber"] {
+  color: #a16207;
+  border-color: #f59e0b;
+}
+[data-tone="neutral"] {
+  color: var(--ink-soft);
+  border-color: var(--rule-strong);
+}
+
+/* ---- Micro-label — mono uppercase eyebrow (table heads, card headers) ---- */
+.mark {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 /* Ruled form field: borderless bottom rule that thickens + inks on focus. */
 .ruled-field {
   border: 0;

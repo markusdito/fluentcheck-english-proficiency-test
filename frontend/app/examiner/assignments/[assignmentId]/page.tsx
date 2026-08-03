@@ -9,8 +9,7 @@ import {
 } from "@/lib/examiner-api";
 import { VideoReviewer } from "@/components/examiner/VideoReviewer";
 import { ScoringPanel } from "@/components/examiner/ScoringPanel";
-import { Spinner } from "@/components/ui/Spinner";
-import { Button } from "@/components/ui/Button";
+import { Loader2 } from "lucide-react";
 import type { AssignmentDetail } from "@/types/examiner";
 
 export default function AssignmentReviewPage({ params }: { params: Promise<{ assignmentId: string }> }) {
@@ -69,7 +68,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <Spinner size="lg" />
+        <Loader2 className="size-8 animate-spin text-ink-faint" />
       </div>
     );
   }
