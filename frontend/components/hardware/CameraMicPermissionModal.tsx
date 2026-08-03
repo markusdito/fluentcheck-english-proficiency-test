@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils";
 
 interface CameraMicPermissionModalProps {
   open: boolean;
@@ -73,7 +73,7 @@ export function CameraMicPermissionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -81,20 +81,23 @@ export function CameraMicPermissionModal({
       aria-modal="true"
       aria-label="Camera and microphone permissions"
     >
-      <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-white p-6 shadow-2xl sm:p-8">
+      <div className="w-full max-w-lg border border-rule bg-paper-raised p-6 sm:p-8">
         {/* Header */}
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-[var(--foreground)]">
-            Camera & Microphone Check
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+            Hardware check
+          </p>
+          <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
+            Camera & Microphone
           </h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
+          <p className="mt-1.5 text-sm leading-6 text-ink-soft">
             FluentCheck needs access to your webcam and microphone to record your
             speaking responses. Please grant permissions when prompted.
           </p>
         </div>
 
         {/* Webcam Preview */}
-        <div className="mb-5 overflow-hidden rounded-xl bg-black">
+        <div className="mb-5 overflow-hidden bg-studio">
           {stream ? (
             <video
               ref={videoRef}
@@ -104,9 +107,9 @@ export function CameraMicPermissionModal({
               className="h-48 w-full object-cover"
             />
           ) : (
-            <div className="flex h-48 items-center justify-center bg-zinc-900">
+            <div className="flex h-48 items-center justify-center bg-studio-panel">
               <svg
-                className="h-12 w-12 text-zinc-600"
+                className="h-12 w-12 text-studio-text/40"
                 viewBox="0 0 24 24"
                 fill="none"
                 aria-hidden="true"
@@ -160,14 +163,13 @@ export function CameraMicPermissionModal({
             }
           />
 
-          {/* ── Animated Sound Bar Row ────────────────────────────── */}
-          <div className="rounded-lg border border-[var(--border)] bg-zinc-50 px-4 py-3">
+          {/* Mic activity + sound bars */}
+          <div className="border border-rule bg-rule/30 px-4 py-3">
             <div className="flex items-center gap-3">
-              {/* Icon */}
               <span className="shrink-0">
                 {permissionGranted ? (
                   micLevel > 5 ? (
-                    <svg className="h-5 w-5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <svg className="h-5 w-5 text-verified" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
                       <path d="M5.5 9.643a.75.75 0 00-1.5 0 4.751 4.751 0 109.5 0 .75.75 0 00-1.5 0 3.25 3.25 0 11-6.5 0z" />
                     </svg>
@@ -178,21 +180,20 @@ export function CameraMicPermissionModal({
                     </svg>
                   )
                 ) : (
-                  <div className="h-5 w-5 rounded-full border-2 border-[var(--border)]" />
+                  <div className="h-5 w-5 rounded-full border-2 border-rule" />
                 )}
               </span>
 
-              {/* Label + bars */}
               <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[var(--foreground)]">Mic Activity</p>
+                  <p className="text-sm font-medium text-ink">Mic activity</p>
                   <p
                     className={cn(
                       "truncate text-xs",
                       !permissionGranted
-                        ? "text-[var(--muted)]"
+                        ? "text-ink-soft"
                         : micLevel > 5
-                          ? "text-emerald-600"
+                          ? "text-verified"
                           : "text-amber-500",
                     )}
                   >
@@ -204,7 +205,6 @@ export function CameraMicPermissionModal({
                   </p>
                 </div>
 
-                {/* Sound bars visualisation */}
                 <div className="flex shrink-0 items-end gap-[3px]" aria-hidden="true">
                   <SoundBar level={micLevel} index={0} />
                   <SoundBar level={micLevel} index={1} />
@@ -222,16 +222,16 @@ export function CameraMicPermissionModal({
 
         {/* Error / Retry */}
         {(videoError || audioError) && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            <p className="font-medium">Permission Issues Detected</p>
+          <div className="mb-6 border border-signal/30 bg-signal/5 p-4 text-sm text-signal">
+            <p className="font-medium">Permission issues detected</p>
             <p className="mt-1">
-              Please allow camera and microphone access in your browser settings,
-              then click Retry.
+              Allow camera and microphone access in your browser settings, then
+              click Retry.
             </p>
             <Button
               variant="outline"
               size="sm"
-              className="mt-3"
+              className="mt-3 border-signal/40 text-signal hover:bg-signal/10 hover:text-signal"
               onClick={handleRetry}
               loading={isLoading}
             >
@@ -242,11 +242,7 @@ export function CameraMicPermissionModal({
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3">
-          <Button
-            variant="ghost"
-            onClick={onClose}
-            disabled={isLoading}
-          >
+          <Button variant="ghost" onClick={onClose} disabled={isLoading}>
             Skip for now
           </Button>
           <Button
@@ -263,23 +259,17 @@ export function CameraMicPermissionModal({
   );
 }
 
-/* ── Single animated sound bar ─────────────────────────────────*/
+/* Single animated sound bar */
 interface SoundBarProps {
-  level: number;  // 0–100
-  index: number;  // 0–7 bar index
+  level: number; // 0–100
+  index: number; // 0–7 bar index
 }
 
 function SoundBar({ level, index }: SoundBarProps) {
-  // Each bar has a different height threshold so bars light up progressively.
-  // Bar 0 lights at level >= 10%, bar 1 at >= 20%, ... bar 7 at >= 80%.
   const threshold = (index + 1) * 12.5;
   const active = level >= threshold;
-
-  // Bar height increases slightly with index: 12px → 26px
   const height = 12 + index * 2;
-
-  // Colour: green when active, muted grey when inactive
-  const bg = active ? "bg-emerald-500" : "bg-zinc-200";
+  const bg = active ? "bg-verified" : "bg-rule-strong";
 
   return (
     <div
@@ -293,7 +283,7 @@ function SoundBar({ level, index }: SoundBarProps) {
   );
 }
 
-/* ── Status indicator row ──────────────────────────────────────── */
+/* Status indicator row */
 interface StatusRowProps {
   label: string;
   status: "success" | "warning" | "error" | "loading" | "idle";
@@ -303,7 +293,7 @@ interface StatusRowProps {
 function StatusRow({ label, status, message }: StatusRowProps) {
   const iconMap: Record<string, React.ReactNode> = {
     success: (
-      <svg className="h-5 w-5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <svg className="h-5 w-5 text-verified" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
         <path
           fillRule="evenodd"
           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
@@ -321,7 +311,7 @@ function StatusRow({ label, status, message }: StatusRowProps) {
       </svg>
     ),
     error: (
-      <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <svg className="h-5 w-5 text-signal" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
         <path
           fillRule="evenodd"
           d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
@@ -330,26 +320,26 @@ function StatusRow({ label, status, message }: StatusRowProps) {
       </svg>
     ),
     loading: (
-      <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--primary)]" />
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-rule border-t-ink" />
     ),
     idle: (
-      <div className="h-5 w-5 rounded-full border-2 border-[var(--border)]" />
+      <div className="h-5 w-5 rounded-full border-2 border-rule" />
     ),
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-zinc-50 px-4 py-3">
+    <div className="flex items-center gap-3 border border-rule bg-rule/30 px-4 py-3">
       <span className="shrink-0">{iconMap[status]}</span>
       <div className="min-w-0">
-        <p className="text-sm font-medium text-[var(--foreground)]">{label}</p>
+        <p className="text-sm font-medium text-ink">{label}</p>
         <p
           className={cn(
             "truncate text-xs",
             status === "error"
-              ? "text-red-500"
+              ? "text-signal"
               : status === "warning"
                 ? "text-amber-500"
-                : "text-[var(--muted)]",
+                : "text-ink-soft",
           )}
         >
           {message}

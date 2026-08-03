@@ -5,13 +5,31 @@ import Link from "next/link";
 import { ApiError } from "@/lib/api";
 import { fetchAdminStats } from "@/lib/admin-api";
 import type { AdminStats } from "@/types/admin";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+import { SubmissionStatus } from "@/components/ui/submission-status";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
-const statusTone: Record<string, "amber" | "blue" | "emerald" | "zinc"> = {
-  IN_PROGRESS: "amber",
-  SCORED: "blue",
-  CERTIFIED: "emerald",
-};
+function StatCard({
+  eyebrow,
+  value,
+  children,
+}: {
+  eyebrow: string;
+  value?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="border border-rule bg-paper-raised px-6 py-5">
+      <p className="mark">{eyebrow}</p>
+      {value != null ? (
+        <p className="mt-2 font-mono text-3xl font-semibold tabular-nums text-ink">
+          {value}
+        </p>
+      ) : null}
+      {children}
+    </div>
+  );
+}
 
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -47,11 +65,7 @@ export default function AdminOverviewPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div
-          className="h-8 w-8 animate-spin rounded-full border-2 border-(--border) border-t-[var(--primary)]"
-          role="status"
-          aria-label="Loading"
-        />
+        <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
       </div>
     );
   }
@@ -59,18 +73,10 @@ export default function AdminOverviewPage() {
   if (error) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="max-w-sm rounded-xl border border-[var(--border)] bg-white p-8 text-center shadow-lg">
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">
-            Something went wrong
-          </h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-[var(--primary)] px-5 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-dark)]"
-          >
-            Try again
-          </button>
-        </div>
+        <p className="text-sm text-ink-soft">{error}</p>
+        <Button className="ml-4" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
       </div>
     );
   }
@@ -84,36 +90,33 @@ export default function AdminOverviewPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
+        <p className="mark">Platform overview</p>
+        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
           Overview
         </h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+        <p className="mt-2 text-sm leading-6 text-ink-soft">
           A summary of platform activity.
         </p>
       </div>
 
-      {/* Stats cards */}
+      {/* Stat cards */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-[var(--muted)]">Users by role</p>
+        <StatCard eyebrow="Users by role">
           <div className="mt-3 space-y-1">
             {Object.entries(stats?.usersByRole ?? {}).map(([role, count]) => (
               <div
                 key={role}
                 className="flex items-center justify-between text-sm"
               >
-                <span className="text-[var(--foreground)]">{role}</span>
-                <span className="font-semibold text-[var(--foreground)]">
+                <span className="text-ink">{role}</span>
+                <span className="font-mono font-semibold tabular-nums text-ink">
                   {count}
                 </span>
               </div>
             ))}
           </div>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-[var(--muted)]">
-            Submissions by status
-          </p>
+        </StatCard>
+        <StatCard eyebrow="Submissions by status">
           <div className="mt-3 space-y-1">
             {Object.entries(stats?.submissionsByStatus ?? {}).map(
               ([status, count]) => (
@@ -121,65 +124,51 @@ export default function AdminOverviewPage() {
                   key={status}
                   className="flex items-center justify-between text-sm"
                 >
-                  <span className="text-[var(--foreground)]">
-                    {status.replace(/_/g, " ")}
-                  </span>
-                  <span className="font-semibold text-[var(--foreground)]">
+                  <span className="text-ink">{status.replace(/_/g, " ")}</span>
+                  <span className="font-mono font-semibold tabular-nums text-ink">
                     {count}
                   </span>
                 </div>
-              )
+              ),
             )}
           </div>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-[var(--muted)]">Paid revenue</p>
-          <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-            {revenue}
-          </p>
-        </div>
-        <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-[var(--muted)]">
-            Pending grading
-          </p>
-          <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-            {stats?.pendingGrading ?? 0}
-          </p>
-        </div>
+        </StatCard>
+        <StatCard eyebrow="Paid revenue" value={revenue} />
+        <StatCard eyebrow="Pending grading" value={String(stats?.pendingGrading ?? 0)} />
       </div>
 
       {/* Recent submissions */}
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--foreground)]">
-            Recent submissions
-          </h2>
+        <div className="mb-4 flex items-end justify-between">
+          <div>
+            <p className="mark">Latest activity</p>
+            <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
+              Recent submissions
+            </h2>
+          </div>
           <Link
             href="/admin/submissions"
-            className="text-sm font-medium text-[var(--primary)] transition-colors hover:text-[var(--primary-dark)]"
+            className="text-sm font-medium text-ink underline-offset-4 hover:underline"
           >
             View all
           </Link>
         </div>
         {stats && stats.recentSubmissions.length > 0 ? (
-          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
-            <ul className="divide-y divide-[var(--border)]" role="list">
+          <div className="border border-rule bg-paper-raised">
+            <ul className="divide-y divide-rule" role="list">
               {stats.recentSubmissions.map((sub) => (
                 <li key={sub.id}>
                   <Link
                     href="/admin/submissions"
-                    className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50"
+                    className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-rule/40"
                   >
-                    <div className="flex items-center gap-4">
-                      <StatusBadge
-                        label={sub.status.replace(/_/g, " ")}
-                        tone={statusTone[sub.status] ?? "zinc"}
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-[var(--foreground)]">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <SubmissionStatus status={sub.status} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink">
                           {sub.studentName ?? "—"}
                         </p>
-                        <p className="text-xs text-[var(--muted)]">
+                        <p className="mt-0.5 text-xs text-ink-soft">
                           {new Date(sub.createdAt).toLocaleString("en-US", {
                             year: "numeric",
                             month: "short",
@@ -190,7 +179,7 @@ export default function AdminOverviewPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs text-[var(--muted)]">
+                    <span className="shrink-0 font-mono text-xs text-ink-faint">
                       {sub.id.slice(0, 8)}
                     </span>
                   </Link>
@@ -199,11 +188,11 @@ export default function AdminOverviewPage() {
             </ul>
           </div>
         ) : (
-          <div className="rounded-xl border border-[var(--border)] bg-white p-10 text-center shadow-sm">
-            <h3 className="text-base font-medium text-[var(--foreground)]">
+          <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
               No submissions yet
-            </h3>
-            <p className="mt-1 text-sm text-[var(--muted)]">
+            </p>
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
               Submissions will appear here once students start a test.
             </p>
           </div>

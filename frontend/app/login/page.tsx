@@ -65,7 +65,7 @@ export default function LoginPage() {
             FluentCheck · Speaking assessment
           </p>
           <h2 className="mt-5 max-w-md font-display text-4xl font-medium leading-[1.04] tracking-tight text-ink">
-            Your band, and the examiners' notes, in{" "}
+            Your band, and the examiners&apos; notes, in{" "}
             <em className="text-signal">one place.</em>
           </h2>
           <p className="mt-5 max-w-md text-[15px] leading-7 text-ink-soft">

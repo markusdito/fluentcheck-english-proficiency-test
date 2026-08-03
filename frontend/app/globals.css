@@ -58,14 +58,6 @@
   --sidebar-accent-foreground: var(--ink);
   --sidebar-border: var(--rule);
   --sidebar-ring: var(--signal);
-
-  /* ---- Deprecated aliases (stopgap) ----
-     Pages not yet migrated still read these; they now resolve to the new
-     palette so no surface renders unstyled during the redesign. Remove as
-     each page is migrated to the --color-* tokens. */
-  --primary-dark: var(--ink);
-  --danger: var(--signal);
-  --warning: var(--signal);
 }
 
 .dark {

@@ -3,6 +3,9 @@
 import { useState } from "react";
 import type { AssignmentAnswer } from "@/types/examiner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CircleAlertIcon } from "lucide-react";
 
 interface ScoringPanelProps {
   answers: AssignmentAnswer[];
@@ -48,43 +51,57 @@ export function ScoringPanel({ answers, onSubmit, isSubmitting }: ScoringPanelPr
   };
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-base font-semibold text-[var(--foreground)]">Score Sheet</h3>
+    <div className="border border-rule bg-paper-raised p-6">
+      <p className="mark">Marking</p>
+      <h3 className="mt-1.5 font-display text-xl font-medium tracking-tight text-ink">
+        Examiner scores
+      </h3>
 
-      <div className="space-y-4">
+      <div className="mt-4 space-y-4">
         {answers.map((answer, idx) => {
           const score = scores.find((s) => s.answerId === answer.id);
           if (!score) return null;
 
           return (
-            <div key={answer.id} className="rounded-lg border border-[var(--border)] bg-zinc-50 p-4">
-              <p className="mb-2 text-sm font-medium text-[var(--foreground)]">
-                {idx + 1}. {answer.promptText.length > 60 ? answer.promptText.slice(0, 60) + "..." : answer.promptText}
+            <div key={answer.id} className="border border-rule bg-rule/20 p-4">
+              <p className="text-sm font-medium leading-6 text-ink">
+                {idx + 1}.{" "}
+                {answer.promptText.length > 60
+                  ? answer.promptText.slice(0, 60) + "…"
+                  : answer.promptText}
               </p>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="flex-1">
-                  <label className="mb-1 block text-xs font-medium text-[var(--muted)]">
-                    Score (0-100)
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                <div className="w-28">
+                  <label
+                    htmlFor={`score-${answer.id}`}
+                    className="mb-1 block font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft"
+                  >
+                    Score (0–100)
                   </label>
-                  <input
+                  <Input
+                    id={`score-${answer.id}`}
                     type="number"
                     min={0}
                     max={100}
                     value={score.value}
                     onChange={(e) => updateScore(answer.id, "value", e.target.value)}
-                    className="h-10 w-24 rounded-lg border border-[var(--border)] bg-white px-3 text-sm text-[var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                    className="h-10"
                   />
                 </div>
-                <div className="flex-[2]">
-                  <label className="mb-1 block text-xs font-medium text-[var(--muted)]">
+                <div className="min-w-0 flex-1">
+                  <label
+                    htmlFor={`comment-${answer.id}`}
+                    className="mb-1 block font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft"
+                  >
                     Comment (optional)
                   </label>
-                  <input
+                  <Input
+                    id={`comment-${answer.id}`}
                     type="text"
                     value={score.comment}
                     onChange={(e) => updateScore(answer.id, "comment", e.target.value)}
-                    placeholder="Brief feedback..."
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-white px-3 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                    placeholder="Brief feedback…"
+                    className="h-10"
                   />
                 </div>
               </div>
@@ -94,7 +111,10 @@ export function ScoringPanel({ answers, onSubmit, isSubmitting }: ScoringPanelPr
       </div>
 
       {error && (
-        <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>
+        <Alert variant="destructive" className="mt-4 items-start">
+          <CircleAlertIcon />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       <div className="mt-6 flex justify-end">
@@ -105,7 +125,7 @@ export function ScoringPanel({ answers, onSubmit, isSubmitting }: ScoringPanelPr
           disabled={isSubmitting}
           onClick={handleSubmit}
         >
-          Submit Scores
+          Submit scores
         </Button>
       </div>
     </div>

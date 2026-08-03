@@ -556,14 +556,24 @@ Monitors browser online/offline state for network resilience.
 `dropdown-menu`, `breadcrumb`, `accordion`, `tabs`, `table`, `select`, `sonner`,
 `pagination`.
 
-- **Button:** variants `default` (ink), `secondary` (verified), `outline`,
-  `ghost`, `destructive` (signal); link usage via `asChild` + `next/link`.
-- **Input + Label:** control forms; the mono uppercase micro-label / error /
-  helper wrapper from the old `Input.tsx` is kept as a thin presentational layer
-  in the small forms that need it.
-- **Status pills:** operational statuses are shadcn `Badge` with `data-tone`
-  (`verified` / `signal` / `amber` / `neutral`) utilities.
+- **Button:** variants `default` (ink), `secondary` (rule), `outline`, `ghost`,
+  `destructive` (solid signal), `invert` (paper on ink — ink/studio panels), and
+  `link`. Brand sizes `xs`/`default`/`sm`/`md`/`lg` (h-6 → h-12) plus `icon*`.
+  A `loading` prop renders an inline `Loader2` spinner and sets `aria-busy`;
+  default `type="button"`. Links compose via the Base UI `render` prop:
+  `<Button render={<Link href="/signup" />}>…</Button>`.
+- **`FormField` (`components/ui/form-field.tsx`):** brand field wrapper on the
+  shadcn `Input` — mono uppercase micro-label, ruled (borderless bottom-rule)
+  input, optional leading icon, error/helper text.
+- **`SubmissionStatus` (`components/ui/submission-status.tsx`):** the one status
+  primitive — verdict moments (CERTIFIED …) render as the `Stamp`, operational
+  statuses as shadcn `Badge` with `data-tone` (`verified` / `signal` / `amber` /
+  `neutral`) utilities.
+- **`ScoreCard` (`components/results/ScoreCard.tsx`):** the single score surface —
+  `BandGauge` hero (submission band) + per-answer 0–100 hairline rows; pending
+  state renders the "being reviewed" alert.
 - **Spinner:** replaced by lucide `Loader2` + `animate-spin`.
+- **Toasts:** `sonner` `<Toaster/>` mounted in the root layout (light theme).
 
 ### Brand artifacts (kept — no shadcn equivalent)
 
@@ -571,11 +581,15 @@ Monitors browser online/offline state for network resilience.
 - **`Stamp.tsx`** — bordered mono uppercase pill for verdict/certification
   moments (CERTIFIED / PASSED / AWAITING / REC).
 - **`Wordmark.tsx`** (`components/layout/Wordmark.tsx`) — the FC brand mark.
+- **`AccountMenu.tsx`** (`components/layout/AccountMenu.tsx`) — avatar +
+  dropdown-menu (Dashboard, Admin panel, Sign out), used by every authenticated
+  header.
 
 ### Removed (superseded by shadcn)
 
 `Button.tsx`, `Input.tsx`, `Spinner.tsx`, `Modal.tsx` (now `dialog` /
-`alert-dialog`), `ProgressBar.tsx` (now `progress`).
+`alert-dialog`), `ProgressBar.tsx` (now `progress`),
+`admin/StatusBadge.tsx` (now `SubmissionStatus`).
 
 ---
 
@@ -661,6 +675,27 @@ Admin management area, reachable via the "Admin Panel" link on the dashboard (sh
 - **`components/admin/StatusBadge.tsx`** — a small presentational pill showing a status label with one of four tones (`amber`/`blue`/`emerald`/`zinc`) used for submission, payment, and assignment statuses across admin pages.
 
 All admin pages fetch through **`lib/admin-api.ts`** against the `/api/admin` endpoints (plus the shared `/api/questions` for the Questions page). The base `api` wrapper supplies credentialed (cookie) requests, JSON serialization, `ApiError` on non-2xx, and automatic redirect to `/login` on 401.
+
+### Presentation deltas (2026-08-04, UI_REDESIGN.md)
+
+- **Auth (`/login`, `/signup`):** paper split layout — left brand panel with
+  `Wordmark` + specimen/band-scale report (`BandGauge`), right ruled form card;
+  skip links kept.
+- **Dashboard / results / admin / examiner:** shared `Header` (Wordmark + nav
+  slots) with `AccountMenu`; auto `Breadcrumb` on admin (layout-level) and
+  results; Sonner toasts for payment + admin actions.
+- **Dashboard:** paper surfaces, `mark`-eyebrowed stat cards, ink CTA panel
+  (no gradient), `SubmissionStatus` badges, brand empty state, paper skeleton.
+- **Results:** `ScoreCard` hero + per-question answer cards on paper-raised;
+  payment block + toasts; `VideoPlayer` progress branded (signal hairline).
+- **Test session:** the single dark surface — `--studio*` tokens, paper
+  `invert` primary buttons, `Stamp` REC, hairline progress bars; state machine
+  untouched.
+- **Admin:** mono underline nav + `Sheet` mobile nav; `Table`/`Select`/
+  `FormField`; questions split into `Tabs` per part with `AlertDialog` retire
+  confirm; role gates and business logic unchanged.
+- **Examiner:** `AssignmentList`/`VideoReviewer`/`ScoringPanel` paper re-theme
+  with `SubmissionStatus`; assignment page uses the shared shell.
 
 ---
 

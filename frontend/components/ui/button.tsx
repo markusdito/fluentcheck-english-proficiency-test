@@ -52,15 +52,18 @@ function Button({
   type = "button",
   children,
   disabled,
+  render,
   ...props
 }: ButtonProps) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      type={type}
+      type={render ? undefined : type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(buttonVariants({ variant, size, className }))}
+      nativeButton={render ? false : undefined}
+      render={render}
       {...props}
     >
       {loading ? <Loader2Icon className="animate-spin" /> : null}

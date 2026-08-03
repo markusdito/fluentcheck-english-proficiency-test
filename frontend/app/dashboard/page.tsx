@@ -3,11 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ChevronRightIcon, CircleAlertIcon, Loader2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { AssignmentList } from "@/components/examiner/AssignmentList";
 import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermissionModal";
+import { Header } from "@/components/layout/Header";
+import { AccountMenu } from "@/components/layout/AccountMenu";
+import { Button } from "@/components/ui/button";
+import { BandGauge } from "@/components/ui/BandGauge";
+import { SubmissionStatus } from "@/components/ui/submission-status";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ExaminerAssignmentSummary } from "@/types/examiner";
 
 interface User {
@@ -72,17 +79,13 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Loading skeleton
+  // Loading state
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+      <div className="flex min-h-screen items-center justify-center bg-paper">
         <div className="flex flex-col items-center gap-4">
-          <div
-            className="h-8 w-8 animate-spin rounded-full border-2 border-(--border) border-t-[var(--primary)]"
-            role="status"
-            aria-label="Loading"
-          />
-          <p className="text-sm text-[var(--muted)]">Loading your dashboard…</p>
+          <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
+          <p className="text-sm text-ink-soft">Loading your dashboard…</p>
         </div>
       </div>
     );
@@ -91,226 +94,196 @@ export default function DashboardPage() {
   // Error state
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <div className="max-w-sm rounded-xl border border-[var(--border)] bg-white p-8 text-center shadow-lg">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-            <svg className="h-6 w-6 text-[var(--danger)]" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.94 7.94a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM8 10a.75.75 0 01.75-.75h.5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-2.75H8.75A.75.75 0 018 10z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-          <h2 className="mt-4 text-lg font-semibold text-[var(--foreground)]">
-            Something went wrong
-          </h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-[var(--primary)] px-5 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-dark)]"
-          >
+      <div className="flex min-h-screen items-center justify-center bg-paper p-4">
+        <div className="w-full max-w-sm">
+          <Alert variant="destructive" className="items-start">
+            <CircleAlertIcon />
+            <AlertTitle>Something went wrong</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button className="mt-4 w-full" size="lg" onClick={() => window.location.reload()}>
             Try again
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   const isExaminer = user?.role === "EXAMINER";
-  const isAdmin = user?.role === "ADMIN";
-
-  async function handleLogout() {
-    try {
-      await api.post("/auth/logout");
-    } finally {
-      window.location.href = "/";
-    }
-  }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-paper">
       {/* Skip link */}
       <a
         href="#dashboard-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[var(--primary)] focus:px-4 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
       >
         Skip to dashboard content
       </a>
 
-      {/* Top navigation bar */}
-      <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-xl font-bold tracking-tight text-[var(--foreground)]"
-          >
-            <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-white ${isExaminer ? "bg-emerald-600" : "bg-[var(--primary)]"}`}>
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
-            </span>
-            FluentCheck
-          </Link>
+      <Header
+        logoHref="/dashboard"
+        actions={
+          <AccountMenu
+            name={user?.name}
+            email={user?.email}
+            isAdmin={user?.role === "ADMIN"}
+          />
+        }
+      />
 
-          <div className="flex items-center gap-4">
-            <span className="hidden text-sm font-medium text-[var(--muted)] sm:block">
-              {user?.name}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--danger)]"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main id="dashboard-content" className="mx-auto max-w-6xl px-6 py-8 sm:py-12">
+      <main id="dashboard-content" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         {isExaminer ? (
           <>
-            {/* Examiner welcome heading */}
-            <div className="mb-8 sm:mb-10">
-              <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
-                Examiner Dashboard
+            <div className="max-w-2xl">
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+                Examiner dashboard
+              </p>
+              <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
+                Review and score submissions
               </h1>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                Welcome back{user?.name ? `, ${user.name}` : ""}. Review and score assigned submissions.
+              <p className="mt-3 text-[15px] leading-7 text-ink-soft">
+                Welcome back{user?.name ? `, ${user.name}` : ""}. Submissions assigned to
+                you for scoring appear below.
               </p>
             </div>
 
-            {/* Assigned Submissions */}
-            <section>
-              <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
-                Assigned Submissions
-              </h2>
-              <AssignmentList assignments={examinerAssignments} />
+            <section className="mt-10">
+              <p className="mark">Assigned submissions</p>
+              <div className="mt-4">
+                <AssignmentList assignments={examinerAssignments} />
+              </div>
             </section>
           </>
         ) : (
           <>
-            {/* Student welcome heading */}
-            <div className="mb-8 sm:mb-10">
-              <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
-                Welcome back{user?.name ? `, ${user.name}` : ""}
+            <div className="max-w-2xl animate-rise">
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+                Candidate dashboard
+              </p>
+              <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
+                Welcome back{user?.name ? `, ${user.name}` : ""}.
               </h1>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                Here&apos;s a summary of your assessment progress.
+              <p className="mt-3 text-[15px] leading-7 text-ink-soft">
+                This is where your band reports land. Start a new assessment, or reopen a
+                submission the jury has marked.
               </p>
             </div>
 
-            {/* Stats cards */}
-            <div className="mb-8 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
-                <p className="text-sm font-medium text-[var(--muted)]">Total Tests</p>
-                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
+            {/* Stat cards */}
+            <div className="mt-10 grid gap-4 sm:grid-cols-2">
+              <div className="border border-rule bg-paper-raised px-6 py-5">
+                <p className="mark">Total tests</p>
+                <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-ink">
                   {dashboard?.totalTests ?? 0}
                 </p>
               </div>
-              <div className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm">
-                <p className="text-sm font-medium text-[var(--muted)]">Best Score</p>
-                <p className="mt-2 text-3xl font-bold text-[var(--foreground)]">
-                  {dashboard?.bestScore != null ? dashboard.bestScore : "—"}
+              <div className="border border-rule bg-paper-raised px-6 py-5">
+                <p className="mark">Best score</p>
+                {dashboard?.bestScore != null ? (
+                  <div className="mt-3">
+                    <BandGauge band={dashboard.bestScore} size="md" />
+                  </div>
+                ) : (
+                  <p className="mt-2 font-mono text-sm text-ink-faint">No score yet</p>
+                )}
+              </div>
+            </div>
+
+            {/* Start CTA — ink panel */}
+            <div className="mt-6 flex flex-col gap-6 border border-ink bg-ink px-6 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+              <div>
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-paper/60">
+                  Ready when you are
+                </p>
+                <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-paper sm:text-3xl">
+                  Record a new assessment
+                </h2>
+                <p className="mt-1.5 text-sm leading-6 text-paper/70">
+                  About fifteen minutes. We check your camera and microphone before you
+                  begin.
                 </p>
               </div>
+              <Button
+                variant="invert"
+                size="lg"
+                className="shrink-0"
+                onClick={() => setShowPermissionModal(true)}
+              >
+                Start your assessment
+              </Button>
             </div>
 
-            {/* Start New Test CTA */}
-            <div className="mb-10 rounded-xl border border-[var(--border)] bg-gradient-to-br from-[var(--primary)] via-blue-700 to-indigo-800 p-8 text-white shadow-lg">
-              <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-xl font-bold">Ready for a new challenge?</h2>
-                  <p className="mt-1 text-sm text-blue-100">
-                    Start a new speaking assessment and get expert feedback.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowPermissionModal(true)}
-                  className="inline-flex h-12 shrink-0 items-center justify-center rounded-lg bg-white px-8 text-sm font-medium text-[var(--primary)] shadow-sm transition-colors hover:bg-blue-50"
-                >
-                  Start New Test
-                </button>
+            {/* Test history */}
+            <section className="mt-12">
+              <div>
+                <p className="mark">Test history</p>
+                <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
+                  Your reports
+                </h2>
               </div>
-            </div>
 
-            {/* Test History */}
-            <section>
-              <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
-                Test History
-              </h2>
               {dashboard && dashboard.submissions.length > 0 ? (
-                <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
-                  <ul className="divide-y divide-[var(--border)]" role="list">
+                <div className="mt-6 border border-rule bg-paper-raised">
+                  <ul className="divide-y divide-rule" role="list">
                     {dashboard.submissions.map((sub) => (
                       <li key={sub.id}>
                         <Link
                           href={`/results/${sub.id}`}
-                          className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50"
+                          className="group flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-rule/40"
                         >
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-5">
                             <div>
-                              <p className="text-sm font-medium text-[var(--foreground)]">
+                              <p className="font-mono text-sm tabular-nums text-ink">
                                 {new Date(sub.createdAt).toLocaleDateString("en-US", {
                                   year: "numeric",
                                   month: "short",
                                   day: "numeric",
                                 })}
                               </p>
-                              <p className="text-xs text-[var(--muted)]">
+                              <p className="mt-0.5 font-mono text-[11px] text-ink-faint">
                                 {new Date(sub.createdAt).toLocaleTimeString("en-US", {
                                   hour: "2-digit",
                                   minute: "2-digit",
                                 })}
                               </p>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-3">
                             {sub.score != null && (
-                              <span className="text-sm font-semibold text-[var(--foreground)]">
+                              <span className="border-l border-rule pl-4 font-mono text-lg font-semibold tabular-nums text-ink">
                                 {sub.score}
                               </span>
                             )}
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                sub.status === "CERTIFIED"
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : sub.status === "SCORED"
-                                    ? "bg-blue-50 text-blue-700"
-                                    : sub.status === "IN_PROGRESS"
-                                      ? "bg-amber-50 text-amber-700"
-                                      : "bg-zinc-100 text-zinc-600"
-                              }`}
-                            >
-                              {sub.status.replace(/_/g, " ")}
-                            </span>
                           </div>
+                          <span className="flex shrink-0 items-center gap-3">
+                            <SubmissionStatus status={sub.status} />
+                            <ChevronRightIcon
+                              className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5"
+                            />
+                          </span>
                         </Link>
                       </li>
                     ))}
                   </ul>
                 </div>
               ) : (
-                <div className="rounded-xl border border-[var(--border)] bg-white p-10 text-center shadow-sm">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
-                    <svg className="h-7 w-7 text-[var(--muted)]" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path
-                        fillRule="evenodd"
-                        d="M4 1a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V4.414A1 1 0 0016.707 3.95l-2.657-2.657A1 1 0 0013.586 1H4zm7 1v4a1 1 0 01-1 1H6a1 1 0 01-1-1V2H4v16h12V2h-1v4a1 1 0 01-1 1H9a1 1 0 01-1-1V2H9z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <h3 className="mt-4 text-base font-medium text-[var(--foreground)]">
-                    No tests yet
-                  </h3>
-                  <p className="mt-1 text-sm text-[var(--muted)]">
-                    Start your first assessment to see your history here.
+                <div className="mt-6 border border-dashed border-rule-strong bg-paper-raised px-6 py-14 text-center">
+                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                    No assessments yet
                   </p>
+                  <p className="mx-auto mt-4 max-w-sm font-display text-2xl font-medium tracking-tight text-ink">
+                    Your band report will land here.
+                  </p>
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-ink-soft">
+                    Record your first answers and two certified examiners will score your
+                    pronunciation, fluency, vocabulary and grammar.
+                  </p>
+                  <Button
+                    className="mt-7"
+                    size="lg"
+                    onClick={() => setShowPermissionModal(true)}
+                  >
+                    Start your assessment
+                  </Button>
                 </div>
               )}
             </section>
@@ -318,7 +291,7 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Camera & Mic Permission Modal — only for students */}
+      {/* Camera & Mic confirmation — students only */}
       {!isExaminer && (
         <CameraMicPermissionModal
           open={showPermissionModal}

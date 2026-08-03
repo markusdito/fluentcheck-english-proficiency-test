@@ -3,8 +3,27 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Loader2, MenuIcon } from "lucide-react";
 import { api } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { Header } from "@/components/layout/Header";
+import { AccountMenu } from "@/components/layout/AccountMenu";
+import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 interface User {
   id: string;
@@ -25,6 +44,104 @@ const navItems: NavItem[] = [
   { href: "/admin/submissions", label: "Submissions" },
   { href: "/admin/questions", label: "Questions" },
 ];
+
+function isActive(pathname: string, item: NavItem) {
+  return item.exact ? pathname === item.href : pathname.startsWith(item.href);
+}
+
+function AdminNav({ pathname }: { pathname: string }) {
+  return (
+    <>
+      <nav className="hidden items-center gap-1 md:flex" aria-label="Admin">
+        {navItems.map((item) => {
+          const active = isActive(pathname, item);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors",
+                active
+                  ? "border-b-2 border-ink text-ink"
+                  : "text-ink-soft hover:text-ink",
+              )}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <Sheet>
+        <SheetTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label="Admin menu"
+            >
+              <MenuIcon />
+            </Button>
+          }
+        />
+        <SheetContent side="left" className="w-72">
+          <SheetHeader>
+            <SheetTitle>Admin</SheetTitle>
+          </SheetHeader>
+          <nav className="flex flex-col gap-1 px-2" aria-label="Admin (mobile)">
+            {navItems.map((item) => {
+              const active = isActive(pathname, item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "rounded-md px-3 py-2 font-mono text-xs font-semibold uppercase tracking-[0.14em] transition-colors",
+                    active
+                      ? "bg-ink text-paper"
+                      : "text-ink-soft hover:bg-rule/40 hover:text-ink",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </SheetContent>
+      </Sheet>
+    </>
+  );
+}
+
+function AdminBreadcrumb({ pathname }: { pathname: string }) {
+  const page = navItems.find(
+    (i) => i.href !== "/admin" && pathname.startsWith(i.href),
+  );
+  return (
+    <Breadcrumb className="mb-6">
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink render={<Link href="/dashboard" />}>Dashboard</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbLink render={<Link href="/admin" />}>Admin</BreadcrumbLink>
+        </BreadcrumbItem>
+        {page && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{page.label}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </>
+        )}
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -65,77 +182,28 @@ export default function AdminLayout({
   if (checking) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
-        <Loader2 className="size-8 animate-spin text-ink-faint" />
+        <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
       </div>
     );
   }
 
-  async function handleLogout() {
-    try {
-      await api.post("/auth/logout");
-    } finally {
-      window.location.href = "/";
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-zinc-50">
-      {/* Top navigation bar */}
-      <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/80 backdrop-blur-md">
-        <div className="mx-auto grid h-16 max-w-6xl grid-cols-3 items-center gap-6 px-6">
-          <Link
-            href="/admin"
-            className="flex shrink-0 items-center justify-self-start gap-2 text-xl font-bold tracking-tight text-[var(--foreground)]"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] text-white">
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
-            </span>
-            FluentCheck — Admin
-          </Link>
-
-          <nav className="flex min-w-0 items-center justify-self-center gap-1 overflow-x-auto">
-            {navItems.map((item) => {
-              const isActive = item.exact
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-zinc-200/70 text-[var(--foreground)]"
-                      : "text-[var(--muted)] hover:bg-zinc-100 hover:text-[var(--foreground)]"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="flex shrink-0 items-center justify-self-end gap-4">
-            <span className="hidden text-sm font-medium text-[var(--muted)] sm:block">
-              {user?.name}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--danger)]"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+    <div className="min-h-screen bg-paper">
+      <Header
+        logoHref="/admin"
+        nav={<AdminNav pathname={pathname} />}
+        actions={
+          <AccountMenu
+            name={user?.name}
+            email={user?.email}
+            isAdmin={user?.role === "ADMIN"}
+          />
+        }
+      />
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <AdminBreadcrumb pathname={pathname} />
+        {children}
+      </main>
     </div>
   );
 }
