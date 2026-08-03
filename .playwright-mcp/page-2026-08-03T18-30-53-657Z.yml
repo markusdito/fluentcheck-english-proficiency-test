@@ -1,0 +1,68 @@
+- generic [active] [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - link "Skip to profile content" [ref=f7e16] [cursor=pointer]:
+      - /url: "#profile-content"
+    - banner [ref=f7e17]:
+      - generic [ref=f7e18]:
+        - link "FluentCheck — home" [ref=f7e19] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=f7e20]:
+            - text: F
+            - generic [ref=f7e21]: C
+          - generic [ref=f7e22]: FluentCheck
+        - button "Account menu" [ref=f7e24]:
+          - generic [ref=f7e25]: T
+          - generic [ref=f7e27]: test_student_01
+    - main [ref=f7e28]:
+      - generic [ref=f7e29]:
+        - paragraph [ref=f7e30]: Profile · Examiner record
+        - generic [ref=f7e31]:
+          - heading "test_student_01" [level=1] [ref=f7e32]
+          - generic [ref=f7e33]: Examiner
+        - paragraph [ref=f7e34]: Member since August 4, 2026.
+      - region "Your record" [ref=f7e35]:
+        - generic [ref=f7e36]:
+          - paragraph [ref=f7e37]: FluentCheck · Speaking assessment
+          - paragraph [ref=f7e38]: No. FC-6573489E
+        - generic [ref=f7e39]:
+          - generic [ref=f7e40]:
+            - term [ref=f7e41]: Name
+            - definition [ref=f7e42]: test_student_01
+          - generic [ref=f7e43]:
+            - term [ref=f7e44]: Email
+            - definition [ref=f7e45]: test_student_01@example.com
+          - generic [ref=f7e46]:
+            - term [ref=f7e47]: Role
+            - definition [ref=f7e48]:
+              - generic [ref=f7e49]: Examiner
+          - generic [ref=f7e50]:
+            - term [ref=f7e51]: Member since
+            - definition [ref=f7e52]: August 4, 2026
+        - generic [ref=f7e61]:
+          - generic [ref=f7e62]:
+            - paragraph [ref=f7e63]: Keep this portion
+            - paragraph [ref=f7e64]: FC-6573489E
+          - paragraph [ref=f7e65]: Your candidate number on the FluentCheck record. Quote it in any correspondence with the jury.
+      - region "Your work at a glance" [ref=f7e66]:
+        - paragraph [ref=f7e67]: At a glance
+        - generic [ref=f7e68]:
+          - generic [ref=f7e69]:
+            - paragraph [ref=f7e70]: Assigned submissions
+            - paragraph [ref=f7e71]: "0"
+          - generic [ref=f7e72]:
+            - paragraph [ref=f7e73]: To score
+            - paragraph [ref=f7e74]: "0"
+      - region "Account actions" [ref=f7e75]:
+        - generic [ref=f7e76]:
+          - generic [ref=f7e77]:
+            - paragraph [ref=f7e78]: Back to your work
+            - paragraph [ref=f7e79]: Assigned submissions are listed on your dashboard.
+          - button "Dashboard" [ref=f7e80] [cursor=pointer]
+        - generic [ref=f7e81]:
+          - generic [ref=f7e82]:
+            - paragraph [ref=f7e83]: Sign out
+            - paragraph [ref=f7e84]: Ends this session on this device. You can sign back in anytime.
+          - button "Sign out" [ref=f7e85]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f7e12] [cursor=pointer]
+  - alert [ref=f7e86]

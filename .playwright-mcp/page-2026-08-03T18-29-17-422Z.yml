@@ -1,0 +1,54 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - link "Skip to dashboard content" [ref=f4e17] [cursor=pointer]:
+      - /url: "#dashboard-content"
+    - banner [ref=f4e18]:
+      - generic [ref=f4e19]:
+        - link "FluentCheck — home" [ref=f4e20] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=f4e21]:
+            - text: F
+            - generic [ref=f4e22]: C
+          - generic [ref=f4e23]: FluentCheck
+        - generic [ref=f4e24]:
+          - button "Account menu" [expanded] [ref=f4e25]:
+            - generic [ref=f4e26]: T
+            - generic [ref=f4e28]: test_student_01
+          - menu "Account menu" [active] [ref=f4e60]:
+            - group "test_student_01@example.com" [ref=f4e61]:
+              - text: test_student_01@example.com
+              - separator [ref=f4e62]
+            - menuitem "Profile" [ref=f4e63]
+            - menuitem "Dashboard" [ref=f4e64]
+            - separator [ref=f4e65]
+            - menuitem "Sign out" [ref=f4e66]
+    - main [ref=f4e29]:
+      - generic [ref=f4e30]:
+        - paragraph [ref=f4e31]: Candidate dashboard
+        - heading "Welcome back, test_student_01." [level=1] [ref=f4e32]
+        - paragraph [ref=f4e33]: This is where your band reports land. Start a new assessment, or reopen a submission the jury has marked.
+      - generic [ref=f4e34]:
+        - generic [ref=f4e35]:
+          - paragraph [ref=f4e36]: Total tests
+          - paragraph [ref=f4e37]: "0"
+        - generic [ref=f4e38]:
+          - paragraph [ref=f4e39]: Best score
+          - paragraph [ref=f4e40]: No score yet
+      - generic [ref=f4e41]:
+        - generic [ref=f4e42]:
+          - paragraph [ref=f4e43]: Ready when you are
+          - heading "Record a new assessment" [level=2] [ref=f4e44]
+          - paragraph [ref=f4e45]: About fifteen minutes. We check your camera and microphone before you begin.
+        - button "Start your assessment" [ref=f4e46]
+      - generic [ref=f4e47]:
+        - generic [ref=f4e48]:
+          - paragraph [ref=f4e49]: Test history
+          - heading "Your reports" [level=2] [ref=f4e50]
+        - generic [ref=f4e51]:
+          - paragraph [ref=f4e52]: No assessments yet
+          - paragraph [ref=f4e53]: Your band report will land here.
+          - paragraph [ref=f4e54]: Record your first answers and two certified examiners will score your pronunciation, fluency, vocabulary and grammar.
+          - button "Start your assessment" [ref=f4e55]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f4e12] [cursor=pointer]
+  - alert [ref=f4e16]

@@ -1,0 +1,67 @@
+- generic [active] [ref=f9e1]:
+  - generic [ref=f9e2]:
+    - link "Skip to profile content" [ref=f9e17] [cursor=pointer]:
+      - /url: "#profile-content"
+    - banner [ref=f9e18]:
+      - generic [ref=f9e19]:
+        - link "FluentCheck — home" [ref=f9e20] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=f9e21]:
+            - text: F
+            - generic [ref=f9e22]: C
+          - generic [ref=f9e23]: FluentCheck
+        - button "Account menu" [ref=f9e25]:
+          - generic [ref=f9e26]: T
+    - main [ref=f9e28]:
+      - generic [ref=f9e29]:
+        - paragraph [ref=f9e30]: Profile · Candidate record
+        - generic [ref=f9e31]:
+          - heading "test_student_01" [level=1] [ref=f9e32]
+          - generic [ref=f9e33]: Candidate
+        - paragraph [ref=f9e34]: Member since August 4, 2026.
+      - region "Your record" [ref=f9e35]:
+        - generic [ref=f9e36]:
+          - paragraph [ref=f9e37]: FluentCheck · Speaking assessment
+          - paragraph [ref=f9e38]: No. FC-6573489E
+        - generic [ref=f9e39]:
+          - generic [ref=f9e40]:
+            - term [ref=f9e41]: Name
+            - definition [ref=f9e42]: test_student_01
+          - generic [ref=f9e43]:
+            - term [ref=f9e44]: Email
+            - definition [ref=f9e45]: test_student_01@example.com
+          - generic [ref=f9e46]:
+            - term [ref=f9e47]: Role
+            - definition [ref=f9e48]:
+              - generic [ref=f9e49]: Candidate
+          - generic [ref=f9e50]:
+            - term [ref=f9e51]: Member since
+            - definition [ref=f9e52]: August 4, 2026
+        - generic [ref=f9e61]:
+          - generic [ref=f9e62]:
+            - paragraph [ref=f9e63]: Keep this portion
+            - paragraph [ref=f9e64]: FC-6573489E
+          - paragraph [ref=f9e65]: Your candidate number on the FluentCheck record. Quote it in any correspondence with the jury.
+      - region "Your record at a glance" [ref=f9e66]:
+        - paragraph [ref=f9e67]: At a glance
+        - generic [ref=f9e68]:
+          - generic [ref=f9e69]:
+            - paragraph [ref=f9e70]: Tests taken
+            - paragraph [ref=f9e71]: "0"
+          - generic [ref=f9e72]:
+            - paragraph [ref=f9e73]: Best band
+            - paragraph [ref=f9e74]: No score yet
+      - region "Account actions" [ref=f9e75]:
+        - generic [ref=f9e76]:
+          - generic [ref=f9e77]:
+            - paragraph [ref=f9e78]: Back to your work
+            - paragraph [ref=f9e79]: Reports and new assessments live on your dashboard.
+          - button "Dashboard" [ref=f9e80] [cursor=pointer]
+        - generic [ref=f9e81]:
+          - generic [ref=f9e82]:
+            - paragraph [ref=f9e83]: Sign out
+            - paragraph [ref=f9e84]: Ends this session on this device. You can sign back in anytime.
+          - button "Sign out" [ref=f9e85]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f9e12] [cursor=pointer]
+  - alert [ref=f9e16]
