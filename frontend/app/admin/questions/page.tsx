@@ -17,6 +17,8 @@ import { FormField } from "@/components/ui/form-field";
 import { Loader2, TriangleAlertIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { AudioUploadButton } from "@/components/admin/AudioUploadButton";
+import { AudioUploadBadge } from "@/components/admin/AudioUploadBadge";
 import {
   Select,
   SelectContent,
@@ -416,11 +418,13 @@ export default function AdminQuestionsPage() {
       setCreateOrder("");
       setCreatePrep("");
       setCreateRecord("");
+      setCreateLoading(false);
+      // Open the edit form so the admin can upload prompt audio (Save is gated on UPLOADED).
+      startEdit(question);
     } catch (err) {
       setCreateError(
         err instanceof ApiError ? err.message : "Failed to create question."
       );
-    } finally {
       setCreateLoading(false);
     }
   }
@@ -441,6 +445,15 @@ export default function AdminQuestionsPage() {
     setEditError("");
   }
 
+  /** After a successful audio upload, refresh the question row so the status chip + save gate update. */
+  function markAudioUploaded(id: string) {
+    setQuestions((prev) =>
+      prev.map((q) =>
+        q.id === id ? { ...q, audioUploadStatus: "UPLOADED" } : q
+      )
+    );
+  }
+
   async function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
     if (!editingId) return;
@@ -448,6 +461,11 @@ export default function AdminQuestionsPage() {
     const order = Number(editOrder);
     if (!Number.isInteger(order)) {
       setEditError("Order is required.");
+      return;
+    }
+    const original = questions.find((q) => q.id === editingId);
+    if (original?.audioUploadStatus !== "UPLOADED") {
+      setEditError("Upload prompt audio before saving the question.");
       return;
     }
     setEditLoading(true);
@@ -600,6 +618,26 @@ export default function AdminQuestionsPage() {
                   onRecordingSeconds={setEditRecord}
                   disabled={editLoading}
                 />
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-3">
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
+                      Prompt audio
+                    </p>
+                    {original && (
+                      <AudioUploadBadge status={original.audioUploadStatus} />
+                    )}
+                  </div>
+                  <AudioUploadButton
+                    questionId={editingId}
+                    disabled={editLoading}
+                    onUploaded={() => markAudioUploaded(editingId)}
+                  />
+                  {original && original.audioUploadStatus !== "UPLOADED" && (
+                    <p className="mt-2 text-xs text-ink-soft">
+                      Upload the spoken prompt before saving.
+                    </p>
+                  )}
+                </div>
                 <TaskEditor
                   questionId={editingId}
                   tasks={editTasks}
@@ -615,7 +653,9 @@ export default function AdminQuestionsPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="default" loading={editLoading}>
+                  <Button type="submit" variant="default" loading={editLoading}
+                    disabled={original?.audioUploadStatus !== "UPLOADED"}
+                  >
                     Save changes
                   </Button>
                 </div>
@@ -679,18 +719,10 @@ export default function AdminQuestionsPage() {
                             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
                               Order {q.order}
                             </span>
-                            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                              {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"}
-                            </span>
+                            <AudioUploadBadge status={q.audioUploadStatus} />
                           </div>
                           <p className="text-sm leading-6 text-ink">
-                            {q.audioUploadStatus === "UPLOADED"
-                              ? "Audio uploaded"
-                              : q.audioUploadStatus === "FAILED"
-                                ? "Audio upload failed"
-                                : "No audio uploaded yet"}
-                          </p>
-                          <p className="mt-2 text-xs text-ink-soft">
+                            {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"} ·{" "}
                             {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
                           </p>
                           {q.tasks.length > 0 && (

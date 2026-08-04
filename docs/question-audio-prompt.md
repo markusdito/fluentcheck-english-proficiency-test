@@ -91,10 +91,10 @@ MIME allowlist: `^audio/(webm|mpeg|mp4|ogg|m4a)$`
 - **Check:** `tsc` clean; no remaining `promptText` refs on Question types — **PASSED 2026-08-04** (frontend + backend `tsc --noEmit` clean; remaining `promptText` refs are Task-only; test page `Prompt.audioUrl` bridge set to `null` until Iteration 7 fetches presigned URLs)
 
 ### Iteration 6 — Admin UI
-- [ ] `app/admin/questions/page.tsx`: textarea → file input + progress + upload/confirm
-- [ ] Save disabled until audio `UPLOADED`
-- [ ] Tasks section unchanged (text)
-- **Check:** full admin flow: create → upload → confirm → status chip shows UPLOADED
+- [x] `app/admin/questions/page.tsx`: textarea → file input + progress + upload/confirm
+- [x] Save disabled until audio `UPLOADED`
+- [x] Tasks section unchanged (text)
+- **Check:** full admin flow: create → upload → confirm → status chip shows UPLOADED — **PASSED 2026-08-04** (`AudioUploadButton` file input → presigned PUT → R2 → confirm; `AudioUploadBadge` status chips in list + edit form; Save gated on UPLOADED; create auto-opens edit form for upload)
 
 ### Iteration 7 — Student test page
 - [ ] `PromptDisplay.tsx`: `text` → audio player (autoplay + replay)
