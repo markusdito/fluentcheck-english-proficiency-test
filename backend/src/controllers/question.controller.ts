@@ -10,6 +10,80 @@ import {
   updateTask as updateTaskService,
   deleteTask as deleteTaskService,
 } from "../service/question.service.js";
+import {
+  createQuestionAudioPresignedUpload,
+  confirmQuestionAudioUpload,
+  createQuestionAudioViewUrl,
+} from "../service/upload.service.js";
+
+function handleQuestionAudioError(res: Response, error: unknown) {
+  const message = error instanceof Error ? error.message : "Internal server error";
+  const status =
+    message === "Question not found"
+      ? 404
+      : message === "Question audio already uploaded" ||
+        message === "No pending audio upload for this question" ||
+        message === "Concurrent confirm — question audio already finalized" ||
+        message === "Audio not yet uploaded"
+      ? 409
+      : message === "Invalid questionId" || message === "Invalid mimeType" || message === "Invalid audio storage key"
+      ? 400
+      : 500;
+  res.status(status).json({ error: message });
+}
+
+/**
+ * POST /api/questions/audio/presigned-url
+ * Generate a presigned PUT URL for a question's prompt audio (admin only).
+ */
+export async function createQuestionAudioPresignedUrl(req: Request, res: Response) {
+  try {
+    const { questionId, mimeType } = req.body as { questionId?: string; mimeType?: string };
+
+    if (!questionId || !mimeType) {
+      res.status(400).json({ error: "questionId and mimeType are required" });
+      return;
+    }
+
+    const result = await createQuestionAudioPresignedUpload(questionId, mimeType);
+    res.status(201).json({ status: "success", data: result });
+  } catch (error) {
+    handleQuestionAudioError(res, error);
+  }
+}
+
+/**
+ * POST /api/questions/audio/confirm
+ * Confirm a question's prompt audio was uploaded to R2 (admin only).
+ */
+export async function confirmQuestionAudioUploadHandler(req: Request, res: Response) {
+  try {
+    const { questionId } = req.body as { questionId?: string };
+
+    if (!questionId) {
+      res.status(400).json({ error: "questionId is required" });
+      return;
+    }
+
+    await confirmQuestionAudioUpload(questionId);
+    res.status(200).json({ status: "success", message: "Audio confirmed" });
+  } catch (error) {
+    handleQuestionAudioError(res, error);
+  }
+}
+
+/**
+ * GET /api/questions/:id/audio-url
+ * Presigned GET URL for a question's prompt audio (any authed user).
+ */
+export async function getQuestionAudioUrl(req: Request, res: Response) {
+  try {
+    const url = await createQuestionAudioViewUrl(req.params.id as string);
+    res.status(200).json({ status: "success", data: { url } });
+  } catch (error) {
+    handleQuestionAudioError(res, error);
+  }
+}
 
 function isQuestionCategory(value: unknown): value is QuestionCategory {
   return (
@@ -44,14 +118,10 @@ export async function getQuestions(req: Request, res: Response) {
 
 export async function createQuestion(req: Request, res: Response) {
   try {
-    const { category, promptText, order, preparationSeconds, recordingSeconds, tasks } = req.body;
+    const { category, order, preparationSeconds, recordingSeconds, tasks } = req.body;
 
     if (!isQuestionCategory(category)) {
       res.status(400).json({ error: "Category must be one of PART_1, PART_2 or PART_3" });
-      return;
-    }
-    if (typeof promptText !== "string" || promptText.trim() === "") {
-      res.status(400).json({ error: "promptText is required" });
       return;
     }
     if (typeof order !== "number" || !Number.isInteger(order)) {
@@ -78,7 +148,6 @@ export async function createQuestion(req: Request, res: Response) {
 
     const question = await createQuestionService(req.user!.id, {
       category,
-      promptText: promptText.trim(),
       order,
       preparationSeconds,
       recordingSeconds,
@@ -94,14 +163,10 @@ export async function createQuestion(req: Request, res: Response) {
 export async function updateQuestion(req: Request, res: Response) {
   try {
     const id = req.params.id as string;
-    const { category, promptText, order, preparationSeconds, recordingSeconds } = req.body;
+    const { category, order, preparationSeconds, recordingSeconds } = req.body;
 
     if (category !== undefined && !isQuestionCategory(category)) {
       res.status(400).json({ error: "Category must be one of PART_1, PART_2 or PART_3" });
-      return;
-    }
-    if (promptText !== undefined && (typeof promptText !== "string" || promptText.trim() === "")) {
-      res.status(400).json({ error: "promptText must be a non-empty string" });
       return;
     }
     if (order !== undefined && (typeof order !== "number" || !Number.isInteger(order))) {
@@ -119,7 +184,6 @@ export async function updateQuestion(req: Request, res: Response) {
 
     const question = await updateQuestionService(id, {
       category,
-      promptText: promptText?.trim(),
       order,
       preparationSeconds,
       recordingSeconds,

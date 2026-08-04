@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import type { AssignmentAnswer } from "@/types/examiner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 interface VideoReviewerProps {
@@ -47,7 +48,9 @@ export function VideoReviewer({ answers }: VideoReviewerProps) {
             {currentIndex + 1} of {answers.length}
           </span>
         </div>
-        <p className="text-sm font-medium leading-6 text-ink">{current.promptText}</p>
+        <div className="mb-3">
+          <QuestionAudioPlayer audioUrl={current.audioUrl} compact />
+        </div>
         {current.tasks.length > 0 && (
           <ul className="mt-2 space-y-1">
             {current.tasks.map((task) => (

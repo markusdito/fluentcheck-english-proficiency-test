@@ -71,7 +71,6 @@ model User {
 model Question {
   id                 String           @id @default(uuid()) @db.Uuid
   category           QuestionCategory
-  promptText         String
   order              Int
   preparationSeconds Int              @default(30)
   recordingSeconds   Int              @default(120)
@@ -79,6 +78,13 @@ model Question {
   createdBy          User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
   tasks              Task[]
   answers            Answer[]
+
+  // Recorded prompt audio lives in Cloudflare R2 / S3 — DB stores metadata only
+  audioStorageKey   String?
+  audioMimeType     String?
+  audioSizeBytes    Int?
+  audioUploadStatus UploadStatus @default(PENDING)
+
   createdAt          DateTime         @default(now()) @db.Timestamptz()
   updatedAt          DateTime         @updatedAt @db.Timestamptz()
   deletedAt          DateTime? @db.Timestamptz() // retire a question without breaking historical answers

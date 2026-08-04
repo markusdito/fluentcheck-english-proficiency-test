@@ -18,7 +18,7 @@ export interface AssignmentAnswer {
   id: string;
   questionId: string;
   questionCategory: string;
-  promptText: string;
+  audioUrl: string | null;
   tasks: ExaminerTask[];
   durationSeconds: number | null;
   videoUrl: string | null;

@@ -95,11 +95,14 @@ export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof User
 export const QuestionScalarFieldEnum = {
   id: 'id',
   category: 'category',
-  promptText: 'promptText',
   order: 'order',
   preparationSeconds: 'preparationSeconds',
   recordingSeconds: 'recordingSeconds',
   createdById: 'createdById',
+  audioStorageKey: 'audioStorageKey',
+  audioMimeType: 'audioMimeType',
+  audioSizeBytes: 'audioSizeBytes',
+  audioUploadStatus: 'audioUploadStatus',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   deletedAt: 'deletedAt'

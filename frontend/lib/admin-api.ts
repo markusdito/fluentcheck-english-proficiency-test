@@ -104,7 +104,6 @@ export async function fetchAdminQuestions(): Promise<AdminQuestion[]> {
 
 interface QuestionPayload {
   category: string;
-  promptText: string;
   order: number;
   preparationSeconds?: number;
   recordingSeconds?: number;

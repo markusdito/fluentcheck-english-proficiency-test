@@ -4,19 +4,22 @@ export interface ApiTask {
   order: number;
 }
 
+export type QuestionAudioStatus = "PENDING" | "UPLOADED" | "FAILED";
+
 export interface ApiQuestion {
   id: string;
   category: "PART_1" | "PART_2" | "PART_3";
-  promptText: string;
   order: number;
   preparationSeconds: number;
   recordingSeconds: number;
+  audioStorageKey: string | null;
+  audioUploadStatus: QuestionAudioStatus;
   tasks: ApiTask[];
 }
 
 export interface Prompt {
   id: string;
-  text: string;
+  audioUrl: string | null;
   tasks: string[];
   task: string; // backward-compatible convenience — joined tasks
   prepTime: number;

@@ -17,6 +17,8 @@ import { FormField } from "@/components/ui/form-field";
 import { Loader2, TriangleAlertIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { AudioUploadButton } from "@/components/admin/AudioUploadButton";
+import { AudioUploadBadge } from "@/components/admin/AudioUploadBadge";
 import {
   Select,
   SelectContent,
@@ -86,8 +88,6 @@ function ToNumberInput({
 function QuestionFormFields({
   category,
   onCategory,
-  promptText,
-  onPromptText,
   order,
   onOrder,
   preparationSeconds,
@@ -98,8 +98,6 @@ function QuestionFormFields({
 }: {
   category: string;
   onCategory: (v: string) => void;
-  promptText: string;
-  onPromptText: (v: string) => void;
   order: string;
   onOrder: (v: string) => void;
   preparationSeconds: string;
@@ -131,16 +129,6 @@ function QuestionFormFields({
           </SelectContent>
         </Select>
       </div>
-
-      <FormField
-        id="promptText"
-        label="Prompt text"
-        placeholder="Describe the scenario for this question"
-        value={promptText}
-        onChange={(e) => onPromptText(e.target.value)}
-        required
-        disabled={disabled}
-      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <ToNumberInput
@@ -367,7 +355,6 @@ export default function AdminQuestionsPage() {
   const [loadError, setLoadError] = useState("");
 
   const [createCategory, setCreateCategory] = useState("PART_1");
-  const [createPrompt, setCreatePrompt] = useState("");
   const [createOrder, setCreateOrder] = useState("");
   const [createPrep, setCreatePrep] = useState("");
   const [createRecord, setCreateRecord] = useState("");
@@ -376,7 +363,6 @@ export default function AdminQuestionsPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCategory, setEditCategory] = useState("PART_1");
-  const [editPrompt, setEditPrompt] = useState("");
   const [editOrder, setEditOrder] = useState("");
   const [editPrep, setEditPrep] = useState("");
   const [editRecord, setEditRecord] = useState("");
@@ -416,29 +402,29 @@ export default function AdminQuestionsPage() {
     e.preventDefault();
     setCreateError("");
     const order = Number(createOrder);
-    if (!createPrompt.trim() || !Number.isInteger(order)) {
-      setCreateError("Prompt text and order are required.");
+    if (!Number.isInteger(order)) {
+      setCreateError("Order is required.");
       return;
     }
     setCreateLoading(true);
     try {
       const question = await createQuestion({
         category: createCategory,
-        promptText: createPrompt.trim(),
         order,
         preparationSeconds: createPrep ? Number(createPrep) : undefined,
         recordingSeconds: createRecord ? Number(createRecord) : undefined,
       });
       setQuestions((prev) => [...prev, question]);
-      setCreatePrompt("");
       setCreateOrder("");
       setCreatePrep("");
       setCreateRecord("");
+      setCreateLoading(false);
+      // Open the edit form so the admin can upload prompt audio (Save is gated on UPLOADED).
+      startEdit(question);
     } catch (err) {
       setCreateError(
         err instanceof ApiError ? err.message : "Failed to create question."
       );
-    } finally {
       setCreateLoading(false);
     }
   }
@@ -446,7 +432,6 @@ export default function AdminQuestionsPage() {
   function startEdit(q: AdminQuestion) {
     setEditingId(q.id);
     setEditCategory(q.category);
-    setEditPrompt(q.promptText);
     setEditOrder(String(q.order));
     setEditPrep(String(q.preparationSeconds));
     setEditRecord(String(q.recordingSeconds));
@@ -460,20 +445,33 @@ export default function AdminQuestionsPage() {
     setEditError("");
   }
 
+  /** After a successful audio upload, refresh the question row so the status chip + save gate update. */
+  function markAudioUploaded(id: string) {
+    setQuestions((prev) =>
+      prev.map((q) =>
+        q.id === id ? { ...q, audioUploadStatus: "UPLOADED" } : q
+      )
+    );
+  }
+
   async function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
     if (!editingId) return;
     setEditError("");
     const order = Number(editOrder);
-    if (!editPrompt.trim() || !Number.isInteger(order)) {
-      setEditError("Prompt text and order are required.");
+    if (!Number.isInteger(order)) {
+      setEditError("Order is required.");
+      return;
+    }
+    const original = questions.find((q) => q.id === editingId);
+    if (original?.audioUploadStatus !== "UPLOADED") {
+      setEditError("Upload prompt audio before saving the question.");
       return;
     }
     setEditLoading(true);
     try {
       const updated = await updateQuestion(editingId, {
         category: editCategory,
-        promptText: editPrompt.trim(),
         order,
         preparationSeconds: editPrep ? Number(editPrep) : undefined,
         recordingSeconds: editRecord ? Number(editRecord) : undefined,
@@ -571,8 +569,6 @@ export default function AdminQuestionsPage() {
             <QuestionFormFields
               category={createCategory}
               onCategory={setCreateCategory}
-              promptText={createPrompt}
-              onPromptText={setCreatePrompt}
               order={createOrder}
               onOrder={setCreateOrder}
               preparationSeconds={createPrep}
@@ -614,8 +610,6 @@ export default function AdminQuestionsPage() {
                 <QuestionFormFields
                   category={editCategory}
                   onCategory={setEditCategory}
-                  promptText={editPrompt}
-                  onPromptText={setEditPrompt}
                   order={editOrder}
                   onOrder={setEditOrder}
                   preparationSeconds={editPrep}
@@ -624,6 +618,26 @@ export default function AdminQuestionsPage() {
                   onRecordingSeconds={setEditRecord}
                   disabled={editLoading}
                 />
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-3">
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
+                      Prompt audio
+                    </p>
+                    {original && (
+                      <AudioUploadBadge status={original.audioUploadStatus} />
+                    )}
+                  </div>
+                  <AudioUploadButton
+                    questionId={editingId}
+                    disabled={editLoading}
+                    onUploaded={() => markAudioUploaded(editingId)}
+                  />
+                  {original && original.audioUploadStatus !== "UPLOADED" && (
+                    <p className="mt-2 text-xs text-ink-soft">
+                      Upload the spoken prompt before saving.
+                    </p>
+                  )}
+                </div>
                 <TaskEditor
                   questionId={editingId}
                   tasks={editTasks}
@@ -639,7 +653,9 @@ export default function AdminQuestionsPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="default" loading={editLoading}>
+                  <Button type="submit" variant="default" loading={editLoading}
+                    disabled={original?.audioUploadStatus !== "UPLOADED"}
+                  >
                     Save changes
                   </Button>
                 </div>
@@ -703,12 +719,10 @@ export default function AdminQuestionsPage() {
                             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
                               Order {q.order}
                             </span>
-                            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                              {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"}
-                            </span>
+                            <AudioUploadBadge status={q.audioUploadStatus} />
                           </div>
-                          <p className="text-sm leading-6 text-ink">{q.promptText}</p>
-                          <p className="mt-2 text-xs text-ink-soft">
+                          <p className="text-sm leading-6 text-ink">
+                            {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"} ·{" "}
                             {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
                           </p>
                           {q.tasks.length > 0 && (
