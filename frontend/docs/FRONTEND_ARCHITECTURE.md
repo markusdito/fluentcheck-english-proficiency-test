@@ -2,8 +2,12 @@
 
 > **Consolidated from:** `frontend/docs/AGENTS.md`, `frontend/docs/SKILL.md`
 >
-> **Version:** 1.0.0
-> **Last Updated:** 2026-07-26
+> **Version:** 1.1.0
+> **Last Updated:** 2026-08-03
+>
+> **1.1.0:** §8/§9 updated for the shadcn adoption — the app is now composed
+> from shadcn primitives themed by the "Examination Room" brand tokens. See
+> `frontend/docs/UI_REDESIGN.md` for the redesign plan.
 
 ---
 
@@ -89,14 +93,15 @@ frontend/
 │   └── profile/
 │       └── page.tsx              # Edit info, change password, stats
 ├── components/
-│   ├── ui/                       # Reusable primitives
-│   │   ├── Button.tsx
-│   │   ├── Card.tsx
-│   │   ├── Input.tsx
-│   │   ├── Modal.tsx
-│   │   ├── Badge.tsx
-│   │   ├── Spinner.tsx
-│   │   └── ProgressBar.tsx
+│   ├── ui/                       # shadcn primitives (button, card, input, …) + brand artifacts
+│   │   ├── button.tsx            # shadcn button (supersedes Button.tsx)
+│   │   ├── card.tsx
+│   │   ├── input.tsx / label.tsx
+│   │   ├── badge.tsx
+│   │   ├── dialog.tsx / alert-dialog.tsx / sheet.tsx
+│   │   ├── table.tsx / select.tsx / tabs.tsx / …
+│   │   ├── BandGauge.tsx         # brand artifact — 9-cell band gauge
+│   │   └── Stamp.tsx             # brand artifact — verdict stamp
 │   ├── layout/
 │   │   ├── Header.tsx            # Nav bar with auth state, hamburger on mobile
 │   │   └── Footer.tsx
@@ -538,43 +543,64 @@ Monitors browser online/offline state for network resilience.
 
 ## 8. UI Components (`components/ui/`)
 
-### Button.tsx
+> **Design system:** the app is composed from **shadcn/ui primitives** themed by
+> the "Examination Room" brand tokens (paper/ink/rule/signal, radius 0.375rem).
+> The brand palette is mapped to shadcn's CSS-variable contract in
+> `app/globals.css`, so stock components render in brand colors automatically.
+> See `frontend/docs/UI_REDESIGN.md` for the full redesign plan.
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `variant` | `'primary' \| 'secondary' \| 'outline' \| 'ghost' \| 'danger'` | `'primary'` | Visual style |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Button size |
-| `loading` | `boolean` | `false` | Show spinner, disable interaction |
-| `disabled` | `boolean` | `false` | Disable button |
-| `fullWidth` | `boolean` | `false` | Stretch to container |
-| `type` | `'button' \| 'submit' \| 'reset'` | `'button'` | HTML type |
+### Installed shadcn components (`components/ui/`, lowercase filenames)
 
-**Styling:** `rounded-lg`, `font-medium`, `transition-all`, `aria-busy` during loading
+`button`, `card`, `input`, `label`, `badge`, `separator`, `skeleton`,
+`progress`, `tooltip`, `avatar`, `alert`, `dialog`, `alert-dialog`, `sheet`,
+`dropdown-menu`, `breadcrumb`, `accordion`, `tabs`, `table`, `select`, `sonner`,
+`pagination`.
 
-### Input.tsx
+- **Button:** variants `default` (ink), `secondary` (rule), `outline`, `ghost`,
+  `destructive` (solid signal), `invert` (paper on ink — ink/studio panels), and
+  `link`. Brand sizes `xs`/`default`/`sm`/`md`/`lg` (h-6 → h-12) plus `icon*`.
+  A `loading` prop renders an inline `Loader2` spinner and sets `aria-busy`;
+  default `type="button"`. Links compose via the Base UI `render` prop:
+  `<Button render={<Link href="/signup" />}>…</Button>`.
+- **`FormField` (`components/ui/form-field.tsx`):** brand field wrapper on the
+  shadcn `Input` — mono uppercase micro-label, ruled (borderless bottom-rule)
+  input, optional leading icon, error/helper text.
+- **`SubmissionStatus` (`components/ui/submission-status.tsx`):** the one status
+  primitive — verdict moments (CERTIFIED …) render as the `Stamp`, operational
+  statuses as shadcn `Badge` with `data-tone` (`verified` / `signal` / `amber` /
+  `neutral`) utilities.
+- **`ScoreCard` (`components/results/ScoreCard.tsx`):** the single score surface —
+  `BandGauge` hero (submission band) + per-answer 0–100 hairline rows; pending
+  state renders the "being reviewed" alert.
+- **Spinner:** replaced by lucide `Loader2` + `animate-spin`.
+- **Toasts:** `sonner` `<Toaster/>` mounted in the root layout (light theme).
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `label` | `string` | — | `<label>` element (accessibility) |
-| `error` | `string` | — | Red border + error message below |
-| `helperText` | `string` | — | Helper text below |
-| `type` | `string` | `'text'` | HTML input type |
-| `value` | `string` | — | Controlled value |
-| `onChange` | `(value: string) => void` | — | Change handler |
-| `required` | `boolean` | `false` | Required indicator |
-| `disabled` | `boolean` | `false` | Disabled state |
+### Brand artifacts (kept — no shadcn equivalent)
 
-### Card.tsx, Modal.tsx, Badge.tsx, Spinner.tsx, ProgressBar.tsx
+- **`BandGauge.tsx`** — the 9-cell IELTS-style band gauge (0–9, half bands).
+- **`Stamp.tsx`** — bordered mono uppercase pill for verdict/certification
+  moments (CERTIFIED / PASSED / AWAITING / REC).
+- **`Wordmark.tsx`** (`components/layout/Wordmark.tsx`) — the FC brand mark.
+- **`AccountMenu.tsx`** (`components/layout/AccountMenu.tsx`) — avatar +
+  dropdown-menu (Dashboard, Admin panel, Sign out), used by every authenticated
+  header.
 
-See component files for prop tables. Key behaviors:
-- **Modal:** Backdrop click to close, ESC key, focus trap, animate in/out
-- **Badge:** Score display and status indicators
-- **Spinner:** CSS-only `animate-spin` via Tailwind
-- **ProgressBar:** Animated width transitions
+### Removed (superseded by shadcn)
+
+`Button.tsx`, `Input.tsx`, `Spinner.tsx`, `Modal.tsx` (now `dialog` /
+`alert-dialog`), `ProgressBar.tsx` (now `progress`),
+`admin/StatusBadge.tsx` (now `SubmissionStatus`).
 
 ---
 
 ## 9. Pages
+
+> **Presentation:** all pages are composed from the shadcn primitives in §8 and
+> themed by the brand tokens. Light "paper" surfaces everywhere except the test
+> session, which uses the dark `--studio*` tokens (the on-camera moment). The
+> migration matrix and per-page changes live in
+> `frontend/docs/UI_REDESIGN.md` §6. The behavior described below is unchanged
+> by the redesign.
 
 ### 1. Landing Page (`app/page.tsx`)
 
@@ -649,6 +675,27 @@ Admin management area, reachable via the "Admin Panel" link on the dashboard (sh
 - **`components/admin/StatusBadge.tsx`** — a small presentational pill showing a status label with one of four tones (`amber`/`blue`/`emerald`/`zinc`) used for submission, payment, and assignment statuses across admin pages.
 
 All admin pages fetch through **`lib/admin-api.ts`** against the `/api/admin` endpoints (plus the shared `/api/questions` for the Questions page). The base `api` wrapper supplies credentialed (cookie) requests, JSON serialization, `ApiError` on non-2xx, and automatic redirect to `/login` on 401.
+
+### Presentation deltas (2026-08-04, UI_REDESIGN.md)
+
+- **Auth (`/login`, `/signup`):** paper split layout — left brand panel with
+  `Wordmark` + specimen/band-scale report (`BandGauge`), right ruled form card;
+  skip links kept.
+- **Dashboard / results / admin / examiner:** shared `Header` (Wordmark + nav
+  slots) with `AccountMenu`; auto `Breadcrumb` on admin (layout-level) and
+  results; Sonner toasts for payment + admin actions.
+- **Dashboard:** paper surfaces, `mark`-eyebrowed stat cards, ink CTA panel
+  (no gradient), `SubmissionStatus` badges, brand empty state, paper skeleton.
+- **Results:** `ScoreCard` hero + per-question answer cards on paper-raised;
+  payment block + toasts; `VideoPlayer` progress branded (signal hairline).
+- **Test session:** the single dark surface — `--studio*` tokens, paper
+  `invert` primary buttons, `Stamp` REC, hairline progress bars; state machine
+  untouched.
+- **Admin:** mono underline nav + `Sheet` mobile nav; `Table`/`Select`/
+  `FormField`; questions split into `Tabs` per part with `AlertDialog` retire
+  confirm; role gates and business logic unchanged.
+- **Examiner:** `AssignmentList`/`VideoReviewer`/`ScoringPanel` paper re-theme
+  with `SubmissionStatus`; assignment page uses the shared shell.
 
 ---
 
@@ -897,7 +944,7 @@ graph TD
 | Hooks | camelCase + `use` prefix | `useAuth`, `useCountdown` |
 | Constants | UPPER_SNAKE_CASE | `API_URL`, `MAX_RETRIES` |
 | Page files | kebab-case | `app/login/page.tsx` |
-| Component files | PascalCase | `Button.tsx`, `LoginForm.tsx` |
+| Component files | PascalCase for feature/brand components (`BandGauge.tsx`, `LoginForm.tsx`); lowercase-kebab for shadcn primitives (`button.tsx`, `card.tsx`) |
 | Lib/hook files | camelCase | `useAuth.ts`, `api.ts` |
 
 ---

@@ -1,9 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { api } from "@/lib/api";
+import { Wordmark } from "@/components/layout/Wordmark";
+import { BandGauge } from "@/components/ui/BandGauge";
+import { Stamp } from "@/components/ui/Stamp";
+
+const specimen = [
+  { label: "Pronunciation", band: 7.0 },
+  { label: "Fluency", band: 7.5 },
+  { label: "Vocabulary", band: 7.5 },
+  { label: "Grammar", band: 7.0 },
+];
 
 export default function LoginPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -28,85 +38,91 @@ export default function LoginPage() {
 
   if (checkingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <div
-          className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--primary)]"
-          role="status"
-          aria-label="Loading"
-        />
+      <div className="flex min-h-screen items-center justify-center bg-paper">
+        <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 lg:flex-row">
+    <div className="flex min-h-screen flex-col bg-paper lg:flex-row">
       {/* Skip link for accessibility */}
       <a
         href="#login-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[var(--primary)] focus:px-4 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
       >
         Skip to login form
       </a>
 
-      {/* Left: brand panel (hidden on mobile) */}
-      <aside className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-gradient-to-br from-[var(--primary)] via-blue-700 to-indigo-800 p-12 text-white lg:flex">
-        {/* Decorative orbs */}
-        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-indigo-300/20 blur-3xl" />
-
-        <Link
-          href="/"
-          className="relative z-10 flex items-center gap-2 text-2xl font-bold tracking-tight focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 rounded-lg"
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-            </svg>
-          </span>
-          FluentCheck
-        </Link>
-
-        <div className="relative z-10 max-w-md">
-          <h2 className="text-3xl font-bold leading-tight">
-            Master your English speaking skills
-          </h2>
-          <p className="mt-4 text-lg text-blue-100">
-            Record video responses to expert-crafted prompts and receive
-            detailed feedback from our jury of language professionals.
-          </p>
-
-          {/* Feature bullets */}
-          <ul className="mt-8 space-y-4">
-            {[
-              "AI-assisted pronunciation & fluency analysis",
-              "Expert jury feedback on every recording",
-              "Track your progress with detailed score breakdowns",
-            ].map((feature) => (
-              <li key={feature} className="flex items-start gap-3">
-                <svg
-                  className="mt-0.5 h-6 w-6 flex-shrink-0 text-emerald-300"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className="text-blue-50">{feature}</span>
-              </li>
-            ))}
-          </ul>
+      {/* Left: brand panel — specimen report motif (desktop) */}
+      <aside className="hidden flex-1 flex-col justify-between border-r border-rule lg:flex">
+        <div className="flex h-16 items-center border-b border-rule px-8">
+          <Wordmark />
         </div>
 
-        <p className="relative z-10 text-sm text-blue-200">
-          © {new Date().getFullYear()} FluentCheck. All rights reserved.
+        <div className="px-8 pb-8">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+            FluentCheck · Speaking assessment
+          </p>
+          <h2 className="mt-5 max-w-md font-display text-4xl font-medium leading-[1.04] tracking-tight text-ink">
+            Your band, and the examiners&apos; notes, in{" "}
+            <em className="text-signal">one place.</em>
+          </h2>
+          <p className="mt-5 max-w-md text-[15px] leading-7 text-ink-soft">
+            Sign in to record your answers, settle your assessment fee, and pick
+            up your certificate once the jury has marked you.
+          </p>
+
+          <div className="mt-10 max-w-sm border border-rule bg-paper-raised animate-rise">
+            <div className="flex items-center justify-between border-b border-rule px-5 py-3">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                Specimen report
+              </p>
+              <Stamp tone="verified" dot>
+                Certified
+              </Stamp>
+            </div>
+            <div className="px-5 py-5">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                    Overall band
+                  </p>
+                  <p className="mt-1 font-display text-5xl font-medium leading-none tracking-tight text-ink">
+                    7.5
+                  </p>
+                </div>
+                <p className="pb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                  Out of 9
+                </p>
+              </div>
+              <div className="mt-4">
+                <BandGauge band={7.5} size="md" />
+              </div>
+              <dl className="mt-5 divide-y divide-rule">
+                {specimen.map((c) => (
+                  <div
+                    key={c.label}
+                    className="flex items-center justify-between gap-4 py-2.5"
+                  >
+                    <dt className="text-sm font-medium text-ink">{c.label}</dt>
+                    <dd className="flex items-center gap-4">
+                      <span className="hidden w-32 sm:block">
+                        <BandGauge band={c.band} size="sm" showValue={false} />
+                      </span>
+                      <span className="w-8 text-right font-mono text-sm tabular-nums text-ink">
+                        {c.band.toFixed(1)}
+                      </span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+        </div>
+
+        <p className="border-t border-rule px-8 py-5 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+          © {new Date().getFullYear()} FluentCheck · English proficiency test
         </p>
       </aside>
 
@@ -116,33 +132,24 @@ export default function LoginPage() {
         className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6"
       >
         <div className="w-full max-w-sm">
-          {/* Mobile brand (shown only on small screens) */}
-          <Link
-            href="/"
-            className="mb-8 flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded-lg lg:hidden"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] text-white">
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
-            </span>
-            FluentCheck
-          </Link>
+          <div className="mb-8 flex justify-center lg:hidden">
+            <Wordmark />
+          </div>
 
-          {/* Card */}
-          <div className="animate-fade-in-up rounded-xl border border-[var(--border)] bg-white p-8 shadow-lg shadow-zinc-200/50">
-            <h1 className="mb-1 text-2xl font-semibold text-[var(--foreground)]">
+          <div className="border border-rule bg-paper-raised px-6 py-8 sm:px-8">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+              Candidate login
+            </p>
+            <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-ink">
               Welcome back
             </h1>
-            <p className="mb-6 text-sm text-[var(--muted)]">
-              Sign in to your account to continue
+            <p className="mt-1.5 text-sm leading-6 text-ink-soft">
+              Sign in to your account to continue.
             </p>
 
-            <LoginForm />
+            <div className="mt-8">
+              <LoginForm />
+            </div>
           </div>
         </div>
       </main>

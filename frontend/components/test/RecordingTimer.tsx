@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 interface RecordingTimerProps {
   elapsed: number;
   maxSeconds: number;
@@ -13,21 +15,29 @@ export function RecordingTimer({ elapsed, maxSeconds }: RecordingTimerProps) {
   const isWarning = remaining <= 30;
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className={`text-3xl font-mono font-bold tabular-nums ${isWarning ? "text-red-500" : "text-white"}`}>
+    <div className="flex flex-col items-center gap-2">
+      <div
+        className={cn(
+          "font-mono text-5xl font-semibold tabular-nums",
+          isWarning ? "text-signal" : "text-studio-text",
+        )}
+      >
         {formatted}
-        <span className="text-lg text-zinc-400"> / {formattedMax}</span>
+        <span className="text-2xl text-studio-text/50"> / {formattedMax}</span>
       </div>
-      <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-zinc-700">
+      <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-[1px] bg-studio-rule">
         <div
-          className={`h-full rounded-full transition-all duration-1000 ease-linear ${
-            isWarning ? "bg-red-500" : "bg-blue-600"
-          }`}
+          className={cn(
+            "h-full rounded-[1px] transition-all duration-1000 ease-linear",
+            isWarning ? "bg-signal" : "bg-studio-text",
+          )}
           style={{ width: `${progress}%` }}
         />
       </div>
       {isWarning && remaining > 0 && (
-        <p className="text-xs text-red-400">Time is running out!</p>
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-signal">
+          Time is running out
+        </p>
       )}
     </div>
   );

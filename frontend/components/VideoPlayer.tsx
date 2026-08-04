@@ -120,23 +120,23 @@ export default function VideoPlayer({ src, durationSeconds }: VideoPlayerProps) 
         >
           <div
             ref={barRef}
-            className="relative w-full h-1.5 bg-white/20 rounded-full cursor-pointer hover:h-2 transition-all"
+            className="relative w-full h-1.5 bg-white/20 rounded-[1px] cursor-pointer hover:h-2 transition-all"
             onClick={handleBarClick}
             onMouseMove={handleBarDrag}
           >
             {/* Buffered */}
             <div
-              className="absolute inset-y-0 left-0 bg-white/20 rounded-full pointer-events-none"
+              className="absolute inset-y-0 left-0 bg-white/20 rounded-[1px] pointer-events-none"
               style={{ width: `${bufferedPct}%` }}
             />
             {/* Played progress */}
             <div
-              className="absolute inset-y-0 left-0 bg-blue-400 rounded-full pointer-events-none"
+              className="absolute inset-y-0 left-0 bg-signal rounded-[1px] pointer-events-none"
               style={{ width: `${progressPct}%` }}
             />
             {/* Thumb */}
             <div
-              className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-blue-400 rounded-full shadow pointer-events-none transition-transform ${seeking ? 'scale-125' : 'scale-0 group-hover:scale-100'}`}
+              className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-signal rounded-full shadow pointer-events-none transition-transform ${seeking ? 'scale-125' : 'scale-0 group-hover:scale-100'}`}
               style={{ left: `${progressPct}%` }}
             />
           </div>

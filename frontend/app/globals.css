@@ -1,206 +1,297 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --accent: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --muted: #64748b;
-  --border: #e2e8f0;
+  /* ---- FluentCheck — "Examination Room" tokens ---- */
+  --paper: #f4f5f2;      /* exam-paper white — page surface */
+  --paper-raised: #ffffff;
+  --ink: #1b2420;        /* green-black ink — text & primary actions */
+  --ink-soft: #5d6a63;   /* secondary text on paper */
+  --ink-faint: #8b968f;  /* captions, placeholders */
+  --signal: #e23d28;     /* marking-pen red — REC, errors, emphasis */
+  --verified: #1e7a4f;   /* tick green — success, ready, certified */
+  --rule: #d8ddd8;       /* answer-sheet hairline */
+  --rule-strong: #b9c2bb;
+  --studio: #101512;     /* green-black dark — test session only */
+  --studio-panel: #171d19;
+  --studio-rule: #28302b;
+  --studio-text: #f4f5f2;
 
-  /* Epic Design — Depth System */
-  --depth-0-factor: 0.10;
-  --depth-1-factor: 0.25;
-  --depth-2-factor: 0.50;
-  --depth-3-factor: 0.80;
-  --depth-4-factor: 1.00;
-  --depth-5-factor: 1.20;
-  --depth-0-blur: 8px;
-  --depth-1-blur: 4px;
-  --depth-2-blur: 0px;
-  --depth-3-blur: 0px;
-  --depth-4-blur: 0px;
-  --depth-5-blur: 0px;
-  --depth-0-scale: 0.70;
-  --depth-1-scale: 0.85;
-  --depth-2-scale: 1.00;
-  --depth-3-scale: 1.05;
-  --depth-4-scale: 1.00;
-  --depth-5-scale: 1.10;
-  --scroll-y: 0;
+  --font-sans: var(--font-public-sans);
+
+  /* ---- shadcn theming contract — mapped to the Examination Room palette ----
+     shadcn components read these; our palette supplies all the values, so any
+     component added later renders in paper / ink / signal with no extra work. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--rule);
+  --secondary-foreground: var(--ink);
+  --muted: var(--rule);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--rule);
+  --accent-foreground: var(--ink);
+  --destructive: var(--signal);
+  --destructive-foreground: var(--paper);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--signal);
+  --radius: 0.375rem;
+  --chart-1: var(--ink);
+  --chart-2: var(--signal);
+  --chart-3: var(--verified);
+  --chart-4: var(--rule-strong);
+  --chart-5: var(--ink-soft);
+  --sidebar: var(--paper-raised);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--ink);
+  --sidebar-primary-foreground: var(--paper);
+  --sidebar-accent: var(--rule);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--rule);
+  --sidebar-ring: var(--signal);
+}
+
+.dark {
+  --background: var(--studio);
+  --foreground: var(--studio-text);
+  --card: var(--studio-panel);
+  --card-foreground: var(--studio-text);
+  --popover: var(--studio-panel);
+  --popover-foreground: var(--studio-text);
+  --primary: var(--studio-text);
+  --primary-foreground: var(--studio);
+  --secondary: var(--studio-rule);
+  --secondary-foreground: var(--studio-text);
+  --muted: var(--studio-rule);
+  --muted-foreground: #9aa69f;
+  --accent: var(--studio-rule);
+  --accent-foreground: var(--studio-text);
+  --destructive: var(--signal);
+  --destructive-foreground: var(--paper);
+  --border: var(--studio-rule);
+  --input: var(--studio-rule);
+  --ring: var(--signal);
+  --sidebar: var(--studio-panel);
+  --sidebar-foreground: var(--studio-text);
+  --sidebar-primary: var(--studio-text);
+  --sidebar-primary-foreground: var(--studio);
+  --sidebar-accent: var(--studio-rule);
+  --sidebar-accent-foreground: var(--studio-text);
+  --sidebar-border: var(--studio-rule);
+  --sidebar-ring: var(--signal);
 }
 
 @theme inline {
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-signal: var(--signal);
+  --color-verified: var(--verified);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-studio: var(--studio);
+  --color-studio-panel: var(--studio-panel);
+  --color-studio-rule: var(--studio-rule);
+  --color-studio-text: var(--studio-text);
+
+  --font-sans: var(--font-public-sans);
+  --font-display: var(--font-newsreader);
+  --font-mono: var(--font-geist-mono);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
-body {
-  background: #0a0a0f;
-  color: #ffffff;
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 html {
   scroll-behavior: smooth;
 }
 
-/* ---- Epic Design — Depth System ---- */
-
-.scene {
-  position: relative;
-  overflow: hidden;
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.layer {
-  position: absolute;
-  inset: 0;
-  will-change: transform;
-  transform-origin: center center;
-  pointer-events: none;
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
 }
 
-.layer.depth-4 {
-  pointer-events: auto;
+/* ---- Exam-document helpers ---- */
+
+/* Hairline rule — section separators and ruled answer sheets. */
+.rule {
+  border-color: var(--rule);
 }
 
-/* Parallax driven by --scroll-y (set by JS) */
-.depth-0 {
-  filter: blur(var(--depth-0-blur));
-  transform: scale(var(--depth-0-scale))
-             translateY(calc(var(--scroll-y) * var(--depth-0-factor) * -1px));
-  z-index: 0;
-}
-.depth-1 {
-  filter: blur(var(--depth-1-blur));
-  transform: scale(var(--depth-1-scale))
-             translateY(calc(var(--scroll-y) * var(--depth-1-factor) * -1px));
-  z-index: 1;
-}
-.depth-2 {
-  transform: scale(var(--depth-2-scale))
-             translateY(calc(var(--scroll-y) * var(--depth-2-factor) * -1px));
-  z-index: 2;
-}
-.depth-3 {
-  transform: scale(var(--depth-3-scale))
-             translateY(calc(var(--scroll-y) * var(--depth-3-factor) * -1px));
-  z-index: 3;
-  filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5));
-}
-.depth-4 {
-  transform: translateY(calc(var(--scroll-y) * var(--depth-4-factor) * -1px));
-  z-index: 4;
-}
-.depth-5 {
-  transform: scale(var(--depth-5-scale))
-             translateY(calc(var(--scroll-y) * var(--depth-5-factor) * -1px));
-  z-index: 5;
-}
-
-.depth-1 .glow-blob {
-  mix-blend-mode: screen;
-}
-
-/* ---- Floating Animations ---- */
-@keyframes float-y {
-  0%, 100% { transform: translateY(0px); }
-  50%      { transform: translateY(-18px); }
-}
-@keyframes float-rotate {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  33%      { transform: translateY(-12px) rotate(2deg); }
-  66%      { transform: translateY(-6px) rotate(-1deg); }
-}
-@keyframes float-orbit {
-  0%   { transform: translate(0, 0) rotate(0deg); }
-  25%  { transform: translate(8px, -12px) rotate(2deg); }
-  50%  { transform: translate(0, -20px) rotate(0deg); }
-  75%  { transform: translate(-8px, -12px) rotate(-2deg); }
-  100% { transform: translate(0, 0) rotate(0deg); }
-}
-@keyframes float-breathe {
-  0%, 100% { transform: scale(1); opacity: 0.4; }
-  50%      { transform: scale(1.08); opacity: 0.6; }
-}
-
-.depth-2 .float-loop { animation: float-y 10s ease-in-out infinite; }
-.depth-3 .float-loop { animation: float-orbit 8s ease-in-out infinite; }
-.depth-5 .float-loop { animation: float-rotate 6s ease-in-out infinite; }
-.float-breathe { animation: float-breathe 12s ease-in-out infinite; }
-
-/* ---- SplitText / Text animations ---- */
-.anim-text {
-  overflow: hidden;
-  line-height: 1.15;
-}
-
-.ghost-bg-text {
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.08);
-  font-weight: 900;
-  line-height: 0.85;
-  letter-spacing: -0.04em;
+/* Status "stamp" — bordered uppercase mono pill (ink / verified / signal). */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid currentColor;
+  padding: 0.125rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-  z-index: 2;
+}
+.stamp.stamp--ink {
+  color: var(--ink-soft);
+}
+.stamp.stamp--verified {
+  color: var(--verified);
+}
+.stamp.stamp--signal {
+  color: var(--signal);
 }
 
-.bleed-title {
-  font-size: clamp(80px, 18vw, 220px);
-  font-weight: 900;
-  line-height: 0.9;
-  letter-spacing: -0.04em;
-  position: relative;
-  z-index: 10;
-  pointer-events: none;
+/* ---- Badge tone variants ----
+   Applied as data-[tone=...] on the shadcn Badge. Unlayered rules win over
+   Tailwind's layered utility stack, so the tone overrides variant text color. */
+[data-tone="verified"] {
+  color: var(--verified);
+  border-color: var(--verified);
+}
+[data-tone="signal"] {
+  color: var(--signal);
+  border-color: var(--signal);
+}
+[data-tone="amber"] {
+  color: #a16207;
+  border-color: #f59e0b;
+}
+[data-tone="neutral"] {
+  color: var(--ink-soft);
+  border-color: var(--rule-strong);
 }
 
-/* ---- Directional Reveals ---- */
-.clip-reveal {
-  clip-path: inset(0 0 100% 0);
+/* ---- Micro-label — mono uppercase eyebrow (table heads, card headers) ---- */
+.mark {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
-/* ---- Theatrical CSS-only entry ---- */
-@keyframes theatrical-enter {
-  from { opacity: 0; transform: translateY(60px); filter: blur(4px); }
-  to   { opacity: 1; transform: translateY(0); filter: blur(0px); }
+/* Ruled form field: borderless bottom rule that thickens + inks on focus. */
+.ruled-field {
+  border: 0;
+  border-bottom: 1px solid var(--rule-strong);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.375rem 0;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 120ms ease;
 }
-.theatrical {
-  animation: theatrical-enter linear both;
-  animation-timeline: view();
-  animation-range: entry 0% entry 40%;
+.ruled-field::placeholder {
+  color: var(--ink-faint);
+}
+.ruled-field:focus {
+  border-bottom-color: var(--ink);
+}
+[data-invalid="true"].ruled-field {
+  border-bottom-color: var(--signal);
+}
+
+/* ---- Motion ---- */
+
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hero band-gauge draw-in */
+@keyframes gauge-fill {
+  from {
+    width: 0;
+  }
+}
+
+.animate-rise {
+  animation: stamp-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ---- Form autofill ---- */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--foreground);
-  -webkit-box-shadow: 0 0 0 1000px white inset;
-  caret-color: var(--foreground);
-  transition: background-color 5000s ease-in-out 0s;
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--paper) inset;
+  caret-color: var(--ink);
 }
 
 /* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
 }

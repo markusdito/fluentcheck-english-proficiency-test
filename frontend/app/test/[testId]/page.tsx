@@ -8,8 +8,8 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { WebcamPreview } from "@/components/test/WebcamPreview";
 import { PromptDisplay } from "@/components/test/PromptDisplay";
 import { RecordingTimer } from "@/components/test/RecordingTimer";
-import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { fetchQuestions, createSubmission, completeSubmission } from "@/lib/test-api";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
@@ -323,10 +323,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Loading while questions are being fetched and stream initialises
   if (phase === "loading" && !fetchError && !initError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+      <div className="flex min-h-screen items-center justify-center bg-studio">
         <div className="text-center">
-          <Spinner size="lg" />
-          <p className="mt-4 text-zinc-400">Loading questions...</p>
+          <Loader2 className="mx-auto size-8 animate-spin text-studio-text/70" />
+          <p className="mt-4 text-studio-text/70">Loading questions...</p>
         </div>
       </div>
     );
@@ -335,20 +335,22 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Error fetching questions
   if (fetchError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
         <div className="max-w-md text-center">
-          <h1 className="mb-4 text-2xl font-bold text-white">Failed to load test</h1>
-          <p className="mb-2 text-zinc-400">{fetchError}</p>
-          <p className="mb-6 text-sm text-zinc-500">
+          <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
+            Failed to load test
+          </h1>
+          <p className="mb-2 text-studio-text/70">{fetchError}</p>
+          <p className="mb-6 text-sm text-studio-text/60">
             Please check your connection and try again.
           </p>
           <Button
-            variant="primary"
+            variant="invert"
             size="lg"
-            fullWidth
+            className="w-full"
             onClick={() => window.location.reload()}
           >
-            Try Again
+            Try again
           </Button>
         </div>
       </div>
@@ -358,14 +360,16 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Error acquiring stream — show retry with troubleshooting tips
   if (initError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
         <div className="max-w-md text-center">
-          <h1 className="mb-4 text-2xl font-bold text-white">Camera & Microphone Required</h1>
-          <p className="mb-6 text-zinc-400">
+          <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
+            Camera & Microphone Required
+          </h1>
+          <p className="mb-6 text-studio-text/70">
             This test needs access to your webcam and microphone to record your responses.
           </p>
-          <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-left text-sm text-zinc-400">
-            <p className="mb-2 font-medium text-zinc-300">Troubleshooting tips:</p>
+          <div className="mb-6 border border-studio-rule bg-studio-panel p-4 text-left text-sm text-studio-text/70">
+            <p className="mb-2 font-medium text-studio-text/80">Troubleshooting tips:</p>
             <ul className="list-disc space-y-1 pl-5">
               <li>Allow camera and microphone access in your browser settings</li>
               <li>Make sure no other app is using your camera or mic</li>
@@ -373,12 +377,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             </ul>
           </div>
           <Button
-            variant="primary"
+            variant="invert"
             size="lg"
-            fullWidth
+            className="w-full"
             onClick={() => window.location.reload()}
           >
-            Try Again
+            Try again
           </Button>
         </div>
       </div>
@@ -399,22 +403,31 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     const allDone = allUploaded && failedUploadsCount === 0;
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
         <div className="w-full max-w-lg text-center">
           <div className="mb-6">
-            <div className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full ${
-              allDone ? "bg-emerald-500/20" : "bg-amber-500/20"
-            }`}>
+            <div
+              className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-md border ${
+                allDone
+                  ? "border-verified/40 bg-verified/15"
+                  : "border-amber-500/40 bg-amber-500/15"
+              }`}
+            >
               {allDone ? (
-                <svg className="h-10 w-10 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg className="h-10 w-10 text-verified" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
               ) : (
-                <Spinner size="lg" />
+                <Loader2 className="mx-auto size-10 animate-spin text-studio-text/70" />
               )}
             </div>
-            <h1 className="text-3xl font-bold text-white">Test Complete!</h1>
-            <p className="mt-2 text-zinc-400">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-studio-text/50">
+              All answers submitted
+            </p>
+            <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-studio-text">
+              Test complete.
+            </h1>
+            <p className="mt-2 text-studio-text/70">
               You have answered all {totalQuestions} questions.
             </p>
             {!allDone && (
@@ -423,32 +436,40 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               </p>
             )}
             {failedUploadsCount > 0 && (
-              <p className="mt-2 text-sm text-red-400">
+              <p className="mt-2 text-sm text-signal">
                 {failedUploadsCount} upload{failedUploadsCount !== 1 ? "s" : ""} failed. Please retry or contact support.
               </p>
             )}
           </div>
-          <div className="mb-8 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+          <div className="mb-8 border border-studio-rule bg-studio-panel p-6">
             <div className="grid grid-cols-2 gap-4 text-left">
               <div>
-                <p className="text-sm text-zinc-500">Questions Answered</p>
-                <p className="text-2xl font-bold text-white">{completedQuestions.length}</p>
+                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-studio-text/50">
+                  Questions answered
+                </p>
+                <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-studio-text">
+                  {completedQuestions.length}
+                </p>
               </div>
               <div>
-                <p className="text-sm text-zinc-500">Recordings</p>
-                <p className="text-2xl font-bold text-white">{completedQuestions.length}</p>
+                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-studio-text/50">
+                  Recordings
+                </p>
+                <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-studio-text">
+                  {completedQuestions.length}
+                </p>
               </div>
             </div>
           </div>
           <div className="flex flex-col gap-3">
             <Button
-              variant="primary"
+              variant="invert"
               size="lg"
-              fullWidth
+              className="w-full"
               onClick={handleFinishTest}
               disabled={!allDone}
             >
-              {allDone ? "Return to Dashboard" : `Uploading (${pendingUploadsCount} remaining)...`}
+              {allDone ? "Return to dashboard" : `Uploading (${pendingUploadsCount} remaining)...`}
             </Button>
           </div>
         </div>
@@ -460,30 +481,30 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const uploadStatusText = getUploadStatusText(uploadStatus);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950">
+    <div className="flex min-h-screen flex-col bg-studio">
       {/* Top bar — question progress dots + upload indicators */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-studio-rule px-6 py-4">
         <div className="flex items-center gap-2">
           {questions.map((q, i) => {
             const status = getUploadStatus(uploadStates[q.id]);
-            let dotColor = "bg-zinc-700";
-            if (i === currentQuestionIndex) dotColor = "bg-blue-500";
+            let dotColor = "bg-studio-rule";
+            if (i === currentQuestionIndex) dotColor = "bg-signal";
             else if (completedQuestions.includes(q.id)) {
-              if (status === "uploaded") dotColor = "bg-emerald-500";
-              else if (status === "error") dotColor = "bg-red-500";
+              if (status === "uploaded") dotColor = "bg-verified";
+              else if (status === "error") dotColor = "bg-signal";
               else if (status === "uploading" || status === "getting-url") dotColor = "bg-amber-500";
-              else dotColor = "bg-emerald-500";
+              else dotColor = "bg-verified";
             }
             return (
               <div
                 key={q.id}
-                className={`h-2 w-8 rounded-full transition-colors ${dotColor}`}
+                className={`h-1.5 w-8 rounded-[1px] transition-colors ${dotColor}`}
                 title={`Upload: ${status}`}
               />
             );
           })}
         </div>
-        <div className="text-sm text-zinc-500">
+        <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-studio-text/50">
           Question {currentQuestionIndex + 1} of {totalQuestions}
         </div>
       </div>
@@ -496,13 +517,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             <WebcamPreview
               stream={stream}
               isRecording={phase === "recording"}
-              className="aspect-video w-full shadow-2xl"
+              className="aspect-video w-full border border-studio-rule"
             />
           </div>
         </div>
 
         {/* Right side — question, timer, controls */}
-        <div className="flex w-full flex-col justify-center border-t border-zinc-800 bg-zinc-900/50 p-6 lg:w-96 lg:border-l lg:border-t-0 lg:p-8">
+        <div className="flex w-full flex-col justify-center border-t border-studio-rule bg-studio-panel/60 p-6 lg:w-96 lg:border-l lg:border-t-0 lg:p-8">
           <div className="space-y-6">
             {/* Prompt display */}
             <PromptDisplay
@@ -513,14 +534,16 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             />
 
             {/* Timer section */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="border border-studio-rule bg-studio-panel p-5">
               {phase === "preparation" && (
                 <div className="text-center">
-                  <p className="mb-2 text-sm text-amber-400">Preparation Time</p>
-                  <p className="text-4xl font-mono font-bold text-white">
+                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-400">
+                    Preparation time
+                  </p>
+                  <p className="mt-2 font-mono text-5xl font-semibold tabular-nums text-studio-text">
                     {prepCountdown.formatted}
                   </p>
-                  <p className="mt-2 text-sm text-zinc-500">
+                  <p className="mt-2 text-sm text-studio-text/60">
                     Prepare your answer. Recording will start automatically.
                   </p>
                 </div>
@@ -533,25 +556,27 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               )}
               {phase === "stopped" && (
                 <div className="text-center">
-                  <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-4 py-1.5">
-                    <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <div className="mb-2 inline-flex items-center gap-2 border border-verified/40 px-3 py-1">
+                    <svg className="h-4 w-4 text-verified" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
-                    <span className="text-sm font-medium text-emerald-500">Recording saved</span>
+                    <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-verified">
+                      Recording saved
+                    </span>
                   </div>
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-sm text-studio-text/60">
                     Duration: {Math.floor(recDuration / 60)}:{(recDuration % 60).toString().padStart(2, "0")}
                   </p>
                   {/* Upload status indicator */}
                   {uploadStatusText && (
                     <div className={`mt-2 text-xs ${
-                      uploadStatus === "error" ? "text-red-400" :
-                      uploadStatus === "uploaded" ? "text-emerald-400" :
+                      uploadStatus === "error" ? "text-signal" :
+                      uploadStatus === "uploaded" ? "text-verified" :
                       "text-amber-400"
                     }`}>
                       {uploadStatus === "uploading" || uploadStatus === "getting-url" ? (
                         <span className="inline-flex items-center gap-1">
-                          <Spinner size="sm" />
+                          <Loader2 className="size-4 animate-spin" />
                           {uploadStatusText}
                         </span>
                       ) : (
@@ -565,16 +590,16 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
             {/* Error display */}
             {recError && (
-              <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
+              <div className="border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
                 {recError}
               </div>
             )}
 
             {/* Upload error — show retry with actual error message */}
             {uploadStatus === "error" && phase === "stopped" && (
-              <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
+              <div className="border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
                 <p className="font-medium">Upload failed</p>
-                <p className="mt-1 text-xs text-red-300">
+                <p className="mt-1 text-xs text-signal/80">
                   {currentQuestion && getUploadError(uploadStates[currentQuestion.id])}
                 </p>
                 <p className="mt-2 text-xs">You can re-record this question and try again.</p>
@@ -586,51 +611,51 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               {phase === "preparation" && (
                 <>
                   <Button
-                    variant="primary"
+                    variant="invert"
                     size="lg"
-                    fullWidth
+                    className="w-full"
                     onClick={handleStartRecording}
                   >
-                    Start Recording
+                    Start recording
                   </Button>
-                  <p className="text-center text-xs text-zinc-600">
+                  <p className="text-center text-xs text-studio-text/50">
                     Recording will auto-start in {prepCountdown.seconds}s
                   </p>
                 </>
               )}
               {phase === "recording" && (
                 <Button
-                  variant="danger"
+                  variant="destructive"
                   size="lg"
-                  fullWidth
+                  className="w-full"
                   onClick={handleStopRecording}
                 >
                   <span className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-white" />
-                    Stop Answering
+                    <span className="h-3 w-3 rounded-sm bg-studio-text" />
+                    Stop answering
                   </span>
                 </Button>
               )}
               {phase === "stopped" && (
                 <div className="space-y-2">
                   <Button
-                    variant="primary"
+                    variant="invert"
                     size="lg"
-                    fullWidth
+                    className="w-full"
                     onClick={handleNextQuestion}
                   >
                     {currentQuestionIndex < totalQuestions - 1
-                      ? "Next Question"
-                      : "Finish Test"}
+                      ? "Next question"
+                      : "Finish test"}
                   </Button>
                   {uploadStatus === "error" && (
                     <Button
                       variant="outline"
                       size="lg"
-                      fullWidth
+                      className="w-full"
                       onClick={() => retryUpload(currentQuestion.id)}
                     >
-                      Re-record This Question
+                      Re-record this question
                     </Button>
                   )}
                 </div>

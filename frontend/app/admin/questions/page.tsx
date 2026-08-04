@@ -12,9 +12,30 @@ import {
   deleteTask,
 } from "@/lib/admin-api";
 import type { AdminQuestion, AdminTask } from "@/types/admin";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { Loader2, TriangleAlertIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const CATEGORIES = ["PART_1", "PART_2", "PART_3"] as const;
 
@@ -26,9 +47,9 @@ const categoryLabels: Record<string, string> = {
 
 function CategoryBadge({ category }: { category: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+    <Badge variant="outline" data-tone="neutral">
       {categoryLabels[category] ?? category}
-    </span>
+    </Badge>
   );
 }
 
@@ -48,7 +69,7 @@ function ToNumberInput({
   disabled?: boolean;
 }) {
   return (
-    <Input
+    <FormField
       id={id}
       label={label}
       type="number"
@@ -90,28 +111,28 @@ function QuestionFormFields({
   return (
     <>
       <div>
-        <label
-          htmlFor="category"
-          className="mb-1.5 block text-sm font-medium text-[var(--foreground)]"
-        >
-          Category <span className="ml-0.5 text-[var(--danger)]">*</span>
-        </label>
-        <select
-          id="category"
+        <p className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
+          Category <span className="text-signal">*</span>
+        </p>
+        <Select
           value={category}
-          onChange={(e) => onCategory(e.target.value)}
+          onValueChange={(v) => onCategory(v ?? "")}
           disabled={disabled}
-          className="block w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {categoryLabels[c]}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger size="default" className="w-full">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>
+                {categoryLabels[c]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <Input
+      <FormField
         id="promptText"
         label="Prompt text"
         placeholder="Describe the scenario for this question"
@@ -230,45 +251,47 @@ function TaskEditor({
   }
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-zinc-50 p-4">
-      <p className="mb-3 text-sm font-semibold text-[var(--foreground)]">Tasks</p>
+    <div className="border border-rule bg-rule/20 p-4">
+      <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
+        Tasks
+      </p>
 
       {error && (
-        <div
-          role="alert"
-          className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-        >
-          {error}
-        </div>
+        <Alert variant="destructive" className="mb-3 items-start">
+          <TriangleAlertIcon />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {tasks.length === 0 ? (
-        <p className="mb-3 text-sm text-[var(--muted)]">No tasks added yet.</p>
+        <p className="mb-3 text-sm text-ink-soft">No tasks added yet.</p>
       ) : (
         <ul className="mb-3 space-y-2">
           {tasks.map((task, index) => (
             <li
               key={task.id}
-              className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white p-2"
+              className="flex flex-col gap-3 border border-rule bg-paper-raised p-3 sm:flex-row sm:items-end"
             >
-              <input
+              <FormField
                 id={`task-prompt-${task.id}`}
+                label="Prompt"
                 value={task.promptText}
                 placeholder="Task prompt"
                 onChange={(e) =>
                   updateLocal(index, { ...task, promptText: e.target.value })
                 }
                 disabled={disabled}
-                className="block w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1"
               />
-              <div className="w-24 shrink-0">
-                <input
+              <div className="w-full sm:w-24">
+                <FormField
                   id={`task-order-${task.id}`}
+                  label="Order"
                   type="number"
                   min={0}
                   step={1}
                   value={Number.isNaN(task.order) ? "" : String(task.order)}
-                  placeholder="Order"
+                  placeholder="1"
                   onChange={(e) =>
                     updateLocal(index, {
                       ...task,
@@ -276,63 +299,51 @@ function TaskEditor({
                     })
                   }
                   disabled={disabled}
-                  className="block w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={disabled}
                   onClick={() =>
                     handleUpdate(index, {
                       promptText: task.promptText,
                       order: task.order,
                     })
                   }
-                  disabled={disabled}
-                  className="rounded-md px-3 py-2 text-xs font-medium text-[var(--primary)] transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(index)}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
                   disabled={disabled}
-                  className="rounded-md px-3 py-2 text-xs font-medium text-[var(--danger)] transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => handleRemove(index)}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
             </li>
           ))}
         </ul>
       )}
 
-      <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <form onSubmit={handleAdd} className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
-          <label
-            htmlFor="new-task-prompt"
-            className="mb-1.5 block text-xs font-medium text-[var(--muted)]"
-          >
-            New task prompt
-          </label>
-          <input
+          <FormField
             id="new-task-prompt"
+            label="New task prompt"
             value={newPrompt}
             onChange={(e) => setNewPrompt(e.target.value)}
             placeholder="Task prompt"
             disabled={disabled || loading}
-            className="block w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
         <div className="w-full sm:w-24">
-          <label
-            htmlFor="new-task-order"
-            className="mb-1.5 block text-xs font-medium text-[var(--muted)]"
-          >
-            Order
-          </label>
-          <input
+          <FormField
             id="new-task-order"
+            label="Order"
             type="number"
             min={0}
             step={1}
@@ -340,7 +351,6 @@ function TaskEditor({
             onChange={(e) => setNewOrder(e.target.value)}
             placeholder="1"
             disabled={disabled || loading}
-            className="block w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition-colors focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
         <Button type="submit" variant="secondary" size="md" loading={loading} disabled={disabled}>
@@ -509,7 +519,7 @@ export default function AdminQuestionsPage() {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Spinner size="lg" />
+        <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
       </div>
     );
   }
@@ -517,15 +527,10 @@ export default function AdminQuestionsPage() {
   if (loadError) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="max-w-sm rounded-xl border border-[var(--border)] bg-white p-8 text-center shadow-lg">
-          <p className="text-sm text-[var(--muted)]">{loadError}</p>
-          <Button
-            className="mt-6"
-            onClick={() => window.location.reload()}
-          >
-            Try again
-          </Button>
-        </div>
+        <p className="text-sm text-ink-soft">{loadError}</p>
+        <Button className="ml-4" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
       </div>
     );
   }
@@ -534,34 +539,33 @@ export default function AdminQuestionsPage() {
     ordered(questions.filter((q) => q.category === category));
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
+        <p className="mark">Test bank</p>
+        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
           Questions
         </h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+        <p className="mt-2 text-sm leading-6 text-ink-soft">
           Manage speaking questions, grouped by part, and their tasks.
         </p>
       </div>
 
       {/* Create form */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
+        <p className="mark">New entry</p>
+        <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
           Create question
         </h2>
         <form
           onSubmit={handleCreate}
           noValidate
-          className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm"
+          className="mt-4 border border-rule bg-paper-raised p-6"
         >
           {createError && (
-            <div
-              role="alert"
-              aria-live="assertive"
-              className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
-              {createError}
-            </div>
+            <Alert variant="destructive" className="mb-4 items-start">
+              <TriangleAlertIcon />
+              <AlertDescription>{createError}</AlertDescription>
+            </Alert>
           )}
           <div className="grid gap-4">
             <QuestionFormFields
@@ -578,7 +582,7 @@ export default function AdminQuestionsPage() {
               disabled={createLoading}
             />
             <div className="flex justify-end">
-              <Button type="submit" variant="primary" loading={createLoading}>
+              <Button type="submit" variant="default" loading={createLoading}>
                 Create question
               </Button>
             </div>
@@ -591,22 +595,20 @@ export default function AdminQuestionsPage() {
         const original = questions.find((q) => q.id === editingId);
         return (
           <section>
-            <h2 className="mb-4 text-lg font-semibold text-[var(--foreground)]">
+            <p className="mark">Amendments</p>
+            <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
               Edit question
             </h2>
             <form
               onSubmit={handleSaveEdit}
               noValidate
-              className="rounded-xl border border-[var(--border)] bg-white p-6 shadow-sm"
+              className="mt-4 border border-rule bg-paper-raised p-6"
             >
               {editError && (
-                <div
-                  role="alert"
-                  aria-live="assertive"
-                  className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-                >
-                  {editError}
-                </div>
+                <Alert variant="destructive" className="mb-4 items-start">
+                  <TriangleAlertIcon />
+                  <AlertDescription>{editError}</AlertDescription>
+                </Alert>
               )}
               <div className="grid gap-4">
                 <QuestionFormFields
@@ -637,14 +639,15 @@ export default function AdminQuestionsPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary" loading={editLoading}>
+                  <Button type="submit" variant="default" loading={editLoading}>
                     Save changes
                   </Button>
                 </div>
               </div>
               {original && (
-                <p className="mt-4 text-xs text-[var(--muted)]">
-                  Created {new Date(original.createdAt).toLocaleDateString("en-US", {
+                <p className="mt-4 text-xs text-ink-faint">
+                  Created{" "}
+                  {new Date(original.createdAt).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
@@ -657,125 +660,131 @@ export default function AdminQuestionsPage() {
       })()}
 
       {retireError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          {retireError}
-        </div>
+        <Alert variant="destructive" className="items-start">
+          <TriangleAlertIcon />
+          <AlertDescription>{retireError}</AlertDescription>
+        </Alert>
       )}
 
       {/* Question lists by category */}
-      {CATEGORIES.map((category) => {
-        const items = group(category);
-        return (
-          <section key={category}>
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[var(--foreground)]">
-              <CategoryBadge category={category} />
-              <span>{categoryLabels[category]}</span>
-              <span className="text-sm font-normal text-[var(--muted)]">
-                {items.length} question{items.length === 1 ? "" : "s"}
-              </span>
-            </h2>
+      <Tabs defaultValue="PART_1">
+        <TabsList variant="line" className="mb-6">
+          {CATEGORIES.map((category) => (
+            <TabsTrigger key={category} value={category} className="px-4">
+              {categoryLabels[category]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-            {items.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[var(--border)] bg-white p-8 text-center shadow-sm">
-                <p className="text-sm text-[var(--muted)]">
-                  No questions in this part yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {items.map((q) => (
-                  <div
-                    key={q.id}
-                    className="rounded-xl border border-[var(--border)] bg-white p-5 shadow-sm"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <CategoryBadge category={q.category} />
-                          <span className="text-xs font-medium text-[var(--muted)]">
-                            Order {q.order}
-                          </span>
-                          <span className="text-xs font-medium text-[var(--muted)]">
-                            {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"}
-                          </span>
-                        </div>
-                        <p className="text-sm text-[var(--foreground)]">{q.promptText}</p>
-                        <p className="mt-2 text-xs text-[var(--muted)]">
-                          {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
-                        </p>
-                        {q.tasks.length > 0 && (
-                          <ul className="mt-3 space-y-1">
-                            {q.tasks
-                              .slice()
-                              .sort((a, b) => a.order - b.order)
-                              .map((t) => (
-                                <li
-                                  key={t.id}
-                                  className="rounded-md bg-zinc-50 px-3 py-2 text-xs text-[var(--muted)]"
-                                >
-                                  <span className="font-medium text-[var(--foreground)]">
-                                    {t.order}.
-                                  </span>{" "}
-                                  {t.promptText}
-                                </li>
-                              ))}
-                          </ul>
-                        )}
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-2">
-                        {confirmRetireId === q.id ? (
-                          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                            <span className="text-xs font-medium text-red-700">
-                              Retire this question?
+        {CATEGORIES.map((category) => {
+          const items = group(category);
+          return (
+            <TabsContent key={category} value={category}>
+              {items.length === 0 ? (
+                <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
+                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                    No questions in this part yet
+                  </p>
+                  <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
+                    Create the first {categoryLabels[category]} question above.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {items.map((q) => (
+                    <div
+                      key={q.id}
+                      className="border border-rule bg-paper-raised p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-2 flex flex-wrap items-center gap-3">
+                            <CategoryBadge category={q.category} />
+                            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                              Order {q.order}
                             </span>
-                            <button
-                              type="button"
-                              onClick={handleRetire}
-                              disabled={retireLoading}
-                              className="rounded-md bg-[var(--danger)] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {retireLoading ? "Retiring…" : "Confirm"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmRetireId(null)}
-                              disabled={retireLoading}
-                              className="rounded-md px-3 py-1.5 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Cancel
-                            </button>
+                            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                              {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"}
+                            </span>
                           </div>
-                        ) : (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => startEdit(q)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => requestRetire(q.id)}
-                            >
-                              Retire
-                            </Button>
-                          </>
-                        )}
+                          <p className="text-sm leading-6 text-ink">{q.promptText}</p>
+                          <p className="mt-2 text-xs text-ink-soft">
+                            {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
+                          </p>
+                          {q.tasks.length > 0 && (
+                            <ul className="mt-3 space-y-1.5">
+                              {q.tasks
+                                .slice()
+                                .sort((a, b) => a.order - b.order)
+                                .map((t) => (
+                                  <li
+                                    key={t.id}
+                                    className="border-l-2 border-rule-strong pl-3 text-xs leading-5 text-ink-soft"
+                                  >
+                                    <span className="font-medium text-ink">{t.order}.</span>{" "}
+                                    {t.promptText}
+                                  </li>
+                                ))}
+                            </ul>
+                          )}
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => startEdit(q)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => requestRetire(q.id)}
+                          >
+                            Retire
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        );
-      })}
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          );
+        })}
+      </Tabs>
+
+      {/* Retire confirmation */}
+      <AlertDialog
+        open={confirmRetireId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRetireId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <TriangleAlertIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Retire this question?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It will no longer be offered in new assessments. Existing reports
+              are unaffected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleRetire}
+              loading={retireLoading}
+            >
+              Retire question
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

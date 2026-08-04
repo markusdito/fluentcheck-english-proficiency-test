@@ -4,9 +4,11 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { z } from "zod";
+import { CircleAlertIcon } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const loginSchema = z.object({
   email: z
@@ -74,29 +76,14 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} noValidate aria-label="Login form">
       {/* Server / general error */}
       {error && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          <svg
-            className="mt-0.5 h-5 w-5 flex-shrink-0"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.94 7.94a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM8 10a.75.75 0 01.75-.75h.5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-2.75H8.75A.75.75 0 018 10z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <span>{error}</span>
-        </div>
+        <Alert variant="destructive" className="mb-6 items-start">
+          <CircleAlertIcon />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       <div className="space-y-4">
-        <Input
+        <FormField
           id="email"
           label="Email"
           type="email"
@@ -120,7 +107,7 @@ export function LoginForm() {
         />
 
         <div>
-          <Input
+          <FormField
             id="password"
             label="Password"
             type={showPassword ? "text" : "password"}
@@ -150,7 +137,7 @@ export function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="mt-1.5 text-xs font-medium text-[var(--primary)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded"
+            className="mt-1.5 text-xs font-medium text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ink rounded"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? "Hide password" : "Show password"}
@@ -159,19 +146,19 @@ export function LoginForm() {
 
         {/* Remember me + forgot password */}
         <div className="flex items-center justify-between">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--muted)] select-none">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-soft select-none">
             <input
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
               disabled={loading}
-              className="h-4 w-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)] focus:ring-offset-0"
+              className="h-4 w-4 rounded border-rule text-ink focus:ring-ink focus:ring-offset-0"
             />
             Remember me
           </label>
           <Link
             href="/forgot-password"
-            className="text-sm font-medium text-[var(--primary)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded"
+            className="text-sm font-medium text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ink rounded"
           >
             Forgot password?
           </Link>
@@ -181,21 +168,20 @@ export function LoginForm() {
       {/* Submit */}
       <Button
         type="submit"
-        variant="primary"
+        variant="default"
         size="lg"
         loading={loading}
-        fullWidth
-        className="mt-6"
+        className="mt-6 w-full"
       >
-        {loading ? "Signing in…" : "Sign in"}
+        Sign in
       </Button>
 
       {/* Footer links */}
-      <p className="mt-6 text-center text-sm text-[var(--muted)]">
+      <p className="mt-6 text-center text-sm text-ink-soft">
         {"Don't have an account? "}
         <Link
           href="/signup"
-          className="font-medium text-[var(--primary)] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded"
+          className="font-medium text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ink rounded"
         >
           Create one
         </Link>

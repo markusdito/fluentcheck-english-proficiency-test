@@ -1,183 +1,292 @@
 import Link from "next/link";
+import { Wordmark } from "@/components/layout/Wordmark";
+import { Footer } from "@/components/layout/Footer";
+import { Button } from "@/components/ui/button";
+import { BandGauge } from "@/components/ui/BandGauge";
+
+const protocol = [
+  {
+    step: "1",
+    title: "Record your answers",
+    body: "We check your camera and microphone, then take you through the speaking prompts. You get prep time before each answer.",
+  },
+  {
+    step: "2",
+    title: "Pay the assessment fee",
+    body: "You only pay once your answers are in — IDR 150,000, settled with iPaymu.",
+  },
+  {
+    step: "3",
+    title: "Two examiners mark you",
+    body: "Your recording is scored independently by two certified examiners on pronunciation, fluency, vocabulary and grammar.",
+  },
+  {
+    step: "4",
+    title: "Get your certificate",
+    body: "Your band report and the examiners' notes land in your dashboard. Share it anywhere an English score counts.",
+  },
+];
+
+const criteria = [
+  { label: "Pronunciation", band: 7.0 },
+  { label: "Fluency", band: 7.5 },
+  { label: "Vocabulary", band: 7.5 },
+  { label: "Grammar", band: 7.0 },
+];
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-xl font-bold tracking-tight text-[var(--foreground)]"
+    <div className="flex min-h-screen flex-col bg-paper">
+      {/* Masthead */}
+      <header className="border-b border-rule">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
+          <Wordmark />
+          <nav
+            className="flex items-center gap-2 sm:gap-3"
+            aria-label="Account"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] text-white">
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
-            </span>
-            FluentCheck
-          </Link>
-
-          <nav className="flex items-center gap-4" aria-label="Main navigation">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Sign in"
+              render={<Link href="/login" />}
             >
               Sign in
-            </Link>
-            <Link
-              href="/signup"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-[var(--primary)] px-5 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-dark)]"
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              render={<Link href="/signup" />}
             >
-              Get started
-            </Link>
+              Start your assessment
+            </Button>
           </nav>
         </div>
       </header>
 
-      {/* Hero section */}
       <main className="flex-1">
-        <section className="mx-auto max-w-6xl px-6 pb-24 pt-20 sm:pt-28">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-[var(--foreground)] sm:text-5xl lg:text-6xl">
-              Master your English speaking skills
-            </h1>
-            <p className="mt-6 text-lg leading-8 text-[var(--muted)] sm:text-xl">
-              Record video responses to expert-crafted prompts and receive
-              detailed feedback from our jury of language professionals.
-            </p>
+        {/* Hero — booklet cover */}
+        <section className="mx-auto max-w-6xl px-4 pb-20 pt-12 sm:px-6 sm:pt-20">
+          <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
+            <div className="max-w-xl animate-rise">
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+                FluentCheck · Speaking assessment
+              </p>
+              <h1 className="mt-6 font-display text-5xl font-medium leading-[0.98] tracking-tight text-ink sm:text-6xl lg:text-[4.25rem]">
+                Prove your English,{" "}
+                <em className="text-signal">on camera.</em>
+              </h1>
+              <p className="mt-6 text-lg leading-8 text-ink-soft">
+                Record short video answers to real speaking prompts. Two
+                examiners score your pronunciation, fluency, vocabulary and
+                grammar. You get a band out of nine — the scale universities
+                and employers already trust.
+              </p>
 
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link
-                href="/signup"
-                className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-[var(--primary)] px-8 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-[var(--primary-dark)] hover:shadow-blue-500/30 sm:w-auto"
-              >
-                Start your assessment
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex h-12 w-full items-center justify-center rounded-lg border border-[var(--border)] bg-white px-8 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-zinc-50 sm:w-auto"
-              >
-                Sign in to your account
-              </Link>
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  variant="default"
+                  size="lg"
+                  render={<Link href="/signup" />}
+                >
+                  Start your assessment
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  render={<Link href="#how-it-works" />}
+                >
+                  See how it works
+                </Button>
+              </div>
+
+              <p className="mt-6 text-xs text-ink-faint">
+                Works in any modern browser · no downloads · ~15 minutes
+              </p>
+            </div>
+
+            {/* Specimen report */}
+            <div
+              className="border border-rule bg-paper-raised animate-rise"
+              style={{ animationDelay: "120ms" }}
+            >
+              <div className="flex items-center justify-between border-b border-rule px-5 py-3">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                  Specimen report
+                </p>
+                <span className="stamp stamp--verified">Certified</span>
+              </div>
+
+              <div className="px-5 py-5">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                      Overall band
+                    </p>
+                    <p className="mt-1 font-display text-6xl font-medium leading-none tracking-tight text-ink">
+                      7.5
+                    </p>
+                  </div>
+                  <p className="pb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                    Out of 9
+                  </p>
+                </div>
+
+                <div className="mt-4">
+                  <BandGauge band={7.5} size="md" />
+                </div>
+
+                <dl className="mt-6 divide-y divide-rule">
+                  {criteria.map((c) => (
+                    <div
+                      key={c.label}
+                      className="flex items-center justify-between gap-4 py-2.5"
+                    >
+                      <dt className="text-sm font-medium text-ink">
+                        {c.label}
+                      </dt>
+                      <dd className="flex items-center gap-4">
+                        <span className="hidden w-32 sm:block">
+                          <BandGauge band={c.band} size="sm" showValue={false} />
+                        </span>
+                        <span className="w-8 text-right font-mono text-sm tabular-nums text-ink">
+                          {c.band.toFixed(1)}
+                        </span>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <p className="mt-5 border-t border-rule pt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                  Marked by the FluentCheck jury
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Features section */}
-        <section className="border-t border-[var(--border)] bg-white">
-          <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
-                Why FluentCheck?
-              </h2>
-              <p className="mt-4 text-lg text-[var(--muted)]">
-                Everything you need to improve your English speaking proficiency.
+        {/* Protocol */}
+        <section id="how-it-works" className="border-t border-rule">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+            <div className="max-w-xl">
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+                How it works
               </p>
+              <h2 className="mt-4 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
+                Four steps to your band
+              </h2>
             </div>
 
-            <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  title: "Expert-crafted prompts",
-                  description:
-                    "Practice with real-world scenarios designed by language assessment professionals to test your true speaking ability.",
-                  icon: (
-                    <path
-                      fillRule="evenodd"
-                      d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                      clipRule="evenodd"
-                    />
-                  ),
-                },
-                {
-                  title: "Video recording",
-                  description:
-                    "Record your responses using your webcam and microphone. Our browser-based recorder works on any device, no downloads needed.",
-                  icon: (
-                    <path d="M4.5 4.5a3 3 0 00-3 3v9a3 3 0 003 3h8.25a3 3 0 003-3v-9a3 3 0 00-3-3H4.5zM19.94 18.75l-2.69-2.69V7.94l2.69-2.69c.944-.945 2.56-.276 2.56 1.06v11.38c0 1.336-1.616 2.005-2.56 1.06z" />
-                  ),
-                },
-                {
-                  title: "Expert jury feedback",
-                  description:
-                    "Receive detailed evaluations from certified language experts on pronunciation, fluency, vocabulary, and grammar.",
-                  icon: (
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-                      clipRule="evenodd"
-                    />
-                  ),
-                },
-              ].map((feature) => (
+            <div className="mt-12 grid gap-x-16 gap-y-0 sm:grid-cols-2">
+              {protocol.map((step) => (
                 <div
-                  key={feature.title}
-                  className="rounded-xl border border-[var(--border)] bg-white p-8 transition-shadow hover:shadow-md"
+                  key={step.step}
+                  className="flex gap-6 border-t border-rule py-8"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-[var(--primary)]">
-                    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      {feature.icon}
-                    </svg>
+                  <span className="font-display text-4xl font-medium leading-none text-ink-faint">
+                    {step.step}
+                  </span>
+                  <div>
+                    <h3 className="font-display text-xl font-medium tracking-tight text-ink">
+                      {step.title}
+                    </h3>
+                    <p className="mt-2 max-w-md text-[15px] leading-7 text-ink-soft">
+                      {step.body}
+                    </p>
                   </div>
-                  <h3 className="mt-6 text-lg font-semibold text-[var(--foreground)]">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-                    {feature.description}
-                  </p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* CTA section */}
-        <section className="bg-gradient-to-br from-[var(--primary)] via-blue-700 to-indigo-800">
-          <div className="mx-auto max-w-4xl px-6 py-20 text-center sm:py-24">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Ready to improve your English?
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-blue-100">
-              Join thousands of test-takers who have enhanced their speaking
-              skills with FluentCheck.
+        {/* Fee sheet */}
+        <section className="border-t border-rule bg-paper-raised">
+          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-2">
+            <div>
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+                The band scale
+              </p>
+              <h2 className="mt-4 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
+                Scored on the band the world uses
+              </h2>
+              <p className="mt-4 max-w-md text-[15px] leading-7 text-ink-soft">
+                Bands run from 0 to 9 in half steps. Most universities ask for
+                6.5 or higher; employers use bands to shortlist quickly. Your
+                report shows exactly where you stand in each skill.
+              </p>
+
+              <div className="mt-8 max-w-md">
+                <BandGauge band={6.5} size="md" />
+                <p className="mt-2 font-mono text-xs text-ink-faint">
+                  Most universities & employers look for band 6.5 and above
+                </p>
+              </div>
+            </div>
+
+            <div className="border border-rule bg-paper">
+              <div className="border-b border-rule px-5 py-3">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                  What your assessment includes
+                </p>
+              </div>
+              <dl className="divide-y divide-rule">
+                {[
+                  ["Speaking test", "6–9 video prompts with prep time"],
+                  ["Marking", "Two independent certified examiners"],
+                  ["Report", "Band score and notes for every skill"],
+                  ["Certificate", "Downloadable, shareable band report"],
+                ].map(([term, desc]) => (
+                  <div
+                    key={term}
+                    className="flex items-start justify-between gap-6 px-5 py-4"
+                  >
+                    <dt className="text-sm font-medium text-ink">{term}</dt>
+                    <dd className="max-w-[16rem] text-right text-sm leading-6 text-ink-soft">
+                      {desc}
+                    </dd>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between px-5 py-4">
+                  <dt className="font-display text-lg font-medium text-ink">
+                    Fee
+                  </dt>
+                  <dd className="font-mono text-lg tabular-nums text-ink">
+                    IDR 150,000
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA — ink panel */}
+        <section className="bg-ink">
+          <div className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6 sm:py-24">
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-paper/60">
+              Ready when you are
             </p>
-            <Link
-              href="/signup"
-              className="mt-10 inline-flex h-12 items-center justify-center rounded-lg bg-white px-8 text-sm font-medium text-[var(--primary)] transition-colors hover:bg-blue-50"
-            >
-              Create your free account
-            </Link>
+            <h2 className="mx-auto mt-4 max-w-xl font-display text-3xl font-medium tracking-tight text-paper sm:text-4xl">
+              Your first assessment takes about fifteen minutes.
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-base leading-7 text-paper/70">
+              All you need is a quiet room and a webcam. We check your camera
+              and microphone before you begin.
+            </p>
+            <div className="mt-8 flex justify-center">
+              <Button
+                variant="invert"
+                size="lg"
+                render={<Link href="/signup" />}
+              >
+                Start your assessment
+              </Button>
+            </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)] bg-white py-12">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <div className="flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--primary)] text-white">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v1a3 3 0 000 6v1a3 3 0 003 3h2v1a3 3 0 006 0v-1h2a3 3 0 003-3v-1a3 3 0 000-6v-1a3 3 0 00-3-3h-2V5a3 3 0 00-3-3z"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  />
-                </svg>
-              </span>
-              FluentCheck
-            </div>
-            <p className="text-sm text-[var(--muted)]">
-              &copy; {new Date().getFullYear()} FluentCheck. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
