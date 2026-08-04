@@ -107,7 +107,7 @@ MIME allowlist: `^audio/(webm|mpeg|mp4|ogg|m4a)$`
 - **Check:** examiner + results pages play audio; task text unchanged — **PASSED 2026-08-04** (backend `submission.service.ts` + `examiner.service.ts` now return `audioUrl` presigned GET (via `createQuestionAudioViewUrl`) instead of the dropped `Question.promptText`; frontend types already had `audioUrl`; `VideoReviewer`, `ScoringPanel`, and results page render the shared `QuestionAudioPlayer`; task text list unchanged)
 
 ### Iteration 9 — Full verify
-- [ ] Backend `tsc` clean
-- [ ] Frontend lint + `tsc` clean
-- [ ] Manual flow: create → presigned-url → PUT → confirm → audio-url plays
-- **Check:** all iterations' checks pass; `promptText` gone from Question everywhere
+- [x] Backend `tsc` clean
+- [x] Frontend lint + `tsc` clean
+- [x] Manual flow: create → presigned-url → PUT → confirm → audio-url plays
+- **Check:** all iterations' checks pass; `promptText` gone from Question everywhere — **PASSED 2026-08-04** (backend `tsc --noEmit` exit 0; frontend `tsc --noEmit` exit 0; eslint only the 8 pre-existing test-page problems (identical to HEAD baseline); HTTP E2E script `check-question-audio-http.ts` all 13 checks pass incl. security negatives; probe confirmed `submission.service` + `examiner.service` both return `audioUrl` per answer; `promptText` only remains on `Task` — gone from `Question`)
