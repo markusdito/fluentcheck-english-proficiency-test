@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { fetchQuestions, createSubmission, completeSubmission } from "@/lib/test-api";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
+import { getQuestionAudioUrl } from "@/lib/question-audio-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
 
 type TestPhase = "loading" | "preparation" | "recording" | "stopped" | "completed";
@@ -76,16 +77,27 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
         // Then fetch questions
         const data = await fetchQuestions();
-        const mapped: Prompt[] = data.map((q) => ({
-          id: q.id,
-          // Iteration 7 fetches the real presigned URL via getQuestionAudioUrl(q.id)
-          audioUrl: null,
-          tasks: q.tasks.map((t) => t.promptText),
-          task: q.tasks.map((t) => t.promptText).join("\n"),
-          prepTime: q.preparationSeconds,
-          recordingDuration: q.recordingSeconds,
-          order: q.order,
-        }));
+        const mapped: Prompt[] = await Promise.all(
+          data.map(async (q) => {
+            let audioUrl: string | null = null;
+            if (q.audioUploadStatus === "UPLOADED") {
+              try {
+                audioUrl = await getQuestionAudioUrl(q.id);
+              } catch {
+                audioUrl = null;
+              }
+            }
+            return {
+              id: q.id,
+              audioUrl,
+              tasks: q.tasks.map((t) => t.promptText),
+              task: q.tasks.map((t) => t.promptText).join("\n"),
+              prepTime: q.preparationSeconds,
+              recordingDuration: q.recordingSeconds,
+              order: q.order,
+            };
+          })
+        );
         setQuestions(mapped);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to initialize test";
@@ -532,6 +544,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               totalQuestions={totalQuestions}
               audioUrl={currentQuestion.audioUrl}
               tasks={currentQuestion.tasks}
+              autoPlay
             />
 
             {/* Timer section */}

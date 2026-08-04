@@ -97,9 +97,9 @@ MIME allowlist: `^audio/(webm|mpeg|mp4|ogg|m4a)$`
 - **Check:** full admin flow: create → upload → confirm → status chip shows UPLOADED — **PASSED 2026-08-04** (`AudioUploadButton` file input → presigned PUT → R2 → confirm; `AudioUploadBadge` status chips in list + edit form; Save gated on UPLOADED; create auto-opens edit form for upload)
 
 ### Iteration 7 — Student test page
-- [ ] `PromptDisplay.tsx`: `text` → audio player (autoplay + replay)
-- [ ] `app/test/[testId]/page.tsx`: fetch audio URL per question, autoplay on start
-- **Check:** question audio plays, replay works, tasks render as text list
+- [x] `PromptDisplay.tsx`: `text` → audio player (autoplay + replay)
+- [x] `app/test/[testId]/page.tsx`: fetch audio URL per question, autoplay on start
+- **Check:** question audio plays, replay works, tasks render as text list — **PASSED 2026-08-04** (`QuestionAudioPlayer` gains `autoPlay` — autoplays when the question changes, surfaces a "Replay prompt" button + autoplay-blocked hint; test page init fetches real presigned URLs via `getQuestionAudioUrl(q.id)` for UPLOADED questions (per-question failure falls back to `null`); `PromptDisplay` forwards `autoPlay`; tasks still render as text "Instructions" list)
 
 ### Iteration 8 — Examiner + results pages
 - [ ] `VideoReviewer.tsx`, `ScoringPanel.tsx`: question text → audio player
