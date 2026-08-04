@@ -603,18 +603,6 @@ export type AnswerUncheckedUpdateManyWithoutSubmissionNestedInput = {
   deleteMany?: Prisma.AnswerScalarWhereInput | Prisma.AnswerScalarWhereInput[]
 }
 
-export type NullableIntFieldUpdateOperationsInput = {
-  set?: number | null
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
-}
-
-export type EnumUploadStatusFieldUpdateOperationsInput = {
-  set?: $Enums.UploadStatus
-}
-
 export type AnswerCreateNestedOneWithoutScoresInput = {
   create?: Prisma.XOR<Prisma.AnswerCreateWithoutScoresInput, Prisma.AnswerUncheckedCreateWithoutScoresInput>
   connectOrCreate?: Prisma.AnswerCreateOrConnectWithoutScoresInput

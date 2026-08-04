@@ -69,7 +69,6 @@ async function main() {
   const part1Questions = [
     {
       category: "PART_1" as const,
-      promptText: "Work and Studies",
       order: 1,
       preparationSeconds: 20,
       recordingSeconds: 60,
@@ -101,7 +100,6 @@ async function main() {
     },
     {
       category: "PART_1" as const,
-      promptText: "Home and Hometown",
       order: 2,
       preparationSeconds: 20,
       recordingSeconds: 60,
@@ -133,7 +131,6 @@ async function main() {
     },
     {
       category: "PART_1" as const,
-      promptText: "Hobbies and Free Time",
       order: 3,
       preparationSeconds: 20,
       recordingSeconds: 60,
@@ -175,7 +172,6 @@ async function main() {
   const part2Questions = [
     {
       category: "PART_2" as const,
-      promptText: "Describe a memorable journey you have taken",
       order: 4,
       preparationSeconds: 60,
       recordingSeconds: 120,
@@ -211,7 +207,6 @@ async function main() {
     },
     {
       category: "PART_2" as const,
-      promptText: "Describe a valuable skill you have learned",
       order: 5,
       preparationSeconds: 60,
       recordingSeconds: 120,
@@ -253,7 +248,6 @@ async function main() {
   const part3Questions = [
     {
       category: "PART_3" as const,
-      promptText: "Travel and Cultural Exchange",
       order: 6,
       preparationSeconds: 30,
       recordingSeconds: 90,
@@ -285,7 +279,6 @@ async function main() {
     },
     {
       category: "PART_3" as const,
-      promptText: "Learning and Education in the Modern Era",
       order: 7,
       preparationSeconds: 30,
       recordingSeconds: 90,
@@ -321,7 +314,6 @@ async function main() {
     },
     {
       category: "PART_3" as const,
-      promptText: "Society, Technology, and Change",
       order: 8,
       preparationSeconds: 30,
       recordingSeconds: 90,
@@ -366,7 +358,7 @@ async function main() {
       data: q,
       include: { tasks: true },
     });
-    console.log(`  ✅ Created: [${created.category}] "${created.promptText}" — ${created.tasks.length} tasks`);
+    console.log(`  ✅ Created: [${created.category}] order ${created.order} — ${created.tasks.length} tasks`);
   }
 
   console.log("\n🎉 Seed completed successfully!");
