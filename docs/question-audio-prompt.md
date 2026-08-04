@@ -102,9 +102,9 @@ MIME allowlist: `^audio/(webm|mpeg|mp4|ogg|m4a)$`
 - **Check:** question audio plays, replay works, tasks render as text list — **PASSED 2026-08-04** (`QuestionAudioPlayer` gains `autoPlay` — autoplays when the question changes, surfaces a "Replay prompt" button + autoplay-blocked hint; test page init fetches real presigned URLs via `getQuestionAudioUrl(q.id)` for UPLOADED questions (per-question failure falls back to `null`); `PromptDisplay` forwards `autoPlay`; tasks still render as text "Instructions" list)
 
 ### Iteration 8 — Examiner + results pages
-- [ ] `VideoReviewer.tsx`, `ScoringPanel.tsx`: question text → audio player
-- [ ] `app/results/[submissionId]/page.tsx`: question text → audio player
-- **Check:** examiner + results pages play audio; task text unchanged
+- [x] `VideoReviewer.tsx`, `ScoringPanel.tsx`: question text → audio player
+- [x] `app/results/[submissionId]/page.tsx`: question text → audio player
+- **Check:** examiner + results pages play audio; task text unchanged — **PASSED 2026-08-04** (backend `submission.service.ts` + `examiner.service.ts` now return `audioUrl` presigned GET (via `createQuestionAudioViewUrl`) instead of the dropped `Question.promptText`; frontend types already had `audioUrl`; `VideoReviewer`, `ScoringPanel`, and results page render the shared `QuestionAudioPlayer`; task text list unchanged)
 
 ### Iteration 9 — Full verify
 - [ ] Backend `tsc` clean

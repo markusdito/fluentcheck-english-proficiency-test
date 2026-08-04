@@ -1,5 +1,5 @@
 import { prisma } from "../config/db.js";
-import { createPresignedViewUrl } from "./upload.service.js";
+import { createPresignedViewUrl, createQuestionAudioViewUrl } from "./upload.service.js";
 
 export interface DashboardData {
   totalTests: number;
@@ -16,7 +16,7 @@ export interface AnswerDetail {
   id: string;
   questionId: string;
   questionCategory: string;
-  promptText: string;
+  audioUrl: string | null;
   durationSeconds: number | null;
   videoUrl: string | null;
   score: number | null;
@@ -137,7 +137,7 @@ export async function getSubmissionDetail(
       answers: {
         include: {
           question: {
-            select: { category: true, promptText: true },
+            select: { category: true, audioUploadStatus: true },
           },
           scores: {
             select: { value: true, comment: true },
@@ -172,6 +172,16 @@ export async function getSubmissionDetail(
         }
       }
 
+      let audioUrl: string | null = null;
+      if (answer.question.audioUploadStatus === "UPLOADED") {
+        try {
+          audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+        } catch {
+          // If presigned URL generation fails, return null
+          audioUrl = null;
+        }
+      }
+
       const scores = answer.scores.map((score) => Number(score.value));
       const score = scores.length > 0
         ? scores.reduce((total, value) => total + value, 0) / scores.length
@@ -185,7 +195,7 @@ export async function getSubmissionDetail(
         id: answer.id,
         questionId: answer.questionId,
         questionCategory: answer.question.category,
-        promptText: answer.question.promptText,
+        audioUrl,
         durationSeconds: answer.durationSeconds,
         videoUrl,
         score: score == null ? null : Number(score.toFixed(2)),

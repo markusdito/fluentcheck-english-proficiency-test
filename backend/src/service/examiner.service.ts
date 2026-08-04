@@ -1,5 +1,5 @@
 import { prisma } from "../config/db.js";
-import { createPresignedViewUrlForAccessor } from "./upload.service.js";
+import { createPresignedViewUrlForAccessor, createQuestionAudioViewUrl } from "./upload.service.js";
 
 export interface ExaminerInfo {
   id: string;
@@ -21,7 +21,7 @@ export interface AssignmentAnswer {
   id: string;
   questionId: string;
   questionCategory: string;
-  promptText: string;
+  audioUrl: string | null;
   tasks: { id: string; promptText: string; order: number }[];
   durationSeconds: number | null;
   videoUrl: string | null;
@@ -97,7 +97,7 @@ export async function getExaminerAssignmentDetail(
               question: {
                 select: {
                   category: true,
-                  promptText: true,
+                  audioUploadStatus: true,
                   tasks: {
                     select: { id: true, promptText: true, order: true },
                     orderBy: { order: "asc" },
@@ -141,11 +141,20 @@ export async function getExaminerAssignmentDetail(
         }
       }
 
+      let audioUrl: string | null = null;
+      if (answer.question.audioUploadStatus === "UPLOADED") {
+        try {
+          audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+        } catch {
+          audioUrl = null;
+        }
+      }
+
       return {
         id: answer.id,
         questionId: answer.questionId,
         questionCategory: answer.question.category,
-        promptText: answer.question.promptText,
+        audioUrl,
         tasks: answer.question.tasks,
         durationSeconds: answer.durationSeconds,
         videoUrl,
