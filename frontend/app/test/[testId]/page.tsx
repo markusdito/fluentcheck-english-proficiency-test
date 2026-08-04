@@ -78,7 +78,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         const data = await fetchQuestions();
         const mapped: Prompt[] = data.map((q) => ({
           id: q.id,
-          text: q.promptText,
+          // Iteration 7 fetches the real presigned URL via getQuestionAudioUrl(q.id)
+          audioUrl: null,
           tasks: q.tasks.map((t) => t.promptText),
           task: q.tasks.map((t) => t.promptText).join("\n"),
           prepTime: q.preparationSeconds,
@@ -529,7 +530,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             <PromptDisplay
               questionNumber={currentQuestionIndex + 1}
               totalQuestions={totalQuestions}
-              text={currentQuestion.text}
+              audioUrl={currentQuestion.audioUrl}
               tasks={currentQuestion.tasks}
             />
 

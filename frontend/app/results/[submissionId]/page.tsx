@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { api, ApiError } from "@/lib/api";
 import { fetchSubmissionDetail, paySubmission, type SubmissionDetail } from "@/lib/dashboard-api";
 import VideoPlayer from "@/components/VideoPlayer";
+import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
@@ -284,7 +285,9 @@ export default function SubmissionResultPage({
                     <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                       Question {index + 1} · {answer.questionCategory.replace(/_/g, " ")}
                     </p>
-                    <p className="mt-1.5 text-sm leading-6 text-ink">{answer.promptText}</p>
+                    <div className="mt-2">
+                      <QuestionAudioPlayer audioUrl={answer.audioUrl} compact />
+                    </div>
                   </div>
                   {answer.score != null ? (
                     <span className="shrink-0 text-right">

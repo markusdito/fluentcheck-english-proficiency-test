@@ -66,10 +66,13 @@ export interface AdminTask {
 export interface AdminQuestion {
   id: string;
   category: string;
-  promptText: string;
   order: number;
   preparationSeconds: number;
   recordingSeconds: number;
+  audioStorageKey: string | null;
+  audioMimeType: string | null;
+  audioSizeBytes: number | null;
+  audioUploadStatus: "PENDING" | "UPLOADED" | "FAILED";
   createdAt: string;
   tasks: AdminTask[];
 }

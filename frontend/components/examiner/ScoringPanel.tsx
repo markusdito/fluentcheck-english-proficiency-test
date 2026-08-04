@@ -5,6 +5,7 @@ import type { AssignmentAnswer } from "@/types/examiner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
 import { CircleAlertIcon } from "lucide-react";
 
 interface ScoringPanelProps {
@@ -64,12 +65,12 @@ export function ScoringPanel({ answers, onSubmit, isSubmitting }: ScoringPanelPr
 
           return (
             <div key={answer.id} className="border border-rule bg-rule/20 p-4">
-              <p className="text-sm font-medium leading-6 text-ink">
-                {idx + 1}.{" "}
-                {answer.promptText.length > 60
-                  ? answer.promptText.slice(0, 60) + "…"
-                  : answer.promptText}
-              </p>
+              <div className="mb-3">
+                <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                  Question {idx + 1}
+                </p>
+                <QuestionAudioPlayer audioUrl={answer.audioUrl} compact />
+              </div>
               <div className="mt-3 flex flex-wrap items-end gap-3">
                 <div className="w-28">
                   <label

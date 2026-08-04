@@ -349,7 +349,10 @@ export interface Paginated<T> {
 export interface AdminQuestion {
   id: string;
   category: string;
-  promptText: string;
+  audioStorageKey: string | null;
+  audioMimeType: string | null;
+  audioSizeBytes: number | null;
+  audioUploadStatus: "PENDING" | "UPLOADED" | "FAILED";
   order: number;
   preparationSeconds: number;
   recordingSeconds: number;

@@ -86,8 +86,6 @@ function ToNumberInput({
 function QuestionFormFields({
   category,
   onCategory,
-  promptText,
-  onPromptText,
   order,
   onOrder,
   preparationSeconds,
@@ -98,8 +96,6 @@ function QuestionFormFields({
 }: {
   category: string;
   onCategory: (v: string) => void;
-  promptText: string;
-  onPromptText: (v: string) => void;
   order: string;
   onOrder: (v: string) => void;
   preparationSeconds: string;
@@ -131,16 +127,6 @@ function QuestionFormFields({
           </SelectContent>
         </Select>
       </div>
-
-      <FormField
-        id="promptText"
-        label="Prompt text"
-        placeholder="Describe the scenario for this question"
-        value={promptText}
-        onChange={(e) => onPromptText(e.target.value)}
-        required
-        disabled={disabled}
-      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <ToNumberInput
@@ -367,7 +353,6 @@ export default function AdminQuestionsPage() {
   const [loadError, setLoadError] = useState("");
 
   const [createCategory, setCreateCategory] = useState("PART_1");
-  const [createPrompt, setCreatePrompt] = useState("");
   const [createOrder, setCreateOrder] = useState("");
   const [createPrep, setCreatePrep] = useState("");
   const [createRecord, setCreateRecord] = useState("");
@@ -376,7 +361,6 @@ export default function AdminQuestionsPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCategory, setEditCategory] = useState("PART_1");
-  const [editPrompt, setEditPrompt] = useState("");
   const [editOrder, setEditOrder] = useState("");
   const [editPrep, setEditPrep] = useState("");
   const [editRecord, setEditRecord] = useState("");
@@ -416,21 +400,19 @@ export default function AdminQuestionsPage() {
     e.preventDefault();
     setCreateError("");
     const order = Number(createOrder);
-    if (!createPrompt.trim() || !Number.isInteger(order)) {
-      setCreateError("Prompt text and order are required.");
+    if (!Number.isInteger(order)) {
+      setCreateError("Order is required.");
       return;
     }
     setCreateLoading(true);
     try {
       const question = await createQuestion({
         category: createCategory,
-        promptText: createPrompt.trim(),
         order,
         preparationSeconds: createPrep ? Number(createPrep) : undefined,
         recordingSeconds: createRecord ? Number(createRecord) : undefined,
       });
       setQuestions((prev) => [...prev, question]);
-      setCreatePrompt("");
       setCreateOrder("");
       setCreatePrep("");
       setCreateRecord("");
@@ -446,7 +428,6 @@ export default function AdminQuestionsPage() {
   function startEdit(q: AdminQuestion) {
     setEditingId(q.id);
     setEditCategory(q.category);
-    setEditPrompt(q.promptText);
     setEditOrder(String(q.order));
     setEditPrep(String(q.preparationSeconds));
     setEditRecord(String(q.recordingSeconds));
@@ -465,15 +446,14 @@ export default function AdminQuestionsPage() {
     if (!editingId) return;
     setEditError("");
     const order = Number(editOrder);
-    if (!editPrompt.trim() || !Number.isInteger(order)) {
-      setEditError("Prompt text and order are required.");
+    if (!Number.isInteger(order)) {
+      setEditError("Order is required.");
       return;
     }
     setEditLoading(true);
     try {
       const updated = await updateQuestion(editingId, {
         category: editCategory,
-        promptText: editPrompt.trim(),
         order,
         preparationSeconds: editPrep ? Number(editPrep) : undefined,
         recordingSeconds: editRecord ? Number(editRecord) : undefined,
@@ -571,8 +551,6 @@ export default function AdminQuestionsPage() {
             <QuestionFormFields
               category={createCategory}
               onCategory={setCreateCategory}
-              promptText={createPrompt}
-              onPromptText={setCreatePrompt}
               order={createOrder}
               onOrder={setCreateOrder}
               preparationSeconds={createPrep}
@@ -614,8 +592,6 @@ export default function AdminQuestionsPage() {
                 <QuestionFormFields
                   category={editCategory}
                   onCategory={setEditCategory}
-                  promptText={editPrompt}
-                  onPromptText={setEditPrompt}
                   order={editOrder}
                   onOrder={setEditOrder}
                   preparationSeconds={editPrep}
@@ -707,7 +683,13 @@ export default function AdminQuestionsPage() {
                               {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"}
                             </span>
                           </div>
-                          <p className="text-sm leading-6 text-ink">{q.promptText}</p>
+                          <p className="text-sm leading-6 text-ink">
+                            {q.audioUploadStatus === "UPLOADED"
+                              ? "Audio uploaded"
+                              : q.audioUploadStatus === "FAILED"
+                                ? "Audio upload failed"
+                                : "No audio uploaded yet"}
+                          </p>
                           <p className="mt-2 text-xs text-ink-soft">
                             {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
                           </p>

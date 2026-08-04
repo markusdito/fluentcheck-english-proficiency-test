@@ -17,7 +17,7 @@ export interface AnswerDetail {
   id: string;
   questionId: string;
   questionCategory: string;
-  promptText: string;
+  audioUrl: string | null;
   durationSeconds: number | null;
   videoUrl: string | null;
   score: number | null;

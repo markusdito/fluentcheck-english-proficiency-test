@@ -1,21 +1,23 @@
 "use client";
 
+import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
+
 interface PromptDisplayProps {
   questionNumber: number;
   totalQuestions: number;
-  text: string;
+  audioUrl: string | null;
   tasks?: string[];
 }
 
-export function PromptDisplay({ questionNumber, totalQuestions, text, tasks }: PromptDisplayProps) {
+export function PromptDisplay({ questionNumber, totalQuestions, audioUrl, tasks }: PromptDisplayProps) {
   return (
     <div className="border border-studio-rule bg-studio-panel p-5">
       <span className="inline-flex items-center border border-studio-rule px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-studio-text/70">
         Question {questionNumber} of {totalQuestions}
       </span>
-      <h2 className="mt-3 font-display text-xl font-medium tracking-tight text-studio-text">
-        {text}
-      </h2>
+      <div className="mt-3">
+        <QuestionAudioPlayer audioUrl={audioUrl} />
+      </div>
       {tasks && tasks.length > 0 && (
         <div className="mt-4 bg-studio p-4">
           <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-studio-text/60">
