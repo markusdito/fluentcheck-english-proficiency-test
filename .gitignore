@@ -1,7 +1,7 @@
-.agents
-.codegraph
-.continue
-.forge
-.github
-.idea
-.playwright-mcp
+/.agents
+/.codegraph
+/.continue
+/.forge
+/.github
+/.idea
+/.playwright-mcp
