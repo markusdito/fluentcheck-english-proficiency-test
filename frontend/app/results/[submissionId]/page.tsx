@@ -220,13 +220,15 @@ export default function SubmissionResultPage({
         </div>
 
         {/* Score surface */}
-        <div className="mt-8">
-          <ScoreCard
-            status={submission.status}
-            score={submission.score}
-            answers={submission.answers}
-          />
-        </div>
+        {!awaitingPayment && (
+          <div className="mt-8">
+            <ScoreCard
+              status={submission.status}
+              score={submission.score}
+              answers={submission.answers}
+            />
+          </div>
+        )}
 
         {/* Payment notice / banner */}
         {paymentResult === "success" && awaitingPayment && (

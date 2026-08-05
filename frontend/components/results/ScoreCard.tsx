@@ -21,7 +21,7 @@ function scoreTone(score: number) {
   return "bg-verified";
 }
 
-const PENDING_STATUSES = new Set(["IN_PROGRESS", "AWAITING_PAYMENT", "SCORING"]);
+const PENDING_STATUSES = new Set(["PAID", "SCORING"]);
 
 /**
  * The single score surface — mirrors the landing page "specimen report":
@@ -35,7 +35,7 @@ export function ScoreCard({
   pending,
   className,
 }: ScoreCardProps) {
-  const isPending = pending ?? (status ? PENDING_STATUSES.has(status) : false);
+  const isPending = status ? PENDING_STATUSES.has(status) : (pending ?? false);
 
   if (isPending) {
     return (

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { prisma } from "../src/config/db.js";
 import { randomBytes } from "crypto";
 import {
