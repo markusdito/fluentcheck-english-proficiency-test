@@ -22,7 +22,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const SUBMISSION_STATUSES = [
-  "IN_PROGRESS",
   "AWAITING_PAYMENT",
   "PAID",
   "SCORING",

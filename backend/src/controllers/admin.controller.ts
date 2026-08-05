@@ -11,6 +11,9 @@ import { Role, SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 
 const ADMIN_ROLES: readonly string[] = ["STUDENT", "EXAMINER", "ADMIN"];
+const ADMIN_SUBMISSION_STATUSES: readonly string[] = Object.values(SubmissionStatus).filter(
+  (status) => status !== "IN_PROGRESS",
+);
 
 /**
  * GET /api/admin/users
@@ -182,9 +185,9 @@ export async function listSubmissions(req: Request, res: Response) {
     let status: SubmissionStatus | undefined;
     if (req.query.status !== undefined) {
       const rawStatus = String(req.query.status);
-      if (!Object.values(SubmissionStatus).includes(rawStatus as SubmissionStatus)) {
+      if (!ADMIN_SUBMISSION_STATUSES.includes(rawStatus)) {
         res.status(400).json({
-          error: `status must be one of ${Object.values(SubmissionStatus).join(", ")}`,
+          error: `status must be one of ${ADMIN_SUBMISSION_STATUSES.join(", ")}`,
         });
         return;
       }
@@ -219,4 +222,3 @@ export async function getStats(req: Request, res: Response) {
     res.status(500).json({ error: "Failed to load stats" });
   }
 }
-

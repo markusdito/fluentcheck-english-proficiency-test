@@ -34,23 +34,8 @@ export interface SubmissionDetail {
 /**
  * Create a new submission for the authenticated student.
  * Status starts as IN_PROGRESS.
- * If there's already an IN_PROGRESS submission, returns it instead of creating a duplicate.
  */
 export async function createSubmission(userId: string): Promise<{ id: string; status: string; createdAt: Date }> {
-  // Reuse any existing IN_PROGRESS submission to prevent duplicates from race conditions
-  const existing = await prisma.submission.findFirst({
-    where: { studentId: userId, status: "IN_PROGRESS" },
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-    },
-  });
-
-  if (existing) {
-    return existing;
-  }
-
   const submission = await prisma.submission.create({
     data: {
       studentId: userId,
@@ -71,7 +56,10 @@ export async function createSubmission(userId: string): Promise<{ id: string; st
  */
 export async function getStudentDashboard(userId: string): Promise<DashboardData> {
   const submissions = await prisma.submission.findMany({
-    where: { studentId: userId },
+    where: {
+      studentId: userId,
+      status: { not: "IN_PROGRESS" },
+    },
     orderBy: { createdAt: "desc" },
     include: {
       certificate: {

@@ -193,7 +193,7 @@ export default function AdminOverviewPage() {
               No submissions yet
             </p>
             <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
-              Submissions will appear here once students start a test.
+              Submissions will appear here once students complete a test.
             </p>
           </div>
         )}
