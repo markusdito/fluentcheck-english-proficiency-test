@@ -20,13 +20,14 @@ export interface ListSubmissionsParams {
 }
 
 /**
- * List non-deleted submissions with optional status filtering and pagination.
+ * List completed submissions with optional status filtering and pagination.
+ * IN_PROGRESS submissions are abandoned drafts, not admin history.
  */
 export async function listAdminSubmissions(params: ListSubmissionsParams) {
   const { page, limit, status } = params;
 
   const where: Prisma.SubmissionWhereInput = {
-    ...(status ? { status } : {}),
+    status: status && status !== "IN_PROGRESS" ? status : { not: "IN_PROGRESS" },
   };
 
   const [items, total] = await Promise.all([
@@ -235,6 +236,7 @@ export async function getAdminStats() {
       }),
       prisma.submission.groupBy({
         by: ["status"],
+        where: { status: { not: "IN_PROGRESS" } },
         _count: { _all: true },
       }),
       prisma.payment.aggregate({
@@ -245,6 +247,7 @@ export async function getAdminStats() {
         where: { status: { in: ["PAID", "SCORING"] } },
       }),
       prisma.submission.findMany({
+        where: { status: { not: "IN_PROGRESS" } },
         orderBy: { createdAt: "desc" },
         take: 5,
         select: {
@@ -273,6 +276,5 @@ export async function getAdminStats() {
     })),
   };
 }
-
 
 
