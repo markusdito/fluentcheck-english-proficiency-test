@@ -122,7 +122,7 @@ export default function DashboardPage() {
       </a>
 
       <Header
-        logoHref="/dashboard"
+        logoHref="/"
         actions={
           <AccountMenu
             name={user?.name}

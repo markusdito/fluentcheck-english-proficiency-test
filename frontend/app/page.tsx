@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { Footer } from "@/components/layout/Footer";
+import { LandingAuthActions } from "@/components/layout/LandingAuthActions";
 import { Button } from "@/components/ui/button";
 import { BandGauge } from "@/components/ui/BandGauge";
 
@@ -45,21 +46,7 @@ export default function Home() {
             className="flex items-center gap-2 sm:gap-3"
             aria-label="Account"
           >
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Sign in"
-              render={<Link href="/login" />}
-            >
-              Sign in
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              render={<Link href="/signup" />}
-            >
-              Start your assessment
-            </Button>
+            <LandingAuthActions />
           </nav>
         </div>
       </header>

@@ -6,6 +6,10 @@ interface ApiErrorResponse {
   errors?: Record<string, string[]>;
 }
 
+interface RequestOptions extends RequestInit {
+  redirectOn401?: boolean;
+}
+
 export class ApiError extends Error {
   public statusCode: number;
   public errors?: Record<string, string[]>;
@@ -40,23 +44,24 @@ async function handle401() {
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestOptions = {}
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
-  const body = options.body;
+  const { redirectOn401 = true, ...fetchOptions } = options;
+  const body = fetchOptions.body;
 
   const res = await fetch(url, {
-    ...options,
+    ...fetchOptions,
     credentials: "include",
     headers: {
       ...buildHeaders(body),
-      ...(options.headers as Record<string, string> | undefined),
+      ...(fetchOptions.headers as Record<string, string> | undefined),
     },
   });
 
   // Handle 401 — token expired or invalid
   if (res.status === 401) {
-    await handle401();
+    if (redirectOn401) await handle401();
     let body: ApiErrorResponse = {};
     try {
       body = (await res.json()) as ApiErrorResponse;
@@ -93,8 +98,8 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(endpoint: string) =>
-    request<T>(endpoint, { method: "GET" }),
+  get: <T>(endpoint: string, options?: Pick<RequestOptions, "redirectOn401">) =>
+    request<T>(endpoint, { method: "GET", ...options }),
 
   post: <T>(endpoint: string, body?: unknown) =>
     request<T>(endpoint, {
