@@ -35,6 +35,14 @@ const criteria = [
   { label: "Grammar", band: 7.0 },
 ];
 
+const heroPhrases = [
+  "on camera.",
+  "in conversation.",
+  "in real life.",
+  "with confidence.",
+  "where it counts.",
+];
+
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
@@ -59,9 +67,26 @@ export default function Home() {
               <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
                 FluentCheck · Speaking assessment
               </p>
-              <h1 className="mt-6 font-display text-5xl font-medium leading-[0.98] tracking-tight text-ink sm:text-6xl lg:text-[4.25rem]">
-                Prove your English,{" "}
-                <em className="text-signal">on camera.</em>
+              <h1
+                className="mt-6 font-display text-5xl font-medium leading-[0.98] tracking-tight text-ink sm:text-6xl lg:text-[4.25rem]"
+                aria-label="Prove your English — on camera, in conversation, in real life, with confidence, where it counts."
+              >
+                <span aria-hidden="true">Prove your English, </span>
+                <span
+                  className="hero-phrase-stage text-signal"
+                  data-animate="phrase-slideshow"
+                  aria-hidden="true"
+                >
+                  {heroPhrases.map((phrase, index) => (
+                    <span
+                      key={phrase}
+                      className="hero-phrase"
+                      style={{ animationDelay: `${-(1.28 + index * 3.2)}s` }}
+                    >
+                      {phrase}
+                    </span>
+                  ))}
+                </span>
               </h1>
               <p className="mt-6 text-lg leading-8 text-ink-soft">
                 Record short video answers to real speaking prompts. Two
