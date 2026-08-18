@@ -171,11 +171,11 @@ export default function AdminSubmissionsPage() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="mark px-5 text-xs font-semibold">Student</TableHead>
-                <TableHead className="mark px-5 text-xs font-semibold">Status</TableHead>
-                <TableHead className="mark px-5 text-xs font-semibold">Latest payment</TableHead>
-                <TableHead className="mark px-5 text-xs font-semibold">Assignments</TableHead>
-                <TableHead className="mark px-5 text-right text-xs font-semibold">Action</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Student</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Status</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Latest payment</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Assignments</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -183,17 +183,17 @@ export default function AdminSubmissionsPage() {
                 const canAssign =
                   sub.status === "PAID" && sub.assignments.length === 0;
                 return (
-                  <TableRow key={sub.id} className="align-top">
+                  <TableRow key={sub.id} className="[&>td]:align-middle">
                     <TableCell className="px-5 py-3.5">
                       <p className="font-medium text-ink">{sub.studentName}</p>
                       <p className="mt-0.5 text-xs text-ink-soft">{sub.studentEmail}</p>
                     </TableCell>
-                    <TableCell className="px-5 py-3.5">
+                    <TableCell className="px-5 py-3.5 text-center">
                       <SubmissionStatus status={sub.status} />
                     </TableCell>
-                    <TableCell className="px-5 py-3.5">
+                    <TableCell className="px-5 py-3.5 text-center">
                       {sub.latestPayment ? (
-                        <div className="flex flex-col items-start gap-1.5">
+                        <div className="flex flex-col items-center gap-1.5">
                           <SubmissionStatus status={sub.latestPayment.status} />
                           <span className="text-xs text-ink-soft">
                             {idr.format(sub.latestPayment.amount)}
@@ -205,12 +205,20 @@ export default function AdminSubmissionsPage() {
                     </TableCell>
                     <TableCell className="px-5 py-3.5">
                       {sub.assignments.length > 0 ? (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex min-w-[17rem] flex-col divide-y divide-rule">
                           {sub.assignments.map((a) => (
-                            <span key={a.id} className="flex items-center gap-1.5">
-                              <span className="text-xs text-ink-soft">{a.examinerName}</span>
+                            <div
+                              key={a.id}
+                              className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 py-2 first:pt-0 last:pb-0"
+                            >
+                              <span
+                                className="min-w-0 truncate text-xs font-medium text-ink"
+                                title={a.examinerName}
+                              >
+                                {a.examinerName}
+                              </span>
                               <SubmissionStatus status={a.status} />
-                            </span>
+                            </div>
                           ))}
                         </div>
                       ) : (

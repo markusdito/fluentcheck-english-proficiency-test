@@ -62,7 +62,7 @@ export function ScoreCard({
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
           Specimen report
         </p>
-        <Stamp tone={status === "CERTIFIED" ? "verified" : "ink"}>{verdict}</Stamp>
+        <Stamp tone="ink">{verdict}</Stamp>
       </div>
 
       <div className="px-6 py-6">
