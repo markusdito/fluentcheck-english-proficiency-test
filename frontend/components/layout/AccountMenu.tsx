@@ -18,9 +18,15 @@ interface AccountMenuProps {
   name?: string;
   email?: string;
   isAdmin?: boolean;
+  showDashboard?: boolean;
 }
 
-export function AccountMenu({ name, email, isAdmin }: AccountMenuProps) {
+export function AccountMenu({
+  name,
+  email,
+  isAdmin,
+  showDashboard = true,
+}: AccountMenuProps) {
   const initial = (name?.trim().charAt(0) ?? "?").toUpperCase();
 
   return (
@@ -56,9 +62,11 @@ export function AccountMenu({ name, email, isAdmin }: AccountMenuProps) {
         <DropdownMenuItem render={<Link href="/profile" />}>
           Profile
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link href="/dashboard" />}>
-          Dashboard
-        </DropdownMenuItem>
+        {showDashboard ? (
+          <DropdownMenuItem render={<Link href="/dashboard" />}>
+            Dashboard
+          </DropdownMenuItem>
+        ) : null}
         {isAdmin ? (
           <DropdownMenuItem render={<Link href="/admin" />}>
             Admin panel

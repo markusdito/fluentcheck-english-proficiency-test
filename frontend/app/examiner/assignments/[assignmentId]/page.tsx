@@ -14,8 +14,15 @@ import { ScoringPanel } from "@/components/examiner/ScoringPanel";
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { SubmissionStatus } from "@/components/ui/submission-status";
-import { Stamp } from "@/components/ui/Stamp";
 import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import type { AssignmentDetail } from "@/types/examiner";
 
 interface User {
@@ -149,6 +156,20 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
       />
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        <Breadcrumb className="mb-8">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link href="/dashboard" />}>
+                Dashboard
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Submission details</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
         {/* Student info header */}
         <div className="mb-8">
           <div className="flex flex-wrap items-center gap-4">
@@ -173,18 +194,6 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
               </p>
             </div>
           </div>
-        </div>
-
-        {/* Assigned examiners */}
-        <div className="mb-8 flex flex-wrap items-center gap-2">
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-            Assigned examiners
-          </span>
-          {assignment.examiners.map((ex) => (
-            <Stamp key={ex.id} tone="ink">
-              {ex.name}
-            </Stamp>
-          ))}
         </div>
 
         <div className="grid gap-8 lg:grid-cols-5">

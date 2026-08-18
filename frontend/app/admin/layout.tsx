@@ -215,6 +215,7 @@ export default function AdminLayout({
             name={user?.name}
             email={user?.email}
             isAdmin={user?.role === "ADMIN"}
+            showDashboard={false}
           />
         }
       />

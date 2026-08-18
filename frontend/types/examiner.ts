@@ -31,7 +31,6 @@ export interface AssignmentDetail {
   studentName: string;
   submissionStatus: string;
   answers: AssignmentAnswer[];
-  examiners: Array<{ id: string; name: string; status: string }>;
   createdAt: string;
   updatedAt: string;
 }

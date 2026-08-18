@@ -1,12 +1,6 @@
 import { prisma } from "../config/db.js";
 import { createPresignedViewUrlForAccessor, createQuestionAudioViewUrl } from "./upload.service.js";
 
-export interface ExaminerInfo {
-  id: string;
-  name: string;
-  status: string;
-}
-
 export interface ExaminerAssignmentSummary {
   id: string;
   status: string;
@@ -34,7 +28,6 @@ export interface AssignmentDetail {
   studentName: string;
   submissionStatus: string;
   answers: AssignmentAnswer[];
-  examiners: ExaminerInfo[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -107,13 +100,6 @@ export async function getExaminerAssignmentDetail(
             },
             orderBy: { createdAt: "asc" },
           },
-          assignments: {
-            include: {
-              examiner: {
-                select: { id: true, username: true },
-              },
-            },
-          },
         },
       },
     },
@@ -169,11 +155,6 @@ export async function getExaminerAssignmentDetail(
     studentName: assignment.submission.student.username,
     submissionStatus: assignment.submission.status,
     answers,
-    examiners: assignment.submission.assignments.map((a) => ({
-      id: a.examiner.id,
-      name: a.examiner.username,
-      status: a.status,
-    })),
     createdAt: assignment.createdAt,
     updatedAt: assignment.updatedAt,
   };

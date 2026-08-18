@@ -57,13 +57,6 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
                         },
                         orderBy: { createdAt: "asc" },
                     },
-                    assignments: {
-                        include: {
-                            examiner: {
-                                select: { id: true, username: true },
-                            },
-                        },
-                    },
                 },
             },
         },
@@ -110,11 +103,6 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
         studentName: assignment.submission.student.username,
         submissionStatus: assignment.submission.status,
         answers,
-        examiners: assignment.submission.assignments.map((a) => ({
-            id: a.examiner.id,
-            name: a.examiner.username,
-            status: a.status,
-        })),
         createdAt: assignment.createdAt,
         updatedAt: assignment.updatedAt,
     };
