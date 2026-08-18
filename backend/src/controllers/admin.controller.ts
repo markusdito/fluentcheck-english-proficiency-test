@@ -5,6 +5,7 @@ import {
   listAdminExaminers,
   assignExaminers,
   getAdminStats,
+  getAdminSubmissionDetail,
   listAdminSubmissions,
 } from "../service/admin.service.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
@@ -14,6 +15,7 @@ const ADMIN_ROLES: readonly string[] = ["STUDENT", "EXAMINER", "ADMIN"];
 const ADMIN_SUBMISSION_STATUSES: readonly string[] = Object.values(SubmissionStatus).filter(
   (status) => status !== "IN_PROGRESS",
 );
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * GET /api/admin/users
@@ -203,6 +205,36 @@ export async function listSubmissions(req: Request, res: Response) {
   } catch (error) {
     console.error("List submissions error:", error);
     res.status(500).json({ error: "Failed to load submissions" });
+  }
+}
+
+/**
+ * GET /api/admin/submissions/:id
+ * Fetch a complete read-only submission view for an admin.
+ */
+export async function getSubmission(req: Request, res: Response) {
+  const submissionId = req.params.id as string;
+  if (!submissionId || !UUID_RE.test(submissionId)) {
+    res.status(400).json({ error: "A valid submission ID is required" });
+    return;
+  }
+
+  try {
+    const data = await getAdminSubmissionDetail(submissionId);
+    res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to load submission";
+    if (message === "Submission not found") {
+      res.status(404).json({ error: message });
+      return;
+    }
+
+    console.error("Get submission detail error:", error);
+    res.status(500).json({ error: "Failed to load submission" });
   }
 }
 

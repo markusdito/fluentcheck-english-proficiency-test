@@ -181,7 +181,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
             Assigned examiners
           </span>
           {assignment.examiners.map((ex) => (
-            <Stamp key={ex.id} tone={ex.status === "COMPLETED" ? "verified" : "ink"}>
+            <Stamp key={ex.id} tone="ink">
               {ex.name}
             </Stamp>
           ))}

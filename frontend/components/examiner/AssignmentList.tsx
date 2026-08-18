@@ -50,8 +50,9 @@ export function AssignmentList({ assignments }: AssignmentListProps) {
                 </div>
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                <SubmissionStatus status={assignment.submissionStatus} />
-                <SubmissionStatus status={assignment.status} />
+                <SubmissionStatus
+                  status={assignment.status === "COMPLETED" ? "COMPLETED" : "ASSIGNED"}
+                />
                 <ChevronRightIcon className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5" />
               </div>
             </Link>

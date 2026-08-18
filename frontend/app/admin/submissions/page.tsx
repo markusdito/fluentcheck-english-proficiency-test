@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import {
   fetchAdminSubmissions,
@@ -38,6 +39,7 @@ const idr = new Intl.NumberFormat("id-ID", {
 });
 
 export default function AdminSubmissionsPage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [items, setItems] = useState<AdminSubmission[]>([]);
@@ -171,11 +173,11 @@ export default function AdminSubmissionsPage() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="mark px-5 text-xs font-semibold">Student</TableHead>
-                <TableHead className="mark px-5 text-xs font-semibold">Status</TableHead>
-                <TableHead className="mark px-5 text-xs font-semibold">Latest payment</TableHead>
-                <TableHead className="mark px-5 text-xs font-semibold">Assignments</TableHead>
-                <TableHead className="mark px-5 text-right text-xs font-semibold">Action</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Student</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Status</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Latest payment</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Assignments</TableHead>
+                <TableHead className="mark px-5 text-center text-xs font-semibold">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -183,34 +185,63 @@ export default function AdminSubmissionsPage() {
                 const canAssign =
                   sub.status === "PAID" && sub.assignments.length === 0;
                 return (
-                  <TableRow key={sub.id} className="align-top">
+                  <TableRow
+                    key={sub.id}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`View submission by ${sub.studentName}`}
+                    className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink [&>td]:align-middle"
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (
+                        target.closest(
+                          "button, a, input, select, textarea, [role='button']"
+                        )
+                      ) {
+                        return;
+                      }
+                      router.push(`/admin/submissions/${sub.id}`);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        router.push(`/admin/submissions/${sub.id}`);
+                      }
+                    }}
+                  >
                     <TableCell className="px-5 py-3.5">
                       <p className="font-medium text-ink">{sub.studentName}</p>
                       <p className="mt-0.5 text-xs text-ink-soft">{sub.studentEmail}</p>
                     </TableCell>
-                    <TableCell className="px-5 py-3.5">
+                    <TableCell className="px-5 py-3.5 text-center">
                       <SubmissionStatus status={sub.status} />
                     </TableCell>
-                    <TableCell className="px-5 py-3.5">
-                      {sub.latestPayment ? (
-                        <div className="flex flex-col items-start gap-1.5">
-                          <SubmissionStatus status={sub.latestPayment.status} />
-                          <span className="text-xs text-ink-soft">
-                            {idr.format(sub.latestPayment.amount)}
-                          </span>
-                        </div>
+                    <TableCell className="px-5 py-3.5 text-center">
+                      {sub.latestPayment?.status === "PAID" ? (
+                        <span className="font-mono text-sm font-semibold tabular-nums text-ink">
+                          {idr.format(sub.latestPayment.amount)}
+                        </span>
                       ) : (
-                        <span className="text-xs text-ink-faint">—</span>
+                        <SubmissionStatus status="PENDING" />
                       )}
                     </TableCell>
                     <TableCell className="px-5 py-3.5">
                       {sub.assignments.length > 0 ? (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex min-w-[17rem] flex-col divide-y divide-rule">
                           {sub.assignments.map((a) => (
-                            <span key={a.id} className="flex items-center gap-1.5">
-                              <span className="text-xs text-ink-soft">{a.examinerName}</span>
+                            <div
+                              key={a.id}
+                              className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 py-2 first:pt-0 last:pb-0"
+                            >
+                              <span
+                                className="min-w-0 truncate text-xs font-medium text-ink"
+                                title={a.examinerName}
+                              >
+                                {a.examinerName}
+                              </span>
                               <SubmissionStatus status={a.status} />
-                            </span>
+                            </div>
                           ))}
                         </div>
                       ) : (
@@ -223,7 +254,10 @@ export default function AdminSubmissionsPage() {
                           size="sm"
                           loading={assigningId === sub.id}
                           disabled={assigningId !== null && assigningId !== sub.id}
-                          onClick={() => handleAssign(sub)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleAssign(sub);
+                          }}
                         >
                           Assign examiners
                         </Button>

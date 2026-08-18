@@ -4,6 +4,7 @@ import type {
   AdminQuestion,
   AdminStats,
   AdminSubmission,
+  AdminSubmissionDetail,
   AdminTask,
   AdminUser,
   Paginated,
@@ -27,6 +28,11 @@ interface AdminStatsEnvelope {
 interface QuestionEnvelope {
   status: string;
   data: AdminQuestion;
+}
+
+interface AdminSubmissionEnvelope {
+  status: string;
+  data: AdminSubmissionDetail;
 }
 
 interface TaskEnvelope {
@@ -84,6 +90,15 @@ export async function fetchAdminSubmissions(
 ): Promise<Paginated<AdminSubmission>> {
   const res = await api.get<PaginatedEnvelope<AdminSubmission>>(
     `/admin/submissions${toQueryString(params)}`
+  );
+  return res.data;
+}
+
+export async function fetchAdminSubmissionDetail(
+  submissionId: string
+): Promise<AdminSubmissionDetail> {
+  const res = await api.get<AdminSubmissionEnvelope>(
+    `/admin/submissions/${submissionId}`
   );
   return res.data;
 }

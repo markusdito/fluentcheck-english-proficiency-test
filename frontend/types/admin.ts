@@ -36,6 +36,69 @@ export interface AdminSubmission {
   assignments: AdminAssignmentSummary[];
 }
 
+export interface AdminSubmissionPayment extends AdminPaymentSummary {
+  id: string;
+  provider: string | null;
+  providerRef: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSubmissionAssignment {
+  id: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  examiner: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export interface AdminAnswerScore {
+  id: string;
+  assignmentId: string;
+  examinerId: string;
+  examinerName: string;
+  value: number;
+  comment: string | null;
+}
+
+export interface AdminSubmissionAnswer {
+  id: string;
+  questionId: string;
+  questionCategory: string;
+  tasks: AdminTask[];
+  audioUrl: string | null;
+  durationSeconds: number | null;
+  uploadStatus: string;
+  videoUrl: string | null;
+  score: number | null;
+  comments: string[];
+  scores: AdminAnswerScore[];
+}
+
+export interface AdminSubmissionDetail {
+  id: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  student: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  score: string | null;
+  certificate: {
+    finalScore: string;
+    issuedAt: string;
+  } | null;
+  payments: AdminSubmissionPayment[];
+  assignments: AdminSubmissionAssignment[];
+  answers: AdminSubmissionAnswer[];
+}
+
 export interface AdminStats {
   usersByRole: Record<string, number>;
   submissionsByStatus: Record<string, number>;

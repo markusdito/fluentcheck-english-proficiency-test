@@ -11,15 +11,10 @@ export function AudioUploadBadge({
   status: "PENDING" | "UPLOADED" | "FAILED" | null;
 }) {
   if (!status) {
-    return <Badge variant="outline" data-tone="neutral">No audio</Badge>;
+    return <Badge variant="status">No audio</Badge>;
   }
   return (
-    <Badge
-      variant="outline"
-      data-tone={
-        status === "UPLOADED" ? "verified" : status === "FAILED" ? "signal" : "amber"
-      }
-    >
+    <Badge variant="status">
       {status === "UPLOADED"
         ? "Audio uploaded"
         : status === "FAILED"

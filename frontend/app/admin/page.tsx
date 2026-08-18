@@ -159,7 +159,7 @@ export default function AdminOverviewPage() {
               {stats.recentSubmissions.map((sub) => (
                 <li key={sub.id}>
                   <Link
-                    href="/admin/submissions"
+                    href={`/admin/submissions/${sub.id}`}
                     className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-rule/40"
                   >
                     <div className="flex min-w-0 items-center gap-4">
