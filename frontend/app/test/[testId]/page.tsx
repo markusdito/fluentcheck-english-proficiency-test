@@ -419,21 +419,11 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       <div className="flex min-h-screen items-center justify-center bg-studio p-4">
         <div className="w-full max-w-lg text-center">
           <div className="mb-6">
-            <div
-              className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-md border ${
-                allDone
-                  ? "border-verified/40 bg-verified/15"
-                  : "border-amber-500/40 bg-amber-500/15"
-              }`}
-            >
-              {allDone ? (
-                <svg className="h-10 w-10 text-verified" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-              ) : (
+            {!allDone && (
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/15">
                 <Loader2 className="mx-auto size-10 animate-spin text-studio-text/70" />
-              )}
-            </div>
+              </div>
+            )}
             <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-studio-text/50">
               All answers submitted
             </p>
