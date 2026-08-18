@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import {
   fetchAdminSubmissions,
@@ -38,6 +39,7 @@ const idr = new Intl.NumberFormat("id-ID", {
 });
 
 export default function AdminSubmissionsPage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [items, setItems] = useState<AdminSubmission[]>([]);
@@ -183,7 +185,31 @@ export default function AdminSubmissionsPage() {
                 const canAssign =
                   sub.status === "PAID" && sub.assignments.length === 0;
                 return (
-                  <TableRow key={sub.id} className="[&>td]:align-middle">
+                  <TableRow
+                    key={sub.id}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`View submission by ${sub.studentName}`}
+                    className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink [&>td]:align-middle"
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (
+                        target.closest(
+                          "button, a, input, select, textarea, [role='button']"
+                        )
+                      ) {
+                        return;
+                      }
+                      router.push(`/admin/submissions/${sub.id}`);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        router.push(`/admin/submissions/${sub.id}`);
+                      }
+                    }}
+                  >
                     <TableCell className="px-5 py-3.5">
                       <p className="font-medium text-ink">{sub.studentName}</p>
                       <p className="mt-0.5 text-xs text-ink-soft">{sub.studentEmail}</p>
@@ -192,15 +218,12 @@ export default function AdminSubmissionsPage() {
                       <SubmissionStatus status={sub.status} />
                     </TableCell>
                     <TableCell className="px-5 py-3.5 text-center">
-                      {sub.latestPayment ? (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <SubmissionStatus status={sub.latestPayment.status} />
-                          <span className="text-xs text-ink-soft">
-                            {idr.format(sub.latestPayment.amount)}
-                          </span>
-                        </div>
+                      {sub.latestPayment?.status === "PAID" ? (
+                        <span className="font-mono text-sm font-semibold tabular-nums text-ink">
+                          {idr.format(sub.latestPayment.amount)}
+                        </span>
                       ) : (
-                        <span className="text-xs text-ink-faint">—</span>
+                        <SubmissionStatus status="PENDING" />
                       )}
                     </TableCell>
                     <TableCell className="px-5 py-3.5">
@@ -231,7 +254,10 @@ export default function AdminSubmissionsPage() {
                           size="sm"
                           loading={assigningId === sub.id}
                           disabled={assigningId !== null && assigningId !== sub.id}
-                          onClick={() => handleAssign(sub)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleAssign(sub);
+                          }}
                         >
                           Assign examiners
                         </Button>

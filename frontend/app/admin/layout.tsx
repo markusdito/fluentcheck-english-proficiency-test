@@ -120,6 +120,9 @@ function AdminBreadcrumb({ pathname }: { pathname: string }) {
   const page = navItems.find(
     (i) => i.href !== "/admin" && pathname.startsWith(i.href),
   );
+  const detailLabel = pathname.startsWith("/admin/submissions/")
+    ? "Submission details"
+    : null;
   return (
     <Breadcrumb className="mb-6">
       <BreadcrumbList>
@@ -134,8 +137,22 @@ function AdminBreadcrumb({ pathname }: { pathname: string }) {
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{page.label}</BreadcrumbPage>
+              {detailLabel ? (
+                <BreadcrumbLink render={<Link href={page.href} />}>
+                  {page.label}
+                </BreadcrumbLink>
+              ) : (
+                <BreadcrumbPage>{page.label}</BreadcrumbPage>
+              )}
             </BreadcrumbItem>
+            {detailLabel && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{detailLabel}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            )}
           </>
         )}
       </BreadcrumbList>

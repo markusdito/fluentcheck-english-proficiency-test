@@ -5,6 +5,10 @@ import {
   assignExaminersToSubmission,
   type AssignedExaminer,
 } from "./examiner.service.js";
+import {
+  createPresignedViewUrlForAccessor,
+  createQuestionAudioViewUrl,
+} from "./upload.service.js";
 
 export interface ListUsersParams {
   page: number;
@@ -81,6 +85,191 @@ export async function listAdminSubmissions(params: ListSubmissionsParams) {
     page,
     limit,
     totalPages: Math.ceil(total / limit),
+  };
+}
+
+/**
+ * Fetch a complete read-only submission view for an authenticated admin.
+ * Authorization is enforced by the admin router before this service is called.
+ */
+export async function getAdminSubmissionDetail(submissionId: string) {
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    include: {
+      student: {
+        select: { id: true, username: true, email: true },
+      },
+      payments: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          currency: true,
+          provider: true,
+          providerRef: true,
+          paidAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+      assignments: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          examiner: {
+            select: { id: true, username: true, email: true },
+          },
+        },
+      },
+      certificate: {
+        select: { finalScore: true, issuedAt: true },
+      },
+      answers: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          question: {
+            select: {
+              category: true,
+              audioUploadStatus: true,
+              tasks: {
+                orderBy: { order: "asc" },
+                select: { id: true, promptText: true, order: true },
+              },
+            },
+          },
+          scores: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              assignmentId: true,
+              value: true,
+              comment: true,
+              assignment: {
+                select: {
+                  examiner: {
+                    select: { id: true, username: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found");
+  }
+
+  const answers = await Promise.all(
+    submission.answers.map(async (answer) => {
+      let videoUrl: string | null = null;
+      if (answer.uploadStatus === "UPLOADED") {
+        try {
+          videoUrl = await createPresignedViewUrlForAccessor(
+            submission.id,
+            answer.questionId
+          );
+        } catch {
+          videoUrl = null;
+        }
+      }
+
+      let audioUrl: string | null = null;
+      if (answer.question.audioUploadStatus === "UPLOADED") {
+        try {
+          audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+        } catch {
+          audioUrl = null;
+        }
+      }
+
+      const scores = answer.scores.map((score) => {
+        const comment = score.comment?.trim();
+        return {
+          id: score.id,
+          assignmentId: score.assignmentId,
+          examinerId: score.assignment.examiner.id,
+          examinerName: score.assignment.examiner.username,
+          value: Number(score.value),
+          comment: comment || null,
+        };
+      });
+      const averageScore =
+        scores.length > 0
+          ? scores.reduce((total, score) => total + score.value, 0) /
+            scores.length
+          : null;
+
+      return {
+        id: answer.id,
+        questionId: answer.questionId,
+        questionCategory: answer.question.category,
+        tasks: answer.question.tasks,
+        audioUrl,
+        durationSeconds: answer.durationSeconds,
+        uploadStatus: answer.uploadStatus,
+        videoUrl,
+        score:
+          averageScore == null ? null : Number(averageScore.toFixed(2)),
+        comments: scores.flatMap((score) =>
+          score.comment ? [score.comment] : []
+        ),
+        scores,
+      };
+    })
+  );
+
+  const answerScores = answers.flatMap((answer) =>
+    answer.score == null ? [] : [answer.score]
+  );
+  const calculatedOverallScore =
+    (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
+    answers.length > 0 &&
+    answerScores.length === answers.length
+      ? answerScores.reduce((total, value) => total + value, 0) /
+        answerScores.length
+      : null;
+
+  return {
+    id: submission.id,
+    status: submission.status,
+    createdAt: submission.createdAt,
+    updatedAt: submission.updatedAt,
+    student: {
+      id: submission.student.id,
+      name: submission.student.username,
+      email: submission.student.email,
+    },
+    score:
+      submission.certificate?.finalScore.toString() ??
+      (calculatedOverallScore == null
+        ? null
+        : calculatedOverallScore.toFixed(2)),
+    certificate: submission.certificate
+      ? {
+          finalScore: submission.certificate.finalScore.toString(),
+          issuedAt: submission.certificate.issuedAt,
+        }
+      : null,
+    payments: submission.payments,
+    assignments: submission.assignments.map((assignment) => ({
+      id: assignment.id,
+      status: assignment.status,
+      createdAt: assignment.createdAt,
+      updatedAt: assignment.updatedAt,
+      examiner: {
+        id: assignment.examiner.id,
+        name: assignment.examiner.username,
+        email: assignment.examiner.email,
+      },
+    })),
+    answers,
   };
 }
 
@@ -276,5 +465,4 @@ export async function getAdminStats() {
     })),
   };
 }
-
 
