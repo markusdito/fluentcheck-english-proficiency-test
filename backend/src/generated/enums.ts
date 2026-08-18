@@ -65,3 +65,11 @@ export const UploadStatus = {
 } as const
 
 export type UploadStatus = (typeof UploadStatus)[keyof typeof UploadStatus]
+
+
+export const ScoringSystem = {
+  LEGACY_100: 'LEGACY_100',
+  RUBRIC_6: 'RUBRIC_6'
+} as const
+
+export type ScoringSystem = (typeof ScoringSystem)[keyof typeof ScoringSystem]

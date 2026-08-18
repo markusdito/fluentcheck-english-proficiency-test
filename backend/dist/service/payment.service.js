@@ -126,7 +126,7 @@ export async function createIpaymuCheckout(submissionId, userId) {
         throw new Error("Submission not found");
     if (submission.studentId !== userId)
         throw new Error("Unauthorized");
-    if (submission.status !== "AWAITING_PAYMENT") {
+    if (!submission.paymentRequired || submission.status !== "AWAITING_PAYMENT") {
         throw new Error("Submission is not awaiting payment");
     }
     const referenceId = `FC-${submissionId}`;

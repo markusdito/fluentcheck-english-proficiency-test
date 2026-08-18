@@ -41,3 +41,7 @@ export const UploadStatus = {
     UPLOADED: 'UPLOADED',
     FAILED: 'FAILED'
 };
+export const ScoringSystem = {
+    LEGACY_100: 'LEGACY_100',
+    RUBRIC_6: 'RUBRIC_6'
+};

@@ -28,6 +28,8 @@ export type SubmissionMinAggregateOutputType = {
   id: string | null
   studentId: string | null
   status: $Enums.SubmissionStatus | null
+  scoringSystem: $Enums.ScoringSystem | null
+  paymentRequired: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -36,6 +38,8 @@ export type SubmissionMaxAggregateOutputType = {
   id: string | null
   studentId: string | null
   status: $Enums.SubmissionStatus | null
+  scoringSystem: $Enums.ScoringSystem | null
+  paymentRequired: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -44,6 +48,8 @@ export type SubmissionCountAggregateOutputType = {
   id: number
   studentId: number
   status: number
+  scoringSystem: number
+  paymentRequired: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -54,6 +60,8 @@ export type SubmissionMinAggregateInputType = {
   id?: true
   studentId?: true
   status?: true
+  scoringSystem?: true
+  paymentRequired?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -62,6 +70,8 @@ export type SubmissionMaxAggregateInputType = {
   id?: true
   studentId?: true
   status?: true
+  scoringSystem?: true
+  paymentRequired?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -70,6 +80,8 @@ export type SubmissionCountAggregateInputType = {
   id?: true
   studentId?: true
   status?: true
+  scoringSystem?: true
+  paymentRequired?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -151,6 +163,8 @@ export type SubmissionGroupByOutputType = {
   id: string
   studentId: string
   status: $Enums.SubmissionStatus
+  scoringSystem: $Enums.ScoringSystem
+  paymentRequired: boolean
   createdAt: Date
   updatedAt: Date
   _count: SubmissionCountAggregateOutputType | null
@@ -180,6 +194,8 @@ export type SubmissionWhereInput = {
   id?: Prisma.UuidFilter<"Submission"> | string
   studentId?: Prisma.UuidFilter<"Submission"> | string
   status?: Prisma.EnumSubmissionStatusFilter<"Submission"> | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFilter<"Submission"> | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -193,6 +209,8 @@ export type SubmissionOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   studentId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  scoringSystem?: Prisma.SortOrder
+  paymentRequired?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   student?: Prisma.UserOrderByWithRelationInput
@@ -209,6 +227,8 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.SubmissionWhereInput | Prisma.SubmissionWhereInput[]
   studentId?: Prisma.UuidFilter<"Submission"> | string
   status?: Prisma.EnumSubmissionStatusFilter<"Submission"> | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFilter<"Submission"> | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -222,6 +242,8 @@ export type SubmissionOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   studentId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  scoringSystem?: Prisma.SortOrder
+  paymentRequired?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.SubmissionCountOrderByAggregateInput
@@ -236,6 +258,8 @@ export type SubmissionScalarWhereWithAggregatesInput = {
   id?: Prisma.UuidWithAggregatesFilter<"Submission"> | string
   studentId?: Prisma.UuidWithAggregatesFilter<"Submission"> | string
   status?: Prisma.EnumSubmissionStatusWithAggregatesFilter<"Submission"> | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemWithAggregatesFilter<"Submission"> | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolWithAggregatesFilter<"Submission"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Submission"> | Date | string
 }
@@ -243,6 +267,8 @@ export type SubmissionScalarWhereWithAggregatesInput = {
 export type SubmissionCreateInput = {
   id?: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -256,6 +282,8 @@ export type SubmissionUncheckedCreateInput = {
   id?: string
   studentId: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -267,6 +295,8 @@ export type SubmissionUncheckedCreateInput = {
 export type SubmissionUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -280,6 +310,8 @@ export type SubmissionUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   studentId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -292,6 +324,8 @@ export type SubmissionCreateManyInput = {
   id?: string
   studentId: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -299,6 +333,8 @@ export type SubmissionCreateManyInput = {
 export type SubmissionUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -307,6 +343,8 @@ export type SubmissionUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   studentId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -325,6 +363,8 @@ export type SubmissionCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   studentId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  scoringSystem?: Prisma.SortOrder
+  paymentRequired?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -333,6 +373,8 @@ export type SubmissionMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   studentId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  scoringSystem?: Prisma.SortOrder
+  paymentRequired?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -341,6 +383,8 @@ export type SubmissionMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   studentId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  scoringSystem?: Prisma.SortOrder
+  paymentRequired?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -394,6 +438,14 @@ export type SubmissionUncheckedUpdateManyWithoutStudentNestedInput = {
 
 export type EnumSubmissionStatusFieldUpdateOperationsInput = {
   set?: $Enums.SubmissionStatus
+}
+
+export type EnumScoringSystemFieldUpdateOperationsInput = {
+  set?: $Enums.ScoringSystem
+}
+
+export type BoolFieldUpdateOperationsInput = {
+  set?: boolean
 }
 
 export type SubmissionCreateNestedOneWithoutAnswersInput = {
@@ -455,6 +507,8 @@ export type SubmissionUpdateOneRequiredWithoutCertificateNestedInput = {
 export type SubmissionCreateWithoutStudentInput = {
   id?: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
@@ -466,6 +520,8 @@ export type SubmissionCreateWithoutStudentInput = {
 export type SubmissionUncheckedCreateWithoutStudentInput = {
   id?: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -507,6 +563,8 @@ export type SubmissionScalarWhereInput = {
   id?: Prisma.UuidFilter<"Submission"> | string
   studentId?: Prisma.UuidFilter<"Submission"> | string
   status?: Prisma.EnumSubmissionStatusFilter<"Submission"> | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFilter<"Submission"> | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
 }
@@ -514,6 +572,8 @@ export type SubmissionScalarWhereInput = {
 export type SubmissionCreateWithoutAnswersInput = {
   id?: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -526,6 +586,8 @@ export type SubmissionUncheckedCreateWithoutAnswersInput = {
   id?: string
   studentId: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -552,6 +614,8 @@ export type SubmissionUpdateToOneWithWhereWithoutAnswersInput = {
 export type SubmissionUpdateWithoutAnswersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -564,6 +628,8 @@ export type SubmissionUncheckedUpdateWithoutAnswersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   studentId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -574,6 +640,8 @@ export type SubmissionUncheckedUpdateWithoutAnswersInput = {
 export type SubmissionCreateWithoutPaymentsInput = {
   id?: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -586,6 +654,8 @@ export type SubmissionUncheckedCreateWithoutPaymentsInput = {
   id?: string
   studentId: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -612,6 +682,8 @@ export type SubmissionUpdateToOneWithWhereWithoutPaymentsInput = {
 export type SubmissionUpdateWithoutPaymentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -624,6 +696,8 @@ export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   studentId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -634,6 +708,8 @@ export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
 export type SubmissionCreateWithoutAssignmentsInput = {
   id?: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -646,6 +722,8 @@ export type SubmissionUncheckedCreateWithoutAssignmentsInput = {
   id?: string
   studentId: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -672,6 +750,8 @@ export type SubmissionUpdateToOneWithWhereWithoutAssignmentsInput = {
 export type SubmissionUpdateWithoutAssignmentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -684,6 +764,8 @@ export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   studentId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -694,6 +776,8 @@ export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
 export type SubmissionCreateWithoutCertificateInput = {
   id?: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -706,6 +790,8 @@ export type SubmissionUncheckedCreateWithoutCertificateInput = {
   id?: string
   studentId: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -732,6 +818,8 @@ export type SubmissionUpdateToOneWithWhereWithoutCertificateInput = {
 export type SubmissionUpdateWithoutCertificateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -744,6 +832,8 @@ export type SubmissionUncheckedUpdateWithoutCertificateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   studentId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -754,6 +844,8 @@ export type SubmissionUncheckedUpdateWithoutCertificateInput = {
 export type SubmissionCreateManyStudentInput = {
   id?: string
   status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -761,6 +853,8 @@ export type SubmissionCreateManyStudentInput = {
 export type SubmissionUpdateWithoutStudentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
@@ -772,6 +866,8 @@ export type SubmissionUpdateWithoutStudentInput = {
 export type SubmissionUncheckedUpdateWithoutStudentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -783,6 +879,8 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
 export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -840,6 +938,8 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   id?: boolean
   studentId?: boolean
   status?: boolean
+  scoringSystem?: boolean
+  paymentRequired?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -854,6 +954,8 @@ export type SubmissionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   id?: boolean
   studentId?: boolean
   status?: boolean
+  scoringSystem?: boolean
+  paymentRequired?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -863,6 +965,8 @@ export type SubmissionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   id?: boolean
   studentId?: boolean
   status?: boolean
+  scoringSystem?: boolean
+  paymentRequired?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -872,11 +976,13 @@ export type SubmissionSelectScalar = {
   id?: boolean
   studentId?: boolean
   status?: boolean
+  scoringSystem?: boolean
+  paymentRequired?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
+export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "status" | "scoringSystem" | "paymentRequired" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
 export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   answers?: boolean | Prisma.Submission$answersArgs<ExtArgs>
@@ -905,6 +1011,8 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     id: string
     studentId: string
     status: $Enums.SubmissionStatus
+    scoringSystem: $Enums.ScoringSystem
+    paymentRequired: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["submission"]>
@@ -1338,6 +1446,8 @@ export interface SubmissionFieldRefs {
   readonly id: Prisma.FieldRef<"Submission", 'String'>
   readonly studentId: Prisma.FieldRef<"Submission", 'String'>
   readonly status: Prisma.FieldRef<"Submission", 'SubmissionStatus'>
+  readonly scoringSystem: Prisma.FieldRef<"Submission", 'ScoringSystem'>
+  readonly paymentRequired: Prisma.FieldRef<"Submission", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Submission", 'DateTime'>
 }

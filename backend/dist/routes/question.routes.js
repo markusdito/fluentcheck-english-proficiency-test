@@ -1,14 +1,19 @@
 import { Router } from "express";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
-import { getQuestions, createQuestion, updateQuestion, deleteQuestion, createTask, updateTask, deleteTask, } from "../controllers/question.controller.js";
+import { getQuestions, createQuestion, updateQuestion, deleteQuestion, createTask, updateTask, deleteTask, createQuestionAudioPresignedUrl, confirmQuestionAudioUploadHandler, getQuestionAudioUrl, } from "../controllers/question.controller.js";
 const router = Router();
 // GET /api/questions — list all active questions with tasks
 router.get("/", getQuestions);
+// GET /api/questions/:id/audio-url — presigned GET for question prompt audio
+router.get("/:id/audio-url", verifyToken, getQuestionAudioUrl);
 // Admin: question management
 router.post("/", verifyToken, requireRole("ADMIN"), createQuestion);
 router.put("/:id", verifyToken, requireRole("ADMIN"), updateQuestion);
 router.delete("/:id", verifyToken, requireRole("ADMIN"), deleteQuestion);
+// Admin: question prompt audio upload (direct to R2 via presigned PUT)
+router.post("/audio/presigned-url", verifyToken, requireRole("ADMIN"), createQuestionAudioPresignedUrl);
+router.post("/audio/confirm", verifyToken, requireRole("ADMIN"), confirmQuestionAudioUploadHandler);
 // Admin: task management under a question
 router.post("/:id/tasks", verifyToken, requireRole("ADMIN"), createTask);
 router.put("/:id/tasks/:taskId", verifyToken, requireRole("ADMIN"), updateTask);

@@ -4,9 +4,9 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { CircleCheckIcon, Loader2 } from "lucide-react";
 import {
+  completeExaminerScoring,
   fetchExaminerAssignmentDetail,
-  startExaminerAssignment,
-  submitExaminerScores,
+  saveExaminerAnswerScore,
 } from "@/lib/examiner-api";
 import { api } from "@/lib/api";
 import { VideoReviewer } from "@/components/examiner/VideoReviewer";
@@ -14,9 +14,17 @@ import { ScoringPanel } from "@/components/examiner/ScoringPanel";
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { SubmissionStatus } from "@/components/ui/submission-status";
-import { Stamp } from "@/components/ui/Stamp";
 import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import type { AssignmentDetail } from "@/types/examiner";
+import type { ScoreSubmissionInput } from "@/types/scoring";
 
 interface User {
   id: string;
@@ -34,6 +42,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +55,14 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
         if (!cancelled) {
           setUser(userData.data.user);
           setAssignment(assignmentData);
+          const firstUnsaved = assignmentData.answers.findIndex(
+            (answer) => answer.savedScore == null,
+          );
+          setCurrentQuestionIndex(
+            firstUnsaved >= 0
+              ? firstUnsaved
+              : Math.max(0, assignmentData.answers.length - 1),
+          );
         }
       } catch (err) {
         if (!cancelled) {
@@ -58,22 +75,25 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
     return () => { cancelled = true; };
   }, [assignmentId]);
 
-  const handleSubmitScores = async (
-    scores: Array<{ answerId: string; value: number; comment?: string }>
-  ) => {
+  const handleSaveScore = async (score: ScoreSubmissionInput) => {
     if (!assignment) return;
     setSubmitting(true);
 
     try {
-      // Start the assignment if it's still ASSIGNED
-      if (assignment.status === "ASSIGNED") {
-        await startExaminerAssignment(assignmentId);
-      }
+      await saveExaminerAnswerScore(assignmentId, score);
+      setAssignment((current) =>
+        current ? { ...current, status: "IN_PROGRESS" } : current,
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-      await submitExaminerScores(assignmentId, scores);
+  const handleCompleteScoring = async () => {
+    setSubmitting(true);
+    try {
+      await completeExaminerScoring(assignmentId);
       setSubmitted(true);
-    } catch (err) {
-      throw err;
     } finally {
       setSubmitting(false);
     }
@@ -149,6 +169,20 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
       />
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        <Breadcrumb className="mb-8">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link href="/dashboard" />}>
+                Dashboard
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Submission details</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
         {/* Student info header */}
         <div className="mb-8">
           <div className="flex flex-wrap items-center gap-4">
@@ -175,18 +209,6 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
           </div>
         </div>
 
-        {/* Assigned examiners */}
-        <div className="mb-8 flex flex-wrap items-center gap-2">
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-            Assigned examiners
-          </span>
-          {assignment.examiners.map((ex) => (
-            <Stamp key={ex.id} tone="ink">
-              {ex.name}
-            </Stamp>
-          ))}
-        </div>
-
         <div className="grid gap-8 lg:grid-cols-5">
           {/* Video review — takes 3/5 columns */}
           <div className="lg:col-span-3">
@@ -194,7 +216,10 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
             <h2 className="mt-1.5 mb-4 font-display text-2xl font-medium tracking-tight text-ink">
               Review recordings
             </h2>
-            <VideoReviewer answers={assignment.answers} />
+            <VideoReviewer
+              answers={assignment.answers}
+              currentIndex={currentQuestionIndex}
+            />
           </div>
 
           {/* Scoring panel — takes 2/5 columns */}
@@ -202,8 +227,11 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
             {assignment.status !== "COMPLETED" ? (
               <ScoringPanel
                 answers={assignment.answers}
-                assignmentId={assignmentId}
-                onSubmit={handleSubmitScores}
+                scoringSystem={assignment.scoringSystem}
+                currentIndex={currentQuestionIndex}
+                onQuestionChange={setCurrentQuestionIndex}
+                onSave={handleSaveScore}
+                onComplete={handleCompleteScoring}
                 isSubmitting={submitting}
               />
             ) : (

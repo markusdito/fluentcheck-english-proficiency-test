@@ -43,6 +43,7 @@ const navItems: NavItem[] = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/submissions", label: "Submissions" },
   { href: "/admin/questions", label: "Questions" },
+  { href: "/admin/settings", label: "Settings" },
 ];
 
 function isActive(pathname: string, item: NavItem) {
@@ -214,6 +215,7 @@ export default function AdminLayout({
             name={user?.name}
             email={user?.email}
             isAdmin={user?.role === "ADMIN"}
+            showDashboard={false}
           />
         }
       />

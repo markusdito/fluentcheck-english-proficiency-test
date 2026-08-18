@@ -1,15 +1,25 @@
 import { api } from "./api";
+import type {
+  RubricBreakdown,
+  ScoringSystem,
+} from "@/types/scoring";
 
 export interface SubmissionSummary {
   id: string;
   status: string;
   score: string | null;
+  scoringSystem: ScoringSystem;
   createdAt: string;
+}
+
+export interface ScaleAwareScore {
+  value: number;
+  scoringSystem: ScoringSystem;
 }
 
 export interface DashboardStats {
   totalTests: number;
-  bestScore: number | null;
+  bestScore: ScaleAwareScore | null;
   submissions: SubmissionSummary[];
 }
 
@@ -21,6 +31,7 @@ export interface AnswerDetail {
   durationSeconds: number | null;
   videoUrl: string | null;
   score: number | null;
+  rubric: RubricBreakdown | null;
   comments: string[];
 }
 
@@ -28,6 +39,8 @@ export interface SubmissionDetail {
   id: string;
   status: string;
   score: string | null;
+  scoringSystem: ScoringSystem;
+  rubric: RubricBreakdown | null;
   createdAt: string;
   answers: AnswerDetail[];
 }

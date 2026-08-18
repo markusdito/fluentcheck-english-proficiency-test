@@ -218,7 +218,9 @@ export default function AdminSubmissionsPage() {
                       <SubmissionStatus status={sub.status} />
                     </TableCell>
                     <TableCell className="px-5 py-3.5 text-center">
-                      {sub.latestPayment?.status === "PAID" ? (
+                      {!sub.paymentRequired ? (
+                        <SubmissionStatus status="WAIVED" />
+                      ) : sub.latestPayment?.status === "PAID" ? (
                         <span className="font-mono text-sm font-semibold tabular-nums text-ink">
                           {idr.format(sub.latestPayment.amount)}
                         </span>

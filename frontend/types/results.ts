@@ -1,10 +1,6 @@
-export interface ScoreBreakdown {
-  pronunciation: number;
-  fluency: number;
-  vocabulary: number;
-  grammar: number;
-  overall: number;
-}
+import type { RubricBreakdown } from "@/types/scoring";
+
+export type ScoreBreakdown = RubricBreakdown;
 
 export interface Feedback {
   pronunciation: string;

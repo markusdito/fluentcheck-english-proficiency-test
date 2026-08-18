@@ -98,7 +98,10 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(endpoint: string, options?: Pick<RequestOptions, "redirectOn401">) =>
+  get: <T>(
+    endpoint: string,
+    options?: Pick<RequestOptions, "redirectOn401" | "cache">
+  ) =>
     request<T>(endpoint, { method: "GET", ...options }),
 
   post: <T>(endpoint: string, body?: unknown) =>

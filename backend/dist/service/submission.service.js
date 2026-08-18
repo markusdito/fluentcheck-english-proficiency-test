@@ -1,23 +1,13 @@
 import { prisma } from "../config/db.js";
-import { createPresignedViewUrl } from "./upload.service.js";
+import { assignExaminersToSubmission } from "./examiner.service.js";
+import { getAppSettings } from "./settings.service.js";
+import { createPresignedViewUrl, createQuestionAudioViewUrl } from "./upload.service.js";
+import { aggregateStoredScores, average, averageRubrics, roundScore, } from "../utils/scoring.js";
 /**
  * Create a new submission for the authenticated student.
  * Status starts as IN_PROGRESS.
- * If there's already an IN_PROGRESS submission, returns it instead of creating a duplicate.
  */
 export async function createSubmission(userId) {
-    // Reuse any existing IN_PROGRESS submission to prevent duplicates from race conditions
-    const existing = await prisma.submission.findFirst({
-        where: { studentId: userId, status: "IN_PROGRESS" },
-        select: {
-            id: true,
-            status: true,
-            createdAt: true,
-        },
-    });
-    if (existing) {
-        return existing;
-    }
     const submission = await prisma.submission.create({
         data: {
             studentId: userId,
@@ -36,7 +26,10 @@ export async function createSubmission(userId) {
  */
 export async function getStudentDashboard(userId) {
     const submissions = await prisma.submission.findMany({
-        where: { studentId: userId },
+        where: {
+            studentId: userId,
+            status: { not: "IN_PROGRESS" },
+        },
         orderBy: { createdAt: "desc" },
         include: {
             certificate: {
@@ -45,18 +38,31 @@ export async function getStudentDashboard(userId) {
             answers: {
                 include: {
                     scores: {
-                        select: { value: true },
+                        select: {
+                            value: true,
+                            pronunciation: true,
+                            fluency: true,
+                            vocabulary: true,
+                            grammar: true,
+                        },
                     },
                 },
             },
         },
     });
-    const scores = submissions
-        .map((s) => s.certificate?.finalScore)
-        .flatMap((s) => (s != null ? [Number(s)] : []));
+    const certificateScores = submissions.flatMap((submission) => submission.certificate
+        ? [{
+                value: Number(submission.certificate.finalScore),
+                scoringSystem: submission.scoringSystem,
+            }]
+        : []);
+    const rubricCertificateScores = certificateScores.filter((score) => score.scoringSystem === "RUBRIC_6");
+    const preferredScores = rubricCertificateScores.length > 0
+        ? rubricCertificateScores
+        : certificateScores.filter((score) => score.scoringSystem === "LEGACY_100");
     const totalTests = submissions.length;
-    const bestScore = scores.length > 0
-        ? Math.max(...scores.map((s) => Number(s)))
+    const bestScore = preferredScores.length > 0
+        ? preferredScores.reduce((best, score) => score.value > best.value ? score : best)
         : null;
     return {
         totalTests,
@@ -64,16 +70,18 @@ export async function getStudentDashboard(userId) {
         submissions: submissions.map((s) => {
             let dynamicScore = null;
             if (!s.certificate && (s.status === "SCORED" || s.status === "CERTIFIED")) {
-                const answerScores = s.answers.flatMap((a) => a.scores.length > 0 ? [a.scores.reduce((sum, sc) => sum + Number(sc.value), 0) / a.scores.length] : []);
+                const answerScores = s.answers.flatMap((a) => a.scores.length > 0
+                    ? [average(a.scores.map((score) => Number(score.value)))]
+                    : []);
                 if (answerScores.length === s.answers.length && answerScores.length > 0) {
-                    const overall = answerScores.reduce((sum, v) => sum + v, 0) / answerScores.length;
-                    dynamicScore = overall.toFixed(2);
+                    dynamicScore = average(answerScores).toFixed(2);
                 }
             }
             return {
                 id: s.id,
                 status: s.status,
                 score: s.certificate?.finalScore?.toString() ?? dynamicScore,
+                scoringSystem: s.scoringSystem,
                 createdAt: s.createdAt,
             };
         }),
@@ -92,10 +100,17 @@ export async function getSubmissionDetail(submissionId, userId) {
             answers: {
                 include: {
                     question: {
-                        select: { category: true, promptText: true },
+                        select: { category: true, audioUploadStatus: true },
                     },
                     scores: {
-                        select: { value: true, comment: true },
+                        select: {
+                            value: true,
+                            pronunciation: true,
+                            fluency: true,
+                            vocabulary: true,
+                            grammar: true,
+                            comment: true,
+                        },
                     },
                 },
                 orderBy: { createdAt: "asc" },
@@ -119,10 +134,17 @@ export async function getSubmissionDetail(submissionId, userId) {
                 videoUrl = null;
             }
         }
-        const scores = answer.scores.map((score) => Number(score.value));
-        const score = scores.length > 0
-            ? scores.reduce((total, value) => total + value, 0) / scores.length
-            : null;
+        let audioUrl = null;
+        if (answer.question.audioUploadStatus === "UPLOADED") {
+            try {
+                audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+            }
+            catch {
+                // If presigned URL generation fails, return null
+                audioUrl = null;
+            }
+        }
+        const scoreSummary = aggregateStoredScores(answer.scores, submission.scoringSystem);
         const comments = answer.scores.flatMap(({ comment }) => {
             const trimmed = comment?.trim();
             return trimmed ? [trimmed] : [];
@@ -131,31 +153,42 @@ export async function getSubmissionDetail(submissionId, userId) {
             id: answer.id,
             questionId: answer.questionId,
             questionCategory: answer.question.category,
-            promptText: answer.question.promptText,
+            audioUrl,
             durationSeconds: answer.durationSeconds,
             videoUrl,
-            score: score == null ? null : Number(score.toFixed(2)),
+            score: scoreSummary.score,
+            rubric: scoreSummary.rubric,
             comments,
         };
     }));
-    const scoredAnswers = answers.flatMap((answer) => answer.score == null ? [] : [answer.score]);
+    const scoredAnswers = submission.answers.flatMap((answer) => {
+        const score = average(answer.scores.map((item) => Number(item.value)));
+        return score == null ? [] : [score];
+    });
     const calculatedOverallScore = (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
         answers.length > 0 &&
         scoredAnswers.length === answers.length
-        ? scoredAnswers.reduce((total, value) => total + value, 0) / scoredAnswers.length
+        ? average(scoredAnswers)
+        : null;
+    const answerRubrics = answers.flatMap((answer) => answer.rubric ? [answer.rubric] : []);
+    const rubric = submission.scoringSystem === "RUBRIC_6" &&
+        answerRubrics.length === answers.length
+        ? averageRubrics(answerRubrics)
         : null;
     return {
         id: submission.id,
         status: submission.status,
         score: submission.certificate?.finalScore?.toString() ??
-            (calculatedOverallScore == null ? null : calculatedOverallScore.toFixed(2)),
+            (calculatedOverallScore == null ? null : roundScore(calculatedOverallScore).toFixed(2)),
+        scoringSystem: submission.scoringSystem,
+        rubric,
         createdAt: submission.createdAt,
         answers,
     };
 }
 /**
  * Mark a submission as complete when all answers have been uploaded.
- * Transitions status from IN_PROGRESS to AWAITING_PAYMENT.
+ * Requires payment or starts examiner assignment based on the current app setting.
  * Only the student who owns the submission can complete it.
  */
 export async function completeSubmission(submissionId, userId) {
@@ -188,8 +221,25 @@ export async function completeSubmission(submissionId, userId) {
     if (uploadedAnswers < totalAnswers) {
         throw new Error(`Not all answers uploaded yet (${uploadedAnswers}/${totalAnswers})`);
     }
-    await prisma.submission.update({
-        where: { id: submissionId },
-        data: { status: "AWAITING_PAYMENT" },
+    const { paymentEnabled } = await getAppSettings();
+    const paymentRequired = paymentEnabled;
+    const transition = await prisma.submission.updateMany({
+        where: { id: submissionId, status: "IN_PROGRESS" },
+        data: {
+            paymentRequired,
+            status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
+        },
     });
+    if (transition.count === 0) {
+        throw new Error("Submission is not in progress");
+    }
+    if (!paymentRequired) {
+        try {
+            await assignExaminersToSubmission(submissionId);
+        }
+        catch (error) {
+            // Completion must remain successful even when assignment has to be retried by an admin.
+            console.error(`Automatic examiner assignment failed for waived submission ${submissionId}:`, error);
+        }
+    }
 }

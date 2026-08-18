@@ -161,7 +161,7 @@ export async function createIpaymuCheckout(
 
   if (!submission) throw new Error("Submission not found");
   if (submission.studentId !== userId) throw new Error("Unauthorized");
-  if (submission.status !== "AWAITING_PAYMENT") {
+  if (!submission.paymentRequired || submission.status !== "AWAITING_PAYMENT") {
     throw new Error("Submission is not awaiting payment");
   }
 

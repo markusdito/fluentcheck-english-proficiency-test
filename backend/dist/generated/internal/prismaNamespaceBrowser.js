@@ -43,6 +43,7 @@ export const ModelName = {
     Question: 'Question',
     Task: 'Task',
     Submission: 'Submission',
+    AppSettings: 'AppSettings',
     Answer: 'Answer',
     Payment: 'Payment',
     ExaminerAssignment: 'ExaminerAssignment',
@@ -71,11 +72,14 @@ export const UserScalarFieldEnum = {
 export const QuestionScalarFieldEnum = {
     id: 'id',
     category: 'category',
-    promptText: 'promptText',
     order: 'order',
     preparationSeconds: 'preparationSeconds',
     recordingSeconds: 'recordingSeconds',
     createdById: 'createdById',
+    audioStorageKey: 'audioStorageKey',
+    audioMimeType: 'audioMimeType',
+    audioSizeBytes: 'audioSizeBytes',
+    audioUploadStatus: 'audioUploadStatus',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt',
     deletedAt: 'deletedAt'
@@ -93,6 +97,14 @@ export const SubmissionScalarFieldEnum = {
     id: 'id',
     studentId: 'studentId',
     status: 'status',
+    scoringSystem: 'scoringSystem',
+    paymentRequired: 'paymentRequired',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+};
+export const AppSettingsScalarFieldEnum = {
+    id: 'id',
+    paymentEnabled: 'paymentEnabled',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
@@ -134,6 +146,10 @@ export const ScoreScalarFieldEnum = {
     assignmentId: 'assignmentId',
     answerId: 'answerId',
     value: 'value',
+    pronunciation: 'pronunciation',
+    fluency: 'fluency',
+    vocabulary: 'vocabulary',
+    grammar: 'grammar',
     comment: 'comment',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'

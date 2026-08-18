@@ -1,7 +1,10 @@
-import { listAdminUsers, changeUserRole, listAdminExaminers, assignExaminers, getAdminStats, listAdminSubmissions, } from "../service/admin.service.js";
+import { listAdminUsers, changeUserRole, listAdminExaminers, assignExaminers, getAdminStats, getAdminSubmissionDetail, listAdminSubmissions, } from "../service/admin.service.js";
+import { getAppSettings, updatePaymentEnabled, } from "../service/settings.service.js";
 import { SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 const ADMIN_ROLES = ["STUDENT", "EXAMINER", "ADMIN"];
+const ADMIN_SUBMISSION_STATUSES = Object.values(SubmissionStatus).filter((status) => status !== "IN_PROGRESS");
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 /**
  * GET /api/admin/users
  * List users with pagination and optional role/q filtering.
@@ -153,9 +156,9 @@ export async function listSubmissions(req, res) {
         let status;
         if (req.query.status !== undefined) {
             const rawStatus = String(req.query.status);
-            if (!Object.values(SubmissionStatus).includes(rawStatus)) {
+            if (!ADMIN_SUBMISSION_STATUSES.includes(rawStatus)) {
                 res.status(400).json({
-                    error: `status must be one of ${Object.values(SubmissionStatus).join(", ")}`,
+                    error: `status must be one of ${ADMIN_SUBMISSION_STATUSES.join(", ")}`,
                 });
                 return;
             }
@@ -173,6 +176,33 @@ export async function listSubmissions(req, res) {
     }
 }
 /**
+ * GET /api/admin/submissions/:id
+ * Fetch a complete read-only submission view for an admin.
+ */
+export async function getSubmission(req, res) {
+    const submissionId = req.params.id;
+    if (!submissionId || !UUID_RE.test(submissionId)) {
+        res.status(400).json({ error: "A valid submission ID is required" });
+        return;
+    }
+    try {
+        const data = await getAdminSubmissionDetail(submissionId);
+        res.status(200).json({
+            status: "success",
+            data,
+        });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to load submission";
+        if (message === "Submission not found") {
+            res.status(404).json({ error: message });
+            return;
+        }
+        console.error("Get submission detail error:", error);
+        res.status(500).json({ error: "Failed to load submission" });
+    }
+}
+/**
  * GET /api/admin/stats
  * Aggregate dashboard statistics.
  */
@@ -187,5 +217,45 @@ export async function getStats(req, res) {
     catch (error) {
         console.error("Get stats error:", error);
         res.status(500).json({ error: "Failed to load stats" });
+    }
+}
+/**
+ * GET /api/admin/settings
+ * Fetch global platform settings.
+ */
+export async function getSettings(req, res) {
+    try {
+        const settings = await getAppSettings();
+        res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+        res.status(200).json({
+            status: "success",
+            data: settings,
+        });
+    }
+    catch (error) {
+        console.error("Get settings error:", error);
+        res.status(500).json({ error: "Failed to load settings" });
+    }
+}
+/**
+ * PUT /api/admin/settings
+ * Update global platform settings.
+ */
+export async function updateSettings(req, res) {
+    const { paymentEnabled } = req.body;
+    if (typeof paymentEnabled !== "boolean") {
+        res.status(400).json({ error: "paymentEnabled must be a boolean" });
+        return;
+    }
+    try {
+        const settings = await updatePaymentEnabled(paymentEnabled);
+        res.status(200).json({
+            status: "success",
+            data: settings,
+        });
+    }
+    catch (error) {
+        console.error("Update settings error:", error);
+        res.status(500).json({ error: "Failed to update settings" });
     }
 }

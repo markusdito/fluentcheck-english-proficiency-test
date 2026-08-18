@@ -49,6 +49,11 @@ enum UploadStatus {
   FAILED
 }
 
+enum ScoringSystem {
+  LEGACY_100
+  RUBRIC_6
+}
+
 // ---------------- MODELS ----------------
 
 model User {
@@ -85,9 +90,9 @@ model Question {
   audioSizeBytes    Int?
   audioUploadStatus UploadStatus @default(PENDING)
 
-  createdAt          DateTime         @default(now()) @db.Timestamptz()
-  updatedAt          DateTime         @updatedAt @db.Timestamptz()
-  deletedAt          DateTime? @db.Timestamptz() // retire a question without breaking historical answers
+  createdAt DateTime  @default(now()) @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @db.Timestamptz()
+  deletedAt DateTime? @db.Timestamptz() // retire a question without breaking historical answers
 
   @@unique([category, order])
   @@index([category])
@@ -108,19 +113,28 @@ model Task {
 }
 
 model Submission {
-  id          String               @id @default(uuid()) @db.Uuid
-  studentId   String               @db.Uuid
-  student     User                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  status      SubmissionStatus     @default(IN_PROGRESS)
-  answers     Answer[]
-  payments    Payment[]
-  assignments ExaminerAssignment[]
-  certificate Certificate?
-  createdAt   DateTime             @default(now()) @db.Timestamptz()
-  updatedAt   DateTime             @updatedAt @db.Timestamptz()
+  id              String               @id @default(uuid()) @db.Uuid
+  studentId       String               @db.Uuid
+  student         User                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  status          SubmissionStatus     @default(IN_PROGRESS)
+  scoringSystem   ScoringSystem        @default(RUBRIC_6)
+  paymentRequired Boolean              @default(true)
+  answers         Answer[]
+  payments        Payment[]
+  assignments     ExaminerAssignment[]
+  certificate     Certificate?
+  createdAt       DateTime             @default(now()) @db.Timestamptz()
+  updatedAt       DateTime             @updatedAt @db.Timestamptz()
 
   @@index([studentId, status])
   @@index([status])
+}
+
+model AppSettings {
+  id             Int      @id @default(1)
+  paymentEnabled Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz()
+  updatedAt      DateTime @updatedAt @db.Timestamptz()
 }
 
 model Answer {
@@ -155,7 +169,7 @@ model Payment {
   provider     String? // e.g. "midtrans", "xendit", "stripe"
   providerRef  String? // external transaction id for reconciliation
   status       PaymentStatus @default(PENDING)
-  paidAt       DateTime? @db.Timestamptz()
+  paidAt       DateTime?     @db.Timestamptz()
   createdAt    DateTime      @default(now()) @db.Timestamptz()
   updatedAt    DateTime      @updatedAt @db.Timestamptz()
 
@@ -180,15 +194,19 @@ model ExaminerAssignment {
 }
 
 model Score {
-  id           String             @id @default(uuid()) @db.Uuid
-  assignmentId String             @db.Uuid
-  assignment   ExaminerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  answerId     String             @db.Uuid
-  answer       Answer             @relation(fields: [answerId], references: [id], onDelete: Cascade)
-  value        Decimal            @db.Decimal(5, 2) // validated 0–100 at app level
-  comment      String?
-  createdAt    DateTime           @default(now()) @db.Timestamptz()
-  updatedAt    DateTime           @updatedAt @db.Timestamptz()
+  id            String             @id @default(uuid()) @db.Uuid
+  assignmentId  String             @db.Uuid
+  assignment    ExaminerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  answerId      String             @db.Uuid
+  answer        Answer             @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  value         Decimal            @db.Decimal(6, 3) // legacy score or server-derived rubric mean
+  pronunciation Decimal?           @db.Decimal(2, 1)
+  fluency       Decimal?           @db.Decimal(2, 1)
+  vocabulary    Decimal?           @db.Decimal(2, 1)
+  grammar       Decimal?           @db.Decimal(2, 1)
+  comment       String?
+  createdAt     DateTime           @default(now()) @db.Timestamptz()
+  updatedAt     DateTime           @updatedAt @db.Timestamptz()
 
   @@unique([assignmentId, answerId]) // an examiner scores each answer exactly once
   @@index([answerId])

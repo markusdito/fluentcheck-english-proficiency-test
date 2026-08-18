@@ -15,12 +15,12 @@ const cellHeights: Record<NonNullable<BandGaugeProps["size"]>, string> = {
 };
 
 /**
- * The signature artifact: a 9-cell band gauge (IELTS-style 0–9, half bands).
+ * The signature artifact: a segmented band gauge with half-band support.
  * Cells fill with ink; a half band renders as a half-filled cell.
  */
 export function BandGauge({
   band,
-  max = 9,
+  max = 6,
   showValue = true,
   size = "md",
   className,

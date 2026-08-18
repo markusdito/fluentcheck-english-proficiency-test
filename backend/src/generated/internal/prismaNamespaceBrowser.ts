@@ -55,6 +55,7 @@ export const ModelName = {
   Question: 'Question',
   Task: 'Task',
   Submission: 'Submission',
+  AppSettings: 'AppSettings',
   Answer: 'Answer',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
@@ -128,11 +129,23 @@ export const SubmissionScalarFieldEnum = {
   id: 'id',
   studentId: 'studentId',
   status: 'status',
+  scoringSystem: 'scoringSystem',
+  paymentRequired: 'paymentRequired',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type SubmissionScalarFieldEnum = (typeof SubmissionScalarFieldEnum)[keyof typeof SubmissionScalarFieldEnum]
+
+
+export const AppSettingsScalarFieldEnum = {
+  id: 'id',
+  paymentEnabled: 'paymentEnabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AppSettingsScalarFieldEnum = (typeof AppSettingsScalarFieldEnum)[keyof typeof AppSettingsScalarFieldEnum]
 
 
 export const AnswerScalarFieldEnum = {
@@ -185,6 +198,10 @@ export const ScoreScalarFieldEnum = {
   assignmentId: 'assignmentId',
   answerId: 'answerId',
   value: 'value',
+  pronunciation: 'pronunciation',
+  fluency: 'fluency',
+  vocabulary: 'vocabulary',
+  grammar: 'grammar',
   comment: 'comment',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

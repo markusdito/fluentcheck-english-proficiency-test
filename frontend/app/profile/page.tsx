@@ -9,10 +9,11 @@ import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BandGauge } from "@/components/ui/BandGauge";
+import { ScaleAwareScoreDisplay } from "@/components/results/ScaleAwareScoreDisplay";
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
-import type { ExaminerAssignmentSummary } from "@/types/examiner";import { fetchAdminStats } from "@/lib/admin-api";
+import type { ExaminerAssignmentSummary } from "@/types/examiner";
+import { fetchAdminStats } from "@/lib/admin-api";
 import type { AdminStats } from "@/types/admin";
 
 type Role = "STUDENT" | "EXAMINER" | "ADMIN";
@@ -255,7 +256,7 @@ export default function ProfilePage() {
                 <p className="mark">Best band</p>
                 {dashboard.bestScore != null ? (
                   <div className="mt-3">
-                    <BandGauge band={dashboard.bestScore} size="md" />
+                    <ScaleAwareScoreDisplay score={dashboard.bestScore} />
                   </div>
                 ) : (
                   <p className="mt-2 font-mono text-sm text-ink-faint">No score yet</p>

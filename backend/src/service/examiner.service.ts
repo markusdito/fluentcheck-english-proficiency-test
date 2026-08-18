@@ -1,11 +1,16 @@
 import { prisma } from "../config/db.js";
 import { createPresignedViewUrlForAccessor, createQuestionAudioViewUrl } from "./upload.service.js";
-
-export interface ExaminerInfo {
-  id: string;
-  name: string;
-  status: string;
-}
+import {
+  ScoreValidationError,
+  calculateRubricOverall,
+  readStoredRubric,
+  roundScore,
+  validateAnswerCoverage,
+  validateLegacyScore,
+  validateRubricValues,
+  type RubricValues,
+  type ScoringSystemValue,
+} from "../utils/scoring.js";
 
 export interface ExaminerAssignmentSummary {
   id: string;
@@ -25,6 +30,11 @@ export interface AssignmentAnswer {
   tasks: { id: string; promptText: string; order: number }[];
   durationSeconds: number | null;
   videoUrl: string | null;
+  savedScore: {
+    value: number;
+    rubric: RubricValues | null;
+    comment: string | null;
+  } | null;
 }
 
 export interface AssignmentDetail {
@@ -33,8 +43,8 @@ export interface AssignmentDetail {
   submissionId: string;
   studentName: string;
   submissionStatus: string;
+  scoringSystem: ScoringSystemValue;
   answers: AssignmentAnswer[];
-  examiners: ExaminerInfo[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -104,15 +114,20 @@ export async function getExaminerAssignmentDetail(
                   },
                 },
               },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-          assignments: {
-            include: {
-              examiner: {
-                select: { id: true, username: true },
+              scores: {
+                where: { assignmentId },
+                take: 1,
+                select: {
+                  value: true,
+                  pronunciation: true,
+                  fluency: true,
+                  vocabulary: true,
+                  grammar: true,
+                  comment: true,
+                },
               },
             },
+            orderBy: { createdAt: "asc" },
           },
         },
       },
@@ -158,6 +173,13 @@ export async function getExaminerAssignmentDetail(
         tasks: answer.question.tasks,
         durationSeconds: answer.durationSeconds,
         videoUrl,
+        savedScore: answer.scores[0]
+          ? {
+              value: roundScore(Number(answer.scores[0].value)),
+              rubric: readStoredRubric(answer.scores[0]),
+              comment: answer.scores[0].comment,
+            }
+          : null,
       };
     })
   );
@@ -168,12 +190,8 @@ export async function getExaminerAssignmentDetail(
     submissionId: assignment.submissionId,
     studentName: assignment.submission.student.username,
     submissionStatus: assignment.submission.status,
+    scoringSystem: assignment.submission.scoringSystem,
     answers,
-    examiners: assignment.submission.assignments.map((a) => ({
-      id: a.examiner.id,
-      name: a.examiner.username,
-      status: a.status,
-    })),
     createdAt: assignment.createdAt,
     updatedAt: assignment.updatedAt,
   };
@@ -268,10 +286,191 @@ export async function startExaminerAssignment(
   });
 }
 
-interface ScoreInput {
+export interface ScoreInput {
+  answerId: string;
+  value?: number;
+  rubric?: RubricValues;
+  comment?: string;
+}
+
+interface ValidatedScoreInput {
   answerId: string;
   value: number;
-  comment?: string;
+  rubric: RubricValues | null;
+  comment: string | null;
+}
+
+function validateScoreInput(
+  score: ScoreInput,
+  scoringSystem: ScoringSystemValue,
+): ValidatedScoreInput {
+  if (!score || typeof score.answerId !== "string") {
+    throw new ScoreValidationError("Every score must include an answerId");
+  }
+
+  if (score.comment !== undefined && typeof score.comment !== "string") {
+    throw new ScoreValidationError("Score comments must be text");
+  }
+  const trimmedComment = score.comment?.trim();
+  const comment = trimmedComment ? trimmedComment : null;
+
+  if (scoringSystem === "RUBRIC_6") {
+    const rubric = validateRubricValues(score.rubric);
+    return {
+      answerId: score.answerId,
+      value: calculateRubricOverall(rubric),
+      rubric,
+      comment,
+    };
+  }
+
+  return {
+    answerId: score.answerId,
+    value: validateLegacyScore(score.value),
+    rubric: null,
+    comment,
+  };
+}
+
+function scoreWriteData(score: ValidatedScoreInput) {
+  return {
+    value: score.value,
+    pronunciation: score.rubric?.pronunciation ?? null,
+    fluency: score.rubric?.fluency ?? null,
+    vocabulary: score.rubric?.vocabulary ?? null,
+    grammar: score.rubric?.grammar ?? null,
+    comment: score.comment,
+  };
+}
+
+/** Save one answer score without completing the examiner assignment. */
+export async function saveExaminerScore(
+  assignmentId: string,
+  examinerId: string,
+  score: ScoreInput,
+): Promise<void> {
+  const assignment = await prisma.examinerAssignment.findUnique({
+    where: { id: assignmentId },
+    select: {
+      examinerId: true,
+      status: true,
+      submission: {
+        select: {
+          scoringSystem: true,
+          answers: {
+            where: { id: score.answerId },
+            select: { id: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!assignment) throw new Error("Assignment not found");
+  if (assignment.examinerId !== examinerId) throw new Error("Unauthorized");
+  if (assignment.status === "COMPLETED") {
+    throw new Error("Assignment is already completed");
+  }
+  if (assignment.submission.answers.length !== 1) {
+    throw new ScoreValidationError("A score references an answer outside this assignment");
+  }
+
+  const validated = validateScoreInput(
+    score,
+    assignment.submission.scoringSystem,
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.score.upsert({
+      where: {
+        assignmentId_answerId: {
+          assignmentId,
+          answerId: validated.answerId,
+        },
+      },
+      update: scoreWriteData(validated),
+      create: {
+        assignmentId,
+        answerId: validated.answerId,
+        ...scoreWriteData(validated),
+      },
+    });
+
+    if (assignment.status === "ASSIGNED") {
+      await tx.examinerAssignment.update({
+        where: { id: assignmentId },
+        data: { status: "IN_PROGRESS" },
+      });
+    }
+  });
+}
+
+/** Complete an assignment only after every answer has a saved score. */
+export async function completeExaminerScoring(
+  assignmentId: string,
+  examinerId: string,
+): Promise<void> {
+  const assignment = await prisma.examinerAssignment.findUnique({
+    where: { id: assignmentId },
+    select: {
+      examinerId: true,
+      status: true,
+      submissionId: true,
+      scores: {
+        select: {
+          answerId: true,
+          value: true,
+          pronunciation: true,
+          fluency: true,
+          vocabulary: true,
+          grammar: true,
+        },
+      },
+      submission: {
+        select: {
+          scoringSystem: true,
+          answers: { select: { id: true } },
+        },
+      },
+    },
+  });
+
+  if (!assignment) throw new Error("Assignment not found");
+  if (assignment.examinerId !== examinerId) throw new Error("Unauthorized");
+  if (assignment.status === "COMPLETED") {
+    throw new Error("Assignment is already completed");
+  }
+
+  validateAnswerCoverage(
+    assignment.submission.answers.map((answer) => answer.id),
+    assignment.scores.map((score) => score.answerId),
+  );
+
+  if (
+    assignment.submission.scoringSystem === "RUBRIC_6" &&
+    assignment.scores.some((score) => readStoredRubric(score) == null)
+  ) {
+    throw new ScoreValidationError("Every answer must have a complete rubric");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.examinerAssignment.update({
+      where: { id: assignmentId },
+      data: { status: "COMPLETED" },
+    });
+
+    const remainingAssignments = await tx.examinerAssignment.count({
+      where: {
+        submissionId: assignment.submissionId,
+        status: { not: "COMPLETED" },
+      },
+    });
+
+    await tx.submission.update({
+      where: { id: assignment.submissionId },
+      data: { status: remainingAssignments === 0 ? "SCORED" : "SCORING" },
+    });
+  });
 }
 
 /**
@@ -285,7 +484,17 @@ export async function submitExaminerScores(
 ): Promise<void> {
   const assignment = await prisma.examinerAssignment.findUnique({
     where: { id: assignmentId },
-    select: { examinerId: true, status: true, submissionId: true },
+    select: {
+      examinerId: true,
+      status: true,
+      submissionId: true,
+      submission: {
+        select: {
+          scoringSystem: true,
+          answers: { select: { id: true } },
+        },
+      },
+    },
   });
 
   if (!assignment) {
@@ -300,13 +509,18 @@ export async function submitExaminerScores(
     throw new Error("Assignment is already completed");
   }
 
+  validateAnswerCoverage(
+    assignment.submission.answers.map((answer) => answer.id),
+    scores.map((score) => score?.answerId),
+  );
+
+  const validatedScores = scores.map((score) =>
+    validateScoreInput(score, assignment.submission.scoringSystem),
+  );
+
   // Validate and create scores in a transaction
   await prisma.$transaction(async (tx) => {
-    for (const score of scores) {
-      if (score.value < 0 || score.value > 100) {
-        throw new Error(`Score value must be between 0 and 100 (got ${score.value})`);
-      }
-
+    for (const score of validatedScores) {
       await tx.score.upsert({
         where: {
           assignmentId_answerId: {
@@ -315,14 +529,12 @@ export async function submitExaminerScores(
           },
         },
         update: {
-          value: score.value,
-          comment: score.comment,
+          ...scoreWriteData(score),
         },
         create: {
           assignmentId,
           answerId: score.answerId,
-          value: score.value,
-          comment: score.comment,
+          ...scoreWriteData(score),
         },
       });
     }

@@ -8,6 +8,10 @@ import {
   getAdminSubmissionDetail,
   listAdminSubmissions,
 } from "../service/admin.service.js";
+import {
+  getAppSettings,
+  updatePaymentEnabled,
+} from "../service/settings.service.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 
@@ -252,5 +256,46 @@ export async function getStats(req: Request, res: Response) {
   } catch (error) {
     console.error("Get stats error:", error);
     res.status(500).json({ error: "Failed to load stats" });
+  }
+}
+
+/**
+ * GET /api/admin/settings
+ * Fetch global platform settings.
+ */
+export async function getSettings(req: Request, res: Response) {
+  try {
+    const settings = await getAppSettings();
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.status(200).json({
+      status: "success",
+      data: settings,
+    });
+  } catch (error) {
+    console.error("Get settings error:", error);
+    res.status(500).json({ error: "Failed to load settings" });
+  }
+}
+
+/**
+ * PUT /api/admin/settings
+ * Update global platform settings.
+ */
+export async function updateSettings(req: Request, res: Response) {
+  const { paymentEnabled } = req.body as { paymentEnabled?: unknown };
+  if (typeof paymentEnabled !== "boolean") {
+    res.status(400).json({ error: "paymentEnabled must be a boolean" });
+    return;
+  }
+
+  try {
+    const settings = await updatePaymentEnabled(paymentEnabled);
+    res.status(200).json({
+      status: "success",
+      data: settings,
+    });
+  } catch (error) {
+    console.error("Update settings error:", error);
+    res.status(500).json({ error: "Failed to update settings" });
   }
 }
