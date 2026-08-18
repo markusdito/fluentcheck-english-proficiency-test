@@ -2,6 +2,7 @@ import { api } from "./api";
 import type {
   AdminExaminer,
   AdminQuestion,
+  AdminSettings,
   AdminStats,
   AdminSubmission,
   AdminSubmissionDetail,
@@ -23,6 +24,11 @@ interface ListEnvelope<T> {
 interface AdminStatsEnvelope {
   status: string;
   data: AdminStats;
+}
+
+interface AdminSettingsEnvelope {
+  status: string;
+  data: AdminSettings;
 }
 
 interface QuestionEnvelope {
@@ -109,6 +115,22 @@ export async function assignExaminers(submissionId: string): Promise<void> {
 
 export async function fetchAdminStats(): Promise<AdminStats> {
   const res = await api.get<AdminStatsEnvelope>("/admin/stats");
+  return res.data;
+}
+
+export async function fetchAdminSettings(): Promise<AdminSettings> {
+  const res = await api.get<AdminSettingsEnvelope>("/admin/settings", {
+    cache: "no-store",
+  });
+  return res.data;
+}
+
+export async function updateAdminSettings(
+  paymentEnabled: boolean
+): Promise<AdminSettings> {
+  const res = await api.put<AdminSettingsEnvelope>("/admin/settings", {
+    paymentEnabled,
+  });
   return res.data;
 }
 

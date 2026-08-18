@@ -29,6 +29,7 @@ export interface AdminAssignmentSummary {
 export interface AdminSubmission {
   id: string;
   status: string;
+  paymentRequired: boolean;
   studentName: string;
   studentEmail: string;
   createdAt: string;
@@ -82,6 +83,7 @@ export interface AdminSubmissionAnswer {
 export interface AdminSubmissionDetail {
   id: string;
   status: string;
+  paymentRequired: boolean;
   createdAt: string;
   updatedAt: string;
   student: {
@@ -110,6 +112,11 @@ export interface AdminStats {
     createdAt: string;
     studentName?: string;
   }>;
+}
+
+export interface AdminSettings {
+  paymentEnabled: boolean;
+  updatedAt: string;
 }
 
 export interface Paginated<T> {

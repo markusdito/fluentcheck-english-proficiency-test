@@ -1,4 +1,5 @@
 import { prisma } from "../config/db.js";
+import { deleteQuestionAudio } from "./upload.service.js";
 import { QuestionCategory } from "../generated/enums.js";
 /**
  * Retrieve one random question per category (PART_1, PART_2, PART_3)
@@ -13,7 +14,14 @@ export async function retrieveQuestions(order) {
     // Fetch all non-deleted questions across the three categories
     return prisma.question.findMany({
         where: { deletedAt: null, category: { in: categories }, order: order },
-        include: {
+        select: {
+            id: true,
+            category: true,
+            order: true,
+            preparationSeconds: true,
+            recordingSeconds: true,
+            audioStorageKey: true,
+            audioUploadStatus: true,
             tasks: {
                 where: { deletedAt: null },
                 orderBy: { order: "asc" },
@@ -33,7 +41,6 @@ export async function createQuestion(userId, data) {
     return prisma.question.create({
         data: {
             category: data.category,
-            promptText: data.promptText,
             order: data.order,
             preparationSeconds: data.preparationSeconds ?? 30,
             recordingSeconds: data.recordingSeconds ?? 120,
@@ -59,7 +66,6 @@ export async function updateQuestion(id, data) {
         where: { id },
         data: {
             ...(data.category !== undefined && { category: data.category }),
-            ...(data.promptText !== undefined && { promptText: data.promptText }),
             ...(data.order !== undefined && { order: data.order }),
             ...(data.preparationSeconds !== undefined && { preparationSeconds: data.preparationSeconds }),
             ...(data.recordingSeconds !== undefined && { recordingSeconds: data.recordingSeconds }),
@@ -73,14 +79,19 @@ export async function updateQuestion(id, data) {
 export async function deleteQuestion(id) {
     const existing = await prisma.question.findUnique({
         where: { id },
-        select: { id: true, deletedAt: true },
+        select: { id: true, deletedAt: true, audioStorageKey: true },
     });
     if (!existing || existing.deletedAt)
         throw new Error("Question not found");
-    return prisma.question.update({
+    const deleted = await prisma.question.update({
         where: { id },
         data: { deletedAt: new Date() },
     });
+    // Post-update check: only remove the audio object if the soft delete actually landed.
+    if (deleted.deletedAt && existing.audioStorageKey) {
+        await deleteQuestionAudio(existing.audioStorageKey);
+    }
+    return deleted;
 }
 /**
  * Create a task under an active (non-deleted) question.

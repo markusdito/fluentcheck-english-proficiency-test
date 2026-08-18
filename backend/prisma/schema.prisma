@@ -85,9 +85,9 @@ model Question {
   audioSizeBytes    Int?
   audioUploadStatus UploadStatus @default(PENDING)
 
-  createdAt          DateTime         @default(now()) @db.Timestamptz()
-  updatedAt          DateTime         @updatedAt @db.Timestamptz()
-  deletedAt          DateTime? @db.Timestamptz() // retire a question without breaking historical answers
+  createdAt DateTime  @default(now()) @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @db.Timestamptz()
+  deletedAt DateTime? @db.Timestamptz() // retire a question without breaking historical answers
 
   @@unique([category, order])
   @@index([category])
@@ -108,19 +108,27 @@ model Task {
 }
 
 model Submission {
-  id          String               @id @default(uuid()) @db.Uuid
-  studentId   String               @db.Uuid
-  student     User                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  status      SubmissionStatus     @default(IN_PROGRESS)
-  answers     Answer[]
-  payments    Payment[]
-  assignments ExaminerAssignment[]
-  certificate Certificate?
-  createdAt   DateTime             @default(now()) @db.Timestamptz()
-  updatedAt   DateTime             @updatedAt @db.Timestamptz()
+  id              String               @id @default(uuid()) @db.Uuid
+  studentId       String               @db.Uuid
+  student         User                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  status          SubmissionStatus     @default(IN_PROGRESS)
+  paymentRequired Boolean              @default(true)
+  answers         Answer[]
+  payments        Payment[]
+  assignments     ExaminerAssignment[]
+  certificate     Certificate?
+  createdAt       DateTime             @default(now()) @db.Timestamptz()
+  updatedAt       DateTime             @updatedAt @db.Timestamptz()
 
   @@index([studentId, status])
   @@index([status])
+}
+
+model AppSettings {
+  id             Int      @id @default(1)
+  paymentEnabled Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz()
+  updatedAt      DateTime @updatedAt @db.Timestamptz()
 }
 
 model Answer {
@@ -155,7 +163,7 @@ model Payment {
   provider     String? // e.g. "midtrans", "xendit", "stripe"
   providerRef  String? // external transaction id for reconciliation
   status       PaymentStatus @default(PENDING)
-  paidAt       DateTime? @db.Timestamptz()
+  paidAt       DateTime?     @db.Timestamptz()
   createdAt    DateTime      @default(now()) @db.Timestamptz()
   updatedAt    DateTime      @updatedAt @db.Timestamptz()
 

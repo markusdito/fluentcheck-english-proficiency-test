@@ -150,6 +150,15 @@ export default function AdminSubmissionDetailPage({
           Payment history
         </h2>
 
+        {!submission.paymentRequired && (
+          <div className="mt-4 flex flex-col gap-3 border border-rule bg-paper-raised px-5 py-4 sm:flex-row sm:items-center">
+            <SubmissionStatus status="WAIVED" />
+            <p className="text-sm leading-6 text-ink-soft">
+              Payment was not required when this test was completed.
+            </p>
+          </div>
+        )}
+
         {submission.payments.length > 0 ? (
           <div className="mt-4 divide-y divide-rule border border-rule bg-paper-raised">
             {submission.payments.map((payment) => (
@@ -180,11 +189,11 @@ export default function AdminSubmissionDetailPage({
               </div>
             ))}
           </div>
-        ) : (
+        ) : submission.paymentRequired ? (
           <div className="mt-4 border border-dashed border-rule-strong bg-paper-raised px-6 py-10 text-center">
             <p className="text-sm text-ink-soft">No payment attempts recorded.</p>
           </div>
-        )}
+        ) : null}
       </section>
 
       <section className="mt-10" aria-labelledby="assignments-heading">

@@ -1,4 +1,6 @@
 import { prisma } from "../config/db.js";
+import { assignExaminersToSubmission } from "./examiner.service.js";
+import { getAppSettings } from "./settings.service.js";
 import { createPresignedViewUrl, createQuestionAudioViewUrl } from "./upload.service.js";
 
 export interface DashboardData {
@@ -215,7 +217,7 @@ export async function getSubmissionDetail(
 
 /**
  * Mark a submission as complete when all answers have been uploaded.
- * Transitions status from IN_PROGRESS to AWAITING_PAYMENT.
+ * Requires payment or starts examiner assignment based on the current app setting.
  * Only the student who owns the submission can complete it.
  */
 export async function completeSubmission(
@@ -260,8 +262,29 @@ export async function completeSubmission(
     );
   }
 
-  await prisma.submission.update({
-    where: { id: submissionId },
-    data: { status: "AWAITING_PAYMENT" },
+  const { paymentEnabled } = await getAppSettings();
+  const paymentRequired = paymentEnabled;
+  const transition = await prisma.submission.updateMany({
+    where: { id: submissionId, status: "IN_PROGRESS" },
+    data: {
+      paymentRequired,
+      status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
+    },
   });
+
+  if (transition.count === 0) {
+    throw new Error("Submission is not in progress");
+  }
+
+  if (!paymentRequired) {
+    try {
+      await assignExaminersToSubmission(submissionId);
+    } catch (error) {
+      // Completion must remain successful even when assignment has to be retried by an admin.
+      console.error(
+        `Automatic examiner assignment failed for waived submission ${submissionId}:`,
+        error
+      );
+    }
+  }
 }

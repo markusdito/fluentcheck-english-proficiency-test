@@ -38,6 +38,11 @@ export type Task = Prisma.TaskModel
  */
 export type Submission = Prisma.SubmissionModel
 /**
+ * Model AppSettings
+ *
+ */
+export type AppSettings = Prisma.AppSettingsModel
+/**
  * Model Answer
  * 
  */

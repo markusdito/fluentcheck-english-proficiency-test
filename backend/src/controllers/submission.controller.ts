@@ -22,7 +22,7 @@ export async function startSubmission(req: Request, res: Response) {
 /**
  * POST /api/submissions/:id/complete
  * Mark a submission as complete after all answers have been uploaded.
- * Transitions status from IN_PROGRESS to AWAITING_PAYMENT.
+ * Routes it to payment or examiner assignment using the current app setting.
  */
 export async function finishSubmission(req: Request, res: Response) {
   try {

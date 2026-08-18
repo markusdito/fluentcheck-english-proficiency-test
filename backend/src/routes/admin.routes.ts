@@ -8,7 +8,9 @@ import {
   assignSubmission,
   getSubmission,
   getStats,
+  getSettings,
   listSubmissions,
+  updateSettings,
 } from "../controllers/admin.controller.js";
 
 const router = Router();
@@ -23,5 +25,7 @@ router.post("/submissions/:id/assign", assignSubmission);
 router.get("/submissions", listSubmissions);
 router.get("/submissions/:id", getSubmission);
 router.get("/stats", getStats);
+router.get("/settings", getSettings);
+router.put("/settings", updateSettings);
 
 export default router;

@@ -1,5 +1,5 @@
 import { prisma } from "../config/db.js";
-import { createPresignedViewUrlForAccessor } from "./upload.service.js";
+import { createPresignedViewUrlForAccessor, createQuestionAudioViewUrl } from "./upload.service.js";
 /**
  * List all assignments for the examiner, ordered by newest first.
  */
@@ -47,7 +47,7 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
                             question: {
                                 select: {
                                     category: true,
-                                    promptText: true,
+                                    audioUploadStatus: true,
                                     tasks: {
                                         select: { id: true, promptText: true, order: true },
                                         orderBy: { order: "asc" },
@@ -84,11 +84,20 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
                 videoUrl = null;
             }
         }
+        let audioUrl = null;
+        if (answer.question.audioUploadStatus === "UPLOADED") {
+            try {
+                audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+            }
+            catch {
+                audioUrl = null;
+            }
+        }
         return {
             id: answer.id,
             questionId: answer.questionId,
             questionCategory: answer.question.category,
-            promptText: answer.question.promptText,
+            audioUrl,
             tasks: answer.question.tasks,
             durationSeconds: answer.durationSeconds,
             videoUrl,

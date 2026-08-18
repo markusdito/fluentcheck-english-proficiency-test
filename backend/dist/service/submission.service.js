@@ -1,23 +1,12 @@
 import { prisma } from "../config/db.js";
-import { createPresignedViewUrl } from "./upload.service.js";
+import { assignExaminersToSubmission } from "./examiner.service.js";
+import { getAppSettings } from "./settings.service.js";
+import { createPresignedViewUrl, createQuestionAudioViewUrl } from "./upload.service.js";
 /**
  * Create a new submission for the authenticated student.
  * Status starts as IN_PROGRESS.
- * If there's already an IN_PROGRESS submission, returns it instead of creating a duplicate.
  */
 export async function createSubmission(userId) {
-    // Reuse any existing IN_PROGRESS submission to prevent duplicates from race conditions
-    const existing = await prisma.submission.findFirst({
-        where: { studentId: userId, status: "IN_PROGRESS" },
-        select: {
-            id: true,
-            status: true,
-            createdAt: true,
-        },
-    });
-    if (existing) {
-        return existing;
-    }
     const submission = await prisma.submission.create({
         data: {
             studentId: userId,
@@ -36,7 +25,10 @@ export async function createSubmission(userId) {
  */
 export async function getStudentDashboard(userId) {
     const submissions = await prisma.submission.findMany({
-        where: { studentId: userId },
+        where: {
+            studentId: userId,
+            status: { not: "IN_PROGRESS" },
+        },
         orderBy: { createdAt: "desc" },
         include: {
             certificate: {
@@ -92,7 +84,7 @@ export async function getSubmissionDetail(submissionId, userId) {
             answers: {
                 include: {
                     question: {
-                        select: { category: true, promptText: true },
+                        select: { category: true, audioUploadStatus: true },
                     },
                     scores: {
                         select: { value: true, comment: true },
@@ -119,6 +111,16 @@ export async function getSubmissionDetail(submissionId, userId) {
                 videoUrl = null;
             }
         }
+        let audioUrl = null;
+        if (answer.question.audioUploadStatus === "UPLOADED") {
+            try {
+                audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+            }
+            catch {
+                // If presigned URL generation fails, return null
+                audioUrl = null;
+            }
+        }
         const scores = answer.scores.map((score) => Number(score.value));
         const score = scores.length > 0
             ? scores.reduce((total, value) => total + value, 0) / scores.length
@@ -131,7 +133,7 @@ export async function getSubmissionDetail(submissionId, userId) {
             id: answer.id,
             questionId: answer.questionId,
             questionCategory: answer.question.category,
-            promptText: answer.question.promptText,
+            audioUrl,
             durationSeconds: answer.durationSeconds,
             videoUrl,
             score: score == null ? null : Number(score.toFixed(2)),
@@ -155,7 +157,7 @@ export async function getSubmissionDetail(submissionId, userId) {
 }
 /**
  * Mark a submission as complete when all answers have been uploaded.
- * Transitions status from IN_PROGRESS to AWAITING_PAYMENT.
+ * Requires payment or starts examiner assignment based on the current app setting.
  * Only the student who owns the submission can complete it.
  */
 export async function completeSubmission(submissionId, userId) {
@@ -188,8 +190,25 @@ export async function completeSubmission(submissionId, userId) {
     if (uploadedAnswers < totalAnswers) {
         throw new Error(`Not all answers uploaded yet (${uploadedAnswers}/${totalAnswers})`);
     }
-    await prisma.submission.update({
-        where: { id: submissionId },
-        data: { status: "AWAITING_PAYMENT" },
+    const { paymentEnabled } = await getAppSettings();
+    const paymentRequired = paymentEnabled;
+    const transition = await prisma.submission.updateMany({
+        where: { id: submissionId, status: "IN_PROGRESS" },
+        data: {
+            paymentRequired,
+            status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
+        },
     });
+    if (transition.count === 0) {
+        throw new Error("Submission is not in progress");
+    }
+    if (!paymentRequired) {
+        try {
+            await assignExaminersToSubmission(submissionId);
+        }
+        catch (error) {
+            // Completion must remain successful even when assignment has to be retried by an admin.
+            console.error(`Automatic examiner assignment failed for waived submission ${submissionId}:`, error);
+        }
+    }
 }

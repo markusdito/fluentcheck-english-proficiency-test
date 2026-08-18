@@ -68,6 +68,7 @@ export async function listAdminSubmissions(params: ListSubmissionsParams) {
   const mapped = items.map((submission) => ({
     id: submission.id,
     status: submission.status,
+    paymentRequired: submission.paymentRequired,
     studentName: submission.student.username,
     studentEmail: submission.student.email,
     createdAt: submission.createdAt,
@@ -239,6 +240,7 @@ export async function getAdminSubmissionDetail(submissionId: string) {
   return {
     id: submission.id,
     status: submission.status,
+    paymentRequired: submission.paymentRequired,
     createdAt: submission.createdAt,
     updatedAt: submission.updatedAt,
     student: {
@@ -465,4 +467,3 @@ export async function getAdminStats() {
     })),
   };
 }
-
