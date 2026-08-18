@@ -9,9 +9,11 @@ import type { AdminSubmissionDetail } from "@/types/admin";
 import VideoPlayer from "@/components/VideoPlayer";
 import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
 import { ScoreCard } from "@/components/results/ScoreCard";
+import { RubricBreakdownView } from "@/components/results/RubricBreakdownView";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { SubmissionStatus } from "@/components/ui/submission-status";
+import { scoreMaximum } from "@/types/scoring";
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("en-US", {
@@ -106,6 +108,7 @@ export default function AdminSubmissionDetailPage({
   const hasScoreSurface = !["IN_PROGRESS", "AWAITING_PAYMENT"].includes(
     submission.status
   );
+  const scoreMax = scoreMaximum(submission.scoringSystem);
 
   return (
     <div>
@@ -252,6 +255,8 @@ export default function AdminSubmissionDetailPage({
             className="mt-4"
             status={submission.status}
             score={submission.score}
+            scoringSystem={submission.scoringSystem}
+            rubric={submission.rubric}
             answers={submission.answers}
           />
         ) : (
@@ -297,8 +302,12 @@ export default function AdminSubmissionDetailPage({
                   {answer.score != null ? (
                     <span className="shrink-0 text-right">
                       <span className="block font-mono text-lg font-semibold tabular-nums text-ink">
-                        {answer.score}
-                        <span className="text-xs font-normal text-ink-faint">/100</span>
+                        {submission.scoringSystem === "RUBRIC_6"
+                          ? answer.score.toFixed(2)
+                          : answer.score}
+                        <span className="text-xs font-normal text-ink-faint">
+                          /{scoreMax}
+                        </span>
                       </span>
                       <span className="text-[11px] text-ink-faint">average score</span>
                     </span>
@@ -331,6 +340,13 @@ export default function AdminSubmissionDetailPage({
                     )}
                   </div>
 
+                  {answer.rubric && (
+                    <div className="mt-6">
+                      <p className="mb-2 mark">Rubric averages</p>
+                      <RubricBreakdownView rubric={answer.rubric} compact />
+                    </div>
+                  )}
+
                   <div className="mt-6 border-t border-rule pt-4">
                     <p className="mark">Examiner scoring</p>
                     {answer.scores.length > 0 ? (
@@ -338,20 +354,33 @@ export default function AdminSubmissionDetailPage({
                         {answer.scores.map((score) => (
                           <div
                             key={score.id}
-                            className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_5rem]"
+                            className="py-4"
                           >
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-ink">
-                                {score.examinerName}
-                              </p>
-                              <p className="mt-1 text-sm leading-6 text-ink-soft">
-                                {score.comment || "No comment provided."}
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-ink">
+                                  {score.examinerName}
+                                </p>
+                                <p className="mt-1 text-sm leading-6 text-ink-soft">
+                                  {score.comment || "No comment provided."}
+                                </p>
+                              </div>
+                              <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-ink">
+                                {submission.scoringSystem === "RUBRIC_6"
+                                  ? score.value.toFixed(2)
+                                  : score.value}
+                                <span className="font-normal text-ink-faint">
+                                  /{scoreMax}
+                                </span>
                               </p>
                             </div>
-                            <p className="font-mono text-sm font-semibold tabular-nums text-ink sm:text-right">
-                              {score.value}
-                              <span className="font-normal text-ink-faint">/100</span>
-                            </p>
+                            {score.rubric && (
+                              <RubricBreakdownView
+                                rubric={score.rubric}
+                                compact
+                                className="mt-3"
+                              />
+                            )}
                           </div>
                         ))}
                       </div>

@@ -28,10 +28,18 @@ export type AggregateScore = {
 
 export type ScoreAvgAggregateOutputType = {
   value: runtime.Decimal | null
+  pronunciation: runtime.Decimal | null
+  fluency: runtime.Decimal | null
+  vocabulary: runtime.Decimal | null
+  grammar: runtime.Decimal | null
 }
 
 export type ScoreSumAggregateOutputType = {
   value: runtime.Decimal | null
+  pronunciation: runtime.Decimal | null
+  fluency: runtime.Decimal | null
+  vocabulary: runtime.Decimal | null
+  grammar: runtime.Decimal | null
 }
 
 export type ScoreMinAggregateOutputType = {
@@ -39,6 +47,10 @@ export type ScoreMinAggregateOutputType = {
   assignmentId: string | null
   answerId: string | null
   value: runtime.Decimal | null
+  pronunciation: runtime.Decimal | null
+  fluency: runtime.Decimal | null
+  vocabulary: runtime.Decimal | null
+  grammar: runtime.Decimal | null
   comment: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -49,6 +61,10 @@ export type ScoreMaxAggregateOutputType = {
   assignmentId: string | null
   answerId: string | null
   value: runtime.Decimal | null
+  pronunciation: runtime.Decimal | null
+  fluency: runtime.Decimal | null
+  vocabulary: runtime.Decimal | null
+  grammar: runtime.Decimal | null
   comment: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -59,6 +75,10 @@ export type ScoreCountAggregateOutputType = {
   assignmentId: number
   answerId: number
   value: number
+  pronunciation: number
+  fluency: number
+  vocabulary: number
+  grammar: number
   comment: number
   createdAt: number
   updatedAt: number
@@ -68,10 +88,18 @@ export type ScoreCountAggregateOutputType = {
 
 export type ScoreAvgAggregateInputType = {
   value?: true
+  pronunciation?: true
+  fluency?: true
+  vocabulary?: true
+  grammar?: true
 }
 
 export type ScoreSumAggregateInputType = {
   value?: true
+  pronunciation?: true
+  fluency?: true
+  vocabulary?: true
+  grammar?: true
 }
 
 export type ScoreMinAggregateInputType = {
@@ -79,6 +107,10 @@ export type ScoreMinAggregateInputType = {
   assignmentId?: true
   answerId?: true
   value?: true
+  pronunciation?: true
+  fluency?: true
+  vocabulary?: true
+  grammar?: true
   comment?: true
   createdAt?: true
   updatedAt?: true
@@ -89,6 +121,10 @@ export type ScoreMaxAggregateInputType = {
   assignmentId?: true
   answerId?: true
   value?: true
+  pronunciation?: true
+  fluency?: true
+  vocabulary?: true
+  grammar?: true
   comment?: true
   createdAt?: true
   updatedAt?: true
@@ -99,6 +135,10 @@ export type ScoreCountAggregateInputType = {
   assignmentId?: true
   answerId?: true
   value?: true
+  pronunciation?: true
+  fluency?: true
+  vocabulary?: true
+  grammar?: true
   comment?: true
   createdAt?: true
   updatedAt?: true
@@ -196,6 +236,10 @@ export type ScoreGroupByOutputType = {
   assignmentId: string
   answerId: string
   value: runtime.Decimal
+  pronunciation: runtime.Decimal | null
+  fluency: runtime.Decimal | null
+  vocabulary: runtime.Decimal | null
+  grammar: runtime.Decimal | null
   comment: string | null
   createdAt: Date
   updatedAt: Date
@@ -229,6 +273,10 @@ export type ScoreWhereInput = {
   assignmentId?: Prisma.UuidFilter<"Score"> | string
   answerId?: Prisma.UuidFilter<"Score"> | string
   value?: Prisma.DecimalFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.StringNullableFilter<"Score"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Score"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Score"> | Date | string
@@ -241,6 +289,10 @@ export type ScoreOrderByWithRelationInput = {
   assignmentId?: Prisma.SortOrder
   answerId?: Prisma.SortOrder
   value?: Prisma.SortOrder
+  pronunciation?: Prisma.SortOrderInput | Prisma.SortOrder
+  fluency?: Prisma.SortOrderInput | Prisma.SortOrder
+  vocabulary?: Prisma.SortOrderInput | Prisma.SortOrder
+  grammar?: Prisma.SortOrderInput | Prisma.SortOrder
   comment?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -257,6 +309,10 @@ export type ScoreWhereUniqueInput = Prisma.AtLeast<{
   assignmentId?: Prisma.UuidFilter<"Score"> | string
   answerId?: Prisma.UuidFilter<"Score"> | string
   value?: Prisma.DecimalFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.StringNullableFilter<"Score"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Score"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Score"> | Date | string
@@ -269,6 +325,10 @@ export type ScoreOrderByWithAggregationInput = {
   assignmentId?: Prisma.SortOrder
   answerId?: Prisma.SortOrder
   value?: Prisma.SortOrder
+  pronunciation?: Prisma.SortOrderInput | Prisma.SortOrder
+  fluency?: Prisma.SortOrderInput | Prisma.SortOrder
+  vocabulary?: Prisma.SortOrderInput | Prisma.SortOrder
+  grammar?: Prisma.SortOrderInput | Prisma.SortOrder
   comment?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -287,6 +347,10 @@ export type ScoreScalarWhereWithAggregatesInput = {
   assignmentId?: Prisma.UuidWithAggregatesFilter<"Score"> | string
   answerId?: Prisma.UuidWithAggregatesFilter<"Score"> | string
   value?: Prisma.DecimalWithAggregatesFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.DecimalNullableWithAggregatesFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.DecimalNullableWithAggregatesFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.DecimalNullableWithAggregatesFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.DecimalNullableWithAggregatesFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.StringNullableWithAggregatesFilter<"Score"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Score"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Score"> | Date | string
@@ -295,6 +359,10 @@ export type ScoreScalarWhereWithAggregatesInput = {
 export type ScoreCreateInput = {
   id?: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -307,6 +375,10 @@ export type ScoreUncheckedCreateInput = {
   assignmentId: string
   answerId: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -315,6 +387,10 @@ export type ScoreUncheckedCreateInput = {
 export type ScoreUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -327,6 +403,10 @@ export type ScoreUncheckedUpdateInput = {
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   answerId?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -337,6 +417,10 @@ export type ScoreCreateManyInput = {
   assignmentId: string
   answerId: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -345,6 +429,10 @@ export type ScoreCreateManyInput = {
 export type ScoreUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -355,6 +443,10 @@ export type ScoreUncheckedUpdateManyInput = {
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   answerId?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -380,6 +472,10 @@ export type ScoreCountOrderByAggregateInput = {
   assignmentId?: Prisma.SortOrder
   answerId?: Prisma.SortOrder
   value?: Prisma.SortOrder
+  pronunciation?: Prisma.SortOrder
+  fluency?: Prisma.SortOrder
+  vocabulary?: Prisma.SortOrder
+  grammar?: Prisma.SortOrder
   comment?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -387,6 +483,10 @@ export type ScoreCountOrderByAggregateInput = {
 
 export type ScoreAvgOrderByAggregateInput = {
   value?: Prisma.SortOrder
+  pronunciation?: Prisma.SortOrder
+  fluency?: Prisma.SortOrder
+  vocabulary?: Prisma.SortOrder
+  grammar?: Prisma.SortOrder
 }
 
 export type ScoreMaxOrderByAggregateInput = {
@@ -394,6 +494,10 @@ export type ScoreMaxOrderByAggregateInput = {
   assignmentId?: Prisma.SortOrder
   answerId?: Prisma.SortOrder
   value?: Prisma.SortOrder
+  pronunciation?: Prisma.SortOrder
+  fluency?: Prisma.SortOrder
+  vocabulary?: Prisma.SortOrder
+  grammar?: Prisma.SortOrder
   comment?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -404,6 +508,10 @@ export type ScoreMinOrderByAggregateInput = {
   assignmentId?: Prisma.SortOrder
   answerId?: Prisma.SortOrder
   value?: Prisma.SortOrder
+  pronunciation?: Prisma.SortOrder
+  fluency?: Prisma.SortOrder
+  vocabulary?: Prisma.SortOrder
+  grammar?: Prisma.SortOrder
   comment?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -411,6 +519,10 @@ export type ScoreMinOrderByAggregateInput = {
 
 export type ScoreSumOrderByAggregateInput = {
   value?: Prisma.SortOrder
+  pronunciation?: Prisma.SortOrder
+  fluency?: Prisma.SortOrder
+  vocabulary?: Prisma.SortOrder
+  grammar?: Prisma.SortOrder
 }
 
 export type ScoreCreateNestedManyWithoutAnswerInput = {
@@ -505,9 +617,21 @@ export type DecimalFieldUpdateOperationsInput = {
   divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
 }
 
+export type NullableDecimalFieldUpdateOperationsInput = {
+  set?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  increment?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  decrement?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  multiply?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
+}
+
 export type ScoreCreateWithoutAnswerInput = {
   id?: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -518,6 +642,10 @@ export type ScoreUncheckedCreateWithoutAnswerInput = {
   id?: string
   assignmentId: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -557,6 +685,10 @@ export type ScoreScalarWhereInput = {
   assignmentId?: Prisma.UuidFilter<"Score"> | string
   answerId?: Prisma.UuidFilter<"Score"> | string
   value?: Prisma.DecimalFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.StringNullableFilter<"Score"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Score"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Score"> | Date | string
@@ -565,6 +697,10 @@ export type ScoreScalarWhereInput = {
 export type ScoreCreateWithoutAssignmentInput = {
   id?: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -575,6 +711,10 @@ export type ScoreUncheckedCreateWithoutAssignmentInput = {
   id?: string
   answerId: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -610,6 +750,10 @@ export type ScoreCreateManyAnswerInput = {
   id?: string
   assignmentId: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -618,6 +762,10 @@ export type ScoreCreateManyAnswerInput = {
 export type ScoreUpdateWithoutAnswerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -628,6 +776,10 @@ export type ScoreUncheckedUpdateWithoutAnswerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -637,6 +789,10 @@ export type ScoreUncheckedUpdateManyWithoutAnswerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -646,6 +802,10 @@ export type ScoreCreateManyAssignmentInput = {
   id?: string
   answerId: string
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -654,6 +814,10 @@ export type ScoreCreateManyAssignmentInput = {
 export type ScoreUpdateWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -664,6 +828,10 @@ export type ScoreUncheckedUpdateWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   answerId?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -673,6 +841,10 @@ export type ScoreUncheckedUpdateManyWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   answerId?: Prisma.StringFieldUpdateOperationsInput | string
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  vocabulary?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  grammar?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -685,6 +857,10 @@ export type ScoreSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   assignmentId?: boolean
   answerId?: boolean
   value?: boolean
+  pronunciation?: boolean
+  fluency?: boolean
+  vocabulary?: boolean
+  grammar?: boolean
   comment?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -697,6 +873,10 @@ export type ScoreSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   assignmentId?: boolean
   answerId?: boolean
   value?: boolean
+  pronunciation?: boolean
+  fluency?: boolean
+  vocabulary?: boolean
+  grammar?: boolean
   comment?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -709,6 +889,10 @@ export type ScoreSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   assignmentId?: boolean
   answerId?: boolean
   value?: boolean
+  pronunciation?: boolean
+  fluency?: boolean
+  vocabulary?: boolean
+  grammar?: boolean
   comment?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -721,12 +905,16 @@ export type ScoreSelectScalar = {
   assignmentId?: boolean
   answerId?: boolean
   value?: boolean
+  pronunciation?: boolean
+  fluency?: boolean
+  vocabulary?: boolean
+  grammar?: boolean
   comment?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ScoreOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "assignmentId" | "answerId" | "value" | "comment" | "createdAt" | "updatedAt", ExtArgs["result"]["score"]>
+export type ScoreOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "assignmentId" | "answerId" | "value" | "pronunciation" | "fluency" | "vocabulary" | "grammar" | "comment" | "createdAt" | "updatedAt", ExtArgs["result"]["score"]>
 export type ScoreInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
   answer?: boolean | Prisma.AnswerDefaultArgs<ExtArgs>
@@ -751,6 +939,10 @@ export type $ScorePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     assignmentId: string
     answerId: string
     value: runtime.Decimal
+    pronunciation: runtime.Decimal | null
+    fluency: runtime.Decimal | null
+    vocabulary: runtime.Decimal | null
+    grammar: runtime.Decimal | null
     comment: string | null
     createdAt: Date
     updatedAt: Date
@@ -1183,6 +1375,10 @@ export interface ScoreFieldRefs {
   readonly assignmentId: Prisma.FieldRef<"Score", 'String'>
   readonly answerId: Prisma.FieldRef<"Score", 'String'>
   readonly value: Prisma.FieldRef<"Score", 'Decimal'>
+  readonly pronunciation: Prisma.FieldRef<"Score", 'Decimal'>
+  readonly fluency: Prisma.FieldRef<"Score", 'Decimal'>
+  readonly vocabulary: Prisma.FieldRef<"Score", 'Decimal'>
+  readonly grammar: Prisma.FieldRef<"Score", 'Decimal'>
   readonly comment: Prisma.FieldRef<"Score", 'String'>
   readonly createdAt: Prisma.FieldRef<"Score", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Score", 'DateTime'>

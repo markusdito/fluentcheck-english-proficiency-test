@@ -2,6 +2,7 @@ import { prisma } from "../config/db.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
 import { getAppSettings } from "./settings.service.js";
 import { createPresignedViewUrl, createQuestionAudioViewUrl } from "./upload.service.js";
+import { aggregateStoredScores, average, averageRubrics, roundScore, } from "../utils/scoring.js";
 /**
  * Create a new submission for the authenticated student.
  * Status starts as IN_PROGRESS.
@@ -37,18 +38,31 @@ export async function getStudentDashboard(userId) {
             answers: {
                 include: {
                     scores: {
-                        select: { value: true },
+                        select: {
+                            value: true,
+                            pronunciation: true,
+                            fluency: true,
+                            vocabulary: true,
+                            grammar: true,
+                        },
                     },
                 },
             },
         },
     });
-    const scores = submissions
-        .map((s) => s.certificate?.finalScore)
-        .flatMap((s) => (s != null ? [Number(s)] : []));
+    const certificateScores = submissions.flatMap((submission) => submission.certificate
+        ? [{
+                value: Number(submission.certificate.finalScore),
+                scoringSystem: submission.scoringSystem,
+            }]
+        : []);
+    const rubricCertificateScores = certificateScores.filter((score) => score.scoringSystem === "RUBRIC_6");
+    const preferredScores = rubricCertificateScores.length > 0
+        ? rubricCertificateScores
+        : certificateScores.filter((score) => score.scoringSystem === "LEGACY_100");
     const totalTests = submissions.length;
-    const bestScore = scores.length > 0
-        ? Math.max(...scores.map((s) => Number(s)))
+    const bestScore = preferredScores.length > 0
+        ? preferredScores.reduce((best, score) => score.value > best.value ? score : best)
         : null;
     return {
         totalTests,
@@ -56,16 +70,18 @@ export async function getStudentDashboard(userId) {
         submissions: submissions.map((s) => {
             let dynamicScore = null;
             if (!s.certificate && (s.status === "SCORED" || s.status === "CERTIFIED")) {
-                const answerScores = s.answers.flatMap((a) => a.scores.length > 0 ? [a.scores.reduce((sum, sc) => sum + Number(sc.value), 0) / a.scores.length] : []);
+                const answerScores = s.answers.flatMap((a) => a.scores.length > 0
+                    ? [average(a.scores.map((score) => Number(score.value)))]
+                    : []);
                 if (answerScores.length === s.answers.length && answerScores.length > 0) {
-                    const overall = answerScores.reduce((sum, v) => sum + v, 0) / answerScores.length;
-                    dynamicScore = overall.toFixed(2);
+                    dynamicScore = average(answerScores).toFixed(2);
                 }
             }
             return {
                 id: s.id,
                 status: s.status,
                 score: s.certificate?.finalScore?.toString() ?? dynamicScore,
+                scoringSystem: s.scoringSystem,
                 createdAt: s.createdAt,
             };
         }),
@@ -87,7 +103,14 @@ export async function getSubmissionDetail(submissionId, userId) {
                         select: { category: true, audioUploadStatus: true },
                     },
                     scores: {
-                        select: { value: true, comment: true },
+                        select: {
+                            value: true,
+                            pronunciation: true,
+                            fluency: true,
+                            vocabulary: true,
+                            grammar: true,
+                            comment: true,
+                        },
                     },
                 },
                 orderBy: { createdAt: "asc" },
@@ -121,10 +144,7 @@ export async function getSubmissionDetail(submissionId, userId) {
                 audioUrl = null;
             }
         }
-        const scores = answer.scores.map((score) => Number(score.value));
-        const score = scores.length > 0
-            ? scores.reduce((total, value) => total + value, 0) / scores.length
-            : null;
+        const scoreSummary = aggregateStoredScores(answer.scores, submission.scoringSystem);
         const comments = answer.scores.flatMap(({ comment }) => {
             const trimmed = comment?.trim();
             return trimmed ? [trimmed] : [];
@@ -136,21 +156,32 @@ export async function getSubmissionDetail(submissionId, userId) {
             audioUrl,
             durationSeconds: answer.durationSeconds,
             videoUrl,
-            score: score == null ? null : Number(score.toFixed(2)),
+            score: scoreSummary.score,
+            rubric: scoreSummary.rubric,
             comments,
         };
     }));
-    const scoredAnswers = answers.flatMap((answer) => answer.score == null ? [] : [answer.score]);
+    const scoredAnswers = submission.answers.flatMap((answer) => {
+        const score = average(answer.scores.map((item) => Number(item.value)));
+        return score == null ? [] : [score];
+    });
     const calculatedOverallScore = (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
         answers.length > 0 &&
         scoredAnswers.length === answers.length
-        ? scoredAnswers.reduce((total, value) => total + value, 0) / scoredAnswers.length
+        ? average(scoredAnswers)
+        : null;
+    const answerRubrics = answers.flatMap((answer) => answer.rubric ? [answer.rubric] : []);
+    const rubric = submission.scoringSystem === "RUBRIC_6" &&
+        answerRubrics.length === answers.length
+        ? averageRubrics(answerRubrics)
         : null;
     return {
         id: submission.id,
         status: submission.status,
         score: submission.certificate?.finalScore?.toString() ??
-            (calculatedOverallScore == null ? null : calculatedOverallScore.toFixed(2)),
+            (calculatedOverallScore == null ? null : roundScore(calculatedOverallScore).toFixed(2)),
+        scoringSystem: submission.scoringSystem,
+        rubric,
         createdAt: submission.createdAt,
         answers,
     };

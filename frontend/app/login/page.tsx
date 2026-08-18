@@ -9,10 +9,10 @@ import { BandGauge } from "@/components/ui/BandGauge";
 import { Stamp } from "@/components/ui/Stamp";
 
 const specimen = [
-  { label: "Pronunciation", band: 7.0 },
-  { label: "Fluency", band: 7.5 },
-  { label: "Vocabulary", band: 7.5 },
-  { label: "Grammar", band: 7.0 },
+  { label: "Pronunciation", band: 4.5 },
+  { label: "Fluency", band: 5.0 },
+  { label: "Vocabulary", band: 4.5 },
+  { label: "Grammar", band: 4.0 },
 ];
 
 export default function LoginPage() {
@@ -89,15 +89,15 @@ export default function LoginPage() {
                     Overall band
                   </p>
                   <p className="mt-1 font-display text-5xl font-medium leading-none tracking-tight text-ink">
-                    7.5
+                    4.50
                   </p>
                 </div>
                 <p className="pb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
-                  Out of 9
+                  Out of 6
                 </p>
               </div>
               <div className="mt-4">
-                <BandGauge band={7.5} size="md" />
+                <BandGauge band={4.5} max={6} size="md" />
               </div>
               <dl className="mt-5 divide-y divide-rule">
                 {specimen.map((c) => (

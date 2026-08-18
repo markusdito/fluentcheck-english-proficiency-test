@@ -3,34 +3,37 @@
 import { InfoIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AnswerDetail } from "@/lib/dashboard-api";
+import {
+  scoreMaximum,
+  type RubricBreakdown,
+  type ScoringSystem,
+} from "@/types/scoring";
 import { BandGauge } from "@/components/ui/BandGauge";
 import { Stamp } from "@/components/ui/Stamp";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RubricBreakdownView } from "@/components/results/RubricBreakdownView";
 
 interface ScoreCardProps {
   status?: string;
   score?: string | null;
+  scoringSystem: ScoringSystem;
+  rubric?: RubricBreakdown | null;
   answers?: AnswerDetail[];
   pending?: boolean;
   className?: string;
 }
 
-function scoreTone(score: number) {
-  if (score < 50) return "bg-signal";
-  if (score < 75) return "bg-amber-500";
-  return "bg-verified";
-}
-
 const PENDING_STATUSES = new Set(["PAID", "SCORING"]);
 
-/**
- * The single score surface — mirrors the landing page "specimen report":
- * overall band as a `BandGauge` hero, then one ruled row per answer with a
- * 0–100 hairline score bar. `pending` renders the "being reviewed" alert.
- */
+function displayScore(value: number, scoringSystem: ScoringSystem): string {
+  return scoringSystem === "RUBRIC_6" ? value.toFixed(2) : String(value);
+}
+
 export function ScoreCard({
   status,
   score,
+  scoringSystem,
+  rubric,
   answers = [],
   pending,
   className,
@@ -51,9 +54,10 @@ export function ScoreCard({
     );
   }
 
-  const band = score != null ? Number(score) : NaN;
-  const hasBand = Number.isFinite(band) && band >= 0;
-  const pendingCount = answers.filter((a) => a.score == null).length;
+  const value = score != null ? Number(score) : Number.NaN;
+  const hasScore = Number.isFinite(value) && value >= 0;
+  const maximum = scoreMaximum(scoringSystem);
+  const pendingCount = answers.filter((answer) => answer.score == null).length;
   const verdict = status === "CERTIFIED" ? "Certified" : "Scored";
 
   return (
@@ -69,28 +73,48 @@ export function ScoreCard({
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
-              Overall band
+              Overall {scoringSystem === "RUBRIC_6" ? "band" : "legacy score"}
             </p>
             <p className="mt-1 font-display text-6xl font-medium leading-none tracking-tight text-ink">
-              {hasBand ? score : "—"}
+              {hasScore ? displayScore(value, scoringSystem) : "—"}
             </p>
           </div>
           <p className="pb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
-            Out of 9
+            Out of {maximum}
           </p>
         </div>
 
-        {hasBand && (
+        {hasScore && (
           <div className="mt-4">
-            <BandGauge band={band} size="lg" />
+            {scoringSystem === "RUBRIC_6" ? (
+              <BandGauge band={value} max={6} size="lg" />
+            ) : (
+              <div
+                className="h-2.5 overflow-hidden border border-rule bg-rule/40"
+                role="img"
+                aria-label={`Legacy score ${value} of 100`}
+              >
+                <div
+                  className="h-full bg-ink"
+                  style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+                />
+              </div>
+            )}
           </div>
         )}
 
-        <dl className="mt-6 divide-y divide-rule">
+        {scoringSystem === "RUBRIC_6" && rubric && (
+          <div className="mt-6">
+            <p className="mb-2 mark">Rubric averages</p>
+            <RubricBreakdownView rubric={rubric} compact />
+          </div>
+        )}
+
+        <dl className="mt-6 divide-y divide-rule border-y border-rule">
           {answers.map((answer, index) => (
             <div
               key={answer.id}
-              className="flex items-center justify-between gap-4 py-2.5"
+              className="flex min-h-12 items-center justify-between gap-4 py-2.5"
             >
               <dt className="flex min-w-0 items-center gap-2.5 text-sm text-ink">
                 <span className="font-mono text-xs text-ink-faint">{index + 1}.</span>
@@ -102,19 +126,21 @@ export function ScoreCard({
                 {answer.score != null ? (
                   <>
                     <span className="hidden w-32 sm:block">
-                      <span className="flex h-1.5 w-full overflow-hidden rounded-[1px] bg-rule">
+                      <span className="flex h-1.5 w-full overflow-hidden bg-rule">
                         <span
-                          className={cn(
-                            "h-full rounded-[1px]",
-                            scoreTone(answer.score),
-                          )}
-                          style={{ width: `${answer.score}%` }}
+                          className="h-full bg-ink"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.max(0, (answer.score / maximum) * 100),
+                            )}%`,
+                          }}
                         />
                       </span>
                     </span>
-                    <span className="w-14 text-right font-mono text-sm tabular-nums text-ink">
-                      {answer.score}
-                      <span className="text-ink-faint">/100</span>
+                    <span className="w-20 text-right font-mono text-sm tabular-nums text-ink">
+                      {displayScore(answer.score, scoringSystem)}
+                      <span className="text-ink-faint">/{maximum}</span>
                     </span>
                   </>
                 ) : (
@@ -125,7 +151,7 @@ export function ScoreCard({
           ))}
         </dl>
 
-        <p className="mt-5 border-t border-rule pt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+        <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
           {pendingCount > 0
             ? `${pendingCount} answer${pendingCount === 1 ? "" : "s"} awaiting review`
             : "Marked by the FluentCheck jury"}

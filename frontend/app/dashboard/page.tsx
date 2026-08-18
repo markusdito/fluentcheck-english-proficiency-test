@@ -12,7 +12,8 @@ import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermiss
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
-import { BandGauge } from "@/components/ui/BandGauge";
+import { ScaleAwareScoreDisplay } from "@/components/results/ScaleAwareScoreDisplay";
+import { scoreMaximum } from "@/types/scoring";
 import { SubmissionStatus } from "@/components/ui/submission-status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ExaminerAssignmentSummary } from "@/types/examiner";
@@ -77,7 +78,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   // Loading state
   if (loading) {
@@ -182,7 +183,7 @@ export default function DashboardPage() {
                 <p className="mark">Best score</p>
                 {dashboard?.bestScore != null ? (
                   <div className="mt-3">
-                    <BandGauge band={dashboard.bestScore} size="md" />
+                    <ScaleAwareScoreDisplay score={dashboard.bestScore} />
                   </div>
                 ) : (
                   <p className="mt-2 font-mono text-sm text-ink-faint">No score yet</p>
@@ -251,6 +252,9 @@ export default function DashboardPage() {
                             {sub.score != null && (
                               <span className="border-l border-rule pl-4 font-mono text-lg font-semibold tabular-nums text-ink">
                                 {sub.score}
+                                <span className="text-xs font-normal text-ink-faint">
+                                  /{scoreMaximum(sub.scoringSystem)}
+                                </span>
                               </span>
                             )}
                           </div>

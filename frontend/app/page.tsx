@@ -29,10 +29,10 @@ const protocol = [
 ];
 
 const criteria = [
-  { label: "Pronunciation", band: 7.0 },
-  { label: "Fluency", band: 7.5 },
-  { label: "Vocabulary", band: 7.5 },
-  { label: "Grammar", band: 7.0 },
+  { label: "Pronunciation", band: 4.5 },
+  { label: "Fluency", band: 5.0 },
+  { label: "Vocabulary", band: 4.5 },
+  { label: "Grammar", band: 4.0 },
 ];
 
 const heroPhrases = [
@@ -91,8 +91,8 @@ export default function Home() {
               <p className="mt-6 text-lg leading-8 text-ink-soft">
                 Record short video answers to real speaking prompts. Two
                 examiners score your pronunciation, fluency, vocabulary and
-                grammar. You get a band out of nine — the scale universities
-                and employers already trust.
+                grammar. You get a clear band from one to six, backed by a
+                criterion-by-criterion report.
               </p>
 
               <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -136,16 +136,16 @@ export default function Home() {
                       Overall band
                     </p>
                     <p className="mt-1 font-display text-6xl font-medium leading-none tracking-tight text-ink">
-                      7.5
+                      4.50
                     </p>
                   </div>
                   <p className="pb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
-                    Out of 9
+                    Out of 6
                   </p>
                 </div>
 
                 <div className="mt-4">
-                  <BandGauge band={7.5} size="md" />
+                  <BandGauge band={4.5} max={6} size="md" />
                 </div>
 
                 <dl className="mt-6 divide-y divide-rule">
@@ -220,18 +220,18 @@ export default function Home() {
                 The band scale
               </p>
               <h2 className="mt-4 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
-                Scored on the band the world uses
+                One clear six-band rubric
               </h2>
               <p className="mt-4 max-w-md text-[15px] leading-7 text-ink-soft">
-                Bands run from 0 to 9 in half steps. Most universities ask for
-                6.5 or higher; employers use bands to shortlist quickly. Your
-                report shows exactly where you stand in each skill.
+                Each examiner selects half bands from 1.0 to 6.0 for
+                pronunciation, fluency, vocabulary and grammar. Your report
+                shows exactly where you stand in every criterion.
               </p>
 
               <div className="mt-8 max-w-md">
-                <BandGauge band={6.5} size="md" />
+                <BandGauge band={4.5} max={6} size="md" />
                 <p className="mt-2 font-mono text-xs text-ink-faint">
-                  Most universities & employers look for band 6.5 and above
+                  Four criteria · half-band marking · two examiners
                 </p>
               </div>
             </div>

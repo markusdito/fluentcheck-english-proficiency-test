@@ -19,6 +19,8 @@ import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
 import { SubmissionStatus } from "@/components/ui/submission-status";
 import { ScoreCard } from "@/components/results/ScoreCard";
+import { RubricBreakdownView } from "@/components/results/RubricBreakdownView";
+import { scoreMaximum } from "@/types/scoring";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Breadcrumb,
@@ -164,6 +166,7 @@ export default function SubmissionResultPage({
   }
 
   const awaitingPayment = submission.status === "AWAITING_PAYMENT";
+  const scoreMax = scoreMaximum(submission.scoringSystem);
 
   return (
     <div className="min-h-screen bg-paper">
@@ -225,6 +228,8 @@ export default function SubmissionResultPage({
             <ScoreCard
               status={submission.status}
               score={submission.score}
+              scoringSystem={submission.scoringSystem}
+              rubric={submission.rubric}
               answers={submission.answers}
             />
           </div>
@@ -294,10 +299,14 @@ export default function SubmissionResultPage({
                   {answer.score != null ? (
                     <span className="shrink-0 text-right">
                       <span className="block font-mono text-lg font-semibold tabular-nums text-ink">
-                        {answer.score}
-                        <span className="text-xs font-normal text-ink-faint">/100</span>
+                        {submission.scoringSystem === "RUBRIC_6"
+                          ? answer.score.toFixed(2)
+                          : answer.score}
+                        <span className="text-xs font-normal text-ink-faint">
+                          /{scoreMax}
+                        </span>
                       </span>
-                      <span className="text-[11px] text-ink-faint">examiner score</span>
+                      <span className="text-[11px] text-ink-faint">average score</span>
                     </span>
                   ) : (
                     <SubmissionStatus status="AWAITING" />
@@ -327,6 +336,13 @@ export default function SubmissionResultPage({
                     <p className="mt-2 font-mono text-[11px] text-ink-faint">
                       Duration · {answer.durationSeconds}s
                     </p>
+                  )}
+
+                  {answer.rubric && (
+                    <div className="mt-5">
+                      <p className="mb-2 mark">Rubric averages</p>
+                      <RubricBreakdownView rubric={answer.rubric} compact />
+                    </div>
                   )}
 
                   {answer.score != null && answer.comments.length > 0 && (

@@ -1242,6 +1242,7 @@ export const SubmissionScalarFieldEnum = {
   id: 'id',
   studentId: 'studentId',
   status: 'status',
+  scoringSystem: 'scoringSystem',
   paymentRequired: 'paymentRequired',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -1310,6 +1311,10 @@ export const ScoreScalarFieldEnum = {
   assignmentId: 'assignmentId',
   answerId: 'answerId',
   value: 'value',
+  pronunciation: 'pronunciation',
+  fluency: 'fluency',
+  vocabulary: 'vocabulary',
+  grammar: 'grammar',
   comment: 'comment',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -1460,10 +1465,24 @@ export type ListEnumSubmissionStatusFieldRefInput<$PrismaModel> = FieldRefInputT
 
 
 /**
+ * Reference to a field of type 'ScoringSystem'
+ */
+export type EnumScoringSystemFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScoringSystem'>
+    
+
+
+/**
+ * Reference to a field of type 'ScoringSystem[]'
+ */
+export type ListEnumScoringSystemFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScoringSystem[]'>
+    
+
+
+/**
  * Reference to a field of type 'Boolean'
  */
 export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
-
+    
 
 
 /**
@@ -1703,3 +1722,4 @@ export type PrismaAction =
  * `PrismaClient` proxy available in interactive transactions.
  */
 export type TransactionClient = Omit<DefaultPrismaClient, runtime.ITXClientDenyList>
+

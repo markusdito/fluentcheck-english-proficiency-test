@@ -1,3 +1,8 @@
+import type {
+  RubricValues,
+  ScoringSystem,
+} from "@/types/scoring";
+
 export interface ExaminerTask {
   id: string;
   promptText: string;
@@ -22,6 +27,11 @@ export interface AssignmentAnswer {
   tasks: ExaminerTask[];
   durationSeconds: number | null;
   videoUrl: string | null;
+  savedScore: {
+    value: number;
+    rubric: RubricValues | null;
+    comment: string | null;
+  } | null;
 }
 
 export interface AssignmentDetail {
@@ -30,6 +40,7 @@ export interface AssignmentDetail {
   submissionId: string;
   studentName: string;
   submissionStatus: string;
+  scoringSystem: ScoringSystem;
   answers: AssignmentAnswer[];
   createdAt: string;
   updatedAt: string;

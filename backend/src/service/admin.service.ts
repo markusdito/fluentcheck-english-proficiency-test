@@ -9,6 +9,14 @@ import {
   createPresignedViewUrlForAccessor,
   createQuestionAudioViewUrl,
 } from "./upload.service.js";
+import {
+  aggregateStoredScores,
+  average,
+  averageRubrics,
+  calculateRubricOverall,
+  readStoredRubric,
+  roundScore,
+} from "../utils/scoring.js";
 
 export interface ListUsersParams {
   page: number;
@@ -148,6 +156,10 @@ export async function getAdminSubmissionDetail(submissionId: string) {
               id: true,
               assignmentId: true,
               value: true,
+              pronunciation: true,
+              fluency: true,
+              vocabulary: true,
+              grammar: true,
               comment: true,
               assignment: {
                 select: {
@@ -192,20 +204,26 @@ export async function getAdminSubmissionDetail(submissionId: string) {
 
       const scores = answer.scores.map((score) => {
         const comment = score.comment?.trim();
+        const storedRubric = readStoredRubric(score);
         return {
           id: score.id,
           assignmentId: score.assignmentId,
           examinerId: score.assignment.examiner.id,
           examinerName: score.assignment.examiner.username,
           value: Number(score.value),
+          rubric: storedRubric
+            ? {
+                ...storedRubric,
+                overall: roundScore(calculateRubricOverall(storedRubric)),
+              }
+            : null,
           comment: comment || null,
         };
       });
-      const averageScore =
-        scores.length > 0
-          ? scores.reduce((total, score) => total + score.value, 0) /
-            scores.length
-          : null;
+      const scoreSummary = aggregateStoredScores(
+        answer.scores,
+        submission.scoringSystem,
+      );
 
       return {
         id: answer.id,
@@ -216,8 +234,8 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         durationSeconds: answer.durationSeconds,
         uploadStatus: answer.uploadStatus,
         videoUrl,
-        score:
-          averageScore == null ? null : Number(averageScore.toFixed(2)),
+        score: scoreSummary.score,
+        rubric: scoreSummary.rubric,
         comments: scores.flatMap((score) =>
           score.comment ? [score.comment] : []
         ),
@@ -226,20 +244,29 @@ export async function getAdminSubmissionDetail(submissionId: string) {
     })
   );
 
-  const answerScores = answers.flatMap((answer) =>
-    answer.score == null ? [] : [answer.score]
-  );
+  const answerScores = submission.answers.flatMap((answer) => {
+    const score = average(answer.scores.map((item) => Number(item.value)));
+    return score == null ? [] : [score];
+  });
   const calculatedOverallScore =
     (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
     answers.length > 0 &&
     answerScores.length === answers.length
-      ? answerScores.reduce((total, value) => total + value, 0) /
-        answerScores.length
+      ? average(answerScores)
+      : null;
+  const answerRubrics = answers.flatMap((answer) =>
+    answer.rubric ? [answer.rubric] : [],
+  );
+  const rubric =
+    submission.scoringSystem === "RUBRIC_6" &&
+    answerRubrics.length === answers.length
+      ? averageRubrics(answerRubrics)
       : null;
 
   return {
     id: submission.id,
     status: submission.status,
+    scoringSystem: submission.scoringSystem,
     paymentRequired: submission.paymentRequired,
     createdAt: submission.createdAt,
     updatedAt: submission.updatedAt,
@@ -252,7 +279,8 @@ export async function getAdminSubmissionDetail(submissionId: string) {
       submission.certificate?.finalScore.toString() ??
       (calculatedOverallScore == null
         ? null
-        : calculatedOverallScore.toFixed(2)),
+        : roundScore(calculatedOverallScore).toFixed(2)),
+    rubric,
     certificate: submission.certificate
       ? {
           finalScore: submission.certificate.finalScore.toString(),

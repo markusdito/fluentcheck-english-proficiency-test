@@ -63,6 +63,7 @@ export interface AdminAnswerScore {
   examinerId: string;
   examinerName: string;
   value: number;
+  rubric: RubricBreakdown | null;
   comment: string | null;
 }
 
@@ -76,6 +77,7 @@ export interface AdminSubmissionAnswer {
   uploadStatus: string;
   videoUrl: string | null;
   score: number | null;
+  rubric: RubricBreakdown | null;
   comments: string[];
   scores: AdminAnswerScore[];
 }
@@ -83,6 +85,7 @@ export interface AdminSubmissionAnswer {
 export interface AdminSubmissionDetail {
   id: string;
   status: string;
+  scoringSystem: ScoringSystem;
   paymentRequired: boolean;
   createdAt: string;
   updatedAt: string;
@@ -92,6 +95,7 @@ export interface AdminSubmissionDetail {
     email: string;
   };
   score: string | null;
+  rubric: RubricBreakdown | null;
   certificate: {
     finalScore: string;
     issuedAt: string;
@@ -146,3 +150,7 @@ export interface AdminQuestion {
   createdAt: string;
   tasks: AdminTask[];
 }
+import type {
+  RubricBreakdown,
+  ScoringSystem,
+} from "@/types/scoring";

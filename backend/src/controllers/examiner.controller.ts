@@ -2,9 +2,13 @@ import type { Request, Response } from "express";
 import {
   getExaminerAssignments,
   getExaminerAssignmentDetail,
+  completeExaminerScoring,
+  saveExaminerScore,
   startExaminerAssignment,
   submitExaminerScores,
+  type ScoreInput,
 } from "../service/examiner.service.js";
+import { ScoreValidationError } from "../utils/scoring.js";
 
 /**
  * GET /api/examiner/assignments
@@ -89,11 +93,59 @@ export async function startAssignment(req: Request, res: Response) {
 }
 
 interface ScoreBody {
-  scores: Array<{
-    answerId: string;
-    value: number;
-    comment?: string;
-  }>;
+  scores: ScoreInput[];
+}
+
+type SingleScoreBody = Omit<ScoreInput, "answerId">;
+
+function scoringErrorStatus(error: unknown): number {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "Assignment not found") return 404;
+  if (message === "Unauthorized") return 403;
+  if (message === "Assignment is already completed") return 400;
+  if (error instanceof ScoreValidationError) return 400;
+  return 500;
+}
+
+/** PUT /api/examiner/assignments/:id/scores/:answerId */
+export async function saveScore(req: Request, res: Response) {
+  try {
+    const assignmentId = req.params.id as string;
+    const answerId = req.params.answerId as string;
+    if (!assignmentId || !answerId) {
+      res.status(400).json({ error: "Assignment ID and answer ID are required" });
+      return;
+    }
+
+    const body = (req.body ?? {}) as SingleScoreBody;
+    await saveExaminerScore(assignmentId, req.user!.id, {
+      answerId,
+      value: body.value,
+      rubric: body.rubric,
+      comment: body.comment,
+    });
+    res.status(200).json({ status: "success", message: "Question score saved" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to save score";
+    res.status(scoringErrorStatus(error)).json({ error: message });
+  }
+}
+
+/** POST /api/examiner/assignments/:id/complete */
+export async function completeScoring(req: Request, res: Response) {
+  try {
+    const assignmentId = req.params.id as string;
+    if (!assignmentId) {
+      res.status(400).json({ error: "Assignment ID is required" });
+      return;
+    }
+
+    await completeExaminerScoring(assignmentId, req.user!.id);
+    res.status(200).json({ status: "success", message: "Scoring completed" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to complete scoring";
+    res.status(scoringErrorStatus(error)).json({ error: message });
+  }
 }
 
 /**
@@ -104,7 +156,7 @@ export async function submitScores(req: Request, res: Response) {
   try {
     const assignmentId = req.params.id as string;
     const examinerId = req.user!.id;
-    const { scores } = req.body as ScoreBody;
+    const { scores } = (req.body ?? {}) as Partial<ScoreBody>;
 
     if (!assignmentId) {
       res.status(400).json({ error: "Assignment ID is required" });
@@ -123,16 +175,6 @@ export async function submitScores(req: Request, res: Response) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to submit scores";
-    const status =
-      message === "Assignment not found"
-        ? 404
-        : message === "Unauthorized"
-          ? 403
-          : message === "Assignment is already completed"
-            ? 400
-            : message.startsWith("Score value")
-              ? 400
-              : 500;
-    res.status(status).json({ error: message });
+    res.status(scoringErrorStatus(error)).json({ error: message });
   }
 }

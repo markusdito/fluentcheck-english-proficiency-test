@@ -1,32 +1,18 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef } from "react";
 import type { AssignmentAnswer } from "@/types/examiner";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 interface VideoReviewerProps {
   answers: AssignmentAnswer[];
+  currentIndex: number;
 }
 
-export function VideoReviewer({ answers }: VideoReviewerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+export function VideoReviewer({ answers, currentIndex }: VideoReviewerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const current = answers[currentIndex];
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((i) => i - 1);
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex < answers.length - 1) {
-      setCurrentIndex((i) => i + 1);
-    }
-  };
 
   if (!current) {
     return (
@@ -92,31 +78,6 @@ export function VideoReviewer({ answers }: VideoReviewerProps) {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePrev}
-          disabled={currentIndex === 0}
-        >
-          <ChevronLeftIcon data-icon="inline-start" />
-          Previous
-        </Button>
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-          Question {currentIndex + 1}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleNext}
-          disabled={currentIndex >= answers.length - 1}
-        >
-          Next
-          <ChevronRightIcon data-icon="inline-end" />
-        </Button>
       </div>
     </div>
   );

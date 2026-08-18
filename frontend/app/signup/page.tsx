@@ -70,12 +70,12 @@ export default function SignupPage() {
               The band scale
             </p>
             <p className="mt-2 font-display text-2xl font-medium tracking-tight text-ink">
-              Bands run 0 to 9, in half steps.
+              Bands run 1.0 to 6.0, in half steps.
             </p>
             <div className="mt-4">
-              <BandGauge band={6.5} size="md" />
+              <BandGauge band={4.5} max={6} size="md" />
               <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
-                Most universities & employers look for 6.5 and above
+                Four criteria · two independent examiners
               </p>
             </div>
             <dl className="mt-5 divide-y divide-rule">

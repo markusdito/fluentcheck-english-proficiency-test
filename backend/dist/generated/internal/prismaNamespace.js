@@ -125,6 +125,7 @@ export const SubmissionScalarFieldEnum = {
     id: 'id',
     studentId: 'studentId',
     status: 'status',
+    scoringSystem: 'scoringSystem',
     paymentRequired: 'paymentRequired',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -173,6 +174,10 @@ export const ScoreScalarFieldEnum = {
     assignmentId: 'assignmentId',
     answerId: 'answerId',
     value: 'value',
+    pronunciation: 'pronunciation',
+    fluency: 'fluency',
+    vocabulary: 'vocabulary',
+    grammar: 'grammar',
     comment: 'comment',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
