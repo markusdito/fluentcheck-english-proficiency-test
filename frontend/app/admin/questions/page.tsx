@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, KeyboardEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/lib/admin-api";
 import type { AdminQuestion, AdminTask } from "@/types/admin";
 import { queryKeys } from "@/lib/query-keys";
+import { parseNonNegativeInteger } from "@/lib/question-form";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Loader2, TriangleAlertIcon } from "lucide-react";
@@ -88,6 +89,7 @@ function ToNumberInput({
 }
 
 function QuestionFormFields({
+  idPrefix,
   category,
   onCategory,
   order,
@@ -98,6 +100,7 @@ function QuestionFormFields({
   onRecordingSeconds,
   disabled,
 }: {
+  idPrefix: string;
   category: string;
   onCategory: (v: string) => void;
   order: string;
@@ -134,7 +137,7 @@ function QuestionFormFields({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <ToNumberInput
-          id="order"
+          id={`${idPrefix}-order`}
           label="Order"
           value={order}
           onChange={onOrder}
@@ -142,14 +145,14 @@ function QuestionFormFields({
           disabled={disabled}
         />
         <ToNumberInput
-          id="preparationSeconds"
+          id={`${idPrefix}-preparationSeconds`}
           label="Prep (s)"
           value={preparationSeconds}
           onChange={onPreparationSeconds}
           disabled={disabled}
         />
         <ToNumberInput
-          id="recordingSeconds"
+          id={`${idPrefix}-recordingSeconds`}
           label="Record (s)"
           value={recordingSeconds}
           onChange={onRecordingSeconds}
@@ -184,12 +187,15 @@ function TaskEditor({
     onChange(next);
   }
 
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault();
+  async function handleAdd() {
     setError("");
     const order = Number(newOrder);
-    if (!newPrompt.trim() || !Number.isInteger(order)) {
-      setError("Each task requires promptText and order.");
+    if (!newPrompt.trim()) {
+      setError("Task prompt is required.");
+      return;
+    }
+    if (!Number.isInteger(order) || order < 0 || !newOrder.trim()) {
+      setError("Task order must be a non-negative integer.");
       return;
     }
     setLoading(true);
@@ -213,11 +219,29 @@ function TaskEditor({
     }
   }
 
+  function handleAddKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    void handleAdd();
+  }
+
   async function handleUpdate(index: number, patch: { promptText?: string; order?: number }) {
     setError("");
     const task = tasks[index];
+    const promptText = patch.promptText?.trim();
+    if (patch.promptText !== undefined && !promptText) {
+      setError("Task prompt is required.");
+      return;
+    }
+    if (patch.order !== undefined && (!Number.isInteger(patch.order) || patch.order < 0)) {
+      setError("Task order must be a non-negative integer.");
+      return;
+    }
     try {
-      const updated = await updateTask(questionId, task.id, patch);
+      const updated = await updateTask(questionId, task.id, {
+        ...patch,
+        ...(promptText !== undefined && { promptText }),
+      });
       updateLocal(index, updated);
       onCommitted();
     } catch (err) {
@@ -324,13 +348,14 @@ function TaskEditor({
         </ul>
       )}
 
-      <form onSubmit={handleAdd} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
           <FormField
             id="new-task-prompt"
             label="New task prompt"
             value={newPrompt}
             onChange={(e) => setNewPrompt(e.target.value)}
+            onKeyDown={handleAddKeyDown}
             placeholder="Task prompt"
             disabled={disabled || loading}
           />
@@ -344,14 +369,22 @@ function TaskEditor({
             step={1}
             value={newOrder}
             onChange={(e) => setNewOrder(e.target.value)}
+            onKeyDown={handleAddKeyDown}
             placeholder="1"
             disabled={disabled || loading}
           />
         </div>
-        <Button type="submit" variant="secondary" size="md" loading={loading} disabled={disabled}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="md"
+          loading={loading}
+          disabled={disabled}
+          onClick={() => void handleAdd()}
+        >
           Add task
         </Button>
-      </form>
+      </div>
     </div>
   );
 }
@@ -400,9 +433,15 @@ export default function AdminQuestionsPage() {
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setCreateError("");
-    const order = Number(createOrder);
-    if (!Number.isInteger(order)) {
-      setCreateError("Order is required.");
+    let order: number;
+    let preparationSeconds: number | undefined;
+    let recordingSeconds: number | undefined;
+    try {
+      order = parseNonNegativeInteger(createOrder, "Order", true)!;
+      preparationSeconds = parseNonNegativeInteger(createPrep, "Preparation time");
+      recordingSeconds = parseNonNegativeInteger(createRecord, "Recording time");
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : "Invalid question values.");
       return;
     }
     setCreateLoading(true);
@@ -410,20 +449,20 @@ export default function AdminQuestionsPage() {
       const question = await createQuestion({
         category: createCategory,
         order,
-        preparationSeconds: createPrep ? Number(createPrep) : undefined,
-        recordingSeconds: createRecord ? Number(createRecord) : undefined,
+        preparationSeconds,
+        recordingSeconds,
       });
       updateQuestions((current) => [...current, question]);
       setCreateOrder("");
       setCreatePrep("");
       setCreateRecord("");
-      setCreateLoading(false);
-      // Open the edit form so the admin can upload prompt audio (Save is gated on UPLOADED).
+      // Open the draft immediately so the admin can add tasks and prompt audio.
       startEdit(question);
     } catch (err) {
       setCreateError(
         err instanceof ApiError ? err.message : "Failed to create question."
       );
+    } finally {
       setCreateLoading(false);
     }
   }
@@ -444,7 +483,7 @@ export default function AdminQuestionsPage() {
     setEditError("");
   }
 
-  /** After a successful audio upload, refresh the question row so the status chip + save gate update. */
+  /** After a successful audio upload, update the row and its status badge. */
   function markAudioUploaded(id: string) {
     updateQuestions((current) =>
       current.map((q) =>
@@ -457,14 +496,15 @@ export default function AdminQuestionsPage() {
     e.preventDefault();
     if (!editingId) return;
     setEditError("");
-    const order = Number(editOrder);
-    if (!Number.isInteger(order)) {
-      setEditError("Order is required.");
-      return;
-    }
-    const original = questions.find((q) => q.id === editingId);
-    if (original?.audioUploadStatus !== "UPLOADED") {
-      setEditError("Upload prompt audio before saving the question.");
+    let order: number;
+    let preparationSeconds: number | undefined;
+    let recordingSeconds: number | undefined;
+    try {
+      order = parseNonNegativeInteger(editOrder, "Order", true)!;
+      preparationSeconds = parseNonNegativeInteger(editPrep, "Preparation time");
+      recordingSeconds = parseNonNegativeInteger(editRecord, "Recording time");
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "Invalid question values.");
       return;
     }
     setEditLoading(true);
@@ -472,8 +512,8 @@ export default function AdminQuestionsPage() {
       const updated = await updateQuestion(editingId, {
         category: editCategory,
         order,
-        preparationSeconds: editPrep ? Number(editPrep) : undefined,
-        recordingSeconds: editRecord ? Number(editRecord) : undefined,
+        preparationSeconds,
+        recordingSeconds,
       });
       updateQuestions((current) =>
         current.map((q) =>
@@ -572,6 +612,7 @@ export default function AdminQuestionsPage() {
           )}
           <div className="grid gap-4">
             <QuestionFormFields
+              idPrefix="create-question"
               category={createCategory}
               onCategory={setCreateCategory}
               order={createOrder}
@@ -613,6 +654,7 @@ export default function AdminQuestionsPage() {
               )}
               <div className="grid gap-4">
                 <QuestionFormFields
+                  idPrefix="edit-question"
                   category={editCategory}
                   onCategory={setEditCategory}
                   order={editOrder}
@@ -632,14 +674,20 @@ export default function AdminQuestionsPage() {
                       <AudioUploadBadge status={original.audioUploadStatus} />
                     )}
                   </div>
-                  <AudioUploadButton
-                    questionId={editingId}
-                    disabled={editLoading}
-                    onUploaded={() => markAudioUploaded(editingId)}
-                  />
+                  {original?.audioUploadStatus === "UPLOADED" ? (
+                    <p className="text-sm text-ink-soft">
+                      Prompt audio is uploaded and ready for test delivery.
+                    </p>
+                  ) : (
+                    <AudioUploadButton
+                      questionId={editingId}
+                      disabled={editLoading}
+                      onUploaded={() => markAudioUploaded(editingId)}
+                    />
+                  )}
                   {original && original.audioUploadStatus !== "UPLOADED" && (
                     <p className="mt-2 text-xs text-ink-soft">
-                      Upload the spoken prompt before saving.
+                      You can save this draft now. It will not appear in tests until its prompt audio is uploaded.
                     </p>
                   )}
                 </div>
@@ -663,9 +711,7 @@ export default function AdminQuestionsPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="default" loading={editLoading}
-                    disabled={original?.audioUploadStatus !== "UPLOADED"}
-                  >
+                  <Button type="submit" variant="default" loading={editLoading}>
                     Save changes
                   </Button>
                 </div>

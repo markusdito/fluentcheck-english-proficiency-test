@@ -3,6 +3,8 @@ import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
 import {
   retrieveQuestions,
+  retrieveAdminQuestions,
+  retrieveTestQuestions,
   createQuestion as createQuestionService,
   updateQuestion as updateQuestionService,
   deleteQuestion as deleteQuestionService,
@@ -93,7 +95,7 @@ export async function getQuestionAudioUrl(req: Request, res: Response) {
  */
 export async function getTestQuestions(req: Request, res: Response) {
   try {
-    const questions = await retrieveQuestions(2);
+    const questions = await retrieveTestQuestions(2);
     const data = await buildTestQuestionDelivery(
       questions,
       createQuestionAudioViewUrlFromMetadata,
@@ -111,6 +113,10 @@ function isQuestionCategory(value: unknown): value is QuestionCategory {
     typeof value === "string" &&
     (Object.values(QuestionCategory) as string[]).includes(value)
   );
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 function handleQuestionError(res: Response, error: unknown) {
@@ -137,6 +143,19 @@ export async function getQuestions(req: Request, res: Response) {
   }
 }
 
+export async function getAdminQuestions(req: Request, res: Response) {
+  try {
+    const questions = await retrieveAdminQuestions();
+    res.status(200).json({
+      status: "success",
+      data: questions,
+    });
+  } catch (error) {
+    console.error("Error fetching admin questions:", error);
+    res.status(500).json({ error: "Failed to fetch admin questions" });
+  }
+}
+
 export async function createQuestion(req: Request, res: Response) {
   try {
     const { category, order, preparationSeconds, recordingSeconds, tasks } = req.body;
@@ -145,8 +164,16 @@ export async function createQuestion(req: Request, res: Response) {
       res.status(400).json({ error: "Category must be one of PART_1, PART_2 or PART_3" });
       return;
     }
-    if (typeof order !== "number" || !Number.isInteger(order)) {
-      res.status(400).json({ error: "order is required and must be an integer" });
+    if (!isNonNegativeInteger(order)) {
+      res.status(400).json({ error: "order is required and must be a non-negative integer" });
+      return;
+    }
+    if (preparationSeconds !== undefined && !isNonNegativeInteger(preparationSeconds)) {
+      res.status(400).json({ error: "preparationSeconds must be a non-negative integer" });
+      return;
+    }
+    if (recordingSeconds !== undefined && !isNonNegativeInteger(recordingSeconds)) {
+      res.status(400).json({ error: "recordingSeconds must be a non-negative integer" });
       return;
     }
     if (tasks !== undefined) {
@@ -158,8 +185,7 @@ export async function createQuestion(req: Request, res: Response) {
         if (
           typeof task?.promptText !== "string" ||
           task.promptText.trim() === "" ||
-          typeof task.order !== "number" ||
-          !Number.isInteger(task.order)
+          !isNonNegativeInteger(task.order)
         ) {
           res.status(400).json({ error: "Each task requires promptText and order" });
           return;
@@ -172,7 +198,10 @@ export async function createQuestion(req: Request, res: Response) {
       order,
       preparationSeconds,
       recordingSeconds,
-      tasks,
+      tasks: tasks?.map((task: {promptText: string; order: number}) => ({
+        promptText: task.promptText.trim(),
+        order: task.order,
+      })),
     });
 
     res.status(201).json({ status: "success", data: question });
@@ -190,16 +219,16 @@ export async function updateQuestion(req: Request, res: Response) {
       res.status(400).json({ error: "Category must be one of PART_1, PART_2 or PART_3" });
       return;
     }
-    if (order !== undefined && (typeof order !== "number" || !Number.isInteger(order))) {
-      res.status(400).json({ error: "order must be an integer" });
+    if (order !== undefined && !isNonNegativeInteger(order)) {
+      res.status(400).json({ error: "order must be a non-negative integer" });
       return;
     }
-    if (preparationSeconds !== undefined && (typeof preparationSeconds !== "number" || !Number.isInteger(preparationSeconds))) {
-      res.status(400).json({ error: "preparationSeconds must be an integer" });
+    if (preparationSeconds !== undefined && !isNonNegativeInteger(preparationSeconds)) {
+      res.status(400).json({ error: "preparationSeconds must be a non-negative integer" });
       return;
     }
-    if (recordingSeconds !== undefined && (typeof recordingSeconds !== "number" || !Number.isInteger(recordingSeconds))) {
-      res.status(400).json({ error: "recordingSeconds must be an integer" });
+    if (recordingSeconds !== undefined && !isNonNegativeInteger(recordingSeconds)) {
+      res.status(400).json({ error: "recordingSeconds must be a non-negative integer" });
       return;
     }
 
@@ -235,8 +264,8 @@ export async function createTask(req: Request, res: Response) {
       res.status(400).json({ error: "promptText is required" });
       return;
     }
-    if (typeof order !== "number" || !Number.isInteger(order)) {
-      res.status(400).json({ error: "order is required and must be an integer" });
+    if (!isNonNegativeInteger(order)) {
+      res.status(400).json({ error: "order is required and must be a non-negative integer" });
       return;
     }
 
@@ -257,8 +286,8 @@ export async function updateTask(req: Request, res: Response) {
       res.status(400).json({ error: "promptText must be a non-empty string" });
       return;
     }
-    if (order !== undefined && (typeof order !== "number" || !Number.isInteger(order))) {
-      res.status(400).json({ error: "order must be an integer" });
+    if (order !== undefined && !isNonNegativeInteger(order)) {
+      res.status(400).json({ error: "order must be a non-negative integer" });
       return;
     }
 

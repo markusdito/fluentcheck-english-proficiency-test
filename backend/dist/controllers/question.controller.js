@@ -1,6 +1,6 @@
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
-import { retrieveQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, deleteQuestion as deleteQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, } from "../service/question.service.js";
+import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, deleteQuestion as deleteQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, } from "../service/question.service.js";
 import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, createQuestionAudioViewUrlFromMetadata, } from "../service/upload.service.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 function handleQuestionAudioError(res, error) {
@@ -72,7 +72,7 @@ export async function getQuestionAudioUrl(req, res) {
  */
 export async function getTestQuestions(req, res) {
     try {
-        const questions = await retrieveQuestions(2);
+        const questions = await retrieveTestQuestions(2);
         const data = await buildTestQuestionDelivery(questions, createQuestionAudioViewUrlFromMetadata);
         res.status(200).json({ status: "success", data });
     }
@@ -84,6 +84,9 @@ export async function getTestQuestions(req, res) {
 function isQuestionCategory(value) {
     return (typeof value === "string" &&
         Object.values(QuestionCategory).includes(value));
+}
+function isNonNegativeInteger(value) {
+    return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 function handleQuestionError(res, error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -107,6 +110,19 @@ export async function getQuestions(req, res) {
         res.status(500).json({ error: "Failed to fetch questions" });
     }
 }
+export async function getAdminQuestions(req, res) {
+    try {
+        const questions = await retrieveAdminQuestions();
+        res.status(200).json({
+            status: "success",
+            data: questions,
+        });
+    }
+    catch (error) {
+        console.error("Error fetching admin questions:", error);
+        res.status(500).json({ error: "Failed to fetch admin questions" });
+    }
+}
 export async function createQuestion(req, res) {
     try {
         const { category, order, preparationSeconds, recordingSeconds, tasks } = req.body;
@@ -114,8 +130,16 @@ export async function createQuestion(req, res) {
             res.status(400).json({ error: "Category must be one of PART_1, PART_2 or PART_3" });
             return;
         }
-        if (typeof order !== "number" || !Number.isInteger(order)) {
-            res.status(400).json({ error: "order is required and must be an integer" });
+        if (!isNonNegativeInteger(order)) {
+            res.status(400).json({ error: "order is required and must be a non-negative integer" });
+            return;
+        }
+        if (preparationSeconds !== undefined && !isNonNegativeInteger(preparationSeconds)) {
+            res.status(400).json({ error: "preparationSeconds must be a non-negative integer" });
+            return;
+        }
+        if (recordingSeconds !== undefined && !isNonNegativeInteger(recordingSeconds)) {
+            res.status(400).json({ error: "recordingSeconds must be a non-negative integer" });
             return;
         }
         if (tasks !== undefined) {
@@ -126,8 +150,7 @@ export async function createQuestion(req, res) {
             for (const task of tasks) {
                 if (typeof task?.promptText !== "string" ||
                     task.promptText.trim() === "" ||
-                    typeof task.order !== "number" ||
-                    !Number.isInteger(task.order)) {
+                    !isNonNegativeInteger(task.order)) {
                     res.status(400).json({ error: "Each task requires promptText and order" });
                     return;
                 }
@@ -138,7 +161,10 @@ export async function createQuestion(req, res) {
             order,
             preparationSeconds,
             recordingSeconds,
-            tasks,
+            tasks: tasks?.map((task) => ({
+                promptText: task.promptText.trim(),
+                order: task.order,
+            })),
         });
         res.status(201).json({ status: "success", data: question });
     }
@@ -154,16 +180,16 @@ export async function updateQuestion(req, res) {
             res.status(400).json({ error: "Category must be one of PART_1, PART_2 or PART_3" });
             return;
         }
-        if (order !== undefined && (typeof order !== "number" || !Number.isInteger(order))) {
-            res.status(400).json({ error: "order must be an integer" });
+        if (order !== undefined && !isNonNegativeInteger(order)) {
+            res.status(400).json({ error: "order must be a non-negative integer" });
             return;
         }
-        if (preparationSeconds !== undefined && (typeof preparationSeconds !== "number" || !Number.isInteger(preparationSeconds))) {
-            res.status(400).json({ error: "preparationSeconds must be an integer" });
+        if (preparationSeconds !== undefined && !isNonNegativeInteger(preparationSeconds)) {
+            res.status(400).json({ error: "preparationSeconds must be a non-negative integer" });
             return;
         }
-        if (recordingSeconds !== undefined && (typeof recordingSeconds !== "number" || !Number.isInteger(recordingSeconds))) {
-            res.status(400).json({ error: "recordingSeconds must be an integer" });
+        if (recordingSeconds !== undefined && !isNonNegativeInteger(recordingSeconds)) {
+            res.status(400).json({ error: "recordingSeconds must be a non-negative integer" });
             return;
         }
         const question = await updateQuestionService(id, {
@@ -196,8 +222,8 @@ export async function createTask(req, res) {
             res.status(400).json({ error: "promptText is required" });
             return;
         }
-        if (typeof order !== "number" || !Number.isInteger(order)) {
-            res.status(400).json({ error: "order is required and must be an integer" });
+        if (!isNonNegativeInteger(order)) {
+            res.status(400).json({ error: "order is required and must be a non-negative integer" });
             return;
         }
         const task = await createTaskService(questionId, { promptText: promptText.trim(), order });
@@ -216,8 +242,8 @@ export async function updateTask(req, res) {
             res.status(400).json({ error: "promptText must be a non-empty string" });
             return;
         }
-        if (order !== undefined && (typeof order !== "number" || !Number.isInteger(order))) {
-            res.status(400).json({ error: "order must be an integer" });
+        if (order !== undefined && !isNonNegativeInteger(order)) {
+            res.status(400).json({ error: "order must be a non-negative integer" });
             return;
         }
         const task = await updateTaskService(questionId, taskId, {

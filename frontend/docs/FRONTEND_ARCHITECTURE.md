@@ -416,7 +416,7 @@ GET    /api/admin/examiners                        → AdminExaminer[]
 GET    /api/admin/submissions                      → Paginated<AdminSubmission> (page, limit, status)
 POST   /api/admin/submissions/:id/assign           → Assign examiners to a PAID submission
 GET    /api/admin/stats                            → AdminStats
-GET    /api/questions                              → AdminQuestion[] (public list, order=2) — used for the Questions page
+GET    /api/questions/admin                        → AdminQuestion[] (admin, all active orders including drafts)
 POST   /api/questions                              → Create question (admin)
 PUT    /api/questions/:id                          → Update question (admin)
 DELETE /api/questions/:id                          → Retire question (soft delete, admin)
@@ -674,10 +674,10 @@ Admin management area, reachable via the "Admin Panel" link on the dashboard (sh
 - **`app/admin/page.tsx`** (Overview) — loads stats via `fetchAdminStats()` and renders: users-by-role counts, submissions-by-status counts, paid revenue (formatted in IDR), pending-grading count, and the 5 most recent submissions (each with a `StatusBadge` and a "View all" link to `/admin/submissions`).
 - **`app/admin/users/page.tsx`** — calls `fetchAdminUsers({ page, role, q })` with search (username/email) and role filters plus pagination. Each row has a role `<select>`; changing it calls `updateUserRole(user.id, role)`. Selecting your own role is disabled (the backend also rejects self-changes); backend errors (e.g. `Cannot demote the last admin`) are surfaced inline.
 - **`app/admin/submissions/page.tsx`** — calls `fetchAdminSubmissions({ page, limit: 10, status })` with status-filter chips and pagination. For `PAID` submissions with no assignments yet it shows an **"Assign examiners"** button that calls `assignExaminers(submission.id)` and then re-fetches to show the assigned examiner names. Payment and assignment statuses are rendered via `StatusBadge`.
-- **`app/admin/questions/page.tsx`** — loads questions via `fetchAdminQuestions()` (the public `GET /api/questions`, `order=2`), grouped by category. Supports creating questions (`createQuestion`), editing scalar fields (`updateQuestion`), retiring (soft-delete via `deleteQuestion`), and managing per-question tasks (`createTask`/`updateTask`/`deleteTask`). Duplicate-order `409` errors are shown inline.
+- **`app/admin/questions/page.tsx`** — loads every active question via the authenticated `GET /api/questions/admin`, grouped by category. Draft metadata and tasks can be saved before prompt audio is uploaded; test delivery excludes those drafts until audio is confirmed. Supports creating questions (`createQuestion`), editing scalar fields (`updateQuestion`), retiring (soft-delete via `deleteQuestion`), and managing per-question tasks (`createTask`/`updateTask`/`deleteTask`). Duplicate-order `409` errors are shown inline.
 - **`components/admin/StatusBadge.tsx`** — a small presentational pill showing a status label with one of four tones (`amber`/`blue`/`emerald`/`zinc`) used for submission, payment, and assignment statuses across admin pages.
 
-All admin pages fetch through **`lib/admin-api.ts`** against the `/api/admin` endpoints (plus the shared `/api/questions` for the Questions page). The base `api` wrapper supplies credentialed (cookie) requests, JSON serialization, `ApiError` on non-2xx, and automatic redirect to `/login` on 401.
+All admin pages fetch through **`lib/admin-api.ts`** against authenticated admin endpoints, including `/api/questions/admin` for the Questions page. The base `api` wrapper supplies credentialed (cookie) requests, JSON serialization, `ApiError` on non-2xx, and automatic redirect to `/login` on 401.
 
 ### Presentation deltas (2026-08-04, UI_REDESIGN.md)
 
