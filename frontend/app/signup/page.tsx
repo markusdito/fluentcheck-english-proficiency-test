@@ -47,25 +47,26 @@ export default function SignupPage() {
       </a>
 
       {/* Left: brand panel — band-scale motif (desktop) */}
-      <aside className="hidden flex-1 flex-col justify-between border-r border-rule lg:flex">
+      <aside className="hidden flex-1 flex-col border-r border-rule lg:flex">
         <div className="flex h-16 items-center border-b border-rule px-8">
           <Wordmark />
         </div>
 
-        <div className="px-8 pb-8">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
-            FluentCheck · Speaking assessment
-          </p>
-          <h2 className="mt-5 max-w-md font-display text-4xl font-medium leading-[1.04] tracking-tight text-ink">
-            A certified band score, <em className="text-signal">on camera.</em>
-          </h2>
-          <p className="mt-5 max-w-md text-[15px] leading-7 text-ink-soft">
-            Create your account, then record short video answers to real
-            speaking prompts. Two certified examiners score your
-            pronunciation, fluency, vocabulary and grammar.
-          </p>
+        <div className="flex flex-1 items-center justify-center px-8 py-10">
+          <div className="w-full max-w-sm text-left">
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+              FluentCheck · Speaking assessment
+            </p>
+            <h2 className="mt-5 font-display text-4xl font-medium leading-[1.04] tracking-tight text-ink">
+              A certified band score, <em className="text-signal">on camera.</em>
+            </h2>
+            <p className="mt-5 text-[15px] leading-7 text-ink-soft">
+              Create your account, then record short video answers to real
+              speaking prompts. Two certified examiners score your
+              pronunciation, fluency, vocabulary and grammar.
+            </p>
 
-          <div className="mt-10 max-w-sm border border-rule bg-paper-raised px-5 py-5 animate-rise">
+            <div className="mt-10 w-full border border-rule bg-paper-raised px-5 py-5 animate-rise">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
               The band scale
             </p>
@@ -92,6 +93,7 @@ export default function SignupPage() {
                 </div>
               ))}
             </dl>
+            </div>
           </div>
         </div>
 

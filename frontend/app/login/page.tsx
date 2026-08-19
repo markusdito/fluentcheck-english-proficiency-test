@@ -55,25 +55,26 @@ export default function LoginPage() {
       </a>
 
       {/* Left: brand panel — specimen report motif (desktop) */}
-      <aside className="hidden flex-1 flex-col justify-between border-r border-rule lg:flex">
+      <aside className="hidden flex-1 flex-col border-r border-rule lg:flex">
         <div className="flex h-16 items-center border-b border-rule px-8">
           <Wordmark />
         </div>
 
-        <div className="px-8 pb-8">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
-            FluentCheck · Speaking assessment
-          </p>
-          <h2 className="mt-5 max-w-md font-display text-4xl font-medium leading-[1.04] tracking-tight text-ink">
-            Your band, and the examiners&apos; notes, in{" "}
-            <em className="text-signal">one place.</em>
-          </h2>
-          <p className="mt-5 max-w-md text-[15px] leading-7 text-ink-soft">
-            Sign in to record your answers, settle your assessment fee, and pick
-            up your certificate once the jury has marked you.
-          </p>
+        <div className="flex flex-1 items-center justify-center px-8 py-10">
+          <div className="w-full max-w-sm text-left">
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+              FluentCheck · Speaking assessment
+            </p>
+            <h2 className="mt-5 font-display text-4xl font-medium leading-[1.04] tracking-tight text-ink">
+              Your band, and the examiners&apos; notes, in{" "}
+              <em className="text-signal">one place.</em>
+            </h2>
+            <p className="mt-5 text-[15px] leading-7 text-ink-soft">
+              Sign in to record your answers, settle your assessment fee, and pick
+              up your certificate once the jury has marked you.
+            </p>
 
-          <div className="mt-10 max-w-sm border border-rule bg-paper-raised animate-rise">
+            <div className="mt-10 w-full border border-rule bg-paper-raised animate-rise">
             <div className="flex items-center justify-between border-b border-rule px-5 py-3">
               <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                 Specimen report
@@ -117,6 +118,7 @@ export default function LoginPage() {
                   </div>
                 ))}
               </dl>
+            </div>
             </div>
           </div>
         </div>
