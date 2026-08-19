@@ -6,6 +6,7 @@ interface QuestionAudioPlayerProps {
   audioUrl: string | null;
   compact?: boolean;
   autoPlay?: boolean;
+  onEnded?: () => void;
 }
 
 /**
@@ -16,7 +17,7 @@ interface QuestionAudioPlayerProps {
  * prompt" affordance keeps replay available at any time. Renders a placeholder
  * when the question has no audio yet (not uploaded).
  */
-export function QuestionAudioPlayer({ audioUrl, compact, autoPlay }: QuestionAudioPlayerProps) {
+export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: QuestionAudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [blockedUrl, setBlockedUrl] = useState<string | null>(null);
 
@@ -49,6 +50,7 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay }: QuestionAud
         ref={audioRef}
         src={audioUrl}
         controls
+        onEnded={onEnded}
         preload={autoPlay ? "auto" : "metadata"}
         className={compact ? "h-9 w-full" : "w-full"}
       >
