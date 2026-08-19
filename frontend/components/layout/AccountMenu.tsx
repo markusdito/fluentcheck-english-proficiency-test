@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signOut } from "@/lib/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,7 @@ export function AccountMenu({
   isAdmin,
   showDashboard = true,
 }: AccountMenuProps) {
+  const queryClient = useQueryClient();
   const initial = (name?.trim().charAt(0) ?? "?").toUpperCase();
 
   return (
@@ -73,7 +75,10 @@ export function AccountMenu({
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={signOut}>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => void signOut(queryClient)}
+        >
           Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -26,6 +26,17 @@ export interface AdminAssignmentSummary {
   examinerName: string;
 }
 
+export interface AssignSubmissionResult {
+  submissionId: string;
+  status: string;
+  assignments: AdminAssignmentSummary[];
+  assignedExaminers: Array<{
+    id: string;
+    name: string;
+    email: string;
+  }>;
+}
+
 export interface AdminSubmission {
   id: string;
   status: string;

@@ -10,12 +10,14 @@ import examinerRoutes from "./routes/examiner.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { connectDB, disconnectDB } from "./config/db.js";
+import { env } from "./config/env.js";
 connectDB();
 const app = express();
 const PORT = process.env.PORT || 5001;
 app.use(cors({
-    origin: "http://localhost:3000",
+    origin: env.FRONTEND_URL,
     credentials: true,
+    maxAge: 86400,
 }));
 //Body parser middleware
 app.use(express.json());

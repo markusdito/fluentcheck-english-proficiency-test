@@ -140,10 +140,10 @@ export async function assignSubmission(req: Request, res: Response) {
       return;
     }
 
-    const assignedExaminers = await assignExaminers(submissionId);
+    const result = await assignExaminers(submissionId);
     res.status(200).json({
       status: "success",
-      data: { assignedExaminers },
+      data: result,
     });
   } catch (error) {
     if (

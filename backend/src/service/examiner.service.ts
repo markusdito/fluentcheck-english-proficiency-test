@@ -1,5 +1,8 @@
 import { prisma } from "../config/db.js";
-import { createPresignedViewUrlForAccessor, createQuestionAudioViewUrl } from "./upload.service.js";
+import {
+  createQuestionAudioViewUrlFromMetadata,
+  createVideoViewUrlFromMetadata,
+} from "./upload.service.js";
 import {
   ScoreValidationError,
   calculateRubricOverall,
@@ -55,6 +58,19 @@ export interface AssignedExaminer {
   email: string;
 }
 
+export interface AssignmentCreationSummary {
+  id: string;
+  status: string;
+  examinerName: string;
+}
+
+export interface AssignExaminersResult {
+  submissionId: string;
+  status: string;
+  assignments: AssignmentCreationSummary[];
+  assignedExaminers: AssignedExaminer[];
+}
+
 /**
  * List all assignments for the examiner, ordered by newest first.
  */
@@ -108,6 +124,8 @@ export async function getExaminerAssignmentDetail(
                 select: {
                   category: true,
                   audioUploadStatus: true,
+                  audioStorageKey: true,
+                  audioMimeType: true,
                   tasks: {
                     select: { id: true, promptText: true, order: true },
                     orderBy: { order: "asc" },
@@ -147,9 +165,10 @@ export async function getExaminerAssignmentDetail(
       let videoUrl: string | null = null;
       if (answer.uploadStatus === "UPLOADED") {
         try {
-          videoUrl = await createPresignedViewUrlForAccessor(
-            assignment.submissionId,
-            answer.questionId
+          videoUrl = await createVideoViewUrlFromMetadata(
+            answer.storageKey,
+            answer.bucket,
+            answer.mimeType,
           );
         } catch {
           videoUrl = null;
@@ -157,9 +176,15 @@ export async function getExaminerAssignmentDetail(
       }
 
       let audioUrl: string | null = null;
-      if (answer.question.audioUploadStatus === "UPLOADED") {
+      if (
+        answer.question.audioUploadStatus === "UPLOADED" &&
+        answer.question.audioStorageKey
+      ) {
         try {
-          audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+          audioUrl = await createQuestionAudioViewUrlFromMetadata(
+            answer.question.audioStorageKey,
+            answer.question.audioMimeType,
+          );
         } catch {
           audioUrl = null;
         }
@@ -206,20 +231,7 @@ export async function getExaminerAssignmentDetail(
  */
 export async function assignExaminersToSubmission(
   submissionId: string
-): Promise<AssignedExaminer[]> {
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-    select: { status: true },
-  });
-
-  if (!submission) {
-    throw new Error("Submission not found");
-  }
-
-  if (submission.status !== "PAID") {
-    throw new Error("Submission must be in PAID status");
-  }
-
+): Promise<AssignExaminersResult> {
   const examiners = await prisma.user.findMany({
     where: { role: "EXAMINER" },
     select: { id: true, username: true, email: true },
@@ -232,14 +244,35 @@ export async function assignExaminersToSubmission(
   const shuffled = [...examiners].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, Math.min(2, shuffled.length));
 
-  await prisma.$transaction(async (tx) => {
+  const assignments = await prisma.$transaction(async (tx) => {
+    const submission = await tx.submission.findUnique({
+      where: { id: submissionId },
+      select: { status: true },
+    });
+    if (!submission) throw new Error("Submission not found");
+    if (submission.status !== "PAID") {
+      throw new Error("Submission must be in PAID status");
+    }
+
+    const existing = await tx.examinerAssignment.count({
+      where: { submissionId },
+    });
+    if (existing > 0) throw new Error("Examiners already assigned");
+
+    const created: AssignmentCreationSummary[] = [];
     for (const examiner of selected) {
-      await tx.examinerAssignment.create({
+      const assignment = await tx.examinerAssignment.create({
         data: {
           submissionId,
           examinerId: examiner.id,
           status: "ASSIGNED",
         },
+        select: { id: true, status: true },
+      });
+      created.push({
+        id: assignment.id,
+        status: assignment.status,
+        examinerName: examiner.username,
       });
     }
 
@@ -247,13 +280,20 @@ export async function assignExaminersToSubmission(
       where: { id: submissionId },
       data: { status: "SCORING" },
     });
+
+    return created;
   });
 
-  return selected.map((e) => ({
-    id: e.id,
-    name: e.username,
-    email: e.email,
-  }));
+  return {
+    submissionId,
+    status: "SCORING",
+    assignments,
+    assignedExaminers: selected.map((examiner) => ({
+      id: examiner.id,
+      name: examiner.username,
+      email: examiner.email,
+    })),
+  };
 }
 
 /**

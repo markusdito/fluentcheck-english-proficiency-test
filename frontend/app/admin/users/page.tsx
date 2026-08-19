@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api, ApiError } from "@/lib/api";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "@/hooks/useSession";
+import { ApiError } from "@/lib/api";
 import {
   fetchAdminUsers,
   updateUserRole,
 } from "@/lib/admin-api";
-import type { AdminUser } from "@/types/admin";
+import type { AdminUser, Paginated } from "@/types/admin";
+import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Loader2, SearchIcon } from "lucide-react";
@@ -28,73 +31,42 @@ import {
 
 const ROLE_OPTIONS = ["STUDENT", "EXAMINER", "ADMIN"];
 
-interface CurrentUser {
-  id: string;
-}
-
 export default function AdminUsersPage() {
+  const queryClient = useQueryClient();
+  const session = useSession({ required: true });
   const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<AdminUser[]>([]);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [currentAdminId, setCurrentAdminId] = useState("");
   const [roleError, setRoleError] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.get<{ status: string; data: { user: CurrentUser } }>(
-          "/auth/me"
-        );
-        if (!cancelled) {
-          setCurrentAdminId(res.data.user.id);
-        }
-      } catch {
-        // Layout already gates ADMIN; best-effort to identify the current admin.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await fetchAdminUsers({
-        page,
-        role: roleFilter === "ALL" ? undefined : roleFilter,
-        q: query || undefined,
-      });
-      setItems(data.items);
-      setTotalPages(data.totalPages);
-    } catch (err) {
-      if (err instanceof ApiError && err.statusCode === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      setError("Failed to load users. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, roleFilter, query]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const params = {
+    page,
+    role: roleFilter === "ALL" ? undefined : roleFilter,
+    q: query || undefined,
+  };
+  const usersKey = queryKeys.adminUsers(params);
+  const usersQuery = useQuery({
+    queryKey: usersKey,
+    queryFn: ({ signal }) => fetchAdminUsers(params, signal),
+    enabled: session.data?.role === "ADMIN",
+  });
+  const items = usersQuery.data?.items ?? [];
+  const totalPages = usersQuery.data?.totalPages ?? 1;
+  const currentAdminId = session.data?.id ?? "";
 
   async function handleRoleChange(user: AdminUser, role: string) {
     setRoleError((prev) => ({ ...prev, [user.id]: "" }));
     try {
       await updateUserRole(user.id, role);
-      setItems((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, role } : u))
+      queryClient.setQueryData<Paginated<AdminUser>>(usersKey, (current) =>
+        current
+          ? {
+              ...current,
+              items: current.items.map((item) =>
+                item.id === user.id ? { ...item, role } : item,
+              ),
+            }
+          : current,
       );
     } catch (err) {
       setRoleError((prev) => ({
@@ -164,11 +136,13 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {error ? (
+      {usersQuery.isError ? (
         <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
-          <p className="text-sm text-ink-soft">{error}</p>
+          <p className="text-sm text-ink-soft">
+            Failed to load users. Please try again.
+          </p>
         </div>
-      ) : loading ? (
+      ) : usersQuery.isPending ? (
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
         </div>

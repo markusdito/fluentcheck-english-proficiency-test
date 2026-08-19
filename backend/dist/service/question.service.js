@@ -21,6 +21,7 @@ export async function retrieveQuestions(order) {
             preparationSeconds: true,
             recordingSeconds: true,
             audioStorageKey: true,
+            audioMimeType: true,
             audioUploadStatus: true,
             tasks: {
                 where: { deletedAt: null },

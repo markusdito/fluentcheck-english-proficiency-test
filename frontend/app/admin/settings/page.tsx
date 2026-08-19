@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import {
   fetchAdminSettings,
   updateAdminSettings,
 } from "@/lib/admin-api";
-import type { AdminSettings } from "@/types/admin";
+import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -21,53 +22,40 @@ function formatUpdatedAt(value: string) {
 }
 
 export default function AdminSettingsPage() {
-  const [settings, setSettings] = useState<AdminSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const settingsQuery = useQuery({
+    queryKey: queryKeys.adminSettings,
+    queryFn: ({ signal }) => fetchAdminSettings(signal),
+    staleTime: 0,
+  });
+  const settings = settingsQuery.data;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const data = await fetchAdminSettings();
-        if (!cancelled) setSettings(data);
-      } catch {
-        if (!cancelled) {
-          setError("Failed to load settings. Please try again.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function handlePaymentToggle() {
     if (!settings || saving) return;
 
     const previous = settings;
     const paymentEnabled = !settings.paymentEnabled;
-    setSettings({ ...settings, paymentEnabled });
+    queryClient.setQueryData(queryKeys.adminSettings, {
+      ...settings,
+      paymentEnabled,
+    });
     setSaving(true);
     setError("");
 
     try {
       const updated = await updateAdminSettings(paymentEnabled);
-      setSettings(updated);
+      queryClient.setQueryData(queryKeys.adminSettings, updated);
     } catch {
-      setSettings(previous);
+      queryClient.setQueryData(queryKeys.adminSettings, previous);
       setError("The payment setting could not be saved. No changes were applied.");
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) {
+  if (settingsQuery.isPending) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2
@@ -83,9 +71,9 @@ export default function AdminSettingsPage() {
     return (
       <div className="flex h-64 items-center justify-center">
         <p className="text-sm text-ink-soft" role="alert">
-          {error || "Settings are unavailable."}
+          {error || "Failed to load settings. Please try again."}
         </p>
-        <Button className="ml-4" onClick={() => window.location.reload()}>
+        <Button className="ml-4" onClick={() => settingsQuery.refetch()}>
           Try again
         </Button>
       </div>

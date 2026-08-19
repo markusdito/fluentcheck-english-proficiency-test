@@ -9,6 +9,9 @@ import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import type { SessionUser } from "@/types/auth";
 
 const signupSchema = z
   .object({
@@ -37,6 +40,7 @@ type SignupFormErrors = Partial<
 
 export function SignupForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
 
     function normalizeUsername(value: string): string {
@@ -79,12 +83,14 @@ export function SignupForm() {
 
     setLoading(true);
     try {
-      await api.post<{ data: { user: unknown } }>("/auth/register", {
+      const response = await api.post<{ data: { user: SessionUser } }>("/auth/register", {
         username: normalizeUsername(username),
         email,
         password,
       });
-      router.push("/dashboard");
+      queryClient.clear();
+      queryClient.setQueryData(queryKeys.session, response.data.user);
+      router.push(response.data.user.role === "ADMIN" ? "/admin" : "/dashboard");
       router.refresh();
     } catch (err) {
       if (err instanceof ApiError) {

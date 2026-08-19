@@ -1,38 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Scissors, CircleAlertIcon } from "lucide-react";
-import { api } from "@/lib/api";
 import { signOut } from "@/lib/auth";
+import { useSession } from "@/hooks/useSession";
+import { queryKeys } from "@/lib/query-keys";
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScaleAwareScoreDisplay } from "@/components/results/ScaleAwareScoreDisplay";
-import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-api";
+import { fetchDashboardStats } from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
-import type { ExaminerAssignmentSummary } from "@/types/examiner";
 import { fetchAdminStats } from "@/lib/admin-api";
-import type { AdminStats } from "@/types/admin";
+import type { SessionRole } from "@/types/auth";
 
-type Role = "STUDENT" | "EXAMINER" | "ADMIN";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  createdAt: string;
-}
-
-const roleLabels: Record<Role, { label: string; stamp: string }> = {
+const roleLabels: Record<SessionRole, { label: string; stamp: string }> = {
   STUDENT: { label: "Candidate", stamp: "stamp--ink" },
   EXAMINER: { label: "Examiner", stamp: "stamp--verified" },
   ADMIN: { label: "Administrator", stamp: "stamp--signal" },
 };
 
-const stubCopy: Record<Role, string> = {
+const stubCopy: Record<SessionRole, string> = {
   STUDENT:
     "Your candidate number on the FluentCheck record. Quote it in any correspondence with the jury.",
   EXAMINER:
@@ -54,68 +44,29 @@ function candidateNumber(id: string) {
 }
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
-  const [assignments, setAssignments] = useState<ExaminerAssignmentSummary[]>([]);
-  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const queryClient = useQueryClient();
+  const session = useSession({ required: true });
+  const user = session.data;
+  const dashboardQuery = useQuery({
+    queryKey: queryKeys.studentDashboard,
+    queryFn: ({ signal }) => fetchDashboardStats(signal),
+    enabled: user?.role === "STUDENT",
+  });
+  const assignmentsQuery = useQuery({
+    queryKey: queryKeys.examinerAssignments,
+    queryFn: ({ signal }) => fetchExaminerAssignments(signal),
+    enabled: user?.role === "EXAMINER",
+  });
+  const adminStatsQuery = useQuery({
+    queryKey: queryKeys.adminStats,
+    queryFn: ({ signal }) => fetchAdminStats(signal),
+    enabled: user?.role === "ADMIN",
+  });
+  const dashboard = dashboardQuery.data;
+  const assignments = assignmentsQuery.data ?? [];
+  const adminStats = adminStatsQuery.data;
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.get<{ status: string; data: { user: User } }>(
-          "/auth/me"
-        );
-        const user = res.data.user;
-        let dashboard: DashboardStats | null = null;
-        let assignments: ExaminerAssignmentSummary[] = [];
-        let adminStats: AdminStats | null = null;
-
-        if (user.role === "EXAMINER") {
-          try {
-            assignments = await fetchExaminerAssignments();
-          } catch {
-            // non-critical — record still shows
-          }
-        } else if (user.role === "ADMIN") {
-          try {
-            adminStats = await fetchAdminStats();
-          } catch {
-            // non-critical — record still shows
-          }
-        } else {
-          try {
-            dashboard = await fetchDashboardStats();
-          } catch {
-            // non-critical — record still shows
-          }
-        }
-
-        if (!cancelled) {
-          setUser(user);
-          setDashboard(dashboard);
-          setAssignments(assignments);
-          setAdminStats(adminStats);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof Error && "statusCode" in err && (err as { statusCode: number }).statusCode === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        setError("Failed to load your record. Please try again.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loading) {
+  if (session.isPending) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
         <div className="flex flex-col items-center gap-4">
@@ -126,14 +77,16 @@ export default function ProfilePage() {
     );
   }
 
-  if (error || !user) {
+  if (session.isError || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper p-4">
         <div className="w-full max-w-sm">
           <Alert variant="destructive" className="items-start">
             <CircleAlertIcon />
             <AlertTitle>Something went wrong</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              Failed to load your record. Please try again.
+            </AlertDescription>
           </Alert>
           <Button className="mt-4 w-full" size="lg" onClick={() => window.location.reload()}>
             Try again
@@ -342,7 +295,11 @@ export default function ProfilePage() {
                 Ends this session on this device. You can sign back in anytime.
               </p>
             </div>
-            <Button variant="destructive" size="sm" onClick={signOut}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => void signOut(queryClient)}
+            >
               Sign out
             </Button>
           </div>

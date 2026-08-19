@@ -1,7 +1,8 @@
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
 import { retrieveQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, deleteQuestion as deleteQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, } from "../service/question.service.js";
-import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, } from "../service/upload.service.js";
+import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, createQuestionAudioViewUrlFromMetadata, } from "../service/upload.service.js";
+import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 function handleQuestionAudioError(res, error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     const status = message === "Question not found"
@@ -63,6 +64,21 @@ export async function getQuestionAudioUrl(req, res) {
     }
     catch (error) {
         handleQuestionAudioError(res, error);
+    }
+}
+/**
+ * GET /api/questions/test
+ * Return test questions and their signed prompt audio URLs in one response.
+ */
+export async function getTestQuestions(req, res) {
+    try {
+        const questions = await retrieveQuestions(2);
+        const data = await buildTestQuestionDelivery(questions, createQuestionAudioViewUrlFromMetadata);
+        res.status(200).json({ status: "success", data });
+    }
+    catch (error) {
+        console.error("Error fetching test questions:", error);
+        res.status(500).json({ error: "Failed to fetch test questions" });
     }
 }
 function isQuestionCategory(value) {

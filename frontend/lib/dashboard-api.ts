@@ -45,6 +45,12 @@ export interface SubmissionDetail {
   answers: AnswerDetail[];
 }
 
+export interface SubmissionStatusSnapshot {
+  id: string;
+  status: string;
+  updatedAt: string;
+}
+
 interface DashboardResponse {
   status: string;
   data: DashboardStats;
@@ -59,8 +65,8 @@ interface SubmissionDetailResponse {
  * Fetch dashboard stats and submission history for the authenticated user.
  * GET /api/submissions
  */
-export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const res = await api.get<DashboardResponse>("/submissions");
+export async function fetchDashboardStats(signal?: AbortSignal): Promise<DashboardStats> {
+  const res = await api.get<DashboardResponse>("/submissions", { signal });
   return res.data;
 }
 
@@ -69,11 +75,24 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
  * GET /api/submissions/:id
  */
 export async function fetchSubmissionDetail(
-  submissionId: string
+  submissionId: string,
+  signal?: AbortSignal,
 ): Promise<SubmissionDetail> {
   const res = await api.get<SubmissionDetailResponse>(
-    `/submissions/${submissionId}`
+    `/submissions/${submissionId}`,
+    { signal },
   );
+  return res.data;
+}
+
+export async function fetchSubmissionStatus(
+  submissionId: string,
+  signal?: AbortSignal,
+): Promise<SubmissionStatusSnapshot> {
+  const res = await api.get<{
+    status: string;
+    data: SubmissionStatusSnapshot;
+  }>(`/submissions/${submissionId}/status`, { signal });
   return res.data;
 }
 

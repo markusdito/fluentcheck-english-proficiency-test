@@ -1,34 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { SignupForm } from "@/components/auth/SignupForm";
-import { api } from "@/lib/api";
+import { useSession } from "@/hooks/useSession";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { BandGauge } from "@/components/ui/BandGauge";
 
 export default function SignupPage() {
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const session = useSession();
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await api.get("/auth/me");
-        if (!cancelled) {
-          window.location.href = "/dashboard";
-        }
-      } catch {
-        if (cancelled) return;
-        setCheckingAuth(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (session.data) {
+      window.location.href = session.data.role === "ADMIN" ? "/admin" : "/dashboard";
+    }
+  }, [session.data]);
 
-  if (checkingAuth) {
+  if (session.isPending || session.data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
         <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />

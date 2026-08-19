@@ -1,10 +1,14 @@
-export interface User {
+export type SessionRole = "STUDENT" | "EXAMINER" | "ADMIN";
+
+export interface SessionUser {
   id: string;
   name: string;
   email: string;
-  targetScore?: number;
+  role: SessionRole;
   createdAt: string;
 }
+
+export type User = SessionUser;
 
 export interface LoginRequest {
   email: string;
@@ -19,5 +23,5 @@ export interface SignupRequest {
 }
 
 export interface AuthResponse {
-  user: User;
+  user: SessionUser;
 }

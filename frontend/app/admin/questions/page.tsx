@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
 import {
   fetchAdminQuestions,
@@ -12,6 +13,7 @@ import {
   deleteTask,
 } from "@/lib/admin-api";
 import type { AdminQuestion, AdminTask } from "@/types/admin";
+import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Loader2, TriangleAlertIcon } from "lucide-react";
@@ -162,11 +164,13 @@ function TaskEditor({
   questionId,
   tasks,
   onChange,
+  onCommitted,
   disabled,
 }: {
   questionId: string;
   tasks: AdminTask[];
   onChange: (tasks: AdminTask[]) => void;
+  onCommitted: () => void;
   disabled?: boolean;
 }) {
   const [newPrompt, setNewPrompt] = useState("");
@@ -195,6 +199,7 @@ function TaskEditor({
         order,
       });
       onChange([...tasks, task]);
+      onCommitted();
       setNewPrompt("");
       setNewOrder("");
     } catch (err) {
@@ -214,6 +219,7 @@ function TaskEditor({
     try {
       const updated = await updateTask(questionId, task.id, patch);
       updateLocal(index, updated);
+      onCommitted();
     } catch (err) {
       if (err instanceof ApiError && err.statusCode === 409) {
         setError(err.message);
@@ -229,6 +235,7 @@ function TaskEditor({
     try {
       await deleteTask(questionId, task.id);
       onChange(tasks.filter((_, i) => i !== index));
+      onCommitted();
     } catch (err) {
       if (err instanceof ApiError && err.statusCode === 409) {
         setError(err.message);
@@ -350,9 +357,12 @@ function TaskEditor({
 }
 
 export default function AdminQuestionsPage() {
-  const [questions, setQuestions] = useState<AdminQuestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const queryClient = useQueryClient();
+  const questionsQuery = useQuery({
+    queryKey: queryKeys.adminQuestions,
+    queryFn: ({ signal }) => fetchAdminQuestions(signal),
+  });
+  const questions = questionsQuery.data ?? [];
 
   const [createCategory, setCreateCategory] = useState("PART_1");
   const [createOrder, setCreateOrder] = useState("");
@@ -374,25 +384,14 @@ export default function AdminQuestionsPage() {
   const [retireLoading, setRetireLoading] = useState(false);
   const [retireError, setRetireError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchAdminQuestions();
-        if (!cancelled) setQuestions(data);
-      } catch (err) {
-        if (cancelled) return;
-        setLoadError(
-          err instanceof ApiError ? err.message : "Failed to load questions. Please try again."
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  function updateQuestions(
+    updater: (current: AdminQuestion[]) => AdminQuestion[],
+  ) {
+    queryClient.setQueryData<AdminQuestion[]>(
+      queryKeys.adminQuestions,
+      (current) => updater(current ?? []),
+    );
+  }
 
   function ordered(group: AdminQuestion[]) {
     return group.slice().sort((a, b) => a.order - b.order);
@@ -414,7 +413,7 @@ export default function AdminQuestionsPage() {
         preparationSeconds: createPrep ? Number(createPrep) : undefined,
         recordingSeconds: createRecord ? Number(createRecord) : undefined,
       });
-      setQuestions((prev) => [...prev, question]);
+      updateQuestions((current) => [...current, question]);
       setCreateOrder("");
       setCreatePrep("");
       setCreateRecord("");
@@ -447,8 +446,8 @@ export default function AdminQuestionsPage() {
 
   /** After a successful audio upload, refresh the question row so the status chip + save gate update. */
   function markAudioUploaded(id: string) {
-    setQuestions((prev) =>
-      prev.map((q) =>
+    updateQuestions((current) =>
+      current.map((q) =>
         q.id === id ? { ...q, audioUploadStatus: "UPLOADED" } : q
       )
     );
@@ -476,8 +475,8 @@ export default function AdminQuestionsPage() {
         preparationSeconds: editPrep ? Number(editPrep) : undefined,
         recordingSeconds: editRecord ? Number(editRecord) : undefined,
       });
-      setQuestions((prev) =>
-        prev.map((q) =>
+      updateQuestions((current) =>
+        current.map((q) =>
           q.id === editingId ? { ...updated, tasks: editTasks } : q
         )
       );
@@ -502,7 +501,9 @@ export default function AdminQuestionsPage() {
     setRetireLoading(true);
     try {
       await deleteQuestion(confirmRetireId);
-      setQuestions((prev) => prev.filter((q) => q.id !== confirmRetireId));
+      updateQuestions((current) =>
+        current.filter((q) => q.id !== confirmRetireId),
+      );
       setEditingId((prev) => (prev === confirmRetireId ? null : prev));
       setConfirmRetireId(null);
     } catch (err) {
@@ -514,7 +515,7 @@ export default function AdminQuestionsPage() {
     }
   }
 
-  if (loading) {
+  if (questionsQuery.isPending) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
@@ -522,11 +523,15 @@ export default function AdminQuestionsPage() {
     );
   }
 
-  if (loadError) {
+  if (questionsQuery.isError) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-sm text-ink-soft">{loadError}</p>
-        <Button className="ml-4" onClick={() => window.location.reload()}>
+        <p className="text-sm text-ink-soft">
+          {questionsQuery.error instanceof ApiError
+            ? questionsQuery.error.message
+            : "Failed to load questions. Please try again."}
+        </p>
+        <Button className="ml-4" onClick={() => questionsQuery.refetch()}>
           Try again
         </Button>
       </div>
@@ -642,6 +647,11 @@ export default function AdminQuestionsPage() {
                   questionId={editingId}
                   tasks={editTasks}
                   onChange={setEditTasks}
+                  onCommitted={() =>
+                    void queryClient.invalidateQueries({
+                      queryKey: queryKeys.adminQuestions,
+                    })
+                  }
                   disabled={editLoading}
                 />
                 <div className="flex justify-end gap-3">

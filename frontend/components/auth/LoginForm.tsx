@@ -9,6 +9,9 @@ import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import type { SessionUser } from "@/types/auth";
 
 const loginSchema = z.object({
   email: z
@@ -22,6 +25,7 @@ type LoginFormErrors = Partial<z.inferFlattenedErrors<typeof loginSchema>["field
 
 export function LoginForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -48,12 +52,14 @@ export function LoginForm() {
 
     setLoading(true);
     try {
-      await api.post<{ data: { user: unknown } }>("/auth/login", {
+      const response = await api.post<{ data: { user: SessionUser } }>("/auth/login", {
         email,
         password,
         rememberMe,
       });
-      router.push("/dashboard");
+      queryClient.clear();
+      queryClient.setQueryData(queryKeys.session, response.data.user);
+      router.push(response.data.user.role === "ADMIN" ? "/admin" : "/dashboard");
       router.refresh();
     } catch (err) {
       if (err instanceof ApiError) {
