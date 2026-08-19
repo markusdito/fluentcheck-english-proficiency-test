@@ -288,7 +288,7 @@ export default function SubmissionResultPage({
             {submission.answers.map((answer, index) => (
               <div key={answer.id} className="border border-rule bg-paper-raised">
                 <div className="flex items-start justify-between gap-4 border-b border-rule px-5 py-4">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                       Question {index + 1} · {answer.questionCategory.replace(/_/g, " ")}
                     </p>
