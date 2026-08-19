@@ -3,6 +3,7 @@ import { verifyToken } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
 import {
   getQuestions,
+  getAdminQuestions,
   createQuestion,
   updateQuestion,
   deleteQuestion,
@@ -22,6 +23,9 @@ router.get("/", getQuestions);
 
 // Test delivery — questions and signed prompt URLs in one authenticated request
 router.get("/test", verifyToken, getTestQuestions);
+
+// Admin question bank — all active questions, including incomplete drafts
+router.get("/admin", verifyToken, requireRole("ADMIN"), getAdminQuestions);
 
 // GET /api/questions/:id/audio-url — presigned GET for question prompt audio
 router.get("/:id/audio-url", verifyToken, getQuestionAudioUrl);

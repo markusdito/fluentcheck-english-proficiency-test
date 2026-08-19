@@ -36,6 +36,79 @@ export async function retrieveQuestions(order) {
     });
 }
 /**
+ * Retrieve every active question for the admin question bank.
+ * Draft questions are intentionally included so admins can finish their audio.
+ */
+export async function retrieveAdminQuestions() {
+    const categories = [
+        QuestionCategory.PART_1,
+        QuestionCategory.PART_2,
+        QuestionCategory.PART_3,
+    ];
+    return prisma.question.findMany({
+        where: { deletedAt: null, category: { in: categories } },
+        orderBy: [{ category: "asc" }, { order: "asc" }],
+        select: {
+            id: true,
+            category: true,
+            order: true,
+            preparationSeconds: true,
+            recordingSeconds: true,
+            audioStorageKey: true,
+            audioMimeType: true,
+            audioSizeBytes: true,
+            audioUploadStatus: true,
+            createdAt: true,
+            tasks: {
+                where: { deletedAt: null },
+                orderBy: { order: "asc" },
+                select: {
+                    id: true,
+                    promptText: true,
+                    order: true,
+                },
+            },
+        },
+    });
+}
+/**
+ * Retrieve only questions that are ready to be delivered to test takers.
+ */
+export async function retrieveTestQuestions(order) {
+    const categories = [
+        QuestionCategory.PART_1,
+        QuestionCategory.PART_2,
+        QuestionCategory.PART_3,
+    ];
+    return prisma.question.findMany({
+        where: {
+            deletedAt: null,
+            category: { in: categories },
+            order,
+            audioUploadStatus: "UPLOADED",
+        },
+        select: {
+            id: true,
+            category: true,
+            order: true,
+            preparationSeconds: true,
+            recordingSeconds: true,
+            audioStorageKey: true,
+            audioMimeType: true,
+            audioUploadStatus: true,
+            tasks: {
+                where: { deletedAt: null },
+                orderBy: { order: "asc" },
+                select: {
+                    id: true,
+                    promptText: true,
+                    order: true,
+                },
+            },
+        },
+    });
+}
+/**
  * Create a question and its nested tasks (admin only).
  */
 export async function createQuestion(userId, data) {
@@ -50,7 +123,12 @@ export async function createQuestion(userId, data) {
                 ? { create: data.tasks.map((task) => ({ promptText: task.promptText, order: task.order })) }
                 : undefined,
         },
-        include: { tasks: true },
+        include: {
+            tasks: {
+                where: { deletedAt: null },
+                orderBy: { order: "asc" },
+            },
+        },
     });
 }
 /**
@@ -71,7 +149,12 @@ export async function updateQuestion(id, data) {
             ...(data.preparationSeconds !== undefined && { preparationSeconds: data.preparationSeconds }),
             ...(data.recordingSeconds !== undefined && { recordingSeconds: data.recordingSeconds }),
         },
-        include: { tasks: true },
+        include: {
+            tasks: {
+                where: { deletedAt: null },
+                orderBy: { order: "asc" },
+            },
+        },
     });
 }
 /**

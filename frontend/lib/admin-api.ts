@@ -148,7 +148,7 @@ export async function updateAdminSettings(
 }
 
 export async function fetchAdminQuestions(signal?: AbortSignal): Promise<AdminQuestion[]> {
-  const res = await api.get<ListEnvelope<AdminQuestion>>("/questions", { signal });
+  const res = await api.get<ListEnvelope<AdminQuestion>>("/questions/admin", { signal });
   return res.data;
 }
 
