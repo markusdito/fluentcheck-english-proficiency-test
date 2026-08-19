@@ -8,16 +8,17 @@ interface PromptDisplayProps {
   audioUrl: string | null;
   tasks?: string[];
   autoPlay?: boolean;
+  onAudioEnded?: () => void;
 }
 
-export function PromptDisplay({ questionNumber, totalQuestions, audioUrl, tasks, autoPlay }: PromptDisplayProps) {
+export function PromptDisplay({ questionNumber, totalQuestions, audioUrl, tasks, autoPlay, onAudioEnded }: PromptDisplayProps) {
   return (
     <div className="border border-studio-rule bg-studio-panel p-5">
       <span className="inline-flex items-center border border-studio-rule px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-studio-text/70">
         Question {questionNumber} of {totalQuestions}
       </span>
       <div className="mt-3">
-        <QuestionAudioPlayer audioUrl={audioUrl} autoPlay={autoPlay} />
+        <QuestionAudioPlayer audioUrl={audioUrl} autoPlay={autoPlay} onEnded={onAudioEnded} />
       </div>
       {tasks && tasks.length > 0 && (
         <div className="mt-4 bg-studio p-4">

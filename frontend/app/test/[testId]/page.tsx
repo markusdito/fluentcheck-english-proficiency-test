@@ -161,16 +161,26 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     }
   }, [questions, streamReady, phase]);
 
-  // Start preparation countdown when question loads and stream is ready
+  // Audio questions start preparation when the prompt finishes. Questions
+  // without audio start immediately so they cannot leave the test waiting.
   useEffect(() => {
     if (phase === "preparation") {
-      prepCountdown.start();
+      prepCountdown.reset();
+      if (!currentQuestion?.audioUrl) {
+        prepCountdown.start();
+      }
     }
     return () => {
       prepCountdown.pause();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, currentQuestionIndex]);
+
+  const handlePromptAudioEnded = useCallback(() => {
+    if (phase === "preparation" && !prepCountdown.isRunning && !prepCountdown.isComplete) {
+      prepCountdown.start();
+    }
+  }, [phase, prepCountdown]);
 
   // Track whether we've already called completeSubmission
   const [submissionCompleted, setSubmissionCompleted] = useState(false);
@@ -535,6 +545,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               audioUrl={currentQuestion.audioUrl}
               tasks={currentQuestion.tasks}
               autoPlay
+              onAudioEnded={handlePromptAudioEnded}
             />
 
             {/* Timer section */}
