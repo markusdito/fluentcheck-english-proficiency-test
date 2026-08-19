@@ -1,55 +1,148 @@
 # FluentCheck
 
-A comprehensive English proficiency assessment platform with secure authentication, timed tests, webcam recording, expert jury evaluation, and detailed score reporting.
+FluentCheck is a full-stack English speaking assessment platform. Candidates
+record timed video responses in the browser, submit them for review, and receive
+a criterion-by-criterion proficiency score from human examiners.
 
-## Tech Stack
+The project covers the complete assessment workflow: browser media capture,
+direct cloud uploads, payments, examiner assignment, rubric-based scoring, and
+role-specific administration.
 
-### Frontend
+## What the Product Does
 
-- Next.js 16 with the App Router
-- React 19
-- TypeScript 5
-- Tailwind CSS 4
-- ESLint 9 with the Next.js config
+| Role | Experience |
+| --- | --- |
+| Candidate | Creates an account, completes camera and microphone checks, records timed speaking answers, pays the assessment fee when required, and reviews scores and examiner feedback. |
+| Examiner | Opens assigned submissions, reviews prompt audio and candidate videos, scores every answer, and leaves written feedback. |
+| Administrator | Manages users and roles, maintains the question bank, uploads prompt audio, controls payment requirements, reviews submissions, and assigns examiners. |
 
-### Backend
+The assessment currently uses a six-band rubric. Each answer is evaluated on
+pronunciation, fluency, vocabulary, and grammar, with half-band values from 1.0
+to 6.0. Completed examiner scores are aggregated into the candidate's result.
 
-- Node.js with TypeScript 6
-- Express 5
-- Prisma 7 ORM and Prisma Client
-- PostgreSQL
-- dotenv for environment configuration
-- CORS middleware
+## Engineering Highlights
 
-### Tooling
+- **Browser-native assessment flow** — camera and microphone permission checks,
+  preparation timers, prompt audio, `MediaRecorder` video capture, automatic
+  stopping, and upload progress are coordinated in the Next.js client.
+- **Direct-to-object-storage uploads** — the API creates scoped presigned URLs so
+  large video files travel directly from the browser to Cloudflare R2 instead
+  of passing through the Express server.
+- **Protected media access** — stored objects use server-controlled keys and
+  time-limited signed URLs. Submission ownership and examiner assignments are
+  checked before private recordings are exposed.
+- **Role-aware workflows** — candidates, examiners, and administrators share one
+  application while JWT authentication and server-side authorization enforce
+  their separate capabilities.
+- **Explicit assessment lifecycle** — submissions move through recording,
+  payment, examiner review, and scored-result states, with transactional updates
+  around assignment and grading operations.
+- **Human scoring model** — the backend validates rubric completeness, prevents
+  duplicate or out-of-assignment scores, and calculates aggregate results without
+  premature rounding.
+- **Payment integration** — iPaymu hosted checkout, signed callback validation,
+  payment reconciliation, and an administrator-controlled payment waiver are
+  integrated into the submission flow.
 
-- npm with `package-lock.json`
-- ts-node-dev for TypeScript backend development
-- Prisma migrations configured under `backend/prisma/migrations`
+## Assessment Workflow
 
-## Project Structure
+```text
+Candidate records answers
+          |
+          v
+Videos upload directly to Cloudflare R2
+          |
+          v
+Submission completed
+          |
+          +---- payment enabled ----> iPaymu checkout ----+
+          |                                               |
+          +---- payment waived ---------------------------+
+                                                          v
+                                               Examiner assignment
+                                                          |
+                                                          v
+                                             Rubric scoring and feedback
+                                                          |
+                                                          v
+                                                Candidate result report
+```
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Browser[Next.js web application]
+    API[Express API]
+    Database[(PostgreSQL)]
+    Storage[(Cloudflare R2)]
+    Payment[iPaymu]
+
+    Browser -->|JSON through Next.js rewrite| API
+    API -->|Prisma| Database
+    API -->|Presigned URLs and object metadata| Storage
+    Browser -->|Direct video and audio upload| Storage
+    API -->|Create checkout| Payment
+    Payment -->|Signed payment callback| API
+```
+
+The frontend uses a same-origin `/backend-api` rewrite during local development.
+The Express application is organized into routes, controllers, and services,
+with Prisma providing typed access to PostgreSQL.
+
+## Technology Stack
+
+| Area | Technologies |
+| --- | --- |
+| Frontend | Next.js 16.2.6, React 19.2.4, TypeScript 5, Tailwind CSS 4, Base UI and shadcn-style components |
+| Backend | Node.js, Express 5.2.1, TypeScript 6, Prisma 7.8 |
+| Data | PostgreSQL, Prisma migrations |
+| Media | MediaRecorder API, Cloudflare R2, AWS S3-compatible SDK |
+| Authentication | JWT in HTTP-only cookies, bcrypt password hashing, role-based authorization |
+| Payments | iPaymu hosted checkout and callback integration |
+| Quality | Node.js test runner, ESLint, strict TypeScript configurations |
+
+## Repository Structure
 
 ```text
 .
-|-- backend/   # Express, Prisma, PostgreSQL configuration
-|-- frontend/  # Next.js app
-`-- docs/      # Project documentation
+|-- frontend/
+|   |-- app/          # Next.js App Router pages
+|   |-- components/   # Shared and role-specific UI
+|   |-- hooks/        # Media recording and device hooks
+|   |-- lib/          # Typed API clients
+|   `-- types/        # Frontend domain types
+|-- backend/
+|   |-- src/
+|   |   |-- routes/       # Express route definitions
+|   |   |-- controllers/  # HTTP request handling
+|   |   |-- service/      # Domain and persistence logic
+|   |   `-- middleware/   # Authentication and authorization
+|   |-- prisma/       # Schema, migrations, and development seed
+|   `-- test/         # Backend domain tests
+`-- docs/             # Product and implementation documentation
 ```
 
-## Environment Variables
+For more detail, see the
+[frontend architecture](frontend/docs/FRONTEND_ARCHITECTURE.md) and
+[backend architecture](backend/docs/BACKEND_ARCHITECTURE.md) documents.
 
-The backend reads environment values from `backend/.env` through `dotenv`.
+## Running Locally
 
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
-JWT_SECRET="your-secret-key"
-```
+### Prerequisites
 
-## Local Development
+- Node.js and npm
+- PostgreSQL
+- A Cloudflare R2 bucket and S3-compatible credentials
+- iPaymu sandbox credentials if you want to exercise the payment flow
+- A modern browser with camera and microphone access
 
-Install dependencies separately for each app:
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/markusdito/fluentcheck-english-proficiency-test.git
+cd fluentcheck-english-proficiency-test
+
 cd backend
 npm install
 
@@ -57,16 +150,50 @@ cd ../frontend
 npm install
 ```
 
-Run the frontend development server:
+### 2. Configure the backend
 
-```bash
-cd frontend
-npm run dev
+Create `backend/.env`:
+
+```env
+# Application
+PORT=5001
+FRONTEND_URL="http://localhost:3000"
+
+# Database and authentication
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+JWT_SECRET="replace-with-a-long-random-secret"
+JWT_EXPIRES_IN="1h"
+
+# Cloudflare R2
+R2_ACCOUNT_ID="your-account-id"
+R2_ACCESS_KEY_ID="your-access-key-id"
+R2_SECRET_ACCESS_KEY="your-secret-access-key"
+R2_BUCKET_NAME="your-bucket-name"
+
+# iPaymu payment flow
+IPAYMU_VA_NUMBER="your-va-number"
+IPAYMU_API_KEY="your-api-key"
+IPAYMU_ENV="sandbox"
+IPAYMU_NOTIFY_URL="https://your-public-api.example.com/api/payments/ipaymu/notify"
+IPAYMU_PAYMENT_AMOUNT="150000"
+IPAYMU_CURRENCY="IDR"
 ```
 
-The frontend runs on `http://localhost:3000` by default.
+The iPaymu values are only needed when payment is enabled. Its notification URL
+must be publicly reachable so iPaymu can deliver payment status callbacks.
 
-Prepare Prisma after configuring `DATABASE_URL`:
+### 3. Configure the frontend
+
+Create `frontend/.env.local`:
+
+```env
+BACKEND_URL="http://localhost:5001"
+```
+
+`BACKEND_URL` is used by the Next.js rewrite that proxies browser requests from
+`/backend-api/*` to the Express API.
+
+### 4. Prepare the database
 
 ```bash
 cd backend
@@ -74,22 +201,68 @@ npx prisma generate
 npx prisma migrate dev
 ```
 
-## Available Commands
-
-Frontend:
+To create development questions and examiner records, you can run:
 
 ```bash
+npx prisma db seed
+```
+
+> [!CAUTION]
+> The current seed clears assessment data—including questions, submissions,
+> payments, assignments, answers, and scores—before recreating sample records.
+> Run it only against a disposable development database.
+
+### 5. Start both applications
+
+Run the backend in one terminal:
+
+```bash
+cd backend
 npm run dev
-npm run build
-npm run start
-npm run lint
 ```
 
-Backend:
+Run the frontend in another terminal:
 
 ```bash
-npx prisma generate
-npx prisma migrate dev
+cd frontend
+npm run dev
 ```
 
-There is not currently a backend `dev` or `start` script configured in `backend/package.json`.
+Open [http://localhost:3000](http://localhost:3000). The API listens on
+`http://localhost:5001` by default.
+
+## Commands
+
+### Frontend
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js development server |
+| `npm run build` | Create a production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Run ESLint |
+
+### Backend
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start Express with automatic restarts |
+| `npm test` | Run the backend test suite |
+| `npm run build` | Compile TypeScript into `dist/` |
+| `npm run start` | Run the compiled API |
+| `npx prisma generate` | Generate the Prisma client |
+| `npx prisma migrate dev` | Apply development migrations |
+
+## Validation
+
+The automated backend tests currently focus on the scoring domain, including
+half-band validation, complete answer coverage, per-question rubric averages,
+and aggregation across examiners.
+
+```bash
+cd backend
+npm test
+```
+
+The current implementation covers the product journey from account creation and
+recorded assessment through payment, examiner review, and scored result reporting.
