@@ -594,43 +594,45 @@ export default function AdminQuestionsPage() {
       </div>
 
       {/* Create form */}
-      <section>
-        <p className="mark">New entry</p>
-        <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
-          Create question
-        </h2>
-        <form
-          onSubmit={handleCreate}
-          noValidate
-          className="mt-4 border border-rule bg-paper-raised p-6"
-        >
-          {createError && (
-            <Alert variant="destructive" className="mb-4 items-start">
-              <TriangleAlertIcon />
-              <AlertDescription>{createError}</AlertDescription>
-            </Alert>
-          )}
-          <div className="grid gap-4">
-            <QuestionFormFields
-              idPrefix="create-question"
-              category={createCategory}
-              onCategory={setCreateCategory}
-              order={createOrder}
-              onOrder={setCreateOrder}
-              preparationSeconds={createPrep}
-              onPreparationSeconds={setCreatePrep}
-              recordingSeconds={createRecord}
-              onRecordingSeconds={setCreateRecord}
-              disabled={createLoading}
-            />
-            <div className="flex justify-end">
-              <Button type="submit" variant="default" loading={createLoading}>
-                Create question
-              </Button>
+      {!editingId && (
+        <section>
+          <p className="mark">New entry</p>
+          <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
+            Create question
+          </h2>
+          <form
+            onSubmit={handleCreate}
+            noValidate
+            className="mt-4 border border-rule bg-paper-raised p-6"
+          >
+            {createError && (
+              <Alert variant="destructive" className="mb-4 items-start">
+                <TriangleAlertIcon />
+                <AlertDescription>{createError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="grid gap-4">
+              <QuestionFormFields
+                idPrefix="create-question"
+                category={createCategory}
+                onCategory={setCreateCategory}
+                order={createOrder}
+                onOrder={setCreateOrder}
+                preparationSeconds={createPrep}
+                onPreparationSeconds={setCreatePrep}
+                recordingSeconds={createRecord}
+                onRecordingSeconds={setCreateRecord}
+                disabled={createLoading}
+              />
+              <div className="flex justify-end">
+                <Button type="submit" variant="default" loading={createLoading}>
+                  Create question
+                </Button>
+              </div>
             </div>
-          </div>
-        </form>
-      </section>
+          </form>
+        </section>
+      )}
 
       {/* Edit form */}
       {editingId && (() => {
@@ -731,7 +733,7 @@ export default function AdminQuestionsPage() {
         );
       })()}
 
-      {retireError && (
+      {!editingId && retireError && (
         <Alert variant="destructive" className="items-start">
           <TriangleAlertIcon />
           <AlertDescription>{retireError}</AlertDescription>
@@ -739,91 +741,93 @@ export default function AdminQuestionsPage() {
       )}
 
       {/* Question lists by category */}
-      <Tabs defaultValue="PART_1">
-        <TabsList variant="line" className="mb-6">
-          {CATEGORIES.map((category) => (
-            <TabsTrigger key={category} value={category} className="px-4">
-              {categoryLabels[category]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {!editingId && (
+        <Tabs defaultValue="PART_1">
+          <TabsList variant="line" className="mb-6">
+            {CATEGORIES.map((category) => (
+              <TabsTrigger key={category} value={category} className="px-4">
+                {categoryLabels[category]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        {CATEGORIES.map((category) => {
-          const items = group(category);
-          return (
-            <TabsContent key={category} value={category}>
-              {items.length === 0 ? (
-                <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
-                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-                    No questions in this part yet
-                  </p>
-                  <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
-                    Create the first {categoryLabels[category]} question above.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {items.map((q) => (
-                    <div
-                      key={q.id}
-                      className="border border-rule bg-paper-raised p-5"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-2 flex flex-wrap items-center gap-3">
-                            <CategoryBadge category={q.category} />
-                            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                              Order {q.order}
-                            </span>
-                            <AudioUploadBadge status={q.audioUploadStatus} />
+          {CATEGORIES.map((category) => {
+            const items = group(category);
+            return (
+              <TabsContent key={category} value={category}>
+                {items.length === 0 ? (
+                  <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                      No questions in this part yet
+                    </p>
+                    <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
+                      Create the first {categoryLabels[category]} question above.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {items.map((q) => (
+                      <div
+                        key={q.id}
+                        className="border border-rule bg-paper-raised p-5"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-2 flex flex-wrap items-center gap-3">
+                              <CategoryBadge category={q.category} />
+                              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                                Order {q.order}
+                              </span>
+                              <AudioUploadBadge status={q.audioUploadStatus} />
+                            </div>
+                            <p className="text-sm leading-6 text-ink">
+                              {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"} ·{" "}
+                              {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
+                            </p>
+                            {q.tasks.length > 0 && (
+                              <ul className="mt-3 space-y-1.5">
+                                {q.tasks
+                                  .slice()
+                                  .sort((a, b) => a.order - b.order)
+                                  .map((t) => (
+                                    <li
+                                      key={t.id}
+                                      className="border-l-2 border-rule-strong pl-3 text-xs leading-5 text-ink-soft"
+                                    >
+                                      <span className="font-medium text-ink">{t.order}.</span>{" "}
+                                      {t.promptText}
+                                    </li>
+                                  ))}
+                              </ul>
+                            )}
                           </div>
-                          <p className="text-sm leading-6 text-ink">
-                            {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"} ·{" "}
-                            {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
-                          </p>
-                          {q.tasks.length > 0 && (
-                            <ul className="mt-3 space-y-1.5">
-                              {q.tasks
-                                .slice()
-                                .sort((a, b) => a.order - b.order)
-                                .map((t) => (
-                                  <li
-                                    key={t.id}
-                                    className="border-l-2 border-rule-strong pl-3 text-xs leading-5 text-ink-soft"
-                                  >
-                                    <span className="font-medium text-ink">{t.order}.</span>{" "}
-                                    {t.promptText}
-                                  </li>
-                                ))}
-                            </ul>
-                          )}
-                        </div>
 
-                        <div className="flex shrink-0 items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => startEdit(q)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => requestRetire(q.id)}
-                          >
-                            Retire
-                          </Button>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => startEdit(q)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => requestRetire(q.id)}
+                            >
+                              Retire
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          );
-        })}
-      </Tabs>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      )}
 
       {/* Retire confirmation */}
       <AlertDialog
