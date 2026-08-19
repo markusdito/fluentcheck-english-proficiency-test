@@ -1,7 +1,7 @@
 import { prisma } from "../config/db.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
 import { getAppSettings } from "./settings.service.js";
-import { createPresignedViewUrl, createQuestionAudioViewUrl } from "./upload.service.js";
+import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, roundScore, } from "../utils/scoring.js";
 /**
  * Create a new submission for the authenticated student.
@@ -100,7 +100,12 @@ export async function getSubmissionDetail(submissionId, userId) {
             answers: {
                 include: {
                     question: {
-                        select: { category: true, audioUploadStatus: true },
+                        select: {
+                            category: true,
+                            audioUploadStatus: true,
+                            audioStorageKey: true,
+                            audioMimeType: true,
+                        },
                     },
                     scores: {
                         select: {
@@ -127,7 +132,7 @@ export async function getSubmissionDetail(submissionId, userId) {
         let videoUrl = null;
         if (answer.uploadStatus === "UPLOADED") {
             try {
-                videoUrl = await createPresignedViewUrl(submissionId, answer.questionId, userId);
+                videoUrl = await createVideoViewUrlFromMetadata(answer.storageKey, answer.bucket, answer.mimeType);
             }
             catch {
                 // If presigned URL generation fails, return null
@@ -135,9 +140,10 @@ export async function getSubmissionDetail(submissionId, userId) {
             }
         }
         let audioUrl = null;
-        if (answer.question.audioUploadStatus === "UPLOADED") {
+        if (answer.question.audioUploadStatus === "UPLOADED" &&
+            answer.question.audioStorageKey) {
             try {
-                audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+                audioUrl = await createQuestionAudioViewUrlFromMetadata(answer.question.audioStorageKey, answer.question.audioMimeType);
             }
             catch {
                 // If presigned URL generation fails, return null
@@ -184,6 +190,21 @@ export async function getSubmissionDetail(submissionId, userId) {
         rubric,
         createdAt: submission.createdAt,
         answers,
+    };
+}
+/** Fetch status only, restricted to the owning student. */
+export async function getSubmissionStatus(submissionId, userId) {
+    const submission = await prisma.submission.findUnique({
+        where: { id: submissionId },
+        select: { id: true, studentId: true, status: true, updatedAt: true },
+    });
+    if (!submission || submission.studentId !== userId) {
+        throw new Error("Submission not found");
+    }
+    return {
+        id: submission.id,
+        status: submission.status,
+        updatedAt: submission.updatedAt,
     };
 }
 /**

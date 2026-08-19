@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useRef, useState, use } from "react";
 import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleCheckIcon, Loader2 } from "lucide-react";
 import {
   completeExaminerScoring,
   fetchExaminerAssignmentDetail,
   saveExaminerAnswerScore,
 } from "@/lib/examiner-api";
-import { api } from "@/lib/api";
+import { useSession } from "@/hooks/useSession";
+import { queryKeys } from "@/lib/query-keys";
 import { VideoReviewer } from "@/components/examiner/VideoReviewer";
 import { ScoringPanel } from "@/components/examiner/ScoringPanel";
 import { Header } from "@/components/layout/Header";
@@ -26,54 +28,42 @@ import {
 import type { AssignmentDetail } from "@/types/examiner";
 import type { ScoreSubmissionInput } from "@/types/scoring";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
 export default function AssignmentReviewPage({ params }: { params: Promise<{ assignmentId: string }> }) {
   const { assignmentId } = use(params);
-
-  const [user, setUser] = useState<User | null>(null);
-  const [assignment, setAssignment] = useState<AssignmentDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const session = useSession({ required: true });
+  const user = session.data;
+  const assignmentKey = queryKeys.examinerAssignment(assignmentId);
+  const assignmentQuery = useQuery({
+    queryKey: assignmentKey,
+    queryFn: ({ signal }) =>
+      fetchExaminerAssignmentDetail(assignmentId, signal),
+    enabled: user?.role === "EXAMINER",
+  });
+  const assignment = assignmentQuery.data;
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const initializedAssignmentId = useRef<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [userData, assignmentData] = await Promise.all([
-          api.get<{ status: string; data: { user: User } }>("/auth/me"),
-          fetchExaminerAssignmentDetail(assignmentId),
-        ]);
-        if (!cancelled) {
-          setUser(userData.data.user);
-          setAssignment(assignmentData);
-          const firstUnsaved = assignmentData.answers.findIndex(
-            (answer) => answer.savedScore == null,
-          );
-          setCurrentQuestionIndex(
-            firstUnsaved >= 0
-              ? firstUnsaved
-              : Math.max(0, assignmentData.answers.length - 1),
-          );
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load assignment");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [assignmentId]);
+    if (user && user.role !== "EXAMINER") {
+      window.location.replace("/dashboard");
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!assignment || initializedAssignmentId.current === assignment.id) return;
+    initializedAssignmentId.current = assignment.id;
+    const firstUnsaved = assignment.answers.findIndex(
+      (answer) => answer.savedScore == null,
+    );
+    setCurrentQuestionIndex(
+      firstUnsaved >= 0
+        ? firstUnsaved
+        : Math.max(0, assignment.answers.length - 1),
+    );
+  }, [assignment]);
 
   const handleSaveScore = async (score: ScoreSubmissionInput) => {
     if (!assignment) return;
@@ -81,8 +71,32 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
 
     try {
       await saveExaminerAnswerScore(assignmentId, score);
-      setAssignment((current) =>
-        current ? { ...current, status: "IN_PROGRESS" } : current,
+      const rubric = "rubric" in score ? score.rubric : null;
+      const value =
+        "rubric" in score
+          ? (score.rubric.pronunciation +
+              score.rubric.fluency +
+              score.rubric.vocabulary +
+              score.rubric.grammar) /
+            4
+          : score.value;
+      const savedScore = {
+        value,
+        rubric,
+        comment: score.comment?.trim() || null,
+      };
+      queryClient.setQueryData<AssignmentDetail>(assignmentKey, (current) =>
+        current
+          ? {
+              ...current,
+              status: "IN_PROGRESS",
+              answers: current.answers.map((answer) =>
+                answer.id === score.answerId
+                  ? { ...answer, savedScore }
+                  : answer,
+              ),
+            }
+          : current,
       );
     } finally {
       setSubmitting(false);
@@ -93,13 +107,23 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
     setSubmitting(true);
     try {
       await completeExaminerScoring(assignmentId);
+      queryClient.setQueryData<AssignmentDetail>(assignmentKey, (current) =>
+        current ? { ...current, status: "COMPLETED" } : current,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.examinerAssignments,
+      });
       setSubmitted(true);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
+  if (
+    session.isPending ||
+    (user?.role === "EXAMINER" && assignmentQuery.isPending) ||
+    (user && user.role !== "EXAMINER")
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
         <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
@@ -107,11 +131,15 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
     );
   }
 
-  if (error || !assignment) {
+  if (session.isError || assignmentQuery.isError || !assignment) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper p-4">
         <div className="w-full max-w-sm text-center">
-          <p className="text-sm text-ink-soft">{error ?? "Assignment not found"}</p>
+          <p className="text-sm text-ink-soft">
+            {assignmentQuery.error instanceof Error
+              ? assignmentQuery.error.message
+              : "Assignment not found"}
+          </p>
           <Button className="mt-6" size="lg" render={<Link href="/dashboard" />}>
             Back to dashboard
           </Button>

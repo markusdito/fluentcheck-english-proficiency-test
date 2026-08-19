@@ -1,13 +1,13 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use } from "react";
 import Link from "next/link";
-import { CircleAlertIcon, Loader2, PlayIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { CircleAlertIcon, Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { fetchAdminSubmissionDetail } from "@/lib/admin-api";
-import type { AdminSubmissionDetail } from "@/types/admin";
-import VideoPlayer from "@/components/VideoPlayer";
-import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
+import { queryKeys } from "@/lib/query-keys";
+import { LazyAnswerMedia } from "@/components/media/LazyAnswerMedia";
 import { ScoreCard } from "@/components/results/ScoreCard";
 import { RubricBreakdownView } from "@/components/results/RubricBreakdownView";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -43,38 +43,14 @@ export default function AdminSubmissionDetailPage({
   params: Promise<{ submissionId: string }>;
 }) {
   const { submissionId } = use(params);
-  const [submission, setSubmission] = useState<AdminSubmissionDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const submissionQuery = useQuery({
+    queryKey: queryKeys.adminSubmission(submissionId),
+    queryFn: ({ signal }) =>
+      fetchAdminSubmissionDetail(submissionId, signal),
+  });
+  const submission = submissionQuery.data;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const data = await fetchAdminSubmissionDetail(submissionId);
-        if (!cancelled) {
-          setSubmission(data);
-          setError("");
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setError(
-          err instanceof ApiError && err.statusCode === 404
-            ? "Submission not found."
-            : "Failed to load submission details. Please try again."
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [submissionId]);
-
-  if (loading) {
+  if (submissionQuery.isPending) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2
@@ -86,13 +62,18 @@ export default function AdminSubmissionDetailPage({
     );
   }
 
-  if (error || !submission) {
+  if (submissionQuery.isError || !submission) {
+    const error = submissionQuery.error;
     return (
       <div className="mx-auto max-w-lg py-16">
         <Alert variant="destructive" className="items-start">
           <CircleAlertIcon />
           <AlertTitle>Unable to open submission</AlertTitle>
-          <AlertDescription>{error || "Submission not found."}</AlertDescription>
+          <AlertDescription>
+            {error instanceof ApiError && error.statusCode === 404
+              ? "Submission not found."
+              : "Failed to load submission details. Please try again."}
+          </AlertDescription>
         </Alert>
         <Button
           className="mt-4"
@@ -295,9 +276,6 @@ export default function AdminSubmissionDetailPage({
                         ))}
                       </ol>
                     )}
-                    <div className="mt-3">
-                      <QuestionAudioPlayer audioUrl={answer.audioUrl} compact />
-                    </div>
                   </div>
                   {answer.score != null ? (
                     <span className="shrink-0 text-right">
@@ -317,19 +295,13 @@ export default function AdminSubmissionDetailPage({
                 </header>
 
                 <div className="px-5 py-4">
-                  {answer.videoUrl ? (
-                    <VideoPlayer
-                      src={answer.videoUrl}
-                      durationSeconds={answer.durationSeconds ?? undefined}
-                    />
-                  ) : (
-                    <div className="flex aspect-video items-center justify-center border border-dashed border-rule-strong bg-paper">
-                      <div className="text-center">
-                        <PlayIcon className="mx-auto size-8 text-ink-faint" />
-                        <p className="mt-2 text-sm text-ink-soft">Video not available</p>
-                      </div>
-                    </div>
-                  )}
+                  <LazyAnswerMedia
+                    audioUrl={answer.audioUrl}
+                    videoUrl={answer.videoUrl}
+                    durationSeconds={answer.durationSeconds ?? undefined}
+                    questionNumber={index + 1}
+                    unavailableMessage="Video not available"
+                  />
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                     <SubmissionStatus status={answer.uploadStatus} />

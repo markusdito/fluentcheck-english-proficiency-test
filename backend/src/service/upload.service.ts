@@ -9,6 +9,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Server-generated question audio keys only — never trust client-supplied keys.
 export const AUDIO_KEY_RE = /^questions\/[0-9a-f-]{36}\/prompt\.(webm|mp3|m4a|ogg)$/;
 export const AUDIO_MIME_RE = /^audio\/(webm|mpeg|mp4|ogg|m4a)$/;
+export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}\.webm$/;
 
 /**
  * Generate the storage key for a question's recorded prompt audio.
@@ -152,11 +153,24 @@ export async function createQuestionAudioViewUrl(questionId: string): Promise<st
   }
   if (!AUDIO_KEY_RE.test(question.audioStorageKey)) throw new Error("Invalid audio storage key");
 
+  return createQuestionAudioViewUrlFromMetadata(
+    question.audioStorageKey,
+    question.audioMimeType,
+  );
+}
+
+/** Sign already-authorized question audio metadata without querying Prisma. */
+export async function createQuestionAudioViewUrlFromMetadata(
+  storageKey: string,
+  mimeType?: string | null,
+): Promise<string> {
+  if (!AUDIO_KEY_RE.test(storageKey)) throw new Error("Invalid audio storage key");
+
   const command = new GetObjectCommand({
     Bucket: env.R2_BUCKET_NAME,
-    Key: question.audioStorageKey,
+    Key: storageKey,
     ResponseContentDisposition: "inline",
-    ResponseContentType: question.audioMimeType ?? "audio/webm",
+    ResponseContentType: mimeType ?? "audio/webm",
     ResponseCacheControl: "no-cache",
   });
   return getSignedUrl(r2Client, command, { expiresIn: 3600 });
@@ -338,16 +352,28 @@ async function getPresignedViewUrl(
     throw new Error("Video not yet uploaded");
   }
 
-  const bucket = answer.bucket ?? env.R2_BUCKET_NAME;
+  return createVideoViewUrlFromMetadata(
+    answer.storageKey,
+    answer.bucket,
+    "video/webm",
+  );
+}
+
+/** Sign already-authorized answer metadata without querying Prisma. */
+export async function createVideoViewUrlFromMetadata(
+  storageKey: string,
+  bucket?: string | null,
+  mimeType?: string | null,
+): Promise<string> {
+  if (!VIDEO_KEY_RE.test(storageKey)) throw new Error("Invalid video storage key");
 
   const command = new GetObjectCommand({
-    Bucket: bucket,
-    Key: answer.storageKey,
+    Bucket: bucket ?? env.R2_BUCKET_NAME,
+    Key: storageKey,
     ResponseContentDisposition: "inline",
-    ResponseContentType: "video/webm",
+    ResponseContentType: mimeType ?? "video/webm",
     ResponseCacheControl: "no-cache",
   });
 
-  const presignedUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 });
-  return presignedUrl;
+  return getSignedUrl(r2Client, command, { expiresIn: 3600 });
 }

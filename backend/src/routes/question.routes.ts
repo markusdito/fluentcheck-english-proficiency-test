@@ -12,12 +12,16 @@ import {
   createQuestionAudioPresignedUrl,
   confirmQuestionAudioUploadHandler,
   getQuestionAudioUrl,
+  getTestQuestions,
 } from "../controllers/question.controller.js";
 
 const router = Router();
 
 // GET /api/questions — list all active questions with tasks
 router.get("/", getQuestions);
+
+// Test delivery — questions and signed prompt URLs in one authenticated request
+router.get("/test", verifyToken, getTestQuestions);
 
 // GET /api/questions/:id/audio-url — presigned GET for question prompt audio
 router.get("/:id/audio-url", verifyToken, getQuestionAudioUrl);

@@ -1,19 +1,25 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useCallback, useEffect, useRef, useState, use } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CircleAlertIcon,
   InfoIcon,
   Loader2,
-  PlayIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api, ApiError } from "@/lib/api";
-import { fetchSubmissionDetail, paySubmission, type SubmissionDetail } from "@/lib/dashboard-api";
-import VideoPlayer from "@/components/VideoPlayer";
-import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
+import {
+  fetchSubmissionDetail,
+  paySubmission,
+  type SubmissionDetail,
+  type SubmissionStatusSnapshot,
+} from "@/lib/dashboard-api";
+import { useSession } from "@/hooks/useSession";
+import { useSubmissionStatusPolling } from "@/hooks/useSubmissionStatusPolling";
+import { queryKeys } from "@/lib/query-keys";
+import { LazyAnswerMedia } from "@/components/media/LazyAnswerMedia";
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
@@ -31,13 +37,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
 export default function SubmissionResultPage({
   params,
 }: {
@@ -46,40 +45,18 @@ export default function SubmissionResultPage({
   const { submissionId } = use(params);
   const searchParams = useSearchParams();
   const paymentResult = searchParams.get("payment");
-  const [user, setUser] = useState<User | null>(null);
-  const [submission, setSubmission] = useState<SubmissionDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const queryClient = useQueryClient();
+  const session = useSession({ required: true });
+  const user = session.data;
+  const submissionQuery = useQuery({
+    queryKey: queryKeys.submissionDetail(submissionId),
+    queryFn: ({ signal }) => fetchSubmissionDetail(submissionId, signal),
+    enabled: Boolean(user),
+  });
+  const submission = submissionQuery.data;
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [userData, submissionData] = await Promise.all([
-          api.get<{ status: string; data: { user: User } }>("/auth/me"),
-          fetchSubmissionDetail(submissionId),
-        ]);
-        if (!cancelled) {
-          setUser(userData.data.user);
-          setSubmission(submissionData);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.statusCode === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        setError("Failed to load submission details.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [submissionId]);
+  const paymentConfirmedToastShown = useRef(false);
 
   // One-time toasts for post-redirect payment outcomes
   useEffect(() => {
@@ -107,40 +84,32 @@ export default function SubmissionResultPage({
     }
   };
 
-  useEffect(() => {
-    if (paymentResult !== "success" || submission?.status !== "AWAITING_PAYMENT") {
-      return;
-    }
-
-    let cancelled = false;
-    const pollPaymentStatus = async () => {
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        if (cancelled) return;
-
-        try {
-          const updated = await fetchSubmissionDetail(submissionId);
-          if (cancelled) return;
-          setSubmission(updated);
-          if (updated.status !== "AWAITING_PAYMENT") {
-            toast.success("Payment confirmed", {
-              description: "Your assessment is now being reviewed.",
-            });
-            return;
-          }
-        } catch {
-          return;
-        }
+  const handlePaymentStatusChange = useCallback(
+    (snapshot: SubmissionStatusSnapshot) => {
+      queryClient.setQueryData<SubmissionDetail>(
+        queryKeys.submissionDetail(submissionId),
+        (current) =>
+          current ? { ...current, status: snapshot.status } : current,
+      );
+      if (!paymentConfirmedToastShown.current) {
+        paymentConfirmedToastShown.current = true;
+        toast.success("Payment confirmed", {
+          description: "Your assessment is now being reviewed.",
+        });
       }
-    };
+    },
+    [queryClient, submissionId],
+  );
 
-    void pollPaymentStatus();
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentResult, submission?.status, submissionId]);
+  useSubmissionStatusPolling({
+    submissionId,
+    enabled:
+      paymentResult === "success" &&
+      submission?.status === "AWAITING_PAYMENT",
+    onStatusChange: handlePaymentStatusChange,
+  });
 
-  if (loading) {
+  if (session.isPending || (user && submissionQuery.isPending)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
         <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
@@ -148,14 +117,18 @@ export default function SubmissionResultPage({
     );
   }
 
-  if (error || !submission) {
+  if (session.isError || submissionQuery.isError || !submission) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper p-4">
         <div className="w-full max-w-sm">
           <Alert variant="destructive" className="items-start">
             <CircleAlertIcon />
             <AlertTitle>Something went wrong</AlertTitle>
-            <AlertDescription>{error || "Submission not found."}</AlertDescription>
+            <AlertDescription>
+              {submissionQuery.isError
+                ? "Failed to load submission details."
+                : "Submission not found."}
+            </AlertDescription>
           </Alert>
           <Button className="mt-4 w-full" size="lg" render={<Link href="/dashboard" />}>
             Back to dashboard
@@ -292,9 +265,6 @@ export default function SubmissionResultPage({
                     <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
                       Question {index + 1} · {answer.questionCategory.replace(/_/g, " ")}
                     </p>
-                    <div className="mt-2">
-                      <QuestionAudioPlayer audioUrl={answer.audioUrl} compact />
-                    </div>
                   </div>
                   {answer.score != null ? (
                     <span className="shrink-0 text-right">
@@ -314,23 +284,17 @@ export default function SubmissionResultPage({
                 </div>
 
                 <div className="px-5 py-4">
-                  {answer.videoUrl ? (
-                    <VideoPlayer
-                      src={answer.videoUrl}
-                      durationSeconds={answer.durationSeconds ?? undefined}
-                    />
-                  ) : (
-                    <div className="flex aspect-video items-center justify-center border border-dashed border-rule-strong bg-paper-raised">
-                      <div className="text-center">
-                        <PlayIcon className="mx-auto size-8 text-ink-faint" />
-                        <p className="mt-2 text-sm text-ink-soft">
-                          {submission.status === "IN_PROGRESS"
-                            ? "Video still being processed…"
-                            : "Video not available"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  <LazyAnswerMedia
+                    audioUrl={answer.audioUrl}
+                    videoUrl={answer.videoUrl}
+                    durationSeconds={answer.durationSeconds ?? undefined}
+                    questionNumber={index + 1}
+                    unavailableMessage={
+                      submission.status === "IN_PROGRESS"
+                        ? "Video still being processed…"
+                        : "Video not available"
+                    }
+                  />
 
                   {answer.durationSeconds != null && (
                     <p className="mt-2 font-mono text-[11px] text-ink-faint">

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2, MenuIcon } from "lucide-react";
-import { api } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
@@ -24,13 +24,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
+import { useSession } from "@/hooks/useSession";
 
 interface NavItem {
   href: string;
@@ -168,36 +162,21 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
-  const [checking, setChecking] = useState(true);
+  const session = useSession({ required: true });
+  const user = session.data;
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.get<{ status: string; data: { user: User } }>(
-          "/auth/me"
-        );
-        if (cancelled) return;
-        if (res.data.user.role !== "ADMIN") {
-          router.replace("/dashboard");
-          return;
-        }
-        setUser(res.data.user);
-      } catch {
-        if (cancelled) return;
-        // 401 is handled by the base api (redirects to /login); other errors bail out.
-        router.replace("/dashboard");
-      } finally {
-        if (!cancelled) setChecking(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+    if (user && user.role !== "ADMIN") {
+      router.replace("/dashboard");
+    } else if (
+      session.error &&
+      !(session.error instanceof ApiError && session.error.statusCode === 401)
+    ) {
+      router.replace("/dashboard");
+    }
+  }, [router, session.error, user]);
 
-  if (checking) {
+  if (session.isPending || !user || user.role !== "ADMIN") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
         <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />

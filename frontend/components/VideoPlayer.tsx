@@ -76,7 +76,7 @@ export default function VideoPlayer({ src, durationSeconds }: VideoPlayerProps) 
         ref={videoRef}
         controls
         className="w-full max-h-96 rounded-lg bg-black"
-        preload="auto"
+        preload="metadata"
         playsInline
         src={src}
         onLoadedData={() => setLoading(false)}

@@ -112,10 +112,10 @@ export async function assignSubmission(req, res) {
             res.status(400).json({ error: "Submission ID is required" });
             return;
         }
-        const assignedExaminers = await assignExaminers(submissionId);
+        const result = await assignExaminers(submissionId);
         res.status(200).json({
             status: "success",
-            data: { assignedExaminers },
+            data: result,
         });
     }
     catch (error) {

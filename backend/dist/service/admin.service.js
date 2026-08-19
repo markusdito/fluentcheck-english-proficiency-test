@@ -1,6 +1,6 @@
 import { prisma } from "../config/db.js";
 import { assignExaminersToSubmission, } from "./examiner.service.js";
-import { createPresignedViewUrlForAccessor, createQuestionAudioViewUrl, } from "./upload.service.js";
+import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, calculateRubricOverall, readStoredRubric, roundScore, } from "../utils/scoring.js";
 /**
  * List completed submissions with optional status filtering and pagination.
@@ -110,6 +110,8 @@ export async function getAdminSubmissionDetail(submissionId) {
                         select: {
                             category: true,
                             audioUploadStatus: true,
+                            audioStorageKey: true,
+                            audioMimeType: true,
                             tasks: {
                                 orderBy: { order: "asc" },
                                 select: { id: true, promptText: true, order: true },
@@ -147,16 +149,17 @@ export async function getAdminSubmissionDetail(submissionId) {
         let videoUrl = null;
         if (answer.uploadStatus === "UPLOADED") {
             try {
-                videoUrl = await createPresignedViewUrlForAccessor(submission.id, answer.questionId);
+                videoUrl = await createVideoViewUrlFromMetadata(answer.storageKey, answer.bucket, answer.mimeType);
             }
             catch {
                 videoUrl = null;
             }
         }
         let audioUrl = null;
-        if (answer.question.audioUploadStatus === "UPLOADED") {
+        if (answer.question.audioUploadStatus === "UPLOADED" &&
+            answer.question.audioStorageKey) {
             try {
-                audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+                audioUrl = await createQuestionAudioViewUrlFromMetadata(answer.question.audioStorageKey, answer.question.audioMimeType);
             }
             catch {
                 audioUrl = null;
@@ -352,22 +355,6 @@ export async function listAdminExaminers() {
  * Reuses the shared assignExaminersToSubmission service.
  */
 export async function assignExaminers(submissionId) {
-    const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-        select: { status: true },
-    });
-    if (!submission) {
-        throw new Error("Submission not found");
-    }
-    if (submission.status !== "PAID") {
-        throw new Error("Submission must be in PAID status");
-    }
-    const existing = await prisma.examinerAssignment.count({
-        where: { submissionId },
-    });
-    if (existing > 0) {
-        throw new Error("Examiners already assigned");
-    }
     return assignExaminersToSubmission(submissionId);
 }
 /**

@@ -12,16 +12,18 @@ interface AssignmentDetailResponse {
   data: AssignmentDetail;
 }
 
-export async function fetchExaminerAssignments(): Promise<ExaminerAssignmentSummary[]> {
-  const res = await api.get<AssignmentsResponse>("/examiner/assignments");
+export async function fetchExaminerAssignments(signal?: AbortSignal): Promise<ExaminerAssignmentSummary[]> {
+  const res = await api.get<AssignmentsResponse>("/examiner/assignments", { signal });
   return res.data;
 }
 
 export async function fetchExaminerAssignmentDetail(
-  assignmentId: string
+  assignmentId: string,
+  signal?: AbortSignal,
 ): Promise<AssignmentDetail> {
   const res = await api.get<AssignmentDetailResponse>(
-    `/examiner/assignments/${assignmentId}`
+    `/examiner/assignments/${assignmentId}`,
+    { signal },
   );
   return res.data;
 }

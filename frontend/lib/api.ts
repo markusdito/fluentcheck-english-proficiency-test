@@ -100,7 +100,7 @@ async function request<T>(
 export const api = {
   get: <T>(
     endpoint: string,
-    options?: Pick<RequestOptions, "redirectOn401" | "cache">
+    options?: Pick<RequestOptions, "redirectOn401" | "cache" | "signal">
   ) =>
     request<T>(endpoint, { method: "GET", ...options }),
 

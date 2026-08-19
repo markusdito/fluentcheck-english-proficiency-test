@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRightIcon, CircleAlertIcon, Loader2 } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { AssignmentList } from "@/components/examiner/AssignmentList";
@@ -17,71 +17,44 @@ import { scoreMaximum } from "@/types/scoring";
 import { SubmissionStatus } from "@/components/ui/submission-status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ExaminerAssignmentSummary } from "@/types/examiner";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  targetScore?: number;
-  createdAt: string;
-}
+import { useSession } from "@/hooks/useSession";
+import { queryKeys } from "@/lib/query-keys";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
-  const [examinerAssignments, setExaminerAssignments] = useState<ExaminerAssignmentSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const session = useSession({ required: true });
+  const user = session.data;
+  const dashboardQuery = useQuery<DashboardStats>({
+    queryKey: queryKeys.studentDashboard,
+    queryFn: ({ signal }) => fetchDashboardStats(signal),
+    enabled: user?.role === "STUDENT",
+  });
+  const assignmentsQuery = useQuery<ExaminerAssignmentSummary[]>({
+    queryKey: queryKeys.examinerAssignments,
+    queryFn: ({ signal }) => fetchExaminerAssignments(signal),
+    enabled: user?.role === "EXAMINER",
+  });
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [userData, dashboardData] = await Promise.all([
-          api.get<{ status: string; data: { user: User } }>("/auth/me"),
-          fetchDashboardStats(),
-        ]);
+    if (user?.role === "ADMIN") router.replace("/admin");
+  }, [router, user?.role]);
 
-        const user = userData.data.user;
-        let assignments: ExaminerAssignmentSummary[] = [];
-        if (user.role === "EXAMINER") {
-          try {
-            assignments = await fetchExaminerAssignments();
-          } catch {
-            // non-critical — dashboard still loads
-          }
-        } else if (user.role === "ADMIN") {
-            router.push("/admin")
-        }
-
-        if (!cancelled) {
-          setUser(user);
-          setDashboard(dashboardData);
-          setExaminerAssignments(assignments);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.statusCode === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        setError("Failed to load your profile. Please try again.");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+  const dashboard = dashboardQuery.data;
+  const examinerAssignments = assignmentsQuery.data ?? [];
+  const dataLoading =
+    (user?.role === "STUDENT" && dashboardQuery.isPending) ||
+    (user?.role === "EXAMINER" && assignmentsQuery.isPending);
+  const queryError =
+    session.error ?? dashboardQuery.error ?? assignmentsQuery.error;
 
   // Loading state
-  if (loading) {
+  if (
+    session.isPending ||
+    (!user && !queryError) ||
+    dataLoading ||
+    user?.role === "ADMIN"
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
         <div className="flex flex-col items-center gap-4">
@@ -93,14 +66,14 @@ export default function DashboardPage() {
   }
 
   // Error state
-  if (error) {
+  if (queryError) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper p-4">
         <div className="w-full max-w-sm">
           <Alert variant="destructive" className="items-start">
             <CircleAlertIcon />
             <AlertTitle>Something went wrong</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>Failed to load your profile. Please try again.</AlertDescription>
           </Alert>
           <Button className="mt-4 w-full" size="lg" onClick={() => window.location.reload()}>
             Try again
@@ -128,7 +101,7 @@ export default function DashboardPage() {
           <AccountMenu
             name={user?.name}
             email={user?.email}
-            isAdmin={user?.role === "ADMIN"}
+            isAdmin={false}
           />
         }
       />

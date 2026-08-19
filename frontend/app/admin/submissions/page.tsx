@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
 import {
   fetchAdminSubmissions,
@@ -11,7 +12,9 @@ import { SubmissionStatus } from "@/components/ui/submission-status";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import type { AdminSubmission } from "@/types/admin";
+import type { AdminSubmission, Paginated } from "@/types/admin";
+import { queryKeys } from "@/lib/query-keys";
+import { patchAssignedSubmissionPage } from "@/lib/admin-cache";
 import {
   Table,
   TableBody,
@@ -40,57 +43,32 @@ const idr = new Intl.NumberFormat("id-ID", {
 
 export default function AdminSubmissionsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
-  const [items, setItems] = useState<AdminSubmission[]>([]);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [assigningId, setAssigningId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchAdminSubmissions({
-          page,
-          limit: LIMIT,
-          status: statusFilter || undefined,
-        });
-        if (!cancelled) {
-          setItems(data.items);
-          setTotalPages(data.totalPages);
-          setError("");
-        }
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.statusCode === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        setError("Failed to load submissions. Please try again.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [page, statusFilter]);
+  const params = {
+    page,
+    limit: LIMIT,
+    status: statusFilter || undefined,
+  };
+  const submissionsKey = queryKeys.adminSubmissions(params);
+  const submissionsQuery = useQuery({
+    queryKey: submissionsKey,
+    queryFn: ({ signal }) => fetchAdminSubmissions(params, signal),
+  });
+  const items = submissionsQuery.data?.items ?? [];
+  const totalPages = submissionsQuery.data?.totalPages ?? 1;
 
   async function handleAssign(submission: AdminSubmission) {
     setAssigningId(submission.id);
     try {
-      await assignExaminers(submission.id);
-      const data = await fetchAdminSubmissions({
-        page,
-        limit: LIMIT,
-        status: statusFilter || undefined,
-      });
-      setItems(data.items);
-      setTotalPages(data.totalPages);
-      const updated = data.items.find((s) => s.id === submission.id);
-      const names = updated?.assignments.map((a) => a.examinerName).join(", ") ?? "";
+      const result = await assignExaminers(submission.id);
+      queryClient.setQueryData<Paginated<AdminSubmission>>(
+        submissionsKey,
+        (current) => patchAssignedSubmissionPage(current, result),
+      );
+      const names = result.assignments.map((a) => a.examinerName).join(", ");
       toast.success("Examiners assigned", {
         description: `Assigned: ${names}`,
       });
@@ -148,14 +126,16 @@ export default function AdminSubmissionsPage() {
         })}
       </div>
 
-      {loading ? (
+      {submissionsQuery.isPending ? (
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
         </div>
-      ) : error ? (
+      ) : submissionsQuery.isError ? (
         <div className="flex h-64 items-center justify-center">
-          <p className="text-sm text-ink-soft">{error}</p>
-          <Button className="ml-4" onClick={() => window.location.reload()}>
+          <p className="text-sm text-ink-soft">
+            Failed to load submissions. Please try again.
+          </p>
+          <Button className="ml-4" onClick={() => submissionsQuery.refetch()}>
             Try again
           </Button>
         </div>
@@ -276,7 +256,7 @@ export default function AdminSubmissionsPage() {
       )}
 
       {/* Pagination */}
-      {!loading && !error && items.length > 0 && (
+      {submissionsQuery.isSuccess && items.length > 0 && (
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-ink-soft">
             Page {page} of {totalPages}

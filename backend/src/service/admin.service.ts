@@ -3,11 +3,11 @@ import { Prisma } from "../generated/client.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
 import {
   assignExaminersToSubmission,
-  type AssignedExaminer,
+  type AssignExaminersResult,
 } from "./examiner.service.js";
 import {
-  createPresignedViewUrlForAccessor,
-  createQuestionAudioViewUrl,
+  createQuestionAudioViewUrlFromMetadata,
+  createVideoViewUrlFromMetadata,
 } from "./upload.service.js";
 import {
   aggregateStoredScores,
@@ -144,6 +144,8 @@ export async function getAdminSubmissionDetail(submissionId: string) {
             select: {
               category: true,
               audioUploadStatus: true,
+              audioStorageKey: true,
+              audioMimeType: true,
               tasks: {
                 orderBy: { order: "asc" },
                 select: { id: true, promptText: true, order: true },
@@ -184,9 +186,10 @@ export async function getAdminSubmissionDetail(submissionId: string) {
       let videoUrl: string | null = null;
       if (answer.uploadStatus === "UPLOADED") {
         try {
-          videoUrl = await createPresignedViewUrlForAccessor(
-            submission.id,
-            answer.questionId
+          videoUrl = await createVideoViewUrlFromMetadata(
+            answer.storageKey,
+            answer.bucket,
+            answer.mimeType,
           );
         } catch {
           videoUrl = null;
@@ -194,9 +197,15 @@ export async function getAdminSubmissionDetail(submissionId: string) {
       }
 
       let audioUrl: string | null = null;
-      if (answer.question.audioUploadStatus === "UPLOADED") {
+      if (
+        answer.question.audioUploadStatus === "UPLOADED" &&
+        answer.question.audioStorageKey
+      ) {
         try {
-          audioUrl = await createQuestionAudioViewUrl(answer.questionId);
+          audioUrl = await createQuestionAudioViewUrlFromMetadata(
+            answer.question.audioStorageKey,
+            answer.question.audioMimeType,
+          );
         } catch {
           audioUrl = null;
         }
@@ -418,27 +427,7 @@ export async function listAdminExaminers() {
  */
 export async function assignExaminers(
   submissionId: string
-): Promise<AssignedExaminer[]> {
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-    select: { status: true },
-  });
-
-  if (!submission) {
-    throw new Error("Submission not found");
-  }
-
-  if (submission.status !== "PAID") {
-    throw new Error("Submission must be in PAID status");
-  }
-
-  const existing = await prisma.examinerAssignment.count({
-    where: { submissionId },
-  });
-  if (existing > 0) {
-    throw new Error("Examiners already assigned");
-  }
-
+): Promise<AssignExaminersResult> {
   return assignExaminersToSubmission(submissionId);
 }
 

@@ -17,6 +17,17 @@ export interface ApiQuestion {
   tasks: ApiTask[];
 }
 
+export interface TestQuestionWithAudio {
+  id: string;
+  category: "PART_1" | "PART_2" | "PART_3";
+  order: number;
+  preparationSeconds: number;
+  recordingSeconds: number;
+  audioUploadStatus: QuestionAudioStatus;
+  audioUrl: string | null;
+  tasks: ApiTask[];
+}
+
 export interface Prompt {
   id: string;
   audioUrl: string | null;

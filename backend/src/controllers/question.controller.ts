@@ -14,7 +14,9 @@ import {
   createQuestionAudioPresignedUpload,
   confirmQuestionAudioUpload,
   createQuestionAudioViewUrl,
+  createQuestionAudioViewUrlFromMetadata,
 } from "../service/upload.service.js";
+import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 
 function handleQuestionAudioError(res: Response, error: unknown) {
   const message = error instanceof Error ? error.message : "Internal server error";
@@ -82,6 +84,25 @@ export async function getQuestionAudioUrl(req: Request, res: Response) {
     res.status(200).json({ status: "success", data: { url } });
   } catch (error) {
     handleQuestionAudioError(res, error);
+  }
+}
+
+/**
+ * GET /api/questions/test
+ * Return test questions and their signed prompt audio URLs in one response.
+ */
+export async function getTestQuestions(req: Request, res: Response) {
+  try {
+    const questions = await retrieveQuestions(2);
+    const data = await buildTestQuestionDelivery(
+      questions,
+      createQuestionAudioViewUrlFromMetadata,
+    );
+
+    res.status(200).json({ status: "success", data });
+  } catch (error) {
+    console.error("Error fetching test questions:", error);
+    res.status(500).json({ error: "Failed to fetch test questions" });
   }
 }
 

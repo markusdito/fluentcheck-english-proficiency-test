@@ -9,6 +9,7 @@ import type {
   AdminTask,
   AdminUser,
   Paginated,
+  AssignSubmissionResult,
 } from "@/types/admin";
 
 interface PaginatedEnvelope<T> {
@@ -60,7 +61,7 @@ function toQueryString(
   return qs ? `?${qs}` : "";
 }
 
-interface FetchAdminUsersParams {
+export interface FetchAdminUsersParams {
   page?: number;
   limit?: number;
   role?: string;
@@ -68,10 +69,12 @@ interface FetchAdminUsersParams {
 }
 
 export async function fetchAdminUsers(
-  params?: FetchAdminUsersParams
+  params?: FetchAdminUsersParams,
+  signal?: AbortSignal,
 ): Promise<Paginated<AdminUser>> {
   const res = await api.get<PaginatedEnvelope<AdminUser>>(
-    `/admin/users${toQueryString(params)}`
+    `/admin/users${toQueryString(params)}`,
+    { signal },
   );
   return res.data;
 }
@@ -80,47 +83,57 @@ export async function updateUserRole(id: string, role: string): Promise<void> {
   await api.put(`/admin/users/${id}/role`, { role });
 }
 
-export async function fetchAdminExaminers(): Promise<AdminExaminer[]> {
-  const res = await api.get<ListEnvelope<AdminExaminer>>("/admin/examiners");
+export async function fetchAdminExaminers(signal?: AbortSignal): Promise<AdminExaminer[]> {
+  const res = await api.get<ListEnvelope<AdminExaminer>>("/admin/examiners", { signal });
   return res.data;
 }
 
-interface FetchAdminSubmissionsParams {
+export interface FetchAdminSubmissionsParams {
   page?: number;
   limit?: number;
   status?: string;
 }
 
 export async function fetchAdminSubmissions(
-  params?: FetchAdminSubmissionsParams
+  params?: FetchAdminSubmissionsParams,
+  signal?: AbortSignal,
 ): Promise<Paginated<AdminSubmission>> {
   const res = await api.get<PaginatedEnvelope<AdminSubmission>>(
-    `/admin/submissions${toQueryString(params)}`
+    `/admin/submissions${toQueryString(params)}`,
+    { signal },
   );
   return res.data;
 }
 
 export async function fetchAdminSubmissionDetail(
-  submissionId: string
+  submissionId: string,
+  signal?: AbortSignal,
 ): Promise<AdminSubmissionDetail> {
   const res = await api.get<AdminSubmissionEnvelope>(
-    `/admin/submissions/${submissionId}`
+    `/admin/submissions/${submissionId}`,
+    { signal },
   );
   return res.data;
 }
 
-export async function assignExaminers(submissionId: string): Promise<void> {
-  await api.post(`/admin/submissions/${submissionId}/assign`);
-}
-
-export async function fetchAdminStats(): Promise<AdminStats> {
-  const res = await api.get<AdminStatsEnvelope>("/admin/stats");
+export async function assignExaminers(
+  submissionId: string,
+): Promise<AssignSubmissionResult> {
+  const res = await api.post<{ status: string; data: AssignSubmissionResult }>(
+    `/admin/submissions/${submissionId}/assign`,
+  );
   return res.data;
 }
 
-export async function fetchAdminSettings(): Promise<AdminSettings> {
+export async function fetchAdminStats(signal?: AbortSignal): Promise<AdminStats> {
+  const res = await api.get<AdminStatsEnvelope>("/admin/stats", { signal });
+  return res.data;
+}
+
+export async function fetchAdminSettings(signal?: AbortSignal): Promise<AdminSettings> {
   const res = await api.get<AdminSettingsEnvelope>("/admin/settings", {
     cache: "no-store",
+    signal,
   });
   return res.data;
 }
@@ -134,8 +147,8 @@ export async function updateAdminSettings(
   return res.data;
 }
 
-export async function fetchAdminQuestions(): Promise<AdminQuestion[]> {
-  const res = await api.get<ListEnvelope<AdminQuestion>>("/questions");
+export async function fetchAdminQuestions(signal?: AbortSignal): Promise<AdminQuestion[]> {
+  const res = await api.get<ListEnvelope<AdminQuestion>>("/questions", { signal });
   return res.data;
 }
 

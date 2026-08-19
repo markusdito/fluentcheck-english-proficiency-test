@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ApiError } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import { fetchAdminStats } from "@/lib/admin-api";
-import type { AdminStats } from "@/types/admin";
+import { queryKeys } from "@/lib/query-keys";
 import { SubmissionStatus } from "@/components/ui/submission-status";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -32,37 +31,13 @@ function StatCard({
 }
 
 export default function AdminOverviewPage() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const statsQuery = useQuery({
+    queryKey: queryKeys.adminStats,
+    queryFn: ({ signal }) => fetchAdminStats(signal),
+  });
+  const stats = statsQuery.data;
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchAdminStats();
-        if (!cancelled) {
-          setStats(data);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.statusCode === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        setError("Failed to load admin stats. Please try again.");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loading) {
+  if (statsQuery.isPending) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
@@ -70,11 +45,13 @@ export default function AdminOverviewPage() {
     );
   }
 
-  if (error) {
+  if (statsQuery.isError) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <p className="text-sm text-ink-soft">{error}</p>
-        <Button className="ml-4" onClick={() => window.location.reload()}>
+        <p className="text-sm text-ink-soft">
+          Failed to load admin stats. Please try again.
+        </p>
+        <Button className="ml-4" onClick={() => statsQuery.refetch()}>
           Try again
         </Button>
       </div>

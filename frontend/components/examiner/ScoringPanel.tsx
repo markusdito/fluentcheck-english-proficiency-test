@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
 import {
   Select,
   SelectContent,
@@ -300,9 +299,6 @@ export function ScoringPanel({
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
               {answer.questionCategory.replace(/_/g, " ")}
             </p>
-            <div className="mt-2">
-              <QuestionAudioPlayer audioUrl={answer.audioUrl} compact />
-            </div>
           </div>
           <div className="shrink-0 text-right">
             {score.saved && <p className="mark">Saved</p>}

@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { ApiQuestion } from "@/types/test";
+import type { ApiQuestion, TestQuestionWithAudio } from "@/types/test";
 
 interface QuestionsResponse {
   status: string;
@@ -12,6 +12,16 @@ interface QuestionsResponse {
  */
 export async function fetchQuestions(): Promise<ApiQuestion[]> {
   const res = await api.get<QuestionsResponse>("/questions");
+  return res.data;
+}
+
+export async function fetchTestQuestions(
+  signal?: AbortSignal,
+): Promise<TestQuestionWithAudio[]> {
+  const res = await api.get<{
+    status: string;
+    data: TestQuestionWithAudio[];
+  }>("/questions/test", { signal });
   return res.data;
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, use, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { useRecording } from "@/hooks/useRecording";
 import { useCountdown } from "@/hooks/useCountdown";
@@ -10,9 +9,9 @@ import { PromptDisplay } from "@/components/test/PromptDisplay";
 import { RecordingTimer } from "@/components/test/RecordingTimer";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { fetchQuestions, createSubmission, completeSubmission } from "@/lib/test-api";
+import { completeSubmission } from "@/lib/test-api";
+import { initializeTest } from "@/lib/test-initialization";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
-import { getQuestionAudioUrl } from "@/lib/question-audio-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
 
 type TestPhase = "loading" | "preparation" | "recording" | "stopped" | "completed";
@@ -22,7 +21,6 @@ type UploadState = Record<string, QuestionUploadState>;
 export default function TestPage({ params }: { params: Promise<{ testId: string }> }) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { testId } = use(params);
-  const router = useRouter();
 
   // Stream management — hardware check already granted permissions
   const { stream, requestPermissions, stopStream } = useMediaDevices();
@@ -42,6 +40,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const [phase, setPhase] = useState<TestPhase>("loading");
   const [completedQuestions, setCompletedQuestions] = useState<string[]>([]);
   const [showCompletion, setShowCompletion] = useState(false);
+  const [pendingUploadTrigger, setPendingUploadTrigger] = useState<{
+    qId: string;
+    durationSeconds: number;
+  } | null>(null);
 
   // Upload state per question
   const [uploadStates, setUploadStates] = useState<UploadState>({});
@@ -50,13 +52,16 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Ref to track uploads in progress (avoid stale closure issues)
   const uploadRef = useRef<Map<string, Promise<void>>>(new Map());
   const uploadStatesRef = useRef(uploadStates);
-  uploadStatesRef.current = uploadStates;
   const blobRef = useRef<Blob | null>(null);
-  blobRef.current = blob;
   const submissionIdRef = useRef<string | null>(null);
-  submissionIdRef.current = submissionId;
   const questionsRef = useRef<Prompt[]>([]);
-  questionsRef.current = questions;
+
+  useEffect(() => {
+    uploadStatesRef.current = uploadStates;
+    blobRef.current = blob;
+    submissionIdRef.current = submissionId;
+    questionsRef.current = questions;
+  }, [blob, questions, submissionId, uploadStates]);
 
   // Guard against React StrictMode double-mount in dev mode
   const initCalled = useRef(false);
@@ -71,34 +76,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
     const init = async () => {
       try {
-        // Create submission first
-        const subId = await createSubmission();
-        setSubmissionId(subId);
-
-        // Then fetch questions
-        const data = await fetchQuestions();
-        const mapped: Prompt[] = await Promise.all(
-          data.map(async (q) => {
-            let audioUrl: string | null = null;
-            if (q.audioUploadStatus === "UPLOADED") {
-              try {
-                audioUrl = await getQuestionAudioUrl(q.id);
-              } catch {
-                audioUrl = null;
-              }
-            }
-            return {
-              id: q.id,
-              audioUrl,
-              tasks: q.tasks.map((t) => t.promptText),
-              task: q.tasks.map((t) => t.promptText).join("\n"),
-              prepTime: q.preparationSeconds,
-              recordingDuration: q.recordingSeconds,
-              order: q.order,
-            };
-          })
-        );
-        setQuestions(mapped);
+        const initialized = await initializeTest();
+        setSubmissionId(initialized.submissionId);
+        setQuestions(initialized.questions);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to initialize test";
         setFetchError(message);
@@ -157,6 +137,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Transition from loading to preparation once questions and stream are ready
   useEffect(() => {
     if (questions.length > 0 && streamReady && phase === "loading") {
+      // This synchronizes two independently resolved external inputs.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPhase("preparation");
     }
   }, [questions, streamReady, phase]);
@@ -185,53 +167,11 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Track whether we've already called completeSubmission
   const [submissionCompleted, setSubmissionCompleted] = useState(false);
 
-  // Watch for recording auto-stop (duration reached max, triggered inside useRecording)
-  useEffect(() => {
-    const currentBlob = blobRef.current;
-    if (phase === "recording" && currentBlob && currentBlob.size > 0) {
-      setPhase("stopped");
-      const qId = currentQuestion?.id;
-      if (qId) {
-        setPendingUploadTrigger({ qId, durationSeconds: recDuration });
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blob, phase]);
-
-  // Derive whether all uploads are done from the current upload states
-  const allUploaded = Object.values(uploadStates).every((s) => s.status === "uploaded");
-
-  // When on the completion screen and all uploads finish, mark submission as complete
-  useEffect(() => {
-    if (!showCompletion || !allUploaded || submissionCompleted) return;
-    const sid = submissionIdRef.current;
-    if (!sid) return;
-
-    setSubmissionCompleted(true);
-    completeSubmission(sid).catch((err) => {
-      console.error("Failed to complete submission:", err);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showCompletion, allUploaded]);
-
-  // Upload tracking — when a new question finishes recording and blob becomes available, start upload
-  // The durationSeconds is captured at stop-time so it isn't lost if resetRecording() zeroes the hook duration.
-  const [pendingUploadTrigger, setPendingUploadTrigger] = useState<{ qId: string; durationSeconds: number } | null>(null);
-  useEffect(() => {
-    if (!pendingUploadTrigger) return;
-    const { qId, durationSeconds } = pendingUploadTrigger;
-    const currentBlob = blobRef.current;
-    if (!currentBlob) return; // blob not ready yet — will be retriggered by state change
-
-    const state = getUploadStatus(uploadStatesRef.current[qId]);
-    if (state === "uploaded" || state === "uploading") return;
-
-    startUpload(qId, currentBlob, durationSeconds);
-    setPendingUploadTrigger(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingUploadTrigger]);
-
-  const startUpload = useCallback(async (questionId: string, videoBlob: Blob, durationSeconds: number) => {
+  async function startUpload(
+    questionId: string,
+    videoBlob: Blob,
+    durationSeconds: number,
+  ) {
     // If already uploading or uploaded, or no submissionId yet, skip
     if (uploadRef.current.has(questionId)) return;
 
@@ -269,7 +209,52 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     })();
 
     uploadRef.current.set(questionId, uploadPromise);
-  }, []);
+  }
+
+  // Watch for recording auto-stop (duration reached max, triggered inside useRecording)
+  useEffect(() => {
+    const currentBlob = blobRef.current;
+    if (phase === "recording" && currentBlob && currentBlob.size > 0) {
+      setPhase("stopped");
+      const qId = currentQuestion?.id;
+      if (qId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPendingUploadTrigger({ qId, durationSeconds: recDuration });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blob, phase]);
+
+  // Derive whether all uploads are done from the current upload states
+  const allUploaded = Object.values(uploadStates).every((s) => s.status === "uploaded");
+
+  // When on the completion screen and all uploads finish, mark submission as complete
+  useEffect(() => {
+    if (!showCompletion || !allUploaded || submissionCompleted) return;
+    const sid = submissionIdRef.current;
+    if (!sid) return;
+
+    setSubmissionCompleted(true);
+    completeSubmission(sid).catch((err) => {
+      console.error("Failed to complete submission:", err);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCompletion, allUploaded]);
+
+  // Upload tracking — when a new question finishes recording and blob becomes available, start upload
+  // The durationSeconds is captured at stop-time so it isn't lost if resetRecording() zeroes the hook duration.
+  useEffect(() => {
+    if (!pendingUploadTrigger) return;
+    const { qId, durationSeconds } = pendingUploadTrigger;
+    const currentBlob = blobRef.current;
+    if (!currentBlob) return; // blob not ready yet — will be retriggered by state change
+
+    const state = getUploadStatus(uploadStatesRef.current[qId]);
+    if (state === "uploaded" || state === "uploading") return;
+
+    startUpload(qId, currentBlob, durationSeconds);
+    setPendingUploadTrigger(null);
+  }, [pendingUploadTrigger]);
 
   const retryUpload = useCallback((questionId: string) => {
     setUploadStates((prev) => ({ ...prev, [questionId]: { status: "idle" } }));
