@@ -112,9 +112,6 @@ export default function Home() {
                 </Button>
               </div>
 
-              <p className="mt-6 text-xs text-ink-faint">
-                Works in any modern browser · no downloads · ~15 minutes
-              </p>
             </div>
 
             {/* Specimen report */}
