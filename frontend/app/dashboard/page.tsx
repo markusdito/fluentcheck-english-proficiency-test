@@ -174,8 +174,7 @@ export default function DashboardPage() {
                   Record a new assessment
                 </h2>
                 <p className="mt-1.5 text-sm leading-6 text-paper/70">
-                  About fifteen minutes. We check your camera and microphone before you
-                  begin.
+                  We check your camera and microphone before you begin.
                 </p>
               </div>
               <Button
