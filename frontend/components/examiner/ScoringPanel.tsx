@@ -249,7 +249,7 @@ export function ScoringPanel({
   };
 
   return (
-    <div className="border border-rule bg-paper-raised">
+    <div className="w-full min-w-0 max-w-full border border-rule bg-paper-raised">
       <div className="border-b border-rule px-5 py-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -431,10 +431,11 @@ export function ScoringPanel({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 border-t border-rule px-5 py-5">
+      <div className="flex flex-col gap-3 border-t border-rule px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
         <Button
           variant="outline"
           size="lg"
+          className="w-full sm:w-auto"
           disabled={currentIndex === 0 || isSubmitting}
           onClick={() => {
             setError(null);
@@ -447,6 +448,7 @@ export function ScoringPanel({
         <Button
           variant="default"
           size="lg"
+          className="w-full sm:w-auto"
           loading={isSubmitting}
           disabled={isSubmitting}
           onClick={handleSave}

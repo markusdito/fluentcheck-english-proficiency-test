@@ -23,9 +23,9 @@ export function VideoReviewer({ answers, currentIndex }: VideoReviewerProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 max-w-full space-y-4">
       {/* Question info */}
-      <div className="border border-rule bg-paper-raised p-4">
+      <div className="min-w-0 border border-rule bg-paper-raised p-4">
         <div className="mb-2 flex items-center justify-between gap-3">
           <Badge variant="outline" data-tone="neutral">
             {current.questionCategory.replace(/_/g, " ")}
@@ -34,7 +34,7 @@ export function VideoReviewer({ answers, currentIndex }: VideoReviewerProps) {
             {currentIndex + 1} of {answers.length}
           </span>
         </div>
-        <div className="mb-3">
+        <div className="mb-3 min-w-0">
           <QuestionAudioPlayer audioUrl={current.audioUrl} compact />
         </div>
         {current.tasks.length > 0 && (
@@ -55,13 +55,13 @@ export function VideoReviewer({ answers, currentIndex }: VideoReviewerProps) {
       </div>
 
       {/* Video player */}
-      <div className="overflow-hidden border border-studio bg-studio">
+      <div className="w-full max-w-full overflow-hidden border border-studio bg-studio">
         {current.videoUrl ? (
           <video
             ref={videoRef}
             src={current.videoUrl}
             controls
-            className="w-full"
+            className="block h-auto w-full max-w-full"
             preload="metadata"
           >
             <p className="p-4 text-sm text-studio-text/70">

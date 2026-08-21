@@ -39,6 +39,7 @@ export function LandingAuthActions() {
       <Button
         variant="ghost"
         size="sm"
+        className="h-8 px-1.5 text-[11px] sm:h-9 sm:px-4 sm:text-sm"
         aria-label="Sign in"
         render={<Link href="/login" />}
       >
@@ -47,6 +48,7 @@ export function LandingAuthActions() {
       <Button
         variant="default"
         size="sm"
+        className="h-8 px-1.5 text-[11px] sm:h-9 sm:px-4 sm:text-sm"
         render={<Link href="/signup" />}
       >
         Start your assessment
