@@ -179,14 +179,6 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
     <div className="min-h-screen bg-paper">
       <Header
         logoHref="/dashboard"
-        nav={
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft transition-colors hover:text-ink"
-          >
-            Dashboard
-          </Link>
-        }
         actions={
           <AccountMenu
             name={user?.name}
@@ -196,7 +188,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
         }
       />
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <Breadcrumb className="mb-8">
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -237,9 +229,9 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
           </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-5">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-5">
           {/* Video review — takes 3/5 columns */}
-          <div className="lg:col-span-3">
+          <div className="min-w-0 lg:col-span-3">
             <p className="mark">Recordings</p>
             <h2 className="mt-1.5 mb-4 font-display text-2xl font-medium tracking-tight text-ink">
               Review recordings
@@ -251,7 +243,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
           </div>
 
           {/* Scoring panel — takes 2/5 columns */}
-          <div className="lg:col-span-2">
+          <div className="min-w-0 lg:col-span-2">
             {assignment.status !== "COMPLETED" ? (
               <ScoringPanel
                 answers={assignment.answers}

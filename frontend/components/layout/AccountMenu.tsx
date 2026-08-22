@@ -20,6 +20,12 @@ interface AccountMenuProps {
   email?: string;
   isAdmin?: boolean;
   showDashboard?: boolean;
+  navigationItems?: Array<{
+    href: string;
+    label: string;
+    current?: boolean;
+  }>;
+  navigationClassName?: string;
 }
 
 export function AccountMenu({
@@ -27,6 +33,8 @@ export function AccountMenu({
   email,
   isAdmin,
   showDashboard = true,
+  navigationItems,
+  navigationClassName,
 }: AccountMenuProps) {
   const queryClient = useQueryClient();
   const initial = (name?.trim().charAt(0) ?? "?").toUpperCase();
@@ -61,6 +69,30 @@ export function AccountMenu({
             <DropdownMenuSeparator />
           </DropdownMenuGroup>
         ) : null}
+        {navigationItems?.length ? (
+          <DropdownMenuGroup className={navigationClassName}>
+            <DropdownMenuLabel>Admin navigation</DropdownMenuLabel>
+            {navigationItems.map((item) => (
+              <DropdownMenuItem
+                key={item.href}
+                className={
+                  item.current
+                    ? "bg-accent font-medium text-accent-foreground"
+                    : undefined
+                }
+                render={
+                  <Link
+                    href={item.href}
+                    aria-current={item.current ? "page" : undefined}
+                  />
+                }
+              >
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+          </DropdownMenuGroup>
+        ) : null}
         <DropdownMenuItem render={<Link href="/profile" />}>
           Profile
         </DropdownMenuItem>
@@ -69,7 +101,7 @@ export function AccountMenu({
             Dashboard
           </DropdownMenuItem>
         ) : null}
-        {isAdmin ? (
+        {isAdmin && !navigationItems?.length ? (
           <DropdownMenuItem render={<Link href="/admin" />}>
             Admin panel
           </DropdownMenuItem>

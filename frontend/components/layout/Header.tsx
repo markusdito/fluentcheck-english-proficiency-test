@@ -21,7 +21,7 @@ export function Header({ nav, actions, logoHref = "/", className }: HeaderProps)
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
-        <Wordmark href={logoHref} />
+        <Wordmark href={logoHref} iconOnly />
         {nav ? <div className="flex min-w-0 items-center">{nav}</div> : null}
         {actions ? <div className="flex items-center gap-4">{actions}</div> : null}
       </div>

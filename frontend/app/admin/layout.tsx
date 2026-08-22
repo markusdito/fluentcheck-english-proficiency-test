@@ -3,11 +3,10 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2, MenuIcon } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
-import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,103 +15,40 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/useSession";
-
-interface NavItem {
-  href: string;
-  label: string;
-  exact?: boolean;
-}
-
-const navItems: NavItem[] = [
-  { href: "/admin", label: "Overview", exact: true },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/submissions", label: "Submissions" },
-  { href: "/admin/questions", label: "Questions" },
-  { href: "/admin/settings", label: "Settings" },
-];
-
-function isActive(pathname: string, item: NavItem) {
-  return item.exact ? pathname === item.href : pathname.startsWith(item.href);
-}
+import {
+  adminNavigationItems,
+  isAdminNavigationItemActive,
+} from "@/lib/admin-navigation";
 
 function AdminNav({ pathname }: { pathname: string }) {
   return (
-    <>
-      <nav className="hidden items-center gap-1 md:flex" aria-label="Admin">
-        {navItems.map((item) => {
-          const active = isActive(pathname, item);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors",
-                active
-                  ? "border-b-2 border-ink text-ink"
-                  : "text-ink-soft hover:text-ink",
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <Sheet>
-        <SheetTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              aria-label="Admin menu"
-            >
-              <MenuIcon />
-            </Button>
-          }
-        />
-        <SheetContent side="left" className="w-72">
-          <SheetHeader>
-            <SheetTitle>Admin</SheetTitle>
-          </SheetHeader>
-          <nav className="flex flex-col gap-1 px-2" aria-label="Admin (mobile)">
-            {navItems.map((item) => {
-              const active = isActive(pathname, item);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "rounded-md px-3 py-2 font-mono text-xs font-semibold uppercase tracking-[0.14em] transition-colors",
-                    active
-                      ? "bg-ink text-paper"
-                      : "text-ink-soft hover:bg-rule/40 hover:text-ink",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </SheetContent>
-      </Sheet>
-    </>
+    <nav className="hidden items-center gap-1 md:flex" aria-label="Admin">
+      {adminNavigationItems.map((item) => {
+        const active = isAdminNavigationItemActive(pathname, item);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors",
+              active
+                ? "border-b-2 border-ink text-ink"
+                : "text-ink-soft hover:text-ink",
+            )}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
 function AdminBreadcrumb({ pathname }: { pathname: string }) {
-  const page = navItems.find(
+  const page = adminNavigationItems.find(
     (i) => i.href !== "/admin" && pathname.startsWith(i.href),
   );
   const detailLabel = pathname.startsWith("/admin/submissions/")
@@ -187,7 +123,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-paper">
       <Header
-        logoHref="/admin"
+        logoHref="/"
         nav={<AdminNav pathname={pathname} />}
         actions={
           <AccountMenu
@@ -195,6 +131,12 @@ export default function AdminLayout({
             email={user?.email}
             isAdmin={user?.role === "ADMIN"}
             showDashboard={false}
+            navigationItems={adminNavigationItems.map((item) => ({
+              href: item.href,
+              label: item.label,
+              current: isAdminNavigationItemActive(pathname, item),
+            }))}
+            navigationClassName="md:hidden"
           />
         }
       />

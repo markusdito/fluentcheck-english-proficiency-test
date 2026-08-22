@@ -4,10 +4,16 @@ import { cn } from "@/lib/cn";
 interface WordmarkProps {
   href?: string;
   dark?: boolean;
+  iconOnly?: boolean;
   className?: string;
 }
 
-export function Wordmark({ href = "/", dark = false, className }: WordmarkProps) {
+export function Wordmark({
+  href = "/",
+  dark = false,
+  iconOnly = false,
+  className,
+}: WordmarkProps) {
   const mark = (
     <span
       className={cn(
@@ -38,7 +44,7 @@ export function Wordmark({ href = "/", dark = false, className }: WordmarkProps)
       aria-label="FluentCheck — home"
     >
       {mark}
-      {title}
+      {iconOnly ? null : title}
     </Link>
   );
 }

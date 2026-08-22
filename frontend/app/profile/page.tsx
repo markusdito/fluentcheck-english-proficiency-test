@@ -14,6 +14,7 @@ import { ScaleAwareScoreDisplay } from "@/components/results/ScaleAwareScoreDisp
 import { fetchDashboardStats } from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { fetchAdminStats } from "@/lib/admin-api";
+import { adminNavigationItems } from "@/lib/admin-navigation";
 import type { SessionRole } from "@/types/auth";
 
 const roleLabels: Record<SessionRole, { label: string; stamp: string }> = {
@@ -115,7 +116,22 @@ export default function ProfilePage() {
 
       <Header
         logoHref="/dashboard"
-        actions={<AccountMenu name={user.name} email={user.email} isAdmin={user.role === "ADMIN"} />}
+        actions={
+          <AccountMenu
+            name={user.name}
+            email={user.email}
+            isAdmin={user.role === "ADMIN"}
+            showDashboard={user.role !== "ADMIN"}
+            navigationItems={
+              user.role === "ADMIN"
+                ? adminNavigationItems.map((item) => ({
+                    href: item.href,
+                    label: item.label,
+                  }))
+                : undefined
+            }
+          />
+        }
       />
 
       <main id="profile-content" className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">

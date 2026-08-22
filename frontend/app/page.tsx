@@ -48,10 +48,10 @@ export default function Home() {
     <div className="flex min-h-screen flex-col bg-paper">
       {/* Masthead */}
       <header className="border-b border-rule">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
-          <Wordmark />
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-0 px-4 sm:gap-6 sm:px-6">
+          <Wordmark className="gap-1 sm:gap-2.5" />
           <nav
-            className="flex items-center gap-2 sm:gap-3"
+            className="flex shrink-0 items-center gap-0.5 sm:gap-3"
             aria-label="Account"
           >
             <LandingAuthActions />
@@ -88,7 +88,7 @@ export default function Home() {
                   ))}
                 </span>
               </h1>
-              <p className="mt-6 text-lg leading-8 text-ink-soft">
+              <p className="mt-6 text-base leading-7 text-ink-soft sm:text-lg sm:leading-8">
                 Record short video answers to real speaking prompts. Two
                 examiners score your pronunciation, fluency, vocabulary and
                 grammar. You get a clear band from one to six, backed by a
