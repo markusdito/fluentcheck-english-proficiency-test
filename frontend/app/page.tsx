@@ -48,10 +48,10 @@ export default function Home() {
     <div className="flex min-h-screen flex-col bg-paper">
       {/* Masthead */}
       <header className="border-b border-rule">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-1 px-4 sm:h-16 sm:gap-6 sm:px-6">
-          <Wordmark className="gap-1 [&>span:first-child]:h-7 [&>span:first-child]:w-7 [&>span:first-child]:text-[13px] [&>span:last-child]:text-xs sm:gap-2.5 sm:[&>span:first-child]:h-8 sm:[&>span:first-child]:w-8 sm:[&>span:first-child]:text-[15px] sm:[&>span:last-child]:text-[19px]" />
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-0 px-4 sm:gap-6 sm:px-6">
+          <Wordmark className="gap-1 sm:gap-2.5" />
           <nav
-            className="flex shrink-0 items-center gap-1 sm:gap-3"
+            className="flex shrink-0 items-center gap-0.5 sm:gap-3"
             aria-label="Account"
           >
             <LandingAuthActions />
