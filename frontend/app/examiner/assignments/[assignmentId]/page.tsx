@@ -179,14 +179,6 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
     <div className="min-h-screen bg-paper">
       <Header
         logoHref="/dashboard"
-        nav={
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft transition-colors hover:text-ink"
-          >
-            Dashboard
-          </Link>
-        }
         actions={
           <AccountMenu
             name={user?.name}

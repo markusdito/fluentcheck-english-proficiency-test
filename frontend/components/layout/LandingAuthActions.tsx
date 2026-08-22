@@ -22,7 +22,7 @@ export function LandingAuthActions() {
       <Button
         variant="default"
         size="sm"
-        className="border-ink bg-ink px-6 text-paper shadow-[7px_7px_0_rgba(27,36,32,0.32)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:bg-ink hover:shadow-[10px_10px_0_rgba(27,36,32,0.38)] active:translate-y-0 active:shadow-[3px_3px_0_rgba(27,36,32,0.28)]"
+        className="border-ink bg-ink px-5 text-[13px] text-paper shadow-[7px_7px_0_rgba(27,36,32,0.32)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:bg-ink hover:shadow-[10px_10px_0_rgba(27,36,32,0.38)] active:translate-y-0 active:shadow-[3px_3px_0_rgba(27,36,32,0.28)]"
         render={
           <Link
             href={session.data.role === "ADMIN" ? "/admin" : "/dashboard"}

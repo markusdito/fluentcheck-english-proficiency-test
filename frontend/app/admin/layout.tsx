@@ -187,7 +187,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-paper">
       <Header
-        logoHref="/admin"
+        logoHref="/"
         nav={<AdminNav pathname={pathname} />}
         actions={
           <AccountMenu
