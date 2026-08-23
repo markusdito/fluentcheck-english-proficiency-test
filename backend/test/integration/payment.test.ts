@@ -712,6 +712,69 @@ test("provider identifiers cannot be attributed to different Payment attempts", 
   );
 });
 
+test("Provider session IDs are unique within the iPaymu provider", async () => {
+  let calls = 0;
+  ipaymuTransport = async () => {
+    calls += 1;
+    return new Response(
+      JSON.stringify({
+        Success: true,
+        Data: {
+          SessionID: "shared-provider-session",
+          Url: `https://checkout.example.test/${calls}`,
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+  const first = await createAwaitingPaymentSubmission();
+  const second = await createAwaitingPaymentSubmission();
+
+  const firstResponse = await fetch(
+    `${baseUrl}/api/payments/submissions/${first.submission.id}/pay`,
+    { method: "POST", headers: { Cookie: first.cookie } },
+  );
+  const secondResponse = await fetch(
+    `${baseUrl}/api/payments/submissions/${second.submission.id}/pay`,
+    { method: "POST", headers: { Cookie: second.cookie } },
+  );
+
+  assert.equal(firstResponse.status, 201);
+  assert.equal(secondResponse.status, 502);
+  assert.equal(calls, 2);
+  assert.equal(
+    (await prisma.payment.findFirstOrThrow({
+      where: { submissionId: first.submission.id },
+    })).providerSessionId,
+    "shared-provider-session",
+  );
+  assert.equal(
+    (await prisma.payment.findFirstOrThrow({
+      where: { submissionId: second.submission.id },
+    })).providerSessionId,
+    null,
+  );
+});
+
+test("valid pending callbacks acknowledge without changing Payment state", async () => {
+  const { payment } = await createPaymentAttempt();
+  const response = await postCallback({
+    reference_id: payment.merchantReference,
+    referenceId: payment.merchantReference,
+    sid: payment.providerSessionId,
+    status: "pending",
+    status_code: "0",
+    transaction_status_code: "0",
+    additional_info: [],
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
+    "PENDING",
+  );
+});
+
 test("assignment failure preserves a recoverable Paid submission", async () => {
   const { payment, submission } = await createPaymentAttempt();
 
