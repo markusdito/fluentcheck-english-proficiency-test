@@ -7,28 +7,22 @@ import {
   fetchIpaymuTransport,
   type IpaymuTransport,
 } from "./ipaymu.transport.js";
+import {
+  canonicalizeIpaymuCallback,
+  classifyIpaymuCheckoutResponse,
+  createIpaymuCheckoutTimeout,
+  IpaymuCheckoutError,
+  type IpaymuCallback,
+} from "./ipaymu.protocol.js";
 
 const IPAYMU_SANDBOX_URL = "https://sandbox.ipaymu.com";
 const IPAYMU_PRODUCTION_URL = "https://my.ipaymu.com";
-const IPAYMU_CHECKOUT_TIMEOUT_MS = 10_000;
 
 export interface IpaymuCheckout {
   paymentUrl: string;
   merchantReference: string;
   amount: number;
   currency: string;
-}
-
-type IpaymuCallback = Record<string, unknown>;
-
-export class IpaymuCheckoutError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode: number,
-  ) {
-    super(message);
-    this.name = "IpaymuCheckoutError";
-  }
 }
 
 export class IpaymuCallbackError extends Error {
@@ -38,10 +32,6 @@ export class IpaymuCallbackError extends Error {
     super(message);
     this.name = "IpaymuCallbackError";
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function requireIpaymuConfig() {
@@ -76,48 +66,6 @@ function createTimestamp() {
   return `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`;
 }
 
-function normalizeCallbackData(body: IpaymuCallback) {
-  const normalized: IpaymuCallback = {};
-  const integerFields = new Set([
-    "trx_id",
-    "status_code",
-    "transaction_status_code",
-    "paid_off",
-  ]);
-
-  for (const [key, value] of Object.entries(body)) {
-    if (key === "additional_info") {
-      if (typeof value === "string") {
-        try {
-          normalized[key] = JSON.parse(value);
-        } catch {
-          normalized[key] = value;
-        }
-      } else {
-        normalized[key] = value;
-      }
-    } else if (key === "is_escrow") {
-      normalized[key] = value === true || value === 1 || value === "1" || value === "true";
-    } else if (integerFields.has(key)) {
-      normalized[key] = Number.parseInt(String(value), 10);
-    } else {
-      normalized[key] = String(value);
-    }
-  }
-
-  if (!("additional_info" in normalized)) {
-    normalized.additional_info = [];
-  }
-
-  delete normalized.signature;
-  return Object.keys(normalized)
-    .sort((a, b) => a.localeCompare(b))
-    .reduce<IpaymuCallback>((sorted, key) => {
-      sorted[key] = normalized[key];
-      return sorted;
-    }, {});
-}
-
 function signaturesMatch(expected: string, received: string | undefined) {
   if (
     !received ||
@@ -137,11 +85,9 @@ function verifyCallbackSignature(
   receivedSignature: string | undefined,
 ) {
   requireIpaymuConfig();
-  const normalized = normalizeCallbackData(body);
-  const bodyJson = JSON.stringify(normalized).replace(/\//g, "\\/");
   const expected = crypto
     .createHmac("sha256", env.IPAYMU_VA_NUMBER!)
-    .update(bodyJson)
+    .update(canonicalizeIpaymuCallback(body))
     .digest("hex");
   return signaturesMatch(expected, receivedSignature);
 }
@@ -340,7 +286,7 @@ export async function createIpaymuCheckout(
   };
   const bodyJson = JSON.stringify(body);
   const abortController = new AbortController();
-  let timeout: NodeJS.Timeout | undefined;
+  const checkoutTimeout = createIpaymuCheckoutTimeout(abortController);
 
   try {
     const providerResult = Promise.resolve().then(async () => {
@@ -358,61 +304,43 @@ export async function createIpaymuCheckout(
       const result: unknown = await response.json();
       return { response, result };
     });
-    const timeoutResult = new Promise<never>((_resolve, reject) => {
-      timeout = setTimeout(() => {
-        abortController.abort();
-        reject(new IpaymuCheckoutError("iPaymu checkout timed out. Please try again.", 504));
-      }, IPAYMU_CHECKOUT_TIMEOUT_MS);
-    });
     const { response, result } = await Promise.race([
       providerResult,
-      timeoutResult,
+      checkoutTimeout.promise,
     ]);
 
-    const resultRecord = isRecord(result) ? result : undefined;
-    const resultData = isRecord(resultRecord?.Data)
-      ? resultRecord.Data
-      : undefined;
-    const paymentUrl =
-      typeof resultData?.Url === "string" && resultData.Url.length > 0
-        ? resultData.Url
-        : undefined;
-    const providerSessionId =
-      typeof resultData?.SessionID === "string" && resultData.SessionID.length > 0
-        ? resultData.SessionID
-        : undefined;
-    const success = resultRecord?.Success;
-    const rejectionMessage =
-      typeof resultRecord?.Message === "string" ? resultRecord.Message : undefined;
-    if (response.status >= 500) {
+    const classification = classifyIpaymuCheckoutResponse(
+      response.status,
+      result,
+    );
+    if (classification.outcome === "AMBIGUOUS") {
       throw new IpaymuCheckoutError(
         "iPaymu checkout is temporarily unavailable. Please try again.",
         502,
       );
     }
-    if (success === false || (response.status >= 400 && response.status < 500)) {
+    if (classification.outcome === "REJECTED") {
       await prisma.payment.update({
         where: { id: payment.id },
         data: { status: "FAILED" },
       });
       throw new IpaymuCheckoutError(
-        rejectionMessage ?? "iPaymu rejected the checkout request",
-        502,
-      );
-    }
-    if (!response.ok || success !== true || !paymentUrl || !providerSessionId) {
-      throw new IpaymuCheckoutError(
-        "iPaymu checkout is temporarily unavailable. Please try again.",
+        classification.message ?? "iPaymu rejected the checkout request",
         502,
       );
     }
 
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { providerSessionId },
+      data: { providerSessionId: classification.providerSessionId },
     });
 
-    return { paymentUrl, merchantReference, amount, currency };
+    return {
+      paymentUrl: classification.paymentUrl,
+      merchantReference,
+      amount,
+      currency,
+    };
   } catch (error) {
     console.error("iPaymu checkout attempt failed", {
       paymentId: payment.id,
@@ -425,7 +353,7 @@ export async function createIpaymuCheckout(
       502,
     );
   } finally {
-    if (timeout) clearTimeout(timeout);
+    checkoutTimeout.cancel();
   }
 }
 

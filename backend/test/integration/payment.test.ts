@@ -435,6 +435,19 @@ test("callbacks authenticate from supported locations and reject ambiguous signa
       "PENDING",
     );
   }
+
+  const malformed = await createPaymentAttempt();
+  const malformedResponse = await postCallback(
+    successCallback(malformed.payment, { sid: { nested: "session" } }),
+  );
+  assert.equal(malformedResponse.status, 400);
+  assert.deepEqual(await malformedResponse.json(), {
+    error: "Invalid iPaymu callback body",
+  });
+  assert.equal(
+    (await prisma.payment.findUniqueOrThrow({ where: { id: malformed.payment.id } })).status,
+    "PENDING",
+  );
 });
 
 test("a delayed callback updates only its exact older Payment attempt", async () => {
@@ -652,6 +665,30 @@ test("concurrent callback replay pays and dispatches assignment once", async () 
   assert.equal(
     (await prisma.submission.findUniqueOrThrow({ where: { id: submission.id } })).status,
     "SCORING",
+  );
+  assert.equal(
+    await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
+    1,
+  );
+});
+
+test("sequential callback replay is acknowledged without a second transition", async () => {
+  await prisma.user.create({
+    data: {
+      username: "sequential-examiner",
+      email: "sequential-examiner@example.test",
+      password: "not-used-by-payment-tests",
+      role: "EXAMINER",
+    },
+  });
+  const { payment, submission } = await createPaymentAttempt();
+  const body = successCallback(payment);
+
+  assert.equal((await postCallback(body)).status, 200);
+  assert.equal((await postCallback(body)).status, 200);
+  assert.equal(
+    (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
+    "PAID",
   );
   assert.equal(
     await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),

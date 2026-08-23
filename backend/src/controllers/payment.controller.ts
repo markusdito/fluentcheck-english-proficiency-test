@@ -2,13 +2,51 @@ import type { Request, Response } from "express";
 import {
   createIpaymuCheckout,
   IpaymuCallbackError,
-  IpaymuCheckoutError,
   processIpaymuNotification,
 } from "../service/payment.service.js";
+import { IpaymuCheckoutError } from "../service/ipaymu.protocol.js";
 import {
   fetchIpaymuTransport,
   type IpaymuTransport,
 } from "../service/ipaymu.transport.js";
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isCallbackScalar(value: unknown): value is string | number {
+  return (
+    (typeof value === "string" && value.length > 0) ||
+    (typeof value === "number" && Number.isFinite(value))
+  );
+}
+
+function isIpaymuCallbackBody(
+  value: unknown,
+): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const body = value as Record<string, unknown>;
+  const hasMerchantReference =
+    isNonEmptyString(body.reference_id) || isNonEmptyString(body.referenceId);
+  const referencesAreStrings =
+    (body.reference_id === undefined || isNonEmptyString(body.reference_id)) &&
+    (body.referenceId === undefined || isNonEmptyString(body.referenceId));
+  return (
+    hasMerchantReference &&
+    referencesAreStrings &&
+    isNonEmptyString(body.sid) &&
+    isCallbackScalar(body.trx_id) &&
+    isNonEmptyString(body.status) &&
+    isCallbackScalar(body.status_code) &&
+    isCallbackScalar(body.transaction_status_code) &&
+    isNonEmptyString(body.currency) &&
+    isCallbackScalar(body.sub_total) &&
+    (body.signature === undefined || isNonEmptyString(body.signature))
+  );
+}
 
 /**
  * POST /api/payments/submissions/:id/pay
@@ -58,11 +96,7 @@ export async function paySubmission(
  */
 export async function ipaymuNotification(req: Request, res: Response) {
   try {
-    if (
-      typeof req.body !== "object" ||
-      req.body === null ||
-      Array.isArray(req.body)
-    ) {
+    if (!isIpaymuCallbackBody(req.body)) {
       res.status(400).json({ error: "Invalid iPaymu callback body" });
       return;
     }
