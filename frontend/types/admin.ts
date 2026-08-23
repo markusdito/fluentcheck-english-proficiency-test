@@ -51,7 +51,10 @@ export interface AdminSubmission {
 export interface AdminSubmissionPayment extends AdminPaymentSummary {
   id: string;
   provider: string | null;
-  providerRef: string | null;
+  merchantReference: string | null;
+  providerSessionId: string | null;
+  providerTransactionId: string | null;
+  legacyProviderRef: string | null;
   createdAt: string;
   updatedAt: string;
 }

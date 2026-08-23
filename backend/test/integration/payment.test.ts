@@ -732,6 +732,84 @@ test("assignment failure preserves a recoverable Paid submission", async () => {
   );
 });
 
+test("admin Payment history exposes typed and legacy reconciliation identifiers", async () => {
+  const { submission } = await createAwaitingPaymentSubmission();
+  const admin = await prisma.user.create({
+    data: {
+      username: "payment-admin",
+      email: "payment-admin@example.test",
+      password: "not-used-by-payment-tests",
+      role: "ADMIN",
+    },
+  });
+  const typedPayment = await prisma.payment.create({
+    data: {
+      submissionId: submission.id,
+      amount: 150000,
+      currency: "IDR",
+      provider: "ipaymu",
+      merchantReference: `FC-PAY-${crypto.randomUUID()}`,
+      providerSessionId: "admin-provider-session",
+      providerTransactionId: "87654321",
+      status: "PAID",
+      paidAt: new Date(),
+    },
+  });
+  const legacyPayment = await prisma.payment.create({
+    data: {
+      submissionId: submission.id,
+      amount: 150000,
+      currency: "IDR",
+      provider: "ipaymu",
+      legacyProviderRef: "opaque-historical-reference",
+      status: "FAILED",
+    },
+  });
+  const token = jwt.sign({ id: admin.id }, process.env.JWT_SECRET!);
+
+  const response = await fetch(
+    `${baseUrl}/api/admin/submissions/${submission.id}`,
+    { headers: { Cookie: `jwt=${token}` } },
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  const typedResult = payload.data.payments.find(
+    (payment: { id: string }) => payment.id === typedPayment.id,
+  );
+  assert.deepEqual(
+    {
+      merchantReference: typedResult.merchantReference,
+      providerSessionId: typedResult.providerSessionId,
+      providerTransactionId: typedResult.providerTransactionId,
+      legacyProviderRef: typedResult.legacyProviderRef,
+    },
+    {
+      merchantReference: typedPayment.merchantReference,
+      providerSessionId: "admin-provider-session",
+      providerTransactionId: "87654321",
+      legacyProviderRef: null,
+    },
+  );
+  const legacyResult = payload.data.payments.find(
+    (payment: { id: string }) => payment.id === legacyPayment.id,
+  );
+  assert.deepEqual(
+    {
+      merchantReference: legacyResult.merchantReference,
+      providerSessionId: legacyResult.providerSessionId,
+      providerTransactionId: legacyResult.providerTransactionId,
+      legacyProviderRef: legacyResult.legacyProviderRef,
+    },
+    {
+      merchantReference: null,
+      providerSessionId: null,
+      providerTransactionId: null,
+      legacyProviderRef: "opaque-historical-reference",
+    },
+  );
+});
+
 test("database failure before commit returns a retryable server error", async () => {
   const { payment } = await createPaymentAttempt();
   const body = successCallback(payment);
