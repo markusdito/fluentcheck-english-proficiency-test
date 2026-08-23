@@ -1,4 +1,4 @@
-import { createIpaymuCheckout, IpaymuCheckoutError, processIpaymuNotification, } from "../service/payment.service.js";
+import { createIpaymuCheckout, IpaymuCallbackError, IpaymuCheckoutError, processIpaymuNotification, } from "../service/payment.service.js";
 import { fetchIpaymuTransport, } from "../service/ipaymu.transport.js";
 /**
  * POST /api/payments/submissions/:id/pay
@@ -49,11 +49,13 @@ export async function ipaymuNotification(req, res) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : "Failed to process iPaymu notification";
-        if (message === "Invalid iPaymu callback signature") {
-            res.status(400).json({ error: message });
+        if (error instanceof IpaymuCallbackError) {
+            res.status(error.statusCode).json({ error: message });
             return;
         }
-        console.error("iPaymu notification error:", error);
-        res.status(500).json({ error: message });
+        console.error("iPaymu notification processing failed", {
+            error: message,
+        });
+        res.status(500).json({ error: "Failed to process iPaymu notification" });
     }
 }

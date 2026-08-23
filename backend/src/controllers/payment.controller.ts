@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import {
   createIpaymuCheckout,
+  IpaymuCallbackError,
   IpaymuCheckoutError,
   processIpaymuNotification,
 } from "../service/payment.service.js";
@@ -65,11 +66,13 @@ export async function ipaymuNotification(req: Request, res: Response) {
     res.status(200).json({ status: "success" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to process iPaymu notification";
-    if (message === "Invalid iPaymu callback signature") {
-      res.status(400).json({ error: message });
+    if (error instanceof IpaymuCallbackError) {
+      res.status(error.statusCode).json({ error: message });
       return;
     }
-    console.error("iPaymu notification error:", error);
-    res.status(500).json({ error: message });
+    console.error("iPaymu notification processing failed", {
+      error: message,
+    });
+    res.status(500).json({ error: "Failed to process iPaymu notification" });
   }
 }

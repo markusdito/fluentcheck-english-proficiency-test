@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { prisma } from "../config/db.js";
 import { env } from "../config/env.js";
+import { Prisma } from "../generated/client.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
 import { fetchIpaymuTransport, } from "./ipaymu.transport.js";
 const IPAYMU_SANDBOX_URL = "https://sandbox.ipaymu.com";
@@ -12,6 +13,13 @@ export class IpaymuCheckoutError extends Error {
         super(message);
         this.statusCode = statusCode;
         this.name = "IpaymuCheckoutError";
+    }
+}
+export class IpaymuCallbackError extends Error {
+    statusCode = 400;
+    constructor(message) {
+        super(message);
+        this.name = "IpaymuCallbackError";
     }
 }
 function requireIpaymuConfig() {
@@ -85,9 +93,12 @@ function normalizeCallbackData(body) {
     }, {});
 }
 function signaturesMatch(expected, received) {
-    if (!received || expected.length !== received.length)
+    if (!received ||
+        !/^[a-f\d]{64}$/i.test(expected) ||
+        !/^[a-f\d]{64}$/i.test(received)) {
         return false;
-    return crypto.timingSafeEqual(Buffer.from(expected, "utf8"), Buffer.from(received, "utf8"));
+    }
+    return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(received, "hex"));
 }
 function verifyCallbackSignature(body, receivedSignature) {
     requireIpaymuConfig();
@@ -106,16 +117,96 @@ function callbackValue(body, ...keys) {
     }
     return undefined;
 }
-function isSuccessfulCallback(body) {
+function optionalCallbackString(body, ...keys) {
+    const value = callbackValue(body, ...keys);
+    if (value === undefined)
+        return undefined;
+    const stringValue = String(value);
+    return stringValue.length > 0 ? stringValue : undefined;
+}
+function requireCallbackString(body, label, ...keys) {
+    const value = optionalCallbackString(body, ...keys);
+    if (!value)
+        throw new IpaymuCallbackError(`Invalid iPaymu ${label}`);
+    return value;
+}
+function callbackOutcome(body) {
     const status = String(body.status ?? "").toLowerCase();
     const statusCode = Number(body.status_code);
     const transactionStatusCode = Number(body.transaction_status_code);
-    return status === "berhasil" || statusCode === 1 || transactionStatusCode === 1 || transactionStatusCode === 6;
+    const isSuccess = status === "berhasil" &&
+        statusCode === 1 &&
+        (transactionStatusCode === 1 || transactionStatusCode === 6);
+    const hasSuccessIndicator = status === "berhasil" ||
+        statusCode === 1 ||
+        transactionStatusCode === 1 ||
+        transactionStatusCode === 6;
+    if (hasSuccessIndicator) {
+        if (!isSuccess) {
+            throw new IpaymuCallbackError("Conflicting iPaymu payment status");
+        }
+        return "SUCCESS";
+    }
+    if (status === "expired" ||
+        status === "failed" ||
+        statusCode < 0 ||
+        transactionStatusCode < 0) {
+        return "FAILED";
+    }
+    if (status === "pending" && statusCode === 0 && transactionStatusCode === 0) {
+        return "PENDING";
+    }
+    throw new IpaymuCallbackError("Invalid iPaymu payment status");
 }
-function isFailedCallback(body) {
-    const status = String(body.status ?? "").toLowerCase();
-    const statusCode = Number(body.status_code);
-    return status === "expired" || status === "failed" || statusCode < 0;
+function resolveReceivedSignature(body, headerSignature) {
+    const bodySignature = optionalCallbackString(body, "signature");
+    if (headerSignature &&
+        bodySignature &&
+        !signaturesMatch(headerSignature, bodySignature)) {
+        throw new IpaymuCallbackError("Conflicting iPaymu callback signatures");
+    }
+    const receivedSignature = headerSignature ?? bodySignature;
+    if (!receivedSignature || !verifyCallbackSignature(body, receivedSignature)) {
+        throw new IpaymuCallbackError("Invalid iPaymu callback signature");
+    }
+}
+function resolveMerchantReference(body) {
+    const snakeCaseReference = optionalCallbackString(body, "reference_id");
+    const camelCaseReference = optionalCallbackString(body, "referenceId");
+    if (snakeCaseReference &&
+        camelCaseReference &&
+        snakeCaseReference !== camelCaseReference) {
+        throw new IpaymuCallbackError("Conflicting iPaymu Merchant references");
+    }
+    const merchantReference = snakeCaseReference ?? camelCaseReference;
+    if (!merchantReference?.startsWith("FC-PAY-")) {
+        throw new IpaymuCallbackError("Unknown or legacy iPaymu Merchant reference");
+    }
+    return merchantReference;
+}
+function validateSuccessCallback(body, payment) {
+    const currency = requireCallbackString(body, "payment currency", "currency");
+    if (payment.currency !== "IDR" || currency !== payment.currency) {
+        throw new IpaymuCallbackError("iPaymu payment currency mismatch");
+    }
+    const subtotal = requireCallbackString(body, "payment subtotal", "sub_total");
+    if (!/^\d+$/.test(subtotal) || BigInt(subtotal) !== BigInt(payment.amount)) {
+        throw new IpaymuCallbackError("iPaymu payment subtotal mismatch");
+    }
+    const providerSessionId = requireCallbackString(body, "Provider session ID", "sid");
+    if (payment.providerSessionId &&
+        payment.providerSessionId !== providerSessionId) {
+        throw new IpaymuCallbackError("iPaymu Provider session ID mismatch");
+    }
+    const providerTransactionId = requireCallbackString(body, "Provider transaction ID", "trx_id");
+    if (!/^\d+$/.test(providerTransactionId)) {
+        throw new IpaymuCallbackError("Invalid iPaymu Provider transaction ID");
+    }
+    if (payment.providerTransactionId &&
+        payment.providerTransactionId !== providerTransactionId) {
+        throw new IpaymuCallbackError("iPaymu Provider transaction ID mismatch");
+    }
+    return { providerSessionId, providerTransactionId };
 }
 export async function createIpaymuCheckout(submissionId, userId, transport = fetchIpaymuTransport) {
     requireIpaymuConfig();
@@ -195,6 +286,9 @@ export async function createIpaymuCheckout(submissionId, userId, transport = fet
         ]);
         const paymentUrl = result.Data?.Url;
         const providerSessionId = result.Data?.SessionID;
+        if (response.status >= 500) {
+            throw new IpaymuCheckoutError("iPaymu checkout is temporarily unavailable. Please try again.", 502);
+        }
         if (result.Success === false || (response.status >= 400 && response.status < 500)) {
             await prisma.payment.update({
                 where: { id: payment.id },
@@ -226,79 +320,84 @@ export async function createIpaymuCheckout(submissionId, userId, transport = fet
             clearTimeout(timeout);
     }
 }
-export async function processIpaymuNotification(body, receivedSignature) {
-    if (!verifyCallbackSignature(body, receivedSignature)) {
-        throw new Error("Invalid iPaymu callback signature");
-    }
-    const referenceId = String(callbackValue(body, "reference_id", "referenceId") ?? "");
-    const submissionId = referenceId.startsWith("FC-") ? referenceId.slice(3) : null;
-    if (!submissionId)
-        throw new Error("Invalid iPaymu reference ID");
-    const payment = await prisma.payment.findFirst({
-        where: { submissionId, provider: "ipaymu" },
-        orderBy: { createdAt: "desc" },
+export async function processIpaymuNotification(body, headerSignature) {
+    resolveReceivedSignature(body, headerSignature);
+    const merchantReference = resolveMerchantReference(body);
+    const payment = await prisma.payment.findUnique({
+        where: { merchantReference },
     });
-    if (!payment)
-        throw new Error("iPaymu payment not found");
-    if (!isSuccessfulCallback(body)) {
-        if (isFailedCallback(body) && payment.status === "PENDING") {
-            await prisma.payment.update({
-                where: { id: payment.id },
-                data: { status: "FAILED" },
-            });
-        }
+    if (!payment || payment.provider !== "ipaymu") {
+        throw new IpaymuCallbackError("Unknown iPaymu Merchant reference");
+    }
+    const outcome = callbackOutcome(body);
+    if (outcome === "PENDING")
+        return;
+    if (outcome === "FAILED") {
+        await prisma.payment.updateMany({
+            where: { id: payment.id, status: "PENDING" },
+            data: { status: "FAILED" },
+        });
         return;
     }
-    const callbackAmount = Number(body.amount);
-    const callbackSubtotal = Number(body.sub_total);
-    const callbackTotal = Number(body.total);
-    const callbackFee = Number(body.fee);
-    const baseAmountCandidates = [
-        callbackAmount,
-        callbackSubtotal,
-        Number.isFinite(callbackTotal) && Number.isFinite(callbackFee)
-            ? callbackTotal - callbackFee
-            : Number.NaN,
-    ];
-    if (!baseAmountCandidates.some((value) => value === payment.amount)) {
-        throw new Error("iPaymu payment amount mismatch");
-    }
-    const providerTransactionId = String(callbackValue(body, "trx_id") ??
-        payment.providerTransactionId ??
-        payment.providerSessionId ??
-        payment.legacyProviderRef ??
-        referenceId);
-    const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-        select: { status: true },
-    });
-    if (!submission)
-        throw new Error("Submission not found");
-    const result = await prisma.$transaction(async (tx) => {
-        const currentPayment = await tx.payment.findUnique({
-            where: { id: payment.id },
-            select: { status: true },
-        });
-        if (currentPayment?.status !== "PAID") {
-            await tx.payment.update({
-                where: { id: payment.id },
+    const identifiers = validateSuccessCallback(body, payment);
+    let shouldAssignExaminers = false;
+    try {
+        shouldAssignExaminers = await prisma.$transaction(async (tx) => {
+            const paymentTransition = await tx.payment.updateMany({
+                where: {
+                    id: payment.id,
+                    status: { in: ["PENDING", "FAILED"] },
+                },
                 data: {
                     status: "PAID",
                     paidAt: new Date(),
-                    providerTransactionId,
+                    ...identifiers,
                 },
             });
-        }
-        if (submission.status === "AWAITING_PAYMENT") {
-            await tx.submission.update({
-                where: { id: submissionId },
+            if (paymentTransition.count === 0) {
+                const currentPayment = await tx.payment.findUniqueOrThrow({
+                    where: { id: payment.id },
+                    select: {
+                        status: true,
+                        providerSessionId: true,
+                        providerTransactionId: true,
+                    },
+                });
+                if (currentPayment.status !== "PAID" ||
+                    currentPayment.providerSessionId !== identifiers.providerSessionId ||
+                    currentPayment.providerTransactionId !== identifiers.providerTransactionId) {
+                    throw new IpaymuCallbackError("iPaymu Provider identifier mismatch");
+                }
+                return false;
+            }
+            const submissionTransition = await tx.submission.updateMany({
+                where: {
+                    id: payment.submissionId,
+                    status: "AWAITING_PAYMENT",
+                },
                 data: { status: "PAID" },
             });
-            return "PAID";
+            return submissionTransition.count === 1;
+        });
+    }
+    catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002") {
+            throw new IpaymuCallbackError("iPaymu Provider identifier mismatch");
         }
-        return submission.status;
-    });
-    if (result === "PAID") {
-        await assignExaminersToSubmission(submissionId);
+        throw error;
+    }
+    if (shouldAssignExaminers) {
+        try {
+            await assignExaminersToSubmission(payment.submissionId);
+        }
+        catch (error) {
+            console.error("Examiner assignment failed after payment", {
+                submissionId: payment.submissionId,
+                paymentId: payment.id,
+                merchantReference,
+                error: error instanceof Error ? error.message : "Unknown assignment error",
+            });
+        }
     }
 }
