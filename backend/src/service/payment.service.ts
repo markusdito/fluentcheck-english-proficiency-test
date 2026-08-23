@@ -194,8 +194,7 @@ function validateCallbackReconciliation(
     providerTransactionId: string | null;
   },
 ) {
-  const currency = requireCallbackString(body, "payment currency", "currency");
-  if (payment.currency !== "IDR" || currency !== payment.currency) {
+  if (payment.currency !== "IDR") {
     throw new IpaymuCallbackError("iPaymu payment currency mismatch");
   }
 

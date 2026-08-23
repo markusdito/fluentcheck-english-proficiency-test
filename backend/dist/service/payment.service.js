@@ -132,8 +132,7 @@ function resolveMerchantReference(body) {
     return merchantReference;
 }
 function validateCallbackReconciliation(body, payment) {
-    const currency = requireCallbackString(body, "payment currency", "currency");
-    if (payment.currency !== "IDR" || currency !== payment.currency) {
+    if (payment.currency !== "IDR") {
         throw new IpaymuCallbackError("iPaymu payment currency mismatch");
     }
     const subtotal = requireCallbackString(body, "payment subtotal", "sub_total");

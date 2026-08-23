@@ -263,7 +263,6 @@ function successCallback(
     status: "berhasil",
     status_code: "1",
     transaction_status_code: "1",
-    currency: "IDR",
     sub_total: "150000",
     additional_info: [],
     is_escrow: false,
@@ -286,7 +285,6 @@ function failedCallback(
     status: "expired",
     status_code: "-2",
     transaction_status_code: "-2",
-    currency: "IDR",
     sub_total: "150000",
     additional_info: [],
     ...overrides,
@@ -592,7 +590,16 @@ test("successful callbacks reject mismatched reconciliation fields", async () =>
     prepare?: (paymentId: string) => Promise<void>;
     overrides: Record<string, unknown>;
   }> = [
-    { name: "currency", overrides: { currency: "USD" } },
+    {
+      name: "stored currency",
+      prepare: async (paymentId) => {
+        await prisma.payment.update({
+          where: { id: paymentId },
+          data: { currency: "USD" },
+        });
+      },
+      overrides: {},
+    },
     { name: "subtotal", overrides: { sub_total: "150001" } },
     { name: "session", overrides: { sid: "another-session" } },
     { name: "transaction", overrides: { trx_id: "" } },
@@ -845,7 +852,6 @@ test("valid pending callbacks acknowledge without changing Payment state", async
     status: "pending",
     status_code: "0",
     transaction_status_code: "0",
-    currency: "IDR",
     sub_total: "150000",
     additional_info: [],
   });
@@ -863,7 +869,16 @@ test("failed callbacks reject mismatched reconciliation fields", async () => {
     prepare?: (paymentId: string) => Promise<void>;
     overrides: Record<string, unknown>;
   }> = [
-    { name: "currency", overrides: { currency: "USD" } },
+    {
+      name: "stored currency",
+      prepare: async (paymentId) => {
+        await prisma.payment.update({
+          where: { id: paymentId },
+          data: { currency: "USD" },
+        });
+      },
+      overrides: {},
+    },
     { name: "subtotal", overrides: { sub_total: "149999" } },
     { name: "session", overrides: { sid: "wrong-provider-session" } },
     {

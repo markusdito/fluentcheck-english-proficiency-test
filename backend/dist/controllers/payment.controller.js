@@ -23,7 +23,6 @@ function isIpaymuCallbackBody(value) {
         isNonEmptyString(body.status) &&
         isCallbackScalar(body.status_code) &&
         isCallbackScalar(body.transaction_status_code) &&
-        isNonEmptyString(body.currency) &&
         isCallbackScalar(body.sub_total) &&
         (body.signature === undefined || isNonEmptyString(body.signature)));
 }
