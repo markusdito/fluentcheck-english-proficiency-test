@@ -98,7 +98,7 @@ export async function fetchSubmissionStatus(
 
 export interface PaymentCheckout {
   paymentUrl: string;
-  referenceId: string;
+  merchantReference: string;
   amount: number;
   currency: string;
 }

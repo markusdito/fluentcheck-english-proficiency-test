@@ -133,6 +133,7 @@ For more detail, see the
 
 - Node.js and npm
 - PostgreSQL
+- Docker for the disposable PostgreSQL payment integration suite
 - A Cloudflare R2 bucket and S3-compatible credentials
 - iPaymu sandbox credentials if you want to exercise the payment flow
 - A modern browser with camera and microphone access
@@ -247,7 +248,9 @@ Open [http://localhost:3000](http://localhost:3000). The API listens on
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start Express with automatic restarts |
-| `npm test` | Run the backend test suite |
+| `npm run test:unit` | Run the fast backend unit suite without Docker |
+| `npm run test:integration` | Run HTTP and concurrency tests against disposable PostgreSQL |
+| `npm test` | Run the complete unit and integration suite |
 | `npm run build` | Compile TypeScript into `dist/` |
 | `npm run start` | Run the compiled API |
 | `npx prisma generate` | Generate the Prisma client |
@@ -255,9 +258,10 @@ Open [http://localhost:3000](http://localhost:3000). The API listens on
 
 ## Validation
 
-The automated backend tests currently focus on the scoring domain, including
-half-band validation, complete answer coverage, per-question rubric averages,
-and aggregation across examiners.
+The fast backend suite covers domain logic such as scoring and iPaymu signature
+canonicalization. The integration suite starts a disposable PostgreSQL container
+and exercises the Payment HTTP API, migrations, retries, callbacks, concurrency,
+and admin reconciliation history. Run the complete gate with:
 
 ```bash
 cd backend
