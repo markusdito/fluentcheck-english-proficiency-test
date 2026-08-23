@@ -1,14 +1,23 @@
 import type { Request, Response } from "express";
 import {
   createIpaymuCheckout,
+  IpaymuCheckoutError,
   processIpaymuNotification,
 } from "../service/payment.service.js";
+import {
+  fetchIpaymuTransport,
+  type IpaymuTransport,
+} from "../service/ipaymu.transport.js";
 
 /**
  * POST /api/payments/submissions/:id/pay
  * Create an iPaymu hosted checkout for a submission.
  */
-export async function paySubmission(req: Request, res: Response) {
+export async function paySubmission(
+  req: Request,
+  res: Response,
+  transport: IpaymuTransport = fetchIpaymuTransport,
+) {
   try {
     const submissionId = req.params.id as string;
     const userId = req.user!.id;
@@ -18,7 +27,7 @@ export async function paySubmission(req: Request, res: Response) {
       return;
     }
 
-    const checkout = await createIpaymuCheckout(submissionId, userId);
+    const checkout = await createIpaymuCheckout(submissionId, userId, transport);
 
     res.status(201).json({
       status: "success",
@@ -27,7 +36,9 @@ export async function paySubmission(req: Request, res: Response) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to process payment";
     const status =
-      message === "Submission not found"
+      error instanceof IpaymuCheckoutError
+        ? error.statusCode
+        : message === "Submission not found"
         ? 404
         : message === "Unauthorized"
           ? 403
@@ -35,9 +46,7 @@ export async function paySubmission(req: Request, res: Response) {
               message === "Invalid iPaymu payment configuration" ||
               message === "iPaymu sandbox configuration is incomplete"
             ? 400
-            : message === "No examiners available" || message.startsWith("No examiners available")
-              ? 400
-              : 500;
+            : 500;
     res.status(status).json({ error: message });
   }
 }

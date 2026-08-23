@@ -2,8 +2,18 @@ import crypto from "node:crypto";
 import { prisma } from "../config/db.js";
 import { env } from "../config/env.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
+import { fetchIpaymuTransport, } from "./ipaymu.transport.js";
 const IPAYMU_SANDBOX_URL = "https://sandbox.ipaymu.com";
 const IPAYMU_PRODUCTION_URL = "https://my.ipaymu.com";
+const IPAYMU_CHECKOUT_TIMEOUT_MS = 10_000;
+export class IpaymuCheckoutError extends Error {
+    statusCode;
+    constructor(message, statusCode) {
+        super(message);
+        this.statusCode = statusCode;
+        this.name = "IpaymuCheckoutError";
+    }
+}
 function requireIpaymuConfig() {
     if (!env.IPAYMU_VA_NUMBER || !env.IPAYMU_API_KEY || !env.IPAYMU_NOTIFY_URL) {
         throw new Error("iPaymu sandbox configuration is incomplete");
@@ -107,7 +117,7 @@ function isFailedCallback(body) {
     const statusCode = Number(body.status_code);
     return status === "expired" || status === "failed" || statusCode < 0;
 }
-export async function createIpaymuCheckout(submissionId, userId) {
+export async function createIpaymuCheckout(submissionId, userId, transport = fetchIpaymuTransport) {
     requireIpaymuConfig();
     const amount = Number(env.IPAYMU_PAYMENT_AMOUNT);
     const currency = env.IPAYMU_CURRENCY;
@@ -129,22 +139,16 @@ export async function createIpaymuCheckout(submissionId, userId) {
     if (!submission.paymentRequired || submission.status !== "AWAITING_PAYMENT") {
         throw new Error("Submission is not awaiting payment");
     }
-    const referenceId = `FC-${submissionId}`;
-    const pendingPayment = await prisma.payment.findFirst({
-        where: {
-            submissionId,
-            provider: "ipaymu",
-            status: "PENDING",
-        },
-        orderBy: { createdAt: "desc" },
-    });
-    const payment = pendingPayment ?? await prisma.payment.create({
+    const paymentId = crypto.randomUUID();
+    const merchantReference = `FC-PAY-${paymentId}`;
+    const payment = await prisma.payment.create({
         data: {
+            id: paymentId,
             submissionId,
             amount,
             currency,
             provider: "ipaymu",
-            providerRef: referenceId,
+            merchantReference,
             status: "PENDING",
         },
     });
@@ -156,39 +160,70 @@ export async function createIpaymuCheckout(submissionId, userId) {
         returnUrl: `${env.FRONTEND_URL}/results/${submissionId}?payment=success`,
         notifyUrl: env.IPAYMU_NOTIFY_URL,
         cancelUrl: `${env.FRONTEND_URL}/results/${submissionId}?payment=cancelled`,
-        referenceId,
+        referenceId: merchantReference,
         buyerName: submission.student.username,
         buyerEmail: submission.student.email,
     };
     const bodyJson = JSON.stringify(body);
+    const abortController = new AbortController();
+    let timeout;
     try {
-        const response = await fetch(`${getIpaymuBaseUrl()}/api/v2/payment`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                va: env.IPAYMU_VA_NUMBER,
-                signature: createRequestSignature("POST", bodyJson),
-                timestamp: createTimestamp(),
-            },
-            body: bodyJson,
+        const providerResult = Promise.resolve().then(async () => {
+            const response = await transport(`${getIpaymuBaseUrl()}/api/v2/payment`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    va: env.IPAYMU_VA_NUMBER,
+                    signature: createRequestSignature("POST", bodyJson),
+                    timestamp: createTimestamp(),
+                },
+                body: bodyJson,
+                signal: abortController.signal,
+            });
+            const result = (await response.json());
+            return { response, result };
         });
-        const result = (await response.json());
+        const timeoutResult = new Promise((_resolve, reject) => {
+            timeout = setTimeout(() => {
+                abortController.abort();
+                reject(new IpaymuCheckoutError("iPaymu checkout timed out. Please try again.", 504));
+            }, IPAYMU_CHECKOUT_TIMEOUT_MS);
+        });
+        const { response, result } = await Promise.race([
+            providerResult,
+            timeoutResult,
+        ]);
         const paymentUrl = result.Data?.Url;
-        if (!response.ok || !result.Success || !paymentUrl) {
-            throw new Error(result.Message ?? "iPaymu failed to create a payment");
+        const providerSessionId = result.Data?.SessionID;
+        if (result.Success === false || (response.status >= 400 && response.status < 500)) {
+            await prisma.payment.update({
+                where: { id: payment.id },
+                data: { status: "FAILED" },
+            });
+            throw new IpaymuCheckoutError(result.Message ?? "iPaymu rejected the checkout request", 502);
+        }
+        if (!response.ok || result.Success !== true || !paymentUrl || !providerSessionId) {
+            throw new IpaymuCheckoutError("iPaymu checkout is temporarily unavailable. Please try again.", 502);
         }
         await prisma.payment.update({
             where: { id: payment.id },
-            data: { providerRef: result.Data?.SessionID ?? referenceId },
+            data: { providerSessionId },
         });
-        return { paymentUrl, referenceId, amount, currency };
+        return { paymentUrl, merchantReference, amount, currency };
     }
     catch (error) {
-        await prisma.payment.update({
-            where: { id: payment.id },
-            data: { status: "FAILED" },
+        console.error("iPaymu checkout attempt failed", {
+            paymentId: payment.id,
+            merchantReference,
+            error: error instanceof Error ? error.message : "Unknown transport error",
         });
-        throw error;
+        if (error instanceof IpaymuCheckoutError)
+            throw error;
+        throw new IpaymuCheckoutError("iPaymu checkout is temporarily unavailable. Please try again.", 502);
+    }
+    finally {
+        if (timeout)
+            clearTimeout(timeout);
     }
 }
 export async function processIpaymuNotification(body, receivedSignature) {
@@ -228,7 +263,11 @@ export async function processIpaymuNotification(body, receivedSignature) {
     if (!baseAmountCandidates.some((value) => value === payment.amount)) {
         throw new Error("iPaymu payment amount mismatch");
     }
-    const providerRef = String(callbackValue(body, "trx_id", "sid") ?? payment.providerRef ?? referenceId);
+    const providerTransactionId = String(callbackValue(body, "trx_id") ??
+        payment.providerTransactionId ??
+        payment.providerSessionId ??
+        payment.legacyProviderRef ??
+        referenceId);
     const submission = await prisma.submission.findUnique({
         where: { id: submissionId },
         select: { status: true },
@@ -246,7 +285,7 @@ export async function processIpaymuNotification(body, receivedSignature) {
                 data: {
                     status: "PAID",
                     paidAt: new Date(),
-                    providerRef,
+                    providerTransactionId,
                 },
             });
         }

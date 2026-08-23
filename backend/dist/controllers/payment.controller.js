@@ -1,9 +1,10 @@
-import { createIpaymuCheckout, processIpaymuNotification, } from "../service/payment.service.js";
+import { createIpaymuCheckout, IpaymuCheckoutError, processIpaymuNotification, } from "../service/payment.service.js";
+import { fetchIpaymuTransport, } from "../service/ipaymu.transport.js";
 /**
  * POST /api/payments/submissions/:id/pay
  * Create an iPaymu hosted checkout for a submission.
  */
-export async function paySubmission(req, res) {
+export async function paySubmission(req, res, transport = fetchIpaymuTransport) {
     try {
         const submissionId = req.params.id;
         const userId = req.user.id;
@@ -11,7 +12,7 @@ export async function paySubmission(req, res) {
             res.status(400).json({ error: "Submission ID is required" });
             return;
         }
-        const checkout = await createIpaymuCheckout(submissionId, userId);
+        const checkout = await createIpaymuCheckout(submissionId, userId, transport);
         res.status(201).json({
             status: "success",
             data: checkout,
@@ -19,15 +20,15 @@ export async function paySubmission(req, res) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : "Failed to process payment";
-        const status = message === "Submission not found"
-            ? 404
-            : message === "Unauthorized"
-                ? 403
-                : message === "Submission is not awaiting payment" ||
-                    message === "Invalid iPaymu payment configuration" ||
-                    message === "iPaymu sandbox configuration is incomplete"
-                    ? 400
-                    : message === "No examiners available" || message.startsWith("No examiners available")
+        const status = error instanceof IpaymuCheckoutError
+            ? error.statusCode
+            : message === "Submission not found"
+                ? 404
+                : message === "Unauthorized"
+                    ? 403
+                    : message === "Submission is not awaiting payment" ||
+                        message === "Invalid iPaymu payment configuration" ||
+                        message === "iPaymu sandbox configuration is incomplete"
                         ? 400
                         : 500;
         res.status(status).json({ error: message });

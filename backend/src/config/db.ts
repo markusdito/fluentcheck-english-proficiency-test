@@ -27,6 +27,7 @@ const connectDB = async () => {
 
 const disconnectDB = async () => {
     await prisma.$disconnect()
+    await pool.end()
 }
 
 export {prisma, connectDB, disconnectDB}
