@@ -58,11 +58,22 @@ export async function paySubmission(
  */
 export async function ipaymuNotification(req: Request, res: Response) {
   try {
+    if (
+      typeof req.body !== "object" ||
+      req.body === null ||
+      Array.isArray(req.body)
+    ) {
+      res.status(400).json({ error: "Invalid iPaymu callback body" });
+      return;
+    }
     const signatureHeader = req.headers["x-signature"];
     const signature = Array.isArray(signatureHeader)
       ? signatureHeader[0]
       : signatureHeader;
-    await processIpaymuNotification(req.body as Record<string, unknown>, signature);
+    await processIpaymuNotification(
+      req.body as Record<string, unknown>,
+      signature,
+    );
     res.status(200).json({ status: "success" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to process iPaymu notification";

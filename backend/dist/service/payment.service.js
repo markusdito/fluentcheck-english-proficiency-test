@@ -22,6 +22,9 @@ export class IpaymuCallbackError extends Error {
         this.name = "IpaymuCallbackError";
     }
 }
+function isRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 function requireIpaymuConfig() {
     if (!env.IPAYMU_VA_NUMBER || !env.IPAYMU_API_KEY || !env.IPAYMU_NOTIFY_URL) {
         throw new Error("iPaymu sandbox configuration is incomplete");
@@ -184,7 +187,7 @@ function resolveMerchantReference(body) {
     }
     return merchantReference;
 }
-function validateSuccessCallback(body, payment) {
+function validateCallbackReconciliation(body, payment) {
     const currency = requireCallbackString(body, "payment currency", "currency");
     if (payment.currency !== "IDR" || currency !== payment.currency) {
         throw new IpaymuCallbackError("iPaymu payment currency mismatch");
@@ -271,7 +274,7 @@ export async function createIpaymuCheckout(submissionId, userId, transport = fet
                 body: bodyJson,
                 signal: abortController.signal,
             });
-            const result = (await response.json());
+            const result = await response.json();
             return { response, result };
         });
         const timeoutResult = new Promise((_resolve, reject) => {
@@ -284,19 +287,29 @@ export async function createIpaymuCheckout(submissionId, userId, transport = fet
             providerResult,
             timeoutResult,
         ]);
-        const paymentUrl = result.Data?.Url;
-        const providerSessionId = result.Data?.SessionID;
+        const resultRecord = isRecord(result) ? result : undefined;
+        const resultData = isRecord(resultRecord?.Data)
+            ? resultRecord.Data
+            : undefined;
+        const paymentUrl = typeof resultData?.Url === "string" && resultData.Url.length > 0
+            ? resultData.Url
+            : undefined;
+        const providerSessionId = typeof resultData?.SessionID === "string" && resultData.SessionID.length > 0
+            ? resultData.SessionID
+            : undefined;
+        const success = resultRecord?.Success;
+        const rejectionMessage = typeof resultRecord?.Message === "string" ? resultRecord.Message : undefined;
         if (response.status >= 500) {
             throw new IpaymuCheckoutError("iPaymu checkout is temporarily unavailable. Please try again.", 502);
         }
-        if (result.Success === false || (response.status >= 400 && response.status < 500)) {
+        if (success === false || (response.status >= 400 && response.status < 500)) {
             await prisma.payment.update({
                 where: { id: payment.id },
                 data: { status: "FAILED" },
             });
-            throw new IpaymuCheckoutError(result.Message ?? "iPaymu rejected the checkout request", 502);
+            throw new IpaymuCheckoutError(rejectionMessage ?? "iPaymu rejected the checkout request", 502);
         }
-        if (!response.ok || result.Success !== true || !paymentUrl || !providerSessionId) {
+        if (!response.ok || success !== true || !paymentUrl || !providerSessionId) {
             throw new IpaymuCheckoutError("iPaymu checkout is temporarily unavailable. Please try again.", 502);
         }
         await prisma.payment.update({
@@ -330,6 +343,9 @@ export async function processIpaymuNotification(body, headerSignature) {
         throw new IpaymuCallbackError("Unknown iPaymu Merchant reference");
     }
     const outcome = callbackOutcome(body);
+    if (payment.status === "PAID" && outcome !== "SUCCESS")
+        return;
+    const identifiers = validateCallbackReconciliation(body, payment);
     if (outcome === "PENDING")
         return;
     if (outcome === "FAILED") {
@@ -339,7 +355,6 @@ export async function processIpaymuNotification(body, headerSignature) {
         });
         return;
     }
-    const identifiers = validateSuccessCallback(body, payment);
     let shouldAssignExaminers = false;
     try {
         shouldAssignExaminers = await prisma.$transaction(async (tx) => {

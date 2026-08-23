@@ -181,7 +181,7 @@ before(async () => {
   await migrateDatabase(process.env.DATABASE_URL);
 
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
-  const { createApp } = await import("../../src/app.js");
+  const { createApp } = await import("../../src/server.js");
   ipaymuTransport = successfulCheckoutTransport();
   app = createApp({
     ipaymuTransport: (url, init) => ipaymuTransport(url, init),
@@ -271,12 +271,35 @@ function successCallback(
   };
 }
 
+function failedCallback(
+  payment: {
+    merchantReference: string | null;
+    providerSessionId: string | null;
+  },
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    reference_id: payment.merchantReference,
+    referenceId: payment.merchantReference,
+    sid: payment.providerSessionId,
+    trx_id: String(providerTransactionSequence++),
+    status: "expired",
+    status_code: "-2",
+    transaction_status_code: "-2",
+    currency: "IDR",
+    sub_total: "150000",
+    additional_info: [],
+    ...overrides,
+  };
+}
+
 async function postCallback(
   body: Record<string, unknown>,
   options: {
     contentType?: "json" | "form";
     signatureLocation?: "header" | "body" | "both" | "none";
     conflictingBodySignature?: boolean;
+    invalidSignature?: boolean;
   } = {},
 ) {
   const contentType = options.contentType ?? "json";
@@ -284,14 +307,17 @@ async function postCallback(
   const signature = signCallback(body);
   const requestBody = { ...body };
   if (signatureLocation === "body" || signatureLocation === "both") {
-    requestBody.signature = options.conflictingBodySignature
+    requestBody.signature = options.conflictingBodySignature || options.invalidSignature
       ? "0".repeat(64)
       : signature;
   }
 
   const headers = new Headers();
   if (signatureLocation === "header" || signatureLocation === "both") {
-    headers.set("X-Signature", signature);
+    headers.set(
+      "X-Signature",
+      options.invalidSignature ? "0".repeat(64) : signature,
+    );
   }
   headers.set("X-Timestamp", "2020-01-01T00:00:00+07:00");
   let encodedBody: string;
@@ -359,6 +385,8 @@ test("staged migration preserves historical provider references as legacy data",
 test("callbacks authenticate from supported locations and reject ambiguous signatures", async () => {
   for (const variant of [
     { contentType: "json", signatureLocation: "header" },
+    { contentType: "json", signatureLocation: "body" },
+    { contentType: "form", signatureLocation: "header" },
     { contentType: "form", signatureLocation: "body" },
     { contentType: "json", signatureLocation: "both" },
   ] as const) {
@@ -391,6 +419,22 @@ test("callbacks authenticate from supported locations and reject ambiguous signa
     (await prisma.payment.findUniqueOrThrow({ where: { id: missing.payment.id } })).status,
     "PENDING",
   );
+
+  for (const invalidVariant of [
+    { contentType: "json", signatureLocation: "header" },
+    { contentType: "form", signatureLocation: "body" },
+  ] as const) {
+    const invalid = await createPaymentAttempt();
+    const invalidResponse = await postCallback(successCallback(invalid.payment), {
+      ...invalidVariant,
+      invalidSignature: true,
+    });
+    assert.equal(invalidResponse.status, 400);
+    assert.equal(
+      (await prisma.payment.findUniqueOrThrow({ where: { id: invalid.payment.id } })).status,
+      "PENDING",
+    );
+  }
 });
 
 test("a delayed callback updates only its exact older Payment attempt", async () => {
@@ -452,6 +496,17 @@ test("checkout failures preserve ambiguous attempts and fail only explicit rejec
       name: "malformed success response",
       transport: async () => new Response(
         JSON.stringify({ Success: true, Data: { Url: "https://checkout.example.test" } }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+      expectedStatus: "PENDING",
+    },
+    {
+      name: "wrongly typed success response",
+      transport: async () => new Response(
+        JSON.stringify({
+          Success: true,
+          Data: { Url: { href: "https://checkout.example.test" }, SessionID: 12345 },
+        }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       ),
       expectedStatus: "PENDING",
@@ -606,15 +661,7 @@ test("concurrent callback replay pays and dispatches assignment once", async () 
 
 test("success remains terminal while a delayed success can upgrade failure", async () => {
   const first = await createPaymentAttempt();
-  const failureBody = {
-    reference_id: first.payment.merchantReference,
-    referenceId: first.payment.merchantReference,
-    sid: first.payment.providerSessionId,
-    status: "expired",
-    status_code: "-2",
-    transaction_status_code: "-2",
-    additional_info: [],
-  };
+  const failureBody = failedCallback(first.payment);
   const successBody = successCallback(first.payment);
 
   const concurrentResponses = await Promise.all([
@@ -633,12 +680,7 @@ test("success remains terminal while a delayed success can upgrade failure", asy
   );
 
   const second = await createPaymentAttempt();
-  const secondFailure = {
-    ...failureBody,
-    reference_id: second.payment.merchantReference,
-    referenceId: second.payment.merchantReference,
-    sid: second.payment.providerSessionId,
-  };
+  const secondFailure = failedCallback(second.payment);
   assert.equal((await postCallback(secondFailure)).status, 200);
   assert.equal(
     (await prisma.payment.findUniqueOrThrow({ where: { id: second.payment.id } })).status,
@@ -762,9 +804,12 @@ test("valid pending callbacks acknowledge without changing Payment state", async
     reference_id: payment.merchantReference,
     referenceId: payment.merchantReference,
     sid: payment.providerSessionId,
+    trx_id: String(providerTransactionSequence++),
     status: "pending",
     status_code: "0",
     transaction_status_code: "0",
+    currency: "IDR",
+    sub_total: "150000",
     additional_info: [],
   });
 
@@ -773,6 +818,42 @@ test("valid pending callbacks acknowledge without changing Payment state", async
     (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
     "PENDING",
   );
+});
+
+test("failed callbacks reject mismatched reconciliation fields", async () => {
+  const variants: Array<{
+    name: string;
+    prepare?: (paymentId: string) => Promise<void>;
+    overrides: Record<string, unknown>;
+  }> = [
+    { name: "currency", overrides: { currency: "USD" } },
+    { name: "subtotal", overrides: { sub_total: "149999" } },
+    { name: "session", overrides: { sid: "wrong-provider-session" } },
+    {
+      name: "stored transaction",
+      prepare: async (paymentId) => {
+        await prisma.payment.update({
+          where: { id: paymentId },
+          data: { providerTransactionId: "77777777" },
+        });
+      },
+      overrides: { trx_id: "88888888" },
+    },
+  ];
+
+  for (const variant of variants) {
+    const { payment } = await createPaymentAttempt();
+    await variant.prepare?.(payment.id);
+    const response = await postCallback(
+      failedCallback(payment, variant.overrides),
+    );
+    assert.equal(response.status, 400, variant.name);
+    assert.equal(
+      (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
+      "PENDING",
+      variant.name,
+    );
+  }
 });
 
 test("assignment failure preserves a recoverable Paid submission", async () => {
@@ -876,19 +957,19 @@ test("admin Payment history exposes typed and legacy reconciliation identifiers"
 test("database failure before commit returns a retryable server error", async () => {
   const { payment } = await createPaymentAttempt();
   const body = successCallback(payment);
-  await prisma.$executeRawUnsafe(`
+  await prisma.$executeRaw`
     CREATE FUNCTION reject_payment_transition() RETURNS trigger AS $$
     BEGIN
       RAISE EXCEPTION 'temporary payment write failure';
     END;
     $$ LANGUAGE plpgsql;
-  `);
-  await prisma.$executeRawUnsafe(`
+  `;
+  await prisma.$executeRaw`
     CREATE TRIGGER reject_payment_transition
     BEFORE UPDATE ON "Payment"
     FOR EACH ROW WHEN (NEW.status = 'PAID')
     EXECUTE FUNCTION reject_payment_transition();
-  `);
+  `;
 
   try {
     const response = await postCallback(body);
@@ -898,12 +979,12 @@ test("database failure before commit returns a retryable server error", async ()
       "PENDING",
     );
   } finally {
-    await prisma.$executeRawUnsafe(
-      `DROP TRIGGER IF EXISTS reject_payment_transition ON "Payment"`,
-    );
-    await prisma.$executeRawUnsafe(
-      "DROP FUNCTION IF EXISTS reject_payment_transition()",
-    );
+    await prisma.$executeRaw`
+      DROP TRIGGER IF EXISTS reject_payment_transition ON "Payment"
+    `;
+    await prisma.$executeRaw`
+      DROP FUNCTION IF EXISTS reject_payment_transition()
+    `;
   }
 
   assert.equal((await postCallback(body)).status, 200);

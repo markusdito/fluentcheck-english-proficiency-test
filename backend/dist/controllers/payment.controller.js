@@ -40,6 +40,12 @@ export async function paySubmission(req, res, transport = fetchIpaymuTransport) 
  */
 export async function ipaymuNotification(req, res) {
     try {
+        if (typeof req.body !== "object" ||
+            req.body === null ||
+            Array.isArray(req.body)) {
+            res.status(400).json({ error: "Invalid iPaymu callback body" });
+            return;
+        }
         const signatureHeader = req.headers["x-signature"];
         const signature = Array.isArray(signatureHeader)
             ? signatureHeader[0]
