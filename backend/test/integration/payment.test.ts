@@ -448,6 +448,23 @@ test("callbacks authenticate from supported locations and reject ambiguous signa
   );
 });
 
+test("successful form callbacks accept provider transaction status code 7", async () => {
+  const { payment } = await createPaymentAttempt();
+  const response = await postCallback(
+    successCallback(payment, {
+      status_code: 1,
+      transaction_status_code: 7,
+    }),
+    { contentType: "form" },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
+    "PAID",
+  );
+});
+
 test("a delayed callback updates only its exact older Payment attempt", async () => {
   const context = await createAwaitingPaymentSubmission();
   const firstResponse = await fetch(

@@ -123,12 +123,15 @@ function callbackOutcome(body: IpaymuCallback): "SUCCESS" | "FAILED" | "PENDING"
   const isSuccess =
     status === "berhasil" &&
     statusCode === 1 &&
-    (transactionStatusCode === 1 || transactionStatusCode === 6);
+    (transactionStatusCode === 1 ||
+      transactionStatusCode === 6 ||
+      transactionStatusCode === 7);
   const hasSuccessIndicator =
     status === "berhasil" ||
     statusCode === 1 ||
     transactionStatusCode === 1 ||
-    transactionStatusCode === 6;
+    transactionStatusCode === 6 ||
+    transactionStatusCode === 7;
 
   if (hasSuccessIndicator) {
     if (!isSuccess) {
