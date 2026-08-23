@@ -893,10 +893,11 @@ test("failed callbacks reject mismatched reconciliation fields", async () => {
   }
 });
 
-test("assignment failure preserves a recoverable Paid submission", async () => {
+test("assignment failure remains replay-safe and recoverable through admin", async () => {
   const { payment, submission } = await createPaymentAttempt();
+  const body = successCallback(payment);
 
-  const response = await postCallback(successCallback(payment));
+  const response = await postCallback(body);
 
   assert.equal(response.status, 200);
   assert.equal(
@@ -910,6 +911,59 @@ test("assignment failure preserves a recoverable Paid submission", async () => {
   assert.equal(
     await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
     0,
+  );
+
+  const replayResponse = await postCallback(body);
+  assert.equal(replayResponse.status, 200);
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: submission.id } })).status,
+    "PAID",
+  );
+  assert.equal(
+    await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
+    0,
+  );
+
+  await prisma.user.create({
+    data: {
+      username: "recovery-examiner",
+      email: "recovery-examiner@example.test",
+      password: "not-used-by-payment-tests",
+      role: "EXAMINER",
+    },
+  });
+  const admin = await prisma.user.create({
+    data: {
+      username: "recovery-admin",
+      email: "recovery-admin@example.test",
+      password: "not-used-by-payment-tests",
+      role: "ADMIN",
+    },
+  });
+  const adminToken = jwt.sign({ id: admin.id }, process.env.JWT_SECRET!);
+  const recoveryResponse = await fetch(
+    `${baseUrl}/api/admin/submissions/${submission.id}/assign`,
+    {
+      method: "POST",
+      headers: { Cookie: `jwt=${adminToken}` },
+    },
+  );
+  const recoveryPayload = await recoveryResponse.json();
+
+  assert.equal(recoveryResponse.status, 200);
+  assert.equal(recoveryPayload.data.status, "SCORING");
+  assert.equal(recoveryPayload.data.assignments.length, 1);
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: submission.id } })).status,
+    "SCORING",
+  );
+  assert.equal(
+    await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
+    1,
+  );
+  assert.equal(
+    (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
+    "PAID",
   );
 });
 
