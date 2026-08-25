@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   fetchAdminQuestions: vi.fn(),
   createQuestion: vi.fn(),
   updateQuestion: vi.fn(),
-  deleteQuestion: vi.fn(),
+  retireQuestion: vi.fn(),
   createTask: vi.fn(),
   updateTask: vi.fn(),
   deleteTask: vi.fn(),
@@ -30,6 +30,7 @@ function renderPage() {
 
 describe("AdminQuestionsPage edit mode", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mocks.fetchAdminQuestions.mockReset().mockResolvedValue([
       {
         id: "question-1",
@@ -45,6 +46,45 @@ describe("AdminQuestionsPage edit mode", () => {
         tasks: [],
       },
     ]);
+  });
+
+  it("retires a Question with truthful retained-evidence feedback", async () => {
+    const user = userEvent.setup();
+    mocks.retireQuestion.mockResolvedValue(undefined);
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Retire" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Retire this question?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Prompt media remains available through retained submissions/i,
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retire question" }));
+
+    expect(mocks.retireQuestion).toHaveBeenCalledWith("question-1");
+    expect(
+      await screen.findByText("Question retired. Retained evidence is unchanged."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Order 1/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the Question visible and reports a retirement failure", async () => {
+    const user = userEvent.setup();
+    mocks.retireQuestion.mockRejectedValue(new Error("network unavailable"));
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Retire" }));
+    await user.click(screen.getByRole("button", { name: "Retire question" }));
+
+    expect(
+      await screen.findByText("Failed to retire question."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Order 1/i)).toBeInTheDocument();
   });
 
   it("hides question creation and part lists while editing", async () => {

@@ -1,4 +1,4 @@
-import { PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2Client } from "../config/r2.js";
 import { env } from "../config/env.js";
@@ -15,20 +15,34 @@ export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}
 export function generateQuestionAudioKey(questionId) {
     return `questions/${questionId}/prompt.webm`;
 }
-async function headObject(storageKey, mimeType) {
+/** Read Prompt-media object metadata without mutating storage. */
+export async function inspectQuestionAudioObject(storageKey) {
     try {
         const head = await r2Client.send(new HeadObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey }));
-        if (mimeType && head.ContentType && head.ContentType !== mimeType) {
-            throw new Error("Audio content-type mismatch");
-        }
-        return { exists: true, contentLength: head.ContentLength ?? -1 };
+        return {
+            exists: true,
+            contentLength: head.ContentLength ?? null,
+            contentType: head.ContentType ?? null,
+        };
     }
     catch (error) {
         if (error.$metadata?.httpStatusCode === 404) {
-            return { exists: false, contentLength: -1 };
+            return { exists: false, contentLength: null, contentType: null };
         }
         throw error;
     }
+}
+async function headObject(storageKey, mimeType) {
+    const inspection = await inspectQuestionAudioObject(storageKey);
+    if (mimeType &&
+        inspection.contentType &&
+        inspection.contentType !== mimeType) {
+        throw new Error("Audio content-type mismatch");
+    }
+    return {
+        exists: inspection.exists,
+        contentLength: inspection.contentLength ?? -1,
+    };
 }
 /**
  * Generate a presigned PUT URL so an admin can upload a question's prompt
@@ -152,17 +166,6 @@ export async function createQuestionAudioViewUrlFromMetadata(storageKey, mimeTyp
         ResponseCacheControl: "no-cache",
     });
     return getSignedUrl(r2Client, command, { expiresIn: 3600 });
-}
-/**
- * Best-effort removal of a question's prompt audio from R2.
- * Caller must have already soft-deleted the question.
- */
-export async function deleteQuestionAudio(storageKey) {
-    if (!storageKey || !AUDIO_KEY_RE.test(storageKey))
-        return;
-    await r2Client
-        .send(new DeleteObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey }))
-        .catch(() => { });
 }
 /**
  * Generate a storage key for a video answer.

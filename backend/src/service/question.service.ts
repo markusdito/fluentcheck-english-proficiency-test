@@ -1,5 +1,4 @@
 import {prisma} from "../config/db.js";
-import {deleteQuestionAudio} from "./upload.service.js";
 import {QuestionCategory} from "../generated/enums.js";
 
 export interface CreateTaskInput {
@@ -192,26 +191,22 @@ export async function updateQuestion(id: string, data: UpdateQuestionInput) {
 }
 
 /**
- * Soft delete a question (admin only). Historical answers are preserved.
+ * Retire a Question from future delivery without mutating retained evidence.
  */
-export async function deleteQuestion(id: string) {
+export async function retireQuestion(id: string) {
   const existing = await prisma.question.findUnique({
     where: {id},
-    select: {id: true, deletedAt: true, audioStorageKey: true},
+    select: {id: true, deletedAt: true},
   });
-  if (!existing || existing.deletedAt) throw new Error("Question not found");
-
-  const deleted = await prisma.question.update({
-    where: {id},
-    data: {deletedAt: new Date()},
-  });
-
-  // Post-update check: only remove the audio object if the soft delete actually landed.
-  if (deleted.deletedAt && existing.audioStorageKey) {
-    await deleteQuestionAudio(existing.audioStorageKey);
+  if (!existing) throw new Error("Question not found");
+  if (!existing.deletedAt) {
+    await prisma.question.updateMany({
+      where: {id, deletedAt: null},
+      data: {deletedAt: new Date()},
+    });
   }
 
-  return deleted;
+  return prisma.question.findUniqueOrThrow({where: {id}});
 }
 
 /**

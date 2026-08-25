@@ -1,6 +1,6 @@
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
-import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, deleteQuestion as deleteQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, } from "../service/question.service.js";
+import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, } from "../service/question.service.js";
 import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, createQuestionAudioViewUrlFromMetadata, } from "../service/upload.service.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 function handleQuestionAudioError(res, error) {
@@ -204,10 +204,10 @@ export async function updateQuestion(req, res) {
         handleQuestionError(res, error);
     }
 }
-export async function deleteQuestion(req, res) {
+export async function retireQuestion(req, res) {
     try {
         const id = req.params.id;
-        await deleteQuestionService(id);
+        await retireQuestionService(id);
         res.status(200).json({ status: "success" });
     }
     catch (error) {

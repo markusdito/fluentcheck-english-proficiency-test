@@ -7,7 +7,7 @@ import {
   retrieveTestQuestions,
   createQuestion as createQuestionService,
   updateQuestion as updateQuestionService,
-  deleteQuestion as deleteQuestionService,
+  retireQuestion as retireQuestionService,
   createTask as createTaskService,
   updateTask as updateTaskService,
   deleteTask as deleteTaskService,
@@ -245,10 +245,10 @@ export async function updateQuestion(req: Request, res: Response) {
   }
 }
 
-export async function deleteQuestion(req: Request, res: Response) {
+export async function retireQuestion(req: Request, res: Response) {
   try {
     const id = req.params.id as string;
-    await deleteQuestionService(id);
+    await retireQuestionService(id);
     res.status(200).json({ status: "success" });
   } catch (error) {
     handleQuestionError(res, error);

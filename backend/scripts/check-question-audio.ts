@@ -8,7 +8,7 @@ import {
   AUDIO_KEY_RE,
   AUDIO_MIME_RE,
 } from "../src/service/upload.service.js";
-import { createQuestion, deleteQuestion } from "../src/service/question.service.js";
+import { createQuestion, retireQuestion } from "../src/service/question.service.js";
 import { QuestionCategory } from "../src/generated/enums.js";
 
 let failures = 0;
@@ -90,8 +90,8 @@ async function main() {
     });
     await expectThrows(() => createQuestionAudioViewUrl(q.id), /Invalid audio storage key/, "tampered storageKey rejected on view");
 
-    await deleteQuestion(q.id);
-    await expectThrows(() => confirmQuestionAudioUpload(q.id), /Question not found/, "confirm on soft-deleted question");
+    await retireQuestion(q.id);
+    await expectThrows(() => confirmQuestionAudioUpload(q.id), /Question not found/, "confirm on Retired question");
   } finally {
     await prisma.question.deleteMany({ where: { id: q.id } }).catch(() => {});
   }
