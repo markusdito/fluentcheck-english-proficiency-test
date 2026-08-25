@@ -56,7 +56,7 @@ async function headObject(
     inspection.contentType &&
     inspection.contentType !== mimeType
   ) {
-    throw new Error("Audio content-type mismatch");
+    throw new Error("Prompt media content-type mismatch");
   }
   return {
     exists: inspection.exists,
@@ -64,7 +64,7 @@ async function headObject(
   };
 }
 
-async function throwQuestionAudioWriteConflict(
+async function throwPromptMediaWriteConflict(
   questionId: string,
   activeQuestionMessage: string,
 ): Promise<never> {
@@ -110,9 +110,9 @@ export async function createQuestionAudioPresignedUpload(
     },
   });
   if (updated.count !== 1) {
-    await throwQuestionAudioWriteConflict(
+    await throwPromptMediaWriteConflict(
       questionId,
-      "Question audio already uploaded",
+      "Prompt media already uploaded",
     );
   }
 
@@ -144,22 +144,24 @@ export async function confirmQuestionAudioUpload(questionId: string): Promise<vo
     },
   });
   if (!question || question.deletedAt) throw new Error("Question not found");
-  if (question.audioUploadStatus !== "PENDING") throw new Error("No pending audio upload for this question");
+  if (question.audioUploadStatus !== "PENDING") {
+    throw new Error("No pending Prompt media upload for this Question");
+  }
   if (!question.audioStorageKey || !AUDIO_KEY_RE.test(question.audioStorageKey)) {
     throw new Error("Invalid audio storage key");
   }
 
   const head = await headObject(question.audioStorageKey, question.audioMimeType);
-  if (!head.exists) throw new Error("Audio object not found in storage");
+  if (!head.exists) throw new Error("Prompt media not found in storage");
 
   const updated = await prisma.question.updateMany({
     where: { id: questionId, deletedAt: null, audioUploadStatus: "PENDING" },
     data: { audioUploadStatus: "UPLOADED", audioSizeBytes: head.contentLength },
   });
   if (updated.count !== 1) {
-    await throwQuestionAudioWriteConflict(
+    await throwPromptMediaWriteConflict(
       questionId,
-      "Concurrent confirm — question audio already finalized",
+      "Concurrent confirmation — Prompt media already finalized",
     );
   }
 
@@ -203,7 +205,7 @@ export async function createQuestionAudioViewUrl(questionId: string): Promise<st
   });
   if (!question || question.deletedAt) throw new Error("Question not found");
   if (question.audioUploadStatus !== "UPLOADED" || !question.audioStorageKey) {
-    throw new Error("Audio not yet uploaded");
+    throw new Error("Prompt media not yet uploaded");
   }
   if (!AUDIO_KEY_RE.test(question.audioStorageKey)) throw new Error("Invalid audio storage key");
 

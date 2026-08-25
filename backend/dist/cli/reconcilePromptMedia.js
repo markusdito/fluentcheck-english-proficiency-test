@@ -1,6 +1,6 @@
-import { formatHumanReconciliation, reconcileRetiredQuestionMedia, } from "../service/questionMediaReconciliation.service.js";
-export async function runQuestionMediaReconciliationCli(args, dependencies = {}) {
-    const runReconciliation = dependencies.runReconciliation ?? reconcileRetiredQuestionMedia;
+import { formatHumanReconciliation, reconcileRetiredPromptMedia, } from "../service/promptMediaReconciliation.service.js";
+export async function runPromptMediaReconciliationCli(args, dependencies = {}) {
+    const runReconciliation = dependencies.runReconciliation ?? reconcileRetiredPromptMedia;
     const writeOutput = dependencies.writeOutput ?? ((value) => process.stdout.write(value));
     const writeError = dependencies.writeError ?? ((value) => process.stderr.write(value));
     const unknownArguments = args.filter((argument) => argument !== "--json");
@@ -17,8 +17,8 @@ export async function runQuestionMediaReconciliationCli(args, dependencies = {})
         return result.exitCode;
     }
     catch (error) {
-        const message = error instanceof Error ? error.message : "Question-media reconciliation failed";
-        writeError(`Question-media reconciliation failed: ${message}\n`);
+        const message = error instanceof Error ? error.message : "Prompt media reconciliation failed";
+        writeError(`Prompt media reconciliation failed: ${message}\n`);
         return 1;
     }
 }

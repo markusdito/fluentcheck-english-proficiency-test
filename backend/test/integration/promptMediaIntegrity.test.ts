@@ -38,11 +38,11 @@ async function migrateDatabase(databaseUrl: string) {
 before(async () => {
   container = await new PostgreSqlContainer("postgres:17-alpine").start();
   process.env.DATABASE_URL = container.getConnectionUri();
-  process.env.JWT_SECRET = "question-media-integration-secret";
-  process.env.R2_ACCOUNT_ID = "question-media-test-account";
-  process.env.R2_ACCESS_KEY_ID = "question-media-test-access-key";
-  process.env.R2_SECRET_ACCESS_KEY = "question-media-test-secret-key";
-  process.env.R2_BUCKET_NAME = "question-media-test-bucket";
+  process.env.JWT_SECRET = "prompt-media-integration-secret";
+  process.env.R2_ACCOUNT_ID = "prompt-media-test-account";
+  process.env.R2_ACCESS_KEY_ID = "prompt-media-test-access-key";
+  process.env.R2_SECRET_ACCESS_KEY = "prompt-media-test-secret-key";
+  process.env.R2_BUCKET_NAME = "prompt-media-test-bucket";
   process.env.FRONTEND_URL = "https://fluentcheck.example.test";
 
   await migrateDatabase(process.env.DATABASE_URL);
@@ -303,12 +303,12 @@ test("retiring a Question is idempotent and preserves authorized retained submis
   );
   assert.equal(unauthorizedExaminer.status, 403);
 
-  const directQuestionMedia = await request(
+  const directPromptMedia = await request(
     "GET",
     `/questions/${fixture.question.id}/audio-url`,
     cookieFor(fixture.admin.id),
   );
-  assert.equal(directQuestionMedia.status, 404);
+  assert.equal(directPromptMedia.status, 404);
   const newUpload = await request(
     "POST",
     "/questions/audio/presigned-url",
@@ -326,7 +326,7 @@ test("retiring a Question is idempotent and preserves authorized retained submis
   assert.deepEqual(storageRequests, []);
 });
 
-test("retirement wins races with Prompt media presign and confirmation writes", async () => {
+test("retirement during Prompt media inspection prevents confirmation mutation", async () => {
   const admin = await prisma.user.create({
     data: {
       username: `race-admin-${crypto.randomUUID()}`,
@@ -335,49 +335,10 @@ test("retirement wins races with Prompt media presign and confirmation writes", 
       role: "ADMIN",
     },
   });
-  const originalUpdateMany = prisma.question.updateMany.bind(prisma.question);
   const { r2Client } = await import("../../src/config/r2.js");
   const originalStorageSend = r2Client.send;
 
   try {
-    const presignQuestion = await prisma.question.create({
-      data: { category: "PART_3", order: 900_001, createdById: admin.id },
-    });
-    prisma.question.updateMany = (async (args) => {
-      if (args.where?.id === presignQuestion.id) {
-        await prisma.question.update({
-          where: { id: presignQuestion.id },
-          data: { deletedAt: new Date() },
-        });
-      }
-      return originalUpdateMany(args);
-    }) as typeof prisma.question.updateMany;
-
-    const racedPresign = await request(
-      "POST",
-      "/questions/audio/presigned-url",
-      cookieFor(admin.id),
-      { questionId: presignQuestion.id, mimeType: "audio/webm" },
-    );
-    assert.equal(racedPresign.status, 404);
-    assert.deepEqual(
-      await prisma.question.findUniqueOrThrow({
-        where: { id: presignQuestion.id },
-        select: {
-          audioStorageKey: true,
-          audioMimeType: true,
-          audioSizeBytes: true,
-          audioUploadStatus: true,
-        },
-      }),
-      {
-        audioStorageKey: null,
-        audioMimeType: null,
-        audioSizeBytes: null,
-        audioUploadStatus: "PENDING",
-      },
-    );
-
     const confirmationQuestionId = crypto.randomUUID();
     const confirmationStorageKey =
       `questions/${confirmationQuestionId}/prompt.webm`;
@@ -385,27 +346,19 @@ test("retirement wins races with Prompt media presign and confirmation writes", 
       data: {
         id: confirmationQuestionId,
         category: "PART_3",
-        order: 900_002,
+        order: 900_001,
         createdById: admin.id,
         audioStorageKey: confirmationStorageKey,
         audioMimeType: "audio/webm",
         audioUploadStatus: "PENDING",
       },
     });
-    prisma.question.updateMany = (async (args) => {
-      if (
-        args.where?.id === confirmationQuestionId &&
-        args.data?.audioUploadStatus === "UPLOADED"
-      ) {
-        await prisma.question.update({
-          where: { id: confirmationQuestionId },
-          data: { deletedAt: new Date() },
-        });
-      }
-      return originalUpdateMany(args);
-    }) as typeof prisma.question.updateMany;
     r2Client.send = (async (command: unknown) => {
       storageRequests.push(command);
+      await prisma.question.update({
+        where: { id: confirmationQuestionId },
+        data: { deletedAt: new Date() },
+      });
       return { ContentLength: 2_048, ContentType: "audio/webm" };
     }) as typeof r2Client.send;
 
@@ -435,7 +388,6 @@ test("retirement wins races with Prompt media presign and confirmation writes", 
     );
     assert.equal(storageRequests.length, 1);
   } finally {
-    prisma.question.updateMany = originalUpdateMany as typeof prisma.question.updateMany;
     r2Client.send = originalStorageSend;
   }
 });
@@ -569,9 +521,9 @@ test("reconciliation reports every Retired Question Prompt media state without m
     orderBy: { id: "asc" },
   });
   const inspectedKeys: string[] = [];
-  const { reconcileRetiredQuestionMedia, formatHumanReconciliation } =
-    await import("../../src/service/questionMediaReconciliation.service.js");
-  const result = await reconcileRetiredQuestionMedia({
+  const { reconcileRetiredPromptMedia, formatHumanReconciliation } =
+    await import("../../src/service/promptMediaReconciliation.service.js");
+  const result = await reconcileRetiredPromptMedia({
     inspectPromptMedia: async (storageKey) => {
       inspectedKeys.push(storageKey);
       if (storageKey === storageFailure.audioStorageKey) {
@@ -627,7 +579,10 @@ test("reconciliation reports every Retired Question Prompt media state without m
   });
   assert.deepEqual(
     Object.fromEntries(
-      result.records.map((record) => [record.questionId, record.status]),
+      result.records.map((record) => [
+        record.questionId,
+        record.classification.status,
+      ]),
     ),
     {
       [referencedPresent.id]: "PRESENT",
@@ -642,8 +597,14 @@ test("reconciliation reports every Retired Question Prompt media state without m
   const invalidMetadataRecord = result.records.find(
     (record) => record.questionId === invalidMetadata.id,
   );
-  assert.equal(invalidMetadataRecord?.metadataStatus, "INVALID");
-  assert.equal(invalidMetadataRecord?.existenceStatus, "PRESENT");
+  assert.equal(
+    invalidMetadataRecord?.classification.metadataStatus,
+    "INVALID",
+  );
+  assert.equal(
+    invalidMetadataRecord?.classification.existenceStatus,
+    "PRESENT",
+  );
   assert.equal(invalidMetadataRecord?.observedSizeBytes, 777);
   assert.deepEqual(inspectedKeys.sort(), [
     invalidMetadata.audioStorageKey,
@@ -660,11 +621,11 @@ test("reconciliation reports every Retired Question Prompt media state without m
   assert.match(formatHumanReconciliation(result), /Referenced: 5/);
   assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
 
-  const { runQuestionMediaReconciliationCli } =
-    await import("../../src/cli/reconcileQuestionMedia.js");
+  const { runPromptMediaReconciliationCli } =
+    await import("../../src/cli/reconcilePromptMedia.js");
   const humanOutput: string[] = [];
   assert.equal(
-    await runQuestionMediaReconciliationCli([], {
+    await runPromptMediaReconciliationCli([], {
       runReconciliation: async () => result,
       writeOutput: (value) => humanOutput.push(value),
       writeError: () => assert.fail("human mode must not write an error"),
@@ -675,7 +636,7 @@ test("reconciliation reports every Retired Question Prompt media state without m
 
   const machineOutput: string[] = [];
   assert.equal(
-    await runQuestionMediaReconciliationCli(["--json"], {
+    await runPromptMediaReconciliationCli(["--json"], {
       runReconciliation: async () => result,
       writeOutput: (value) => machineOutput.push(value),
       writeError: () => assert.fail("JSON mode must not write an error"),

@@ -1,11 +1,11 @@
 import "dotenv/config";
 
 async function main() {
-  const { runQuestionMediaReconciliationCli } =
-    await import("../src/cli/reconcileQuestionMedia.js");
+  const { runPromptMediaReconciliationCli } =
+    await import("../src/cli/reconcilePromptMedia.js");
   const { disconnectDB } = await import("../src/config/db.js");
   try {
-    process.exitCode = await runQuestionMediaReconciliationCli(
+    process.exitCode = await runPromptMediaReconciliationCli(
       process.argv.slice(2),
     );
   } finally {
@@ -15,7 +15,7 @@ async function main() {
 
 main().catch((error) => {
   console.error(
-    "Question-media reconciliation failed:",
+    "Prompt media reconciliation failed:",
     error instanceof Error ? error.message : error,
   );
   process.exitCode = 1;

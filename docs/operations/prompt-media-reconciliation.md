@@ -1,17 +1,17 @@
-# Retired Question Prompt media reconciliation
+# Prompt media reconciliation for Retired Questions
 
 Run the read-only reconciliation from `backend/` in an environment with database
 and R2 read access:
 
 ```sh
-npm run reconcile:question-media
+npm run reconcile:prompt-media
 ```
 
 Use `-- --json` to produce the same records and totals as JSON for an operational
 record or automation:
 
 ```sh
-npm run reconcile:question-media -- --json
+npm run reconcile:prompt-media -- --json
 ```
 
 The command reads every Retired Question, counts its retained Answers, and checks

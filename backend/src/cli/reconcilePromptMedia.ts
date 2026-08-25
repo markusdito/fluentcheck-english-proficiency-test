@@ -1,21 +1,21 @@
 import {
   formatHumanReconciliation,
-  reconcileRetiredQuestionMedia,
-  type QuestionMediaReconciliationResult,
-} from "../service/questionMediaReconciliation.service.js";
+  reconcileRetiredPromptMedia,
+  type PromptMediaReconciliationResult,
+} from "../service/promptMediaReconciliation.service.js";
 
-interface QuestionMediaReconciliationCliDependencies {
-  runReconciliation?: () => Promise<QuestionMediaReconciliationResult>;
+interface PromptMediaReconciliationCliDependencies {
+  runReconciliation?: () => Promise<PromptMediaReconciliationResult>;
   writeOutput?: (value: string) => void;
   writeError?: (value: string) => void;
 }
 
-export async function runQuestionMediaReconciliationCli(
+export async function runPromptMediaReconciliationCli(
   args: string[],
-  dependencies: QuestionMediaReconciliationCliDependencies = {},
+  dependencies: PromptMediaReconciliationCliDependencies = {},
 ) {
   const runReconciliation =
-    dependencies.runReconciliation ?? reconcileRetiredQuestionMedia;
+    dependencies.runReconciliation ?? reconcileRetiredPromptMedia;
   const writeOutput =
     dependencies.writeOutput ?? ((value: string) => process.stdout.write(value));
   const writeError =
@@ -35,8 +35,8 @@ export async function runQuestionMediaReconciliationCli(
     return result.exitCode;
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Question-media reconciliation failed";
-    writeError(`Question-media reconciliation failed: ${message}\n`);
+      error instanceof Error ? error.message : "Prompt media reconciliation failed";
+    writeError(`Prompt media reconciliation failed: ${message}\n`);
     return 1;
   }
 }

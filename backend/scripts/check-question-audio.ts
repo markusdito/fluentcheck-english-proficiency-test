@@ -76,7 +76,7 @@ async function main() {
     check("server-measured size recorded", afterConfirm?.audioSizeBytes === 4);
     check("storage key matches regex", !!afterConfirm?.audioStorageKey && AUDIO_KEY_RE.test(afterConfirm.audioStorageKey));
 
-    await expectThrows(() => createQuestionAudioPresignedUpload(q.id, "audio/webm"), /Question audio already uploaded/, "re-presign after upload blocked");
+    await expectThrows(() => createQuestionAudioPresignedUpload(q.id, "audio/webm"), /Prompt media already uploaded/, "re-presign after upload blocked");
     await expectThrows(() => confirmQuestionAudioUpload(q.id), /No pending audio upload/, "double confirm blocked");
 
     const url = await createQuestionAudioViewUrl(q.id);

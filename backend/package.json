@@ -7,7 +7,7 @@
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
-    "reconcile:question-media": "tsx scripts/reconcileRetiredQuestionMedia.ts",
+    "reconcile:prompt-media": "tsx scripts/reconcileRetiredPromptMedia.ts",
     "dev": "nodemon --watch src --exec tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js"

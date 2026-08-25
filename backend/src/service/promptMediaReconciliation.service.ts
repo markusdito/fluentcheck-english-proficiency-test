@@ -1,4 +1,5 @@
 import { prisma } from "../config/db.js";
+import type { UploadStatus } from "../generated/enums.js";
 import {
   AUDIO_KEY_RE,
   AUDIO_MIME_RE,
@@ -6,8 +7,8 @@ import {
   type PromptMediaInspection,
 } from "./upload.service.js";
 
-export type QuestionMediaReferenceStatus = "REFERENCED" | "UNREFERENCED";
-export type QuestionMediaReconciliationStatus =
+export type PromptMediaReferenceStatus = "REFERENCED" | "UNREFERENCED";
+export type PromptMediaReconciliationStatus =
   | "PRESENT"
   | "MISSING"
   | "INVALID_METADATA"
@@ -21,32 +22,36 @@ export type PromptMediaExistenceStatus =
   | "NOT_CHECKED"
   | "CHECK_FAILED";
 
-interface RetiredQuestionMediaSnapshot {
+interface RetiredQuestionPromptMediaSnapshot {
   id: string;
   answerCount: number;
   audioStorageKey: string | null;
   audioMimeType: string | null;
   audioSizeBytes: number | null;
-  audioUploadStatus: string;
+  audioUploadStatus: UploadStatus;
 }
 
-export interface QuestionMediaReconciliationRecord {
+export interface PromptMediaReconciliationRecord {
   questionId: string;
-  referenceStatus: QuestionMediaReferenceStatus;
+  referenceStatus: PromptMediaReferenceStatus;
   answerCount: number;
-  status: QuestionMediaReconciliationStatus;
-  metadataStatus: PromptMediaMetadataStatus;
-  existenceStatus: PromptMediaExistenceStatus;
+  classification: PromptMediaClassification;
   storageKey: string | null;
   mimeType: string | null;
   sizeBytes: number | null;
-  uploadStatus: string;
+  uploadStatus: UploadStatus;
   observedMimeType: string | null;
   observedSizeBytes: number | null;
   reasons: string[];
 }
 
-export interface QuestionMediaReconciliationTotals {
+export interface PromptMediaClassification {
+  status: PromptMediaReconciliationStatus;
+  metadataStatus: PromptMediaMetadataStatus;
+  existenceStatus: PromptMediaExistenceStatus;
+}
+
+export interface PromptMediaReconciliationTotals {
   questions: number;
   referenced: number;
   unreferenced: number;
@@ -62,20 +67,20 @@ export interface QuestionMediaReconciliationTotals {
   mediaCheckFailed: number;
 }
 
-export interface QuestionMediaReconciliationResult {
+export interface PromptMediaReconciliationResult {
   generatedAt: string;
-  records: QuestionMediaReconciliationRecord[];
-  totals: QuestionMediaReconciliationTotals;
+  records: PromptMediaReconciliationRecord[];
+  totals: PromptMediaReconciliationTotals;
   exitCode: 0 | 1;
 }
 
-interface ReconciliationDependencies {
+interface PromptMediaReconciliationDependencies {
   inspectPromptMedia?: (
     storageKey: string,
   ) => Promise<PromptMediaInspection>;
 }
 
-function metadataProblems(question: RetiredQuestionMediaSnapshot) {
+function metadataProblems(question: RetiredQuestionPromptMediaSnapshot) {
   const reasons: string[] = [];
   if (!question.audioStorageKey) {
     reasons.push("Prompt media storage identity is missing");
@@ -100,21 +105,17 @@ function metadataProblems(question: RetiredQuestionMediaSnapshot) {
 }
 
 function makeRecord(
-  question: RetiredQuestionMediaSnapshot,
-  status: QuestionMediaReconciliationStatus,
-  metadataStatus: PromptMediaMetadataStatus,
-  existenceStatus: PromptMediaExistenceStatus,
+  question: RetiredQuestionPromptMediaSnapshot,
+  classification: PromptMediaClassification,
   reasons: string[],
   inspection?: PromptMediaInspection,
-): QuestionMediaReconciliationRecord {
+): PromptMediaReconciliationRecord {
   return {
     questionId: question.id,
     referenceStatus:
       question.answerCount > 0 ? "REFERENCED" : "UNREFERENCED",
     answerCount: question.answerCount,
-    status,
-    metadataStatus,
-    existenceStatus,
+    classification,
     storageKey: question.audioStorageKey,
     mimeType: question.audioMimeType,
     sizeBytes: question.audioSizeBytes,
@@ -125,17 +126,17 @@ function makeRecord(
   };
 }
 
-function summarize(records: QuestionMediaReconciliationRecord[]) {
-  return records.reduce<QuestionMediaReconciliationTotals>(
+function summarize(records: PromptMediaReconciliationRecord[]) {
+  return records.reduce<PromptMediaReconciliationTotals>(
     (totals, record) => {
       totals.questions += 1;
       if (record.referenceStatus === "REFERENCED") totals.referenced += 1;
       else totals.unreferenced += 1;
 
       const statusField: Record<
-        QuestionMediaReconciliationStatus,
+        PromptMediaReconciliationStatus,
         keyof Omit<
-          QuestionMediaReconciliationTotals,
+          PromptMediaReconciliationTotals,
           "questions" | "referenced" | "unreferenced"
         >
       > = {
@@ -146,7 +147,7 @@ function summarize(records: QuestionMediaReconciliationRecord[]) {
         INCONSISTENT: "inconsistent",
         STORAGE_ERROR: "storageError",
       };
-      totals[statusField[record.status]] += 1;
+      totals[statusField[record.classification.status]] += 1;
       const existenceField: Record<
         PromptMediaExistenceStatus,
         | "mediaPresent"
@@ -159,7 +160,7 @@ function summarize(records: QuestionMediaReconciliationRecord[]) {
         NOT_CHECKED: "mediaNotChecked",
         CHECK_FAILED: "mediaCheckFailed",
       };
-      totals[existenceField[record.existenceStatus]] += 1;
+      totals[existenceField[record.classification.existenceStatus]] += 1;
       return totals;
     },
     {
@@ -180,9 +181,9 @@ function summarize(records: QuestionMediaReconciliationRecord[]) {
   );
 }
 
-export async function reconcileRetiredQuestionMedia(
-  dependencies: ReconciliationDependencies = {},
-): Promise<QuestionMediaReconciliationResult> {
+export async function reconcileRetiredPromptMedia(
+  dependencies: PromptMediaReconciliationDependencies = {},
+): Promise<PromptMediaReconciliationResult> {
   const inspectPromptMedia =
     dependencies.inspectPromptMedia ?? inspectStoredPromptMedia;
   const questionRows = await prisma.question.findMany({
@@ -197,14 +198,14 @@ export async function reconcileRetiredQuestionMedia(
       _count: { select: { answers: true } },
     },
   });
-  const questions: RetiredQuestionMediaSnapshot[] = questionRows.map(
+  const questions: RetiredQuestionPromptMediaSnapshot[] = questionRows.map(
     ({ _count, ...question }) => ({
       ...question,
       answerCount: _count.answers,
     }),
   );
 
-  const records: QuestionMediaReconciliationRecord[] = [];
+  const records: PromptMediaReconciliationRecord[] = [];
   for (const question of questions) {
     const hasNoMediaMetadata =
       !question.audioStorageKey &&
@@ -215,9 +216,11 @@ export async function reconcileRetiredQuestionMedia(
       records.push(
         makeRecord(
           question,
-          "NO_MEDIA",
-          "ABSENT",
-          "NOT_CHECKED",
+          {
+            status: "NO_MEDIA",
+            metadataStatus: "ABSENT",
+            existenceStatus: "NOT_CHECKED",
+          },
           ["No Prompt media metadata is recorded"],
         ),
       );
@@ -235,9 +238,11 @@ export async function reconcileRetiredQuestionMedia(
       records.push(
         makeRecord(
           question,
-          "INVALID_METADATA",
-          metadataStatus,
-          "NOT_CHECKED",
+          {
+            status: "INVALID_METADATA",
+            metadataStatus,
+            existenceStatus: "NOT_CHECKED",
+          },
           problems,
         ),
       );
@@ -250,9 +255,11 @@ export async function reconcileRetiredQuestionMedia(
         records.push(
           makeRecord(
             question,
-            problems.length > 0 ? "INVALID_METADATA" : "MISSING",
-            metadataStatus,
-            "MISSING",
+            {
+              status: problems.length > 0 ? "INVALID_METADATA" : "MISSING",
+              metadataStatus,
+              existenceStatus: "MISSING",
+            },
             [...problems, "Prompt media is missing from storage"],
             inspection,
           ),
@@ -282,13 +289,16 @@ export async function reconcileRetiredQuestionMedia(
       records.push(
         makeRecord(
           question,
-          problems.length > 0
-            ? "INVALID_METADATA"
-            : inconsistencies.length > 0
-              ? "INCONSISTENT"
-              : "PRESENT",
-          metadataStatus,
-          "PRESENT",
+          {
+            status:
+              problems.length > 0
+                ? "INVALID_METADATA"
+                : inconsistencies.length > 0
+                  ? "INCONSISTENT"
+                  : "PRESENT",
+            metadataStatus,
+            existenceStatus: "PRESENT",
+          },
           [...problems, ...inconsistencies],
           inspection,
         ),
@@ -297,9 +307,11 @@ export async function reconcileRetiredQuestionMedia(
       records.push(
         makeRecord(
           question,
-          "STORAGE_ERROR",
-          metadataStatus,
-          "CHECK_FAILED",
+          {
+            status: "STORAGE_ERROR",
+            metadataStatus,
+            existenceStatus: "CHECK_FAILED",
+          },
           [
             ...problems,
             error instanceof Error
@@ -314,7 +326,8 @@ export async function reconcileRetiredQuestionMedia(
   const totals = summarize(records);
   const hasReferencedEvidenceFailure = records.some(
     (record) =>
-      record.referenceStatus === "REFERENCED" && record.status !== "PRESENT",
+      record.referenceStatus === "REFERENCED" &&
+      record.classification.status !== "PRESENT",
   );
   const inspectionIncomplete = totals.storageError > 0;
   return {
@@ -326,12 +339,12 @@ export async function reconcileRetiredQuestionMedia(
 }
 
 export function formatHumanReconciliation(
-  result: QuestionMediaReconciliationResult,
+  result: PromptMediaReconciliationResult,
 ) {
   const recordLines = result.records.map((record) => {
     const reasons =
       record.reasons.length > 0 ? ` - ${record.reasons.join("; ")}` : "";
-    return `${record.questionId} ${record.referenceStatus} ${record.status} metadata=${record.metadataStatus} promptMedia=${record.existenceStatus}${reasons}`;
+    return `${record.questionId} ${record.referenceStatus} ${record.classification.status} metadata=${record.classification.metadataStatus} promptMedia=${record.classification.existenceStatus}${reasons}`;
   });
   const totals = result.totals;
   return [

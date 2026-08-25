@@ -24,14 +24,12 @@ function metadataProblems(question) {
     }
     return reasons;
 }
-function makeRecord(question, status, metadataStatus, existenceStatus, reasons, inspection) {
+function makeRecord(question, classification, reasons, inspection) {
     return {
         questionId: question.id,
         referenceStatus: question.answerCount > 0 ? "REFERENCED" : "UNREFERENCED",
         answerCount: question.answerCount,
-        status,
-        metadataStatus,
-        existenceStatus,
+        classification,
         storageKey: question.audioStorageKey,
         mimeType: question.audioMimeType,
         sizeBytes: question.audioSizeBytes,
@@ -56,14 +54,14 @@ function summarize(records) {
             INCONSISTENT: "inconsistent",
             STORAGE_ERROR: "storageError",
         };
-        totals[statusField[record.status]] += 1;
+        totals[statusField[record.classification.status]] += 1;
         const existenceField = {
             PRESENT: "mediaPresent",
             MISSING: "mediaMissing",
             NOT_CHECKED: "mediaNotChecked",
             CHECK_FAILED: "mediaCheckFailed",
         };
-        totals[existenceField[record.existenceStatus]] += 1;
+        totals[existenceField[record.classification.existenceStatus]] += 1;
         return totals;
     }, {
         questions: 0,
@@ -81,7 +79,7 @@ function summarize(records) {
         mediaCheckFailed: 0,
     });
 }
-export async function reconcileRetiredQuestionMedia(dependencies = {}) {
+export async function reconcileRetiredPromptMedia(dependencies = {}) {
     const inspectPromptMedia = dependencies.inspectPromptMedia ?? inspectStoredPromptMedia;
     const questionRows = await prisma.question.findMany({
         where: { deletedAt: { not: null } },
@@ -106,7 +104,11 @@ export async function reconcileRetiredQuestionMedia(dependencies = {}) {
             question.audioSizeBytes == null &&
             question.audioUploadStatus !== "UPLOADED";
         if (hasNoMediaMetadata) {
-            records.push(makeRecord(question, "NO_MEDIA", "ABSENT", "NOT_CHECKED", ["No Prompt media metadata is recorded"]));
+            records.push(makeRecord(question, {
+                status: "NO_MEDIA",
+                metadataStatus: "ABSENT",
+                existenceStatus: "NOT_CHECKED",
+            }, ["No Prompt media metadata is recorded"]));
             continue;
         }
         const problems = metadataProblems(question);
@@ -115,13 +117,21 @@ export async function reconcileRetiredQuestionMedia(dependencies = {}) {
             AUDIO_KEY_RE.test(question.audioStorageKey) &&
             question.audioStorageKey.startsWith(`questions/${question.id}/`);
         if (!hasSafeStorageIdentity) {
-            records.push(makeRecord(question, "INVALID_METADATA", metadataStatus, "NOT_CHECKED", problems));
+            records.push(makeRecord(question, {
+                status: "INVALID_METADATA",
+                metadataStatus,
+                existenceStatus: "NOT_CHECKED",
+            }, problems));
             continue;
         }
         try {
             const inspection = await inspectPromptMedia(question.audioStorageKey);
             if (!inspection.exists) {
-                records.push(makeRecord(question, problems.length > 0 ? "INVALID_METADATA" : "MISSING", metadataStatus, "MISSING", [...problems, "Prompt media is missing from storage"], inspection));
+                records.push(makeRecord(question, {
+                    status: problems.length > 0 ? "INVALID_METADATA" : "MISSING",
+                    metadataStatus,
+                    existenceStatus: "MISSING",
+                }, [...problems, "Prompt media is missing from storage"], inspection));
                 continue;
             }
             const inconsistencies = [];
@@ -135,14 +145,22 @@ export async function reconcileRetiredQuestionMedia(dependencies = {}) {
                 inspection.contentType !== question.audioMimeType) {
                 inconsistencies.push(`Storage MIME type ${inspection.contentType ?? "unknown"} does not match recorded MIME type ${question.audioMimeType}`);
             }
-            records.push(makeRecord(question, problems.length > 0
-                ? "INVALID_METADATA"
-                : inconsistencies.length > 0
-                    ? "INCONSISTENT"
-                    : "PRESENT", metadataStatus, "PRESENT", [...problems, ...inconsistencies], inspection));
+            records.push(makeRecord(question, {
+                status: problems.length > 0
+                    ? "INVALID_METADATA"
+                    : inconsistencies.length > 0
+                        ? "INCONSISTENT"
+                        : "PRESENT",
+                metadataStatus,
+                existenceStatus: "PRESENT",
+            }, [...problems, ...inconsistencies], inspection));
         }
         catch (error) {
-            records.push(makeRecord(question, "STORAGE_ERROR", metadataStatus, "CHECK_FAILED", [
+            records.push(makeRecord(question, {
+                status: "STORAGE_ERROR",
+                metadataStatus,
+                existenceStatus: "CHECK_FAILED",
+            }, [
                 ...problems,
                 error instanceof Error
                     ? error.message
@@ -151,7 +169,8 @@ export async function reconcileRetiredQuestionMedia(dependencies = {}) {
         }
     }
     const totals = summarize(records);
-    const hasReferencedEvidenceFailure = records.some((record) => record.referenceStatus === "REFERENCED" && record.status !== "PRESENT");
+    const hasReferencedEvidenceFailure = records.some((record) => record.referenceStatus === "REFERENCED" &&
+        record.classification.status !== "PRESENT");
     const inspectionIncomplete = totals.storageError > 0;
     return {
         generatedAt: new Date().toISOString(),
@@ -163,7 +182,7 @@ export async function reconcileRetiredQuestionMedia(dependencies = {}) {
 export function formatHumanReconciliation(result) {
     const recordLines = result.records.map((record) => {
         const reasons = record.reasons.length > 0 ? ` - ${record.reasons.join("; ")}` : "";
-        return `${record.questionId} ${record.referenceStatus} ${record.status} metadata=${record.metadataStatus} promptMedia=${record.existenceStatus}${reasons}`;
+        return `${record.questionId} ${record.referenceStatus} ${record.classification.status} metadata=${record.classification.metadataStatus} promptMedia=${record.classification.existenceStatus}${reasons}`;
     });
     const totals = result.totals;
     return [
