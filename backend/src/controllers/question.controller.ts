@@ -7,7 +7,7 @@ import {
   retrieveTestQuestions,
   createQuestion as createQuestionService,
   updateQuestion as updateQuestionService,
-  deleteQuestion as deleteQuestionService,
+  retireQuestion as retireQuestionService,
   createTask as createTaskService,
   updateTask as updateTaskService,
   deleteTask as deleteTaskService,
@@ -25,10 +25,10 @@ function handleQuestionAudioError(res: Response, error: unknown) {
   const status =
     message === "Question not found"
       ? 404
-      : message === "Question audio already uploaded" ||
-        message === "No pending audio upload for this question" ||
-        message === "Concurrent confirm — question audio already finalized" ||
-        message === "Audio not yet uploaded"
+      : message === "Prompt media already uploaded" ||
+        message === "No pending Prompt media upload for this Question" ||
+        message === "Concurrent confirmation — Prompt media already finalized" ||
+        message === "Prompt media not yet uploaded"
       ? 409
       : message === "Invalid questionId" || message === "Invalid mimeType" || message === "Invalid audio storage key"
       ? 400
@@ -245,10 +245,10 @@ export async function updateQuestion(req: Request, res: Response) {
   }
 }
 
-export async function deleteQuestion(req: Request, res: Response) {
+export async function retireQuestion(req: Request, res: Response) {
   try {
     const id = req.params.id as string;
-    await deleteQuestionService(id);
+    await retireQuestionService(id);
     res.status(200).json({ status: "success" });
   } catch (error) {
     handleQuestionError(res, error);

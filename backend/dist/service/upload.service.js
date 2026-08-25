@@ -1,4 +1,4 @@
-import { PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2Client } from "../config/r2.js";
 import { env } from "../config/env.js";
@@ -15,20 +15,43 @@ export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}
 export function generateQuestionAudioKey(questionId) {
     return `questions/${questionId}/prompt.webm`;
 }
-async function headObject(storageKey, mimeType) {
+/** Read Prompt media metadata without mutating storage. */
+export async function inspectPromptMedia(storageKey) {
     try {
         const head = await r2Client.send(new HeadObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey }));
-        if (mimeType && head.ContentType && head.ContentType !== mimeType) {
-            throw new Error("Audio content-type mismatch");
-        }
-        return { exists: true, contentLength: head.ContentLength ?? -1 };
+        return {
+            exists: true,
+            contentLength: head.ContentLength ?? null,
+            contentType: head.ContentType ?? null,
+        };
     }
     catch (error) {
         if (error.$metadata?.httpStatusCode === 404) {
-            return { exists: false, contentLength: -1 };
+            return { exists: false, contentLength: null, contentType: null };
         }
         throw error;
     }
+}
+async function headObject(storageKey, mimeType) {
+    const inspection = await inspectPromptMedia(storageKey);
+    if (mimeType &&
+        inspection.contentType &&
+        inspection.contentType !== mimeType) {
+        throw new Error("Prompt media content-type mismatch");
+    }
+    return {
+        exists: inspection.exists,
+        contentLength: inspection.contentLength ?? -1,
+    };
+}
+async function throwPromptMediaWriteConflict(questionId, activeQuestionMessage) {
+    const question = await prisma.question.findUnique({
+        where: { id: questionId },
+        select: { deletedAt: true },
+    });
+    if (!question || question.deletedAt)
+        throw new Error("Question not found");
+    throw new Error(activeQuestionMessage);
 }
 /**
  * Generate a presigned PUT URL so an admin can upload a question's prompt
@@ -48,7 +71,11 @@ export async function createQuestionAudioPresignedUpload(questionId, mimeType) {
     const storageKey = generateQuestionAudioKey(questionId);
     // Conditional write: refuse to re-arm an already-UPLOADED question (overwrite race).
     const updated = await prisma.question.updateMany({
-        where: { id: questionId, audioUploadStatus: { not: "UPLOADED" } },
+        where: {
+            id: questionId,
+            deletedAt: null,
+            audioUploadStatus: { not: "UPLOADED" },
+        },
         data: {
             audioStorageKey: storageKey,
             audioMimeType: mimeType,
@@ -56,8 +83,9 @@ export async function createQuestionAudioPresignedUpload(questionId, mimeType) {
             audioSizeBytes: null,
         },
     });
-    if (updated.count !== 1)
-        throw new Error("Question audio already uploaded");
+    if (updated.count !== 1) {
+        await throwPromptMediaWriteConflict(questionId, "Prompt media already uploaded");
+    }
     const putObjectParams = {
         Bucket: env.R2_BUCKET_NAME,
         Key: storageKey,
@@ -85,20 +113,22 @@ export async function confirmQuestionAudioUpload(questionId) {
     });
     if (!question || question.deletedAt)
         throw new Error("Question not found");
-    if (question.audioUploadStatus !== "PENDING")
-        throw new Error("No pending audio upload for this question");
+    if (question.audioUploadStatus !== "PENDING") {
+        throw new Error("No pending Prompt media upload for this Question");
+    }
     if (!question.audioStorageKey || !AUDIO_KEY_RE.test(question.audioStorageKey)) {
         throw new Error("Invalid audio storage key");
     }
     const head = await headObject(question.audioStorageKey, question.audioMimeType);
     if (!head.exists)
-        throw new Error("Audio object not found in storage");
+        throw new Error("Prompt media not found in storage");
     const updated = await prisma.question.updateMany({
-        where: { id: questionId, audioUploadStatus: "PENDING" },
+        where: { id: questionId, deletedAt: null, audioUploadStatus: "PENDING" },
         data: { audioUploadStatus: "UPLOADED", audioSizeBytes: head.contentLength },
     });
-    if (updated.count !== 1)
-        throw new Error("Concurrent confirm — question audio already finalized");
+    if (updated.count !== 1) {
+        await throwPromptMediaWriteConflict(questionId, "Concurrent confirmation — Prompt media already finalized");
+    }
     // Post-update audit: the row must match what we just verified.
     const audited = await prisma.question.findUnique({
         where: { id: questionId },
@@ -110,7 +140,10 @@ export async function confirmQuestionAudioUpload(questionId) {
         !AUDIO_KEY_RE.test(audited.audioStorageKey) ||
         audited.audioSizeBytes !== head.contentLength) {
         await prisma.question
-            .update({ where: { id: questionId }, data: { audioUploadStatus: "FAILED" } })
+            .updateMany({
+            where: { id: questionId, deletedAt: null },
+            data: { audioUploadStatus: "FAILED" },
+        })
             .catch(() => { });
         throw new Error("Post-update audit failed");
     }
@@ -134,7 +167,7 @@ export async function createQuestionAudioViewUrl(questionId) {
     if (!question || question.deletedAt)
         throw new Error("Question not found");
     if (question.audioUploadStatus !== "UPLOADED" || !question.audioStorageKey) {
-        throw new Error("Audio not yet uploaded");
+        throw new Error("Prompt media not yet uploaded");
     }
     if (!AUDIO_KEY_RE.test(question.audioStorageKey))
         throw new Error("Invalid audio storage key");
@@ -152,17 +185,6 @@ export async function createQuestionAudioViewUrlFromMetadata(storageKey, mimeTyp
         ResponseCacheControl: "no-cache",
     });
     return getSignedUrl(r2Client, command, { expiresIn: 3600 });
-}
-/**
- * Best-effort removal of a question's prompt audio from R2.
- * Caller must have already soft-deleted the question.
- */
-export async function deleteQuestionAudio(storageKey) {
-    if (!storageKey || !AUDIO_KEY_RE.test(storageKey))
-        return;
-    await r2Client
-        .send(new DeleteObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey }))
-        .catch(() => { });
 }
 /**
  * Generate a storage key for a video answer.

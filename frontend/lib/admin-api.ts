@@ -174,7 +174,7 @@ export async function updateQuestion(
   return res.data;
 }
 
-export async function deleteQuestion(id: string): Promise<void> {
+export async function retireQuestion(id: string): Promise<void> {
   await api.delete(`/questions/${id}`);
 }
 
