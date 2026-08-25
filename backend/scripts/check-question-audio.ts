@@ -8,7 +8,7 @@ import {
   AUDIO_KEY_RE,
   AUDIO_MIME_RE,
 } from "../src/service/upload.service.js";
-import { createQuestion, deleteQuestion } from "../src/service/question.service.js";
+import { createQuestion, retireQuestion } from "../src/service/question.service.js";
 import { QuestionCategory } from "../src/generated/enums.js";
 
 let failures = 0;
@@ -60,8 +60,8 @@ async function main() {
     const { presignedUrl } = await createQuestionAudioPresignedUpload(q.id, "audio/webm");
     check("presigned url issued", presignedUrl.startsWith("https://"));
 
-    await expectThrows(() => confirmQuestionAudioUpload(q.id), /Audio object not found/, "confirm before actual upload (HEAD 404)");
-    await expectThrows(() => createQuestionAudioViewUrl(q.id), /Audio not yet uploaded/, "view url before upload");
+    await expectThrows(() => confirmQuestionAudioUpload(q.id), /Prompt media not found in storage/, "confirm before actual upload (HEAD 404)");
+    await expectThrows(() => createQuestionAudioViewUrl(q.id), /Prompt media not yet uploaded/, "view url before upload");
 
     const res = await fetch(presignedUrl, {
       method: "PUT",
@@ -76,8 +76,8 @@ async function main() {
     check("server-measured size recorded", afterConfirm?.audioSizeBytes === 4);
     check("storage key matches regex", !!afterConfirm?.audioStorageKey && AUDIO_KEY_RE.test(afterConfirm.audioStorageKey));
 
-    await expectThrows(() => createQuestionAudioPresignedUpload(q.id, "audio/webm"), /Question audio already uploaded/, "re-presign after upload blocked");
-    await expectThrows(() => confirmQuestionAudioUpload(q.id), /No pending audio upload/, "double confirm blocked");
+    await expectThrows(() => createQuestionAudioPresignedUpload(q.id, "audio/webm"), /Prompt media already uploaded/, "re-presign after upload blocked");
+    await expectThrows(() => confirmQuestionAudioUpload(q.id), /No pending Prompt media upload/, "double confirm blocked");
 
     const url = await createQuestionAudioViewUrl(q.id);
     check("view url issued after upload", url.startsWith("https://"));
@@ -90,8 +90,8 @@ async function main() {
     });
     await expectThrows(() => createQuestionAudioViewUrl(q.id), /Invalid audio storage key/, "tampered storageKey rejected on view");
 
-    await deleteQuestion(q.id);
-    await expectThrows(() => confirmQuestionAudioUpload(q.id), /Question not found/, "confirm on soft-deleted question");
+    await retireQuestion(q.id);
+    await expectThrows(() => confirmQuestionAudioUpload(q.id), /Question not found/, "confirm on Retired question");
   } finally {
     await prisma.question.deleteMany({ where: { id: q.id } }).catch(() => {});
   }

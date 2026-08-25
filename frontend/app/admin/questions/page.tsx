@@ -7,7 +7,7 @@ import {
   fetchAdminQuestions,
   createQuestion,
   updateQuestion,
-  deleteQuestion,
+  retireQuestion,
   createTask,
   updateTask,
   deleteTask,
@@ -416,6 +416,7 @@ export default function AdminQuestionsPage() {
   const [confirmRetireId, setConfirmRetireId] = useState<string | null>(null);
   const [retireLoading, setRetireLoading] = useState(false);
   const [retireError, setRetireError] = useState("");
+  const [retireSuccess, setRetireSuccess] = useState("");
 
   function updateQuestions(
     updater: (current: AdminQuestion[]) => AdminQuestion[],
@@ -533,6 +534,7 @@ export default function AdminQuestionsPage() {
   function requestRetire(id: string) {
     setConfirmRetireId(id);
     setRetireError("");
+    setRetireSuccess("");
   }
 
   async function handleRetire() {
@@ -540,12 +542,13 @@ export default function AdminQuestionsPage() {
     setRetireError("");
     setRetireLoading(true);
     try {
-      await deleteQuestion(confirmRetireId);
+      await retireQuestion(confirmRetireId);
       updateQuestions((current) =>
         current.filter((q) => q.id !== confirmRetireId),
       );
       setEditingId((prev) => (prev === confirmRetireId ? null : prev));
       setConfirmRetireId(null);
+      setRetireSuccess("Question retired. Retained evidence is unchanged.");
     } catch (err) {
       setRetireError(
         err instanceof ApiError ? err.message : "Failed to retire question."
@@ -740,6 +743,12 @@ export default function AdminQuestionsPage() {
         </Alert>
       )}
 
+      {!editingId && retireSuccess && (
+        <Alert className="items-start">
+          <AlertDescription>{retireSuccess}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Question lists by category */}
       {!editingId && (
         <Tabs defaultValue="PART_1">
@@ -843,8 +852,9 @@ export default function AdminQuestionsPage() {
             </AlertDialogMedia>
             <AlertDialogTitle>Retire this question?</AlertDialogTitle>
             <AlertDialogDescription>
-              It will no longer be offered in new assessments. Existing reports
-              are unaffected.
+              It will no longer be offered in new assessments. Prompt media
+              remains available through retained submissions, and retained
+              evidence is unchanged.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

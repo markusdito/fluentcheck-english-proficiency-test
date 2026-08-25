@@ -1,16 +1,16 @@
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
-import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, deleteQuestion as deleteQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, } from "../service/question.service.js";
+import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, } from "../service/question.service.js";
 import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, createQuestionAudioViewUrlFromMetadata, } from "../service/upload.service.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 function handleQuestionAudioError(res, error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     const status = message === "Question not found"
         ? 404
-        : message === "Question audio already uploaded" ||
-            message === "No pending audio upload for this question" ||
-            message === "Concurrent confirm — question audio already finalized" ||
-            message === "Audio not yet uploaded"
+        : message === "Prompt media already uploaded" ||
+            message === "No pending Prompt media upload for this Question" ||
+            message === "Concurrent confirmation — Prompt media already finalized" ||
+            message === "Prompt media not yet uploaded"
             ? 409
             : message === "Invalid questionId" || message === "Invalid mimeType" || message === "Invalid audio storage key"
                 ? 400
@@ -204,10 +204,10 @@ export async function updateQuestion(req, res) {
         handleQuestionError(res, error);
     }
 }
-export async function deleteQuestion(req, res) {
+export async function retireQuestion(req, res) {
     try {
         const id = req.params.id;
-        await deleteQuestionService(id);
+        await retireQuestionService(id);
         res.status(200).json({ status: "success" });
     }
     catch (error) {

@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 import { prisma } from "../src/config/db.js";
 import { env } from "../src/config/env.js";
-import { createQuestion, deleteQuestion } from "../src/service/question.service.js";
+import { createQuestion, retireQuestion } from "../src/service/question.service.js";
 import { QuestionCategory } from "../src/generated/enums.js";
 
 let failures = 0;
@@ -159,7 +159,7 @@ async function main() {
     check("tampered storageKey on view → 400", tampered.status === 400);
 
     // 6. Deleted question audio-url → 404
-    await deleteQuestion(question.id);
+    await retireQuestion(question.id);
     const deleted = await call(base, "GET", `/questions/${question.id}/audio-url`, adminTok);
     check("deleted question audio-url → 404", deleted.status === 404);
   } finally {

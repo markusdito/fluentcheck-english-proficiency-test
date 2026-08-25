@@ -6,7 +6,7 @@ import {
   getAdminQuestions,
   createQuestion,
   updateQuestion,
-  deleteQuestion,
+  retireQuestion,
   createTask,
   updateTask,
   deleteTask,
@@ -33,7 +33,7 @@ router.get("/:id/audio-url", verifyToken, getQuestionAudioUrl);
 // Admin: question management
 router.post("/", verifyToken, requireRole("ADMIN"), createQuestion);
 router.put("/:id", verifyToken, requireRole("ADMIN"), updateQuestion);
-router.delete("/:id", verifyToken, requireRole("ADMIN"), deleteQuestion);
+router.delete("/:id", verifyToken, requireRole("ADMIN"), retireQuestion);
 
 // Admin: question prompt audio upload (direct to R2 via presigned PUT)
 router.post("/audio/presigned-url", verifyToken, requireRole("ADMIN"), createQuestionAudioPresignedUrl);
