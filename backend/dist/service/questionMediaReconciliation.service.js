@@ -1,39 +1,43 @@
 import { prisma } from "../config/db.js";
-import { AUDIO_KEY_RE, AUDIO_MIME_RE, inspectQuestionAudioObject, } from "./upload.service.js";
+import { AUDIO_KEY_RE, AUDIO_MIME_RE, inspectPromptMedia as inspectStoredPromptMedia, } from "./upload.service.js";
 function metadataProblems(question) {
     const reasons = [];
     if (!question.audioStorageKey) {
-        reasons.push("Prompt-media storage identity is missing");
+        reasons.push("Prompt media storage identity is missing");
     }
     else {
         if (!AUDIO_KEY_RE.test(question.audioStorageKey)) {
-            reasons.push("Prompt-media storage identity is invalid");
+            reasons.push("Prompt media storage identity is invalid");
         }
         if (!question.audioStorageKey.startsWith(`questions/${question.id}/`)) {
-            reasons.push("Prompt-media storage identity belongs to another Question");
+            reasons.push("Prompt media storage identity belongs to another Question");
         }
     }
     if (!question.audioMimeType || !AUDIO_MIME_RE.test(question.audioMimeType)) {
-        reasons.push("Prompt-media MIME type is missing or invalid");
+        reasons.push("Prompt media MIME type is missing or invalid");
     }
     if (question.audioSizeBytes == null || question.audioSizeBytes <= 0) {
-        reasons.push("Prompt-media measured size is missing or empty");
+        reasons.push("Prompt media measured size is missing or empty");
     }
     if (question.audioUploadStatus !== "UPLOADED") {
-        reasons.push("Prompt-media upload status is not UPLOADED");
+        reasons.push("Prompt media upload status is not UPLOADED");
     }
     return reasons;
 }
-function makeRecord(question, status, reasons) {
+function makeRecord(question, status, metadataStatus, existenceStatus, reasons, inspection) {
     return {
         questionId: question.id,
-        referenceStatus: question._count.answers > 0 ? "REFERENCED" : "UNREFERENCED",
-        answerCount: question._count.answers,
+        referenceStatus: question.answerCount > 0 ? "REFERENCED" : "UNREFERENCED",
+        answerCount: question.answerCount,
         status,
+        metadataStatus,
+        existenceStatus,
         storageKey: question.audioStorageKey,
         mimeType: question.audioMimeType,
         sizeBytes: question.audioSizeBytes,
         uploadStatus: question.audioUploadStatus,
+        observedMimeType: inspection?.contentType ?? null,
+        observedSizeBytes: inspection?.contentLength ?? null,
         reasons,
     };
 }
@@ -53,6 +57,13 @@ function summarize(records) {
             STORAGE_ERROR: "storageError",
         };
         totals[statusField[record.status]] += 1;
+        const existenceField = {
+            PRESENT: "mediaPresent",
+            MISSING: "mediaMissing",
+            NOT_CHECKED: "mediaNotChecked",
+            CHECK_FAILED: "mediaCheckFailed",
+        };
+        totals[existenceField[record.existenceStatus]] += 1;
         return totals;
     }, {
         questions: 0,
@@ -64,11 +75,15 @@ function summarize(records) {
         noMedia: 0,
         inconsistent: 0,
         storageError: 0,
+        mediaPresent: 0,
+        mediaMissing: 0,
+        mediaNotChecked: 0,
+        mediaCheckFailed: 0,
     });
 }
 export async function reconcileRetiredQuestionMedia(dependencies = {}) {
-    const inspectPromptMedia = dependencies.inspectPromptMedia ?? inspectQuestionAudioObject;
-    const questions = await prisma.question.findMany({
+    const inspectPromptMedia = dependencies.inspectPromptMedia ?? inspectStoredPromptMedia;
+    const questionRows = await prisma.question.findMany({
         where: { deletedAt: { not: null } },
         orderBy: { id: "asc" },
         select: {
@@ -80,6 +95,10 @@ export async function reconcileRetiredQuestionMedia(dependencies = {}) {
             _count: { select: { answers: true } },
         },
     });
+    const questions = questionRows.map(({ _count, ...question }) => ({
+        ...question,
+        answerCount: _count.answers,
+    }));
     const records = [];
     for (const question of questions) {
         const hasNoMediaMetadata = !question.audioStorageKey &&
@@ -87,36 +106,47 @@ export async function reconcileRetiredQuestionMedia(dependencies = {}) {
             question.audioSizeBytes == null &&
             question.audioUploadStatus !== "UPLOADED";
         if (hasNoMediaMetadata) {
-            records.push(makeRecord(question, "NO_MEDIA", [
-                "No Prompt-media metadata is recorded",
-            ]));
+            records.push(makeRecord(question, "NO_MEDIA", "ABSENT", "NOT_CHECKED", ["No Prompt media metadata is recorded"]));
             continue;
         }
         const problems = metadataProblems(question);
-        if (problems.length > 0) {
-            records.push(makeRecord(question, "INVALID_METADATA", problems));
+        const metadataStatus = problems.length > 0 ? "INVALID" : "VALID";
+        const hasSafeStorageIdentity = question.audioStorageKey != null &&
+            AUDIO_KEY_RE.test(question.audioStorageKey) &&
+            question.audioStorageKey.startsWith(`questions/${question.id}/`);
+        if (!hasSafeStorageIdentity) {
+            records.push(makeRecord(question, "INVALID_METADATA", metadataStatus, "NOT_CHECKED", problems));
             continue;
         }
         try {
             const inspection = await inspectPromptMedia(question.audioStorageKey);
             if (!inspection.exists) {
-                records.push(makeRecord(question, "MISSING", [
-                    "Prompt-media object is missing from storage",
-                ]));
+                records.push(makeRecord(question, problems.length > 0 ? "INVALID_METADATA" : "MISSING", metadataStatus, "MISSING", [...problems, "Prompt media is missing from storage"], inspection));
                 continue;
             }
             const inconsistencies = [];
-            if (inspection.contentLength !== question.audioSizeBytes) {
+            if (question.audioSizeBytes != null &&
+                question.audioSizeBytes > 0 &&
+                inspection.contentLength !== question.audioSizeBytes) {
                 inconsistencies.push(`Storage size ${inspection.contentLength ?? "unknown"} does not match recorded size ${question.audioSizeBytes}`);
             }
-            if (inspection.contentType !== question.audioMimeType) {
+            if (question.audioMimeType != null &&
+                AUDIO_MIME_RE.test(question.audioMimeType) &&
+                inspection.contentType !== question.audioMimeType) {
                 inconsistencies.push(`Storage MIME type ${inspection.contentType ?? "unknown"} does not match recorded MIME type ${question.audioMimeType}`);
             }
-            records.push(makeRecord(question, inconsistencies.length > 0 ? "INCONSISTENT" : "PRESENT", inconsistencies));
+            records.push(makeRecord(question, problems.length > 0
+                ? "INVALID_METADATA"
+                : inconsistencies.length > 0
+                    ? "INCONSISTENT"
+                    : "PRESENT", metadataStatus, "PRESENT", [...problems, ...inconsistencies], inspection));
         }
         catch (error) {
-            records.push(makeRecord(question, "STORAGE_ERROR", [
-                error instanceof Error ? error.message : "Storage inspection failed",
+            records.push(makeRecord(question, "STORAGE_ERROR", metadataStatus, "CHECK_FAILED", [
+                ...problems,
+                error instanceof Error
+                    ? error.message
+                    : "Prompt media inspection failed",
             ]));
         }
     }
@@ -133,11 +163,11 @@ export async function reconcileRetiredQuestionMedia(dependencies = {}) {
 export function formatHumanReconciliation(result) {
     const recordLines = result.records.map((record) => {
         const reasons = record.reasons.length > 0 ? ` - ${record.reasons.join("; ")}` : "";
-        return `${record.questionId} ${record.referenceStatus} ${record.status}${reasons}`;
+        return `${record.questionId} ${record.referenceStatus} ${record.status} metadata=${record.metadataStatus} promptMedia=${record.existenceStatus}${reasons}`;
     });
     const totals = result.totals;
     return [
-        "Retired-question Prompt-media reconciliation",
+        "Retired Question Prompt media reconciliation",
         ...recordLines,
         "",
         `Questions: ${totals.questions}`,
@@ -149,5 +179,9 @@ export function formatHumanReconciliation(result) {
         `No media: ${totals.noMedia}`,
         `Inconsistent: ${totals.inconsistent}`,
         `Storage errors: ${totals.storageError}`,
+        `Prompt media present: ${totals.mediaPresent}`,
+        `Prompt media missing: ${totals.mediaMissing}`,
+        `Prompt media not checked: ${totals.mediaNotChecked}`,
+        `Prompt media checks failed: ${totals.mediaCheckFailed}`,
     ].join("\n");
 }

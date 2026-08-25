@@ -60,7 +60,7 @@ before(async () => {
   await once(server, "listening");
   const address = server.address();
   if (!address || typeof address === "string") {
-    throw new Error("Question-media integration server did not bind to a TCP port");
+    throw new Error("Prompt media integration server did not bind to a TCP port");
   }
   baseUrl = `http://127.0.0.1:${address.port}`;
 }, { timeout: 120_000 });
@@ -167,19 +167,31 @@ async function createRetirementFixture() {
       },
     },
   });
-  const submission = await prisma.submission.create({
-    data: {
-      studentId: student.id,
-      status: "SCORING",
-      answers: {
-        create: {
-          questionId: question.id,
-          storageKey: `submissions/${crypto.randomUUID()}/answers/${question.id}.webm`,
-          uploadStatus: "PENDING",
+  async function createSubmissionWithStatus(
+    status: "IN_PROGRESS" | "AWAITING_PAYMENT" | "SCORING",
+  ) {
+    const submissionId = crypto.randomUUID();
+    return prisma.submission.create({
+      data: {
+        id: submissionId,
+        studentId: student.id,
+        status,
+        answers: {
+          create: {
+            questionId: question.id,
+            storageKey: `submissions/${submissionId}/answers/${question.id}.webm`,
+            uploadStatus: "PENDING",
+          },
         },
       },
-    },
-  });
+    });
+  }
+  const [inProgressSubmission, awaitingPaymentSubmission, submission] =
+    await Promise.all([
+      createSubmissionWithStatus("IN_PROGRESS"),
+      createSubmissionWithStatus("AWAITING_PAYMENT"),
+      createSubmissionWithStatus("SCORING"),
+    ]);
   const assignment = await prisma.examinerAssignment.create({
     data: {
       submissionId: submission.id,
@@ -195,11 +207,16 @@ async function createRetirementFixture() {
     otherExaminer,
     question,
     submission,
+    retainedSubmissions: [
+      inProgressSubmission,
+      awaitingPaymentSubmission,
+      submission,
+    ],
     assignment,
   };
 }
 
-test("retiring a Question is idempotent and preserves authorized retained-Submission Prompt media", async () => {
+test("retiring a Question is idempotent and preserves authorized retained submissions and Prompt media", async () => {
   const fixture = await createRetirementFixture();
   const originalMetadata = {
     audioStorageKey: fixture.question.audioStorageKey,
@@ -242,20 +259,19 @@ test("retiring a Question is idempotent and preserves authorized retained-Submis
   );
   assert.equal(
     await prisma.answer.count({
-      where: {
-        questionId: fixture.question.id,
-        submissionId: fixture.submission.id,
-      },
+      where: { questionId: fixture.question.id },
     }),
-    1,
+    3,
   );
   assert.deepEqual(storageRequests, []);
 
   const authorizedRequests = [
-    request(
-      "GET",
-      `/submissions/${fixture.submission.id}`,
-      cookieFor(fixture.student.id),
+    ...fixture.retainedSubmissions.map((submission) =>
+      request(
+        "GET",
+        `/submissions/${submission.id}`,
+        cookieFor(fixture.student.id),
+      ),
     ),
     request(
       "GET",
@@ -310,7 +326,121 @@ test("retiring a Question is idempotent and preserves authorized retained-Submis
   assert.deepEqual(storageRequests, []);
 });
 
-test("reconciliation reports every Retired-question Prompt-media state without mutation", async () => {
+test("retirement wins races with Prompt media presign and confirmation writes", async () => {
+  const admin = await prisma.user.create({
+    data: {
+      username: `race-admin-${crypto.randomUUID()}`,
+      email: `${crypto.randomUUID()}@example.test`,
+      password: "unused",
+      role: "ADMIN",
+    },
+  });
+  const originalUpdateMany = prisma.question.updateMany.bind(prisma.question);
+  const { r2Client } = await import("../../src/config/r2.js");
+  const originalStorageSend = r2Client.send;
+
+  try {
+    const presignQuestion = await prisma.question.create({
+      data: { category: "PART_3", order: 900_001, createdById: admin.id },
+    });
+    prisma.question.updateMany = (async (args) => {
+      if (args.where?.id === presignQuestion.id) {
+        await prisma.question.update({
+          where: { id: presignQuestion.id },
+          data: { deletedAt: new Date() },
+        });
+      }
+      return originalUpdateMany(args);
+    }) as typeof prisma.question.updateMany;
+
+    const racedPresign = await request(
+      "POST",
+      "/questions/audio/presigned-url",
+      cookieFor(admin.id),
+      { questionId: presignQuestion.id, mimeType: "audio/webm" },
+    );
+    assert.equal(racedPresign.status, 404);
+    assert.deepEqual(
+      await prisma.question.findUniqueOrThrow({
+        where: { id: presignQuestion.id },
+        select: {
+          audioStorageKey: true,
+          audioMimeType: true,
+          audioSizeBytes: true,
+          audioUploadStatus: true,
+        },
+      }),
+      {
+        audioStorageKey: null,
+        audioMimeType: null,
+        audioSizeBytes: null,
+        audioUploadStatus: "PENDING",
+      },
+    );
+
+    const confirmationQuestionId = crypto.randomUUID();
+    const confirmationStorageKey =
+      `questions/${confirmationQuestionId}/prompt.webm`;
+    await prisma.question.create({
+      data: {
+        id: confirmationQuestionId,
+        category: "PART_3",
+        order: 900_002,
+        createdById: admin.id,
+        audioStorageKey: confirmationStorageKey,
+        audioMimeType: "audio/webm",
+        audioUploadStatus: "PENDING",
+      },
+    });
+    prisma.question.updateMany = (async (args) => {
+      if (
+        args.where?.id === confirmationQuestionId &&
+        args.data?.audioUploadStatus === "UPLOADED"
+      ) {
+        await prisma.question.update({
+          where: { id: confirmationQuestionId },
+          data: { deletedAt: new Date() },
+        });
+      }
+      return originalUpdateMany(args);
+    }) as typeof prisma.question.updateMany;
+    r2Client.send = (async (command: unknown) => {
+      storageRequests.push(command);
+      return { ContentLength: 2_048, ContentType: "audio/webm" };
+    }) as typeof r2Client.send;
+
+    const racedConfirmation = await request(
+      "POST",
+      "/questions/audio/confirm",
+      cookieFor(admin.id),
+      { questionId: confirmationQuestionId },
+    );
+    assert.equal(racedConfirmation.status, 404);
+    assert.deepEqual(
+      await prisma.question.findUniqueOrThrow({
+        where: { id: confirmationQuestionId },
+        select: {
+          audioStorageKey: true,
+          audioMimeType: true,
+          audioSizeBytes: true,
+          audioUploadStatus: true,
+        },
+      }),
+      {
+        audioStorageKey: confirmationStorageKey,
+        audioMimeType: "audio/webm",
+        audioSizeBytes: null,
+        audioUploadStatus: "PENDING",
+      },
+    );
+    assert.equal(storageRequests.length, 1);
+  } finally {
+    prisma.question.updateMany = originalUpdateMany as typeof prisma.question.updateMany;
+    r2Client.send = originalStorageSend;
+  }
+});
+
+test("reconciliation reports every Retired Question Prompt media state without mutation", async () => {
   const operator = await prisma.user.create({
     data: {
       username: `operator-${crypto.randomUUID()}`,
@@ -405,8 +535,8 @@ test("reconciliation reports every Retired-question Prompt-media state without m
   const invalidMetadata = await createRetiredQuestion(
     4,
     {
-      audioStorageKey: null,
-      audioMimeType: "audio/webm",
+      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+      audioMimeType: null,
       audioSizeBytes: null,
       audioUploadStatus: "UPLOADED",
     },
@@ -440,7 +570,7 @@ test("reconciliation reports every Retired-question Prompt-media state without m
   });
   const inspectedKeys: string[] = [];
   const { reconcileRetiredQuestionMedia, formatHumanReconciliation } =
-    await import("../../src/service/question-media-reconciliation.service.js");
+    await import("../../src/service/questionMediaReconciliation.service.js");
   const result = await reconcileRetiredQuestionMedia({
     inspectPromptMedia: async (storageKey) => {
       inspectedKeys.push(storageKey);
@@ -457,7 +587,17 @@ test("reconciliation reports every Retired-question Prompt-media state without m
           contentType: "audio/ogg",
         };
       }
-      const question = [referencedPresent, unreferencedPresent].find(
+      if (storageKey === invalidMetadata.audioStorageKey) {
+        return {
+          exists: true,
+          contentLength: 777,
+          contentType: "audio/webm",
+        };
+      }
+      const question = [
+        referencedPresent,
+        unreferencedPresent,
+      ].find(
         (candidate) => candidate.audioStorageKey === storageKey,
       );
       assert.ok(question);
@@ -480,6 +620,10 @@ test("reconciliation reports every Retired-question Prompt-media state without m
     noMedia: 1,
     inconsistent: 1,
     storageError: 1,
+    mediaPresent: 4,
+    mediaMissing: 1,
+    mediaNotChecked: 1,
+    mediaCheckFailed: 1,
   });
   assert.deepEqual(
     Object.fromEntries(
@@ -495,7 +639,14 @@ test("reconciliation reports every Retired-question Prompt-media state without m
       [inconsistentStorage.id]: "INCONSISTENT",
     },
   );
+  const invalidMetadataRecord = result.records.find(
+    (record) => record.questionId === invalidMetadata.id,
+  );
+  assert.equal(invalidMetadataRecord?.metadataStatus, "INVALID");
+  assert.equal(invalidMetadataRecord?.existenceStatus, "PRESENT");
+  assert.equal(invalidMetadataRecord?.observedSizeBytes, 777);
   assert.deepEqual(inspectedKeys.sort(), [
+    invalidMetadata.audioStorageKey,
     referencedMissing.audioStorageKey,
     referencedPresent.audioStorageKey,
     inconsistentStorage.audioStorageKey,
@@ -510,7 +661,7 @@ test("reconciliation reports every Retired-question Prompt-media state without m
   assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
 
   const { runQuestionMediaReconciliationCli } =
-    await import("../../src/cli/reconcile-question-media.js");
+    await import("../../src/cli/reconcileQuestionMedia.js");
   const humanOutput: string[] = [];
   assert.equal(
     await runQuestionMediaReconciliationCli([], {

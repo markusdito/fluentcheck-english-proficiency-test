@@ -1,4 +1,4 @@
-# Retired Question Prompt-media reconciliation
+# Retired Question Prompt media reconciliation
 
 Run the read-only reconciliation from `backend/` in an environment with database
 and R2 read access:
@@ -15,8 +15,8 @@ npm run reconcile:question-media -- --json
 ```
 
 The command reads every Retired Question, counts its retained Answers, and checks
-complete Prompt-media metadata against R2 with `HEAD`. It never creates, updates,
-restores, replaces, or deletes a database row or storage object.
+Prompt media metadata and existence against R2 with `HEAD`. It never creates,
+updates, restores, replaces, or deletes database records or Prompt media.
 
 Exit status `1` means referenced evidence is missing, inconsistent, invalid, or
 could not be inspected. A storage-service failure also returns `1` because the

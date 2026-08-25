@@ -15,8 +15,8 @@ export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}
 export function generateQuestionAudioKey(questionId) {
     return `questions/${questionId}/prompt.webm`;
 }
-/** Read Prompt-media object metadata without mutating storage. */
-export async function inspectQuestionAudioObject(storageKey) {
+/** Read Prompt media metadata without mutating storage. */
+export async function inspectPromptMedia(storageKey) {
     try {
         const head = await r2Client.send(new HeadObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey }));
         return {
@@ -33,7 +33,7 @@ export async function inspectQuestionAudioObject(storageKey) {
     }
 }
 async function headObject(storageKey, mimeType) {
-    const inspection = await inspectQuestionAudioObject(storageKey);
+    const inspection = await inspectPromptMedia(storageKey);
     if (mimeType &&
         inspection.contentType &&
         inspection.contentType !== mimeType) {
@@ -43,6 +43,15 @@ async function headObject(storageKey, mimeType) {
         exists: inspection.exists,
         contentLength: inspection.contentLength ?? -1,
     };
+}
+async function throwQuestionAudioWriteConflict(questionId, activeQuestionMessage) {
+    const question = await prisma.question.findUnique({
+        where: { id: questionId },
+        select: { deletedAt: true },
+    });
+    if (!question || question.deletedAt)
+        throw new Error("Question not found");
+    throw new Error(activeQuestionMessage);
 }
 /**
  * Generate a presigned PUT URL so an admin can upload a question's prompt
@@ -62,7 +71,11 @@ export async function createQuestionAudioPresignedUpload(questionId, mimeType) {
     const storageKey = generateQuestionAudioKey(questionId);
     // Conditional write: refuse to re-arm an already-UPLOADED question (overwrite race).
     const updated = await prisma.question.updateMany({
-        where: { id: questionId, audioUploadStatus: { not: "UPLOADED" } },
+        where: {
+            id: questionId,
+            deletedAt: null,
+            audioUploadStatus: { not: "UPLOADED" },
+        },
         data: {
             audioStorageKey: storageKey,
             audioMimeType: mimeType,
@@ -70,8 +83,9 @@ export async function createQuestionAudioPresignedUpload(questionId, mimeType) {
             audioSizeBytes: null,
         },
     });
-    if (updated.count !== 1)
-        throw new Error("Question audio already uploaded");
+    if (updated.count !== 1) {
+        await throwQuestionAudioWriteConflict(questionId, "Question audio already uploaded");
+    }
     const putObjectParams = {
         Bucket: env.R2_BUCKET_NAME,
         Key: storageKey,
@@ -108,11 +122,12 @@ export async function confirmQuestionAudioUpload(questionId) {
     if (!head.exists)
         throw new Error("Audio object not found in storage");
     const updated = await prisma.question.updateMany({
-        where: { id: questionId, audioUploadStatus: "PENDING" },
+        where: { id: questionId, deletedAt: null, audioUploadStatus: "PENDING" },
         data: { audioUploadStatus: "UPLOADED", audioSizeBytes: head.contentLength },
     });
-    if (updated.count !== 1)
-        throw new Error("Concurrent confirm — question audio already finalized");
+    if (updated.count !== 1) {
+        await throwQuestionAudioWriteConflict(questionId, "Concurrent confirm — question audio already finalized");
+    }
     // Post-update audit: the row must match what we just verified.
     const audited = await prisma.question.findUnique({
         where: { id: questionId },
@@ -124,7 +139,10 @@ export async function confirmQuestionAudioUpload(questionId) {
         !AUDIO_KEY_RE.test(audited.audioStorageKey) ||
         audited.audioSizeBytes !== head.contentLength) {
         await prisma.question
-            .update({ where: { id: questionId }, data: { audioUploadStatus: "FAILED" } })
+            .updateMany({
+            where: { id: questionId, deletedAt: null },
+            data: { audioUploadStatus: "FAILED" },
+        })
             .catch(() => { });
         throw new Error("Post-update audit failed");
     }

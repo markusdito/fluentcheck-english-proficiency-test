@@ -19,16 +19,16 @@ export function generateQuestionAudioKey(questionId: string): string {
   return `questions/${questionId}/prompt.webm`;
 }
 
-export interface QuestionAudioObjectInspection {
+export interface PromptMediaInspection {
   exists: boolean;
   contentLength: number | null;
   contentType: string | null;
 }
 
-/** Read Prompt-media object metadata without mutating storage. */
-export async function inspectQuestionAudioObject(
+/** Read Prompt media metadata without mutating storage. */
+export async function inspectPromptMedia(
   storageKey: string,
-): Promise<QuestionAudioObjectInspection> {
+): Promise<PromptMediaInspection> {
   try {
     const head = await r2Client.send(
       new HeadObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey })
@@ -50,7 +50,7 @@ async function headObject(
   storageKey: string,
   mimeType?: string | null
 ): Promise<{ exists: boolean; contentLength: number }> {
-  const inspection = await inspectQuestionAudioObject(storageKey);
+  const inspection = await inspectPromptMedia(storageKey);
   if (
     mimeType &&
     inspection.contentType &&
@@ -62,6 +62,18 @@ async function headObject(
     exists: inspection.exists,
     contentLength: inspection.contentLength ?? -1,
   };
+}
+
+async function throwQuestionAudioWriteConflict(
+  questionId: string,
+  activeQuestionMessage: string,
+): Promise<never> {
+  const question = await prisma.question.findUnique({
+    where: { id: questionId },
+    select: { deletedAt: true },
+  });
+  if (!question || question.deletedAt) throw new Error("Question not found");
+  throw new Error(activeQuestionMessage);
 }
 
 /**
@@ -85,7 +97,11 @@ export async function createQuestionAudioPresignedUpload(
 
   // Conditional write: refuse to re-arm an already-UPLOADED question (overwrite race).
   const updated = await prisma.question.updateMany({
-    where: { id: questionId, audioUploadStatus: { not: "UPLOADED" } },
+    where: {
+      id: questionId,
+      deletedAt: null,
+      audioUploadStatus: { not: "UPLOADED" },
+    },
     data: {
       audioStorageKey: storageKey,
       audioMimeType: mimeType,
@@ -93,7 +109,12 @@ export async function createQuestionAudioPresignedUpload(
       audioSizeBytes: null,
     },
   });
-  if (updated.count !== 1) throw new Error("Question audio already uploaded");
+  if (updated.count !== 1) {
+    await throwQuestionAudioWriteConflict(
+      questionId,
+      "Question audio already uploaded",
+    );
+  }
 
   const putObjectParams: PutObjectCommandInput = {
     Bucket: env.R2_BUCKET_NAME,
@@ -132,10 +153,15 @@ export async function confirmQuestionAudioUpload(questionId: string): Promise<vo
   if (!head.exists) throw new Error("Audio object not found in storage");
 
   const updated = await prisma.question.updateMany({
-    where: { id: questionId, audioUploadStatus: "PENDING" },
+    where: { id: questionId, deletedAt: null, audioUploadStatus: "PENDING" },
     data: { audioUploadStatus: "UPLOADED", audioSizeBytes: head.contentLength },
   });
-  if (updated.count !== 1) throw new Error("Concurrent confirm — question audio already finalized");
+  if (updated.count !== 1) {
+    await throwQuestionAudioWriteConflict(
+      questionId,
+      "Concurrent confirm — question audio already finalized",
+    );
+  }
 
   // Post-update audit: the row must match what we just verified.
   const audited = await prisma.question.findUnique({
@@ -150,7 +176,10 @@ export async function confirmQuestionAudioUpload(questionId: string): Promise<vo
     audited.audioSizeBytes !== head.contentLength
   ) {
     await prisma.question
-      .update({ where: { id: questionId }, data: { audioUploadStatus: "FAILED" } })
+      .updateMany({
+        where: { id: questionId, deletedAt: null },
+        data: { audioUploadStatus: "FAILED" },
+      })
       .catch(() => {});
     throw new Error("Post-update audit failed");
   }

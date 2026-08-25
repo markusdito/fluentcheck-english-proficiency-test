@@ -2,7 +2,7 @@ import {
   formatHumanReconciliation,
   reconcileRetiredQuestionMedia,
   type QuestionMediaReconciliationResult,
-} from "../service/question-media-reconciliation.service.js";
+} from "../service/questionMediaReconciliation.service.js";
 
 interface QuestionMediaReconciliationCliDependencies {
   runReconciliation?: () => Promise<QuestionMediaReconciliationResult>;

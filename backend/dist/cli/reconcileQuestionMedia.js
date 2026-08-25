@@ -1,4 +1,4 @@
-import { formatHumanReconciliation, reconcileRetiredQuestionMedia, } from "../service/question-media-reconciliation.service.js";
+import { formatHumanReconciliation, reconcileRetiredQuestionMedia, } from "../service/questionMediaReconciliation.service.js";
 export async function runQuestionMediaReconciliationCli(args, dependencies = {}) {
     const runReconciliation = dependencies.runReconciliation ?? reconcileRetiredQuestionMedia;
     const writeOutput = dependencies.writeOutput ?? ((value) => process.stdout.write(value));
