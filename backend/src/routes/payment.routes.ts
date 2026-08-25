@@ -4,10 +4,22 @@ import {
   ipaymuNotification,
   paySubmission,
 } from "../controllers/payment.controller.js";
+import {
+  fetchIpaymuTransport,
+  type IpaymuTransport,
+} from "../service/ipaymu.transport.js";
 
-const router = Router();
+export function createPaymentRouter(
+  ipaymuTransport: IpaymuTransport = fetchIpaymuTransport,
+) {
+  const router = Router();
 
-router.post("/ipaymu/notify", ipaymuNotification);
-router.post("/submissions/:id/pay", verifyToken, paySubmission);
+  router.post("/ipaymu/notify", ipaymuNotification);
+  router.post("/submissions/:id/pay", verifyToken, (req, res) =>
+    paySubmission(req, res, ipaymuTransport),
+  );
 
-export default router;
+  return router;
+}
+
+export default createPaymentRouter();

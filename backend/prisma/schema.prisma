@@ -161,18 +161,23 @@ model Answer {
 }
 
 model Payment {
-  id           String        @id @default(uuid()) @db.Uuid
-  submissionId String        @db.Uuid
-  submission   Submission    @relation(fields: [submissionId], references: [id], onDelete: Restrict)
-  amount       Int // minor units (e.g. rupiah/cents) — never float
-  currency     String        @default("IDR") @db.Char(3)
-  provider     String? // e.g. "midtrans", "xendit", "stripe"
-  providerRef  String? // external transaction id for reconciliation
-  status       PaymentStatus @default(PENDING)
-  paidAt       DateTime?     @db.Timestamptz()
-  createdAt    DateTime      @default(now()) @db.Timestamptz()
-  updatedAt    DateTime      @updatedAt @db.Timestamptz()
+  id                    String        @id @default(uuid()) @db.Uuid
+  submissionId          String        @db.Uuid
+  submission            Submission    @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  amount                Int // minor units (e.g. rupiah/cents) — never float
+  currency              String        @default("IDR") @db.Char(3)
+  provider              String? // e.g. "ipaymu", "midtrans", "stripe"
+  merchantReference     String?       @unique // null only for legacy Payment attempts
+  providerSessionId     String?
+  providerTransactionId String?
+  legacyProviderRef     String? // preserved opaque value from the historical providerRef field
+  status                PaymentStatus @default(PENDING)
+  paidAt                DateTime?     @db.Timestamptz()
+  createdAt             DateTime      @default(now()) @db.Timestamptz()
+  updatedAt             DateTime      @updatedAt @db.Timestamptz()
 
+  @@unique([provider, providerSessionId])
+  @@unique([provider, providerTransactionId])
   @@index([submissionId, status])
   @@index([status])
 }

@@ -145,33 +145,55 @@ export default function AdminSubmissionDetailPage({
 
         {submission.payments.length > 0 ? (
           <div className="mt-4 divide-y divide-rule border border-rule bg-paper-raised">
-            {submission.payments.map((payment) => (
-              <div
-                key={payment.id}
-                className="grid items-center gap-4 px-5 py-4 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(11rem,auto)]"
-              >
-                <SubmissionStatus status={payment.status} />
-                <div className="min-w-0">
-                  <p className="font-mono text-sm font-semibold tabular-nums text-ink">
-                    {formatAmount(payment.amount, payment.currency)}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-ink-soft">
-                    {payment.provider ?? "Provider unavailable"}
-                    {payment.providerRef ? ` · ${payment.providerRef}` : ""}
-                  </p>
-                </div>
-                <div className="text-left sm:text-right">
-                  <p className="font-mono text-[11px] text-ink-soft">
-                    Created {formatDateTime(payment.createdAt)}
-                  </p>
-                  {payment.paidAt && (
-                    <p className="mt-1 font-mono text-[11px] text-ink-faint">
-                      Paid {formatDateTime(payment.paidAt)}
+            {submission.payments.map((payment) => {
+              const reconciliationIdentifiers = [
+                ["Merchant reference", payment.merchantReference],
+                ["Provider session ID", payment.providerSessionId],
+                ["Provider transaction ID", payment.providerTransactionId],
+                ["Legacy reference", payment.legacyProviderRef],
+              ].filter((identifier): identifier is [string, string] => Boolean(identifier[1]));
+
+              return (
+                <div
+                  key={payment.id}
+                  className="grid items-start gap-4 px-5 py-4 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(11rem,auto)]"
+                >
+                  <SubmissionStatus status={payment.status} />
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm font-semibold tabular-nums text-ink">
+                      {formatAmount(payment.amount, payment.currency)}
                     </p>
-                  )}
+                    <p className="mt-1 text-xs text-ink-soft">
+                      {payment.provider ?? "Provider unavailable"}
+                    </p>
+                    {reconciliationIdentifiers.length > 0 && (
+                      <dl className="mt-3 grid gap-x-5 gap-y-2 md:grid-cols-2">
+                        {reconciliationIdentifiers.map(([label, value]) => (
+                          <div key={label} className="min-w-0">
+                            <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
+                              {label}
+                            </dt>
+                            <dd className="mt-0.5 break-all font-mono text-[11px] text-ink-soft">
+                              {value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <p className="font-mono text-[11px] text-ink-soft">
+                      Created {formatDateTime(payment.createdAt)}
+                    </p>
+                    {payment.paidAt && (
+                      <p className="mt-1 font-mono text-[11px] text-ink-faint">
+                        Paid {formatDateTime(payment.paidAt)}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : submission.paymentRequired ? (
           <div className="mt-4 border border-dashed border-rule-strong bg-paper-raised px-6 py-10 text-center">

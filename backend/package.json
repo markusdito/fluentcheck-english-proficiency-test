@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "tsx --test test/**/*.test.ts",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "tsx --test test/*.test.ts",
+    "test:integration": "tsx --test test/integration/*.test.ts",
     "dev": "nodemon --watch src --exec tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js"
@@ -28,6 +30,7 @@
     "pg": "^8.21.0"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.1.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

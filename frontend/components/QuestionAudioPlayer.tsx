@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { PauseIcon, PlayIcon, RotateCcwIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface QuestionAudioPlayerProps {
   audioUrl: string | null;
@@ -13,25 +15,38 @@ interface QuestionAudioPlayerProps {
  * Audio player for a question's prompt audio.
  *
  * `autoPlay` (used on the test page) replays the prompt whenever the question
- * changes, and surfaces a hint if the browser blocks autoplay. A "Replay
- * prompt" affordance keeps replay available at any time. Renders a placeholder
- * when the question has no audio yet (not uploaded).
+ * changes, replaces the browser's full control bar with Play/Pause and Replay,
+ * and surfaces a hint if the browser blocks autoplay. Other surfaces retain the
+ * native audio controls. Renders a placeholder when the question has no audio
+ * yet (not uploaded).
  */
 export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: QuestionAudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [blockedUrl, setBlockedUrl] = useState<string | null>(null);
+  const [playingUrl, setPlayingUrl] = useState<string | null>(null);
+
+  const playAudio = useCallback((restart: boolean) => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) return;
+
+    if (restart) audio.currentTime = 0;
+    setBlockedUrl(null);
+
+    const attempt = audio.play();
+    if (attempt !== undefined) {
+      attempt.catch(() => {
+        setPlayingUrl(null);
+        setBlockedUrl(audioUrl);
+      });
+    }
+  }, [audioUrl]);
 
   // Autoplay the prompt audio whenever the question's audio changes.
   // Blocked state is keyed by URL so a question change naturally resets it.
   useEffect(() => {
     if (!autoPlay || !audioUrl) return;
-    const audio = audioRef.current;
-    if (!audio) return;
-    const attempt = audio.play();
-    if (attempt !== undefined) {
-      attempt.catch(() => setBlockedUrl(audioUrl));
-    }
-  }, [autoPlay, audioUrl]);
+    playAudio(false);
+  }, [autoPlay, audioUrl, playAudio]);
 
   if (!audioUrl) {
     return (
@@ -42,37 +57,70 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: Qu
   }
 
   const autoplayBlocked = blockedUrl === audioUrl;
+  const isPlaying = playingUrl === audioUrl;
 
   return (
-    <div className={compact ? "space-y-2" : ""}>
+    <div className={compact || autoPlay ? "space-y-2" : ""}>
       <audio
         key={audioUrl}
         ref={audioRef}
         src={audioUrl}
-        controls
-        onEnded={onEnded}
+        controls={!autoPlay}
+        onPlay={() => setPlayingUrl(audioUrl)}
+        onPause={() => setPlayingUrl(null)}
+        onEnded={() => {
+          setPlayingUrl(null);
+          onEnded?.();
+        }}
         preload={autoPlay ? "auto" : "metadata"}
-        className={compact ? "h-9 w-full" : "w-full"}
+        aria-hidden={autoPlay || undefined}
+        className={autoPlay ? "hidden" : compact ? "h-9 w-full" : "w-full"}
       >
         <p className="text-sm text-ink-soft">
           Your browser does not support audio playback.
         </p>
       </audio>
       {autoPlay && (
-        <div className="flex items-center gap-3">
-          {autoplayBlocked && (
-            <p className="text-xs text-amber-400">Autoplay blocked — press play above.</p>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setBlockedUrl(null);
-              audioRef.current?.play().catch(() => setBlockedUrl(audioUrl));
-            }}
-            className="text-xs font-semibold text-studio-text/70 underline decoration-studio-text/30 underline-offset-2 transition-colors hover:text-studio-text"
+        <div className="space-y-2">
+          <div
+            className="flex flex-wrap items-center gap-3"
+            role="group"
+            aria-label="Question audio controls"
           >
-            Replay prompt
-          </button>
+            <Button
+              type="button"
+              variant="invert"
+              size="md"
+              aria-label={isPlaying ? "Pause question audio" : "Play question audio"}
+              onClick={() => {
+                if (isPlaying) {
+                  setPlayingUrl(null);
+                  audioRef.current?.pause();
+                } else {
+                  playAudio(false);
+                }
+              }}
+            >
+              {isPlaying ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
+              {isPlaying ? "Pause" : "Play"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              aria-label="Replay question audio from the beginning"
+              className="border-studio-rule bg-transparent text-studio-text hover:bg-studio-panel hover:text-studio-text"
+              onClick={() => playAudio(true)}
+            >
+              <RotateCcwIcon aria-hidden />
+              Replay
+            </Button>
+          </div>
+          {autoplayBlocked && (
+            <p role="status" className="text-xs text-amber-400">
+              Autoplay blocked — select Play to hear the prompt.
+            </p>
+          )}
         </div>
       )}
     </div>

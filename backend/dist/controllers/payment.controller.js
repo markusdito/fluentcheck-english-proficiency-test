@@ -1,9 +1,36 @@
-import { createIpaymuCheckout, processIpaymuNotification, } from "../service/payment.service.js";
+import { createIpaymuCheckout, IpaymuCallbackError, processIpaymuNotification, } from "../service/payment.service.js";
+import { IpaymuCheckoutError } from "../service/ipaymu.protocol.js";
+import { fetchIpaymuTransport, } from "../service/ipaymu.transport.js";
+function isNonEmptyString(value) {
+    return typeof value === "string" && value.length > 0;
+}
+function isCallbackScalar(value) {
+    return ((typeof value === "string" && value.length > 0) ||
+        (typeof value === "number" && Number.isFinite(value)));
+}
+function isIpaymuCallbackBody(value) {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        return false;
+    }
+    const body = value;
+    const hasMerchantReference = isNonEmptyString(body.reference_id) || isNonEmptyString(body.referenceId);
+    const referencesAreStrings = (body.reference_id === undefined || isNonEmptyString(body.reference_id)) &&
+        (body.referenceId === undefined || isNonEmptyString(body.referenceId));
+    return (hasMerchantReference &&
+        referencesAreStrings &&
+        isNonEmptyString(body.sid) &&
+        isCallbackScalar(body.trx_id) &&
+        isNonEmptyString(body.status) &&
+        isCallbackScalar(body.status_code) &&
+        isCallbackScalar(body.transaction_status_code) &&
+        isCallbackScalar(body.sub_total) &&
+        (body.signature === undefined || isNonEmptyString(body.signature)));
+}
 /**
  * POST /api/payments/submissions/:id/pay
  * Create an iPaymu hosted checkout for a submission.
  */
-export async function paySubmission(req, res) {
+export async function paySubmission(req, res, transport = fetchIpaymuTransport) {
     try {
         const submissionId = req.params.id;
         const userId = req.user.id;
@@ -11,7 +38,7 @@ export async function paySubmission(req, res) {
             res.status(400).json({ error: "Submission ID is required" });
             return;
         }
-        const checkout = await createIpaymuCheckout(submissionId, userId);
+        const checkout = await createIpaymuCheckout(submissionId, userId, transport);
         res.status(201).json({
             status: "success",
             data: checkout,
@@ -19,15 +46,15 @@ export async function paySubmission(req, res) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : "Failed to process payment";
-        const status = message === "Submission not found"
-            ? 404
-            : message === "Unauthorized"
-                ? 403
-                : message === "Submission is not awaiting payment" ||
-                    message === "Invalid iPaymu payment configuration" ||
-                    message === "iPaymu sandbox configuration is incomplete"
-                    ? 400
-                    : message === "No examiners available" || message.startsWith("No examiners available")
+        const status = error instanceof IpaymuCheckoutError
+            ? error.statusCode
+            : message === "Submission not found"
+                ? 404
+                : message === "Unauthorized"
+                    ? 403
+                    : message === "Submission is not awaiting payment" ||
+                        message === "Invalid iPaymu payment configuration" ||
+                        message === "iPaymu sandbox configuration is incomplete"
                         ? 400
                         : 500;
         res.status(status).json({ error: message });
@@ -39,6 +66,10 @@ export async function paySubmission(req, res) {
  */
 export async function ipaymuNotification(req, res) {
     try {
+        if (!isIpaymuCallbackBody(req.body)) {
+            res.status(400).json({ error: "Invalid iPaymu callback body" });
+            return;
+        }
         const signatureHeader = req.headers["x-signature"];
         const signature = Array.isArray(signatureHeader)
             ? signatureHeader[0]
@@ -48,11 +79,13 @@ export async function ipaymuNotification(req, res) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : "Failed to process iPaymu notification";
-        if (message === "Invalid iPaymu callback signature") {
-            res.status(400).json({ error: message });
+        if (error instanceof IpaymuCallbackError) {
+            res.status(error.statusCode).json({ error: message });
             return;
         }
-        console.error("iPaymu notification error:", error);
-        res.status(500).json({ error: message });
+        console.error("iPaymu notification processing failed", {
+            error: message,
+        });
+        res.status(500).json({ error: "Failed to process iPaymu notification" });
     }
 }
