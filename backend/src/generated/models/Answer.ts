@@ -40,6 +40,7 @@ export type AnswerMinAggregateOutputType = {
   id: string | null
   submissionId: string | null
   questionId: string | null
+  manifestEntryId: string | null
   storageKey: string | null
   bucket: string | null
   mimeType: string | null
@@ -54,6 +55,7 @@ export type AnswerMaxAggregateOutputType = {
   id: string | null
   submissionId: string | null
   questionId: string | null
+  manifestEntryId: string | null
   storageKey: string | null
   bucket: string | null
   mimeType: string | null
@@ -68,6 +70,7 @@ export type AnswerCountAggregateOutputType = {
   id: number
   submissionId: number
   questionId: number
+  manifestEntryId: number
   storageKey: number
   bucket: number
   mimeType: number
@@ -94,6 +97,7 @@ export type AnswerMinAggregateInputType = {
   id?: true
   submissionId?: true
   questionId?: true
+  manifestEntryId?: true
   storageKey?: true
   bucket?: true
   mimeType?: true
@@ -108,6 +112,7 @@ export type AnswerMaxAggregateInputType = {
   id?: true
   submissionId?: true
   questionId?: true
+  manifestEntryId?: true
   storageKey?: true
   bucket?: true
   mimeType?: true
@@ -122,6 +127,7 @@ export type AnswerCountAggregateInputType = {
   id?: true
   submissionId?: true
   questionId?: true
+  manifestEntryId?: true
   storageKey?: true
   bucket?: true
   mimeType?: true
@@ -222,7 +228,8 @@ export type AnswerGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalA
 export type AnswerGroupByOutputType = {
   id: string
   submissionId: string
-  questionId: string
+  questionId: string | null
+  manifestEntryId: string | null
   storageKey: string
   bucket: string | null
   mimeType: string | null
@@ -259,7 +266,8 @@ export type AnswerWhereInput = {
   NOT?: Prisma.AnswerWhereInput | Prisma.AnswerWhereInput[]
   id?: Prisma.UuidFilter<"Answer"> | string
   submissionId?: Prisma.UuidFilter<"Answer"> | string
-  questionId?: Prisma.UuidFilter<"Answer"> | string
+  questionId?: Prisma.UuidNullableFilter<"Answer"> | string | null
+  manifestEntryId?: Prisma.UuidNullableFilter<"Answer"> | string | null
   storageKey?: Prisma.StringFilter<"Answer"> | string
   bucket?: Prisma.StringNullableFilter<"Answer"> | string | null
   mimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
@@ -269,14 +277,16 @@ export type AnswerWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
-  question?: Prisma.XOR<Prisma.QuestionScalarRelationFilter, Prisma.QuestionWhereInput>
+  question?: Prisma.XOR<Prisma.QuestionNullableScalarRelationFilter, Prisma.QuestionWhereInput> | null
+  manifestEntry?: Prisma.XOR<Prisma.ManifestEntryNullableScalarRelationFilter, Prisma.ManifestEntryWhereInput> | null
   scores?: Prisma.ScoreListRelationFilter
 }
 
 export type AnswerOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
-  questionId?: Prisma.SortOrder
+  questionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  manifestEntryId?: Prisma.SortOrderInput | Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   bucket?: Prisma.SortOrderInput | Prisma.SortOrder
   mimeType?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -287,17 +297,19 @@ export type AnswerOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   submission?: Prisma.SubmissionOrderByWithRelationInput
   question?: Prisma.QuestionOrderByWithRelationInput
+  manifestEntry?: Prisma.ManifestEntryOrderByWithRelationInput
   scores?: Prisma.ScoreOrderByRelationAggregateInput
 }
 
 export type AnswerWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  manifestEntryId?: string
   submissionId_questionId?: Prisma.AnswerSubmissionIdQuestionIdCompoundUniqueInput
   AND?: Prisma.AnswerWhereInput | Prisma.AnswerWhereInput[]
   OR?: Prisma.AnswerWhereInput[]
   NOT?: Prisma.AnswerWhereInput | Prisma.AnswerWhereInput[]
   submissionId?: Prisma.UuidFilter<"Answer"> | string
-  questionId?: Prisma.UuidFilter<"Answer"> | string
+  questionId?: Prisma.UuidNullableFilter<"Answer"> | string | null
   storageKey?: Prisma.StringFilter<"Answer"> | string
   bucket?: Prisma.StringNullableFilter<"Answer"> | string | null
   mimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
@@ -307,14 +319,16 @@ export type AnswerWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
-  question?: Prisma.XOR<Prisma.QuestionScalarRelationFilter, Prisma.QuestionWhereInput>
+  question?: Prisma.XOR<Prisma.QuestionNullableScalarRelationFilter, Prisma.QuestionWhereInput> | null
+  manifestEntry?: Prisma.XOR<Prisma.ManifestEntryNullableScalarRelationFilter, Prisma.ManifestEntryWhereInput> | null
   scores?: Prisma.ScoreListRelationFilter
-}, "id" | "submissionId_questionId">
+}, "id" | "submissionId_questionId" | "manifestEntryId">
 
 export type AnswerOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
-  questionId?: Prisma.SortOrder
+  questionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  manifestEntryId?: Prisma.SortOrderInput | Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   bucket?: Prisma.SortOrderInput | Prisma.SortOrder
   mimeType?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -336,7 +350,8 @@ export type AnswerScalarWhereWithAggregatesInput = {
   NOT?: Prisma.AnswerScalarWhereWithAggregatesInput | Prisma.AnswerScalarWhereWithAggregatesInput[]
   id?: Prisma.UuidWithAggregatesFilter<"Answer"> | string
   submissionId?: Prisma.UuidWithAggregatesFilter<"Answer"> | string
-  questionId?: Prisma.UuidWithAggregatesFilter<"Answer"> | string
+  questionId?: Prisma.UuidNullableWithAggregatesFilter<"Answer"> | string | null
+  manifestEntryId?: Prisma.UuidNullableWithAggregatesFilter<"Answer"> | string | null
   storageKey?: Prisma.StringWithAggregatesFilter<"Answer"> | string
   bucket?: Prisma.StringNullableWithAggregatesFilter<"Answer"> | string | null
   mimeType?: Prisma.StringNullableWithAggregatesFilter<"Answer"> | string | null
@@ -358,14 +373,16 @@ export type AnswerCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
-  question: Prisma.QuestionCreateNestedOneWithoutAnswersInput
+  question?: Prisma.QuestionCreateNestedOneWithoutAnswersInput
+  manifestEntry?: Prisma.ManifestEntryCreateNestedOneWithoutAnswersInput
   scores?: Prisma.ScoreCreateNestedManyWithoutAnswerInput
 }
 
 export type AnswerUncheckedCreateInput = {
   id?: string
   submissionId: string
-  questionId: string
+  questionId?: string | null
+  manifestEntryId?: string | null
   storageKey: string
   bucket?: string | null
   mimeType?: string | null
@@ -388,14 +405,16 @@ export type AnswerUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
-  question?: Prisma.QuestionUpdateOneRequiredWithoutAnswersNestedInput
+  question?: Prisma.QuestionUpdateOneWithoutAnswersNestedInput
+  manifestEntry?: Prisma.ManifestEntryUpdateOneWithoutAnswersNestedInput
   scores?: Prisma.ScoreUpdateManyWithoutAnswerNestedInput
 }
 
 export type AnswerUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
-  questionId?: Prisma.StringFieldUpdateOperationsInput | string
+  questionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  manifestEntryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -410,7 +429,8 @@ export type AnswerUncheckedUpdateInput = {
 export type AnswerCreateManyInput = {
   id?: string
   submissionId: string
-  questionId: string
+  questionId?: string | null
+  manifestEntryId?: string | null
   storageKey: string
   bucket?: string | null
   mimeType?: string | null
@@ -436,7 +456,8 @@ export type AnswerUpdateManyMutationInput = {
 export type AnswerUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
-  questionId?: Prisma.StringFieldUpdateOperationsInput | string
+  questionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  manifestEntryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -466,6 +487,7 @@ export type AnswerCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   questionId?: Prisma.SortOrder
+  manifestEntryId?: Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   bucket?: Prisma.SortOrder
   mimeType?: Prisma.SortOrder
@@ -485,6 +507,7 @@ export type AnswerMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   questionId?: Prisma.SortOrder
+  manifestEntryId?: Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   bucket?: Prisma.SortOrder
   mimeType?: Prisma.SortOrder
@@ -499,6 +522,7 @@ export type AnswerMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   questionId?: Prisma.SortOrder
+  manifestEntryId?: Prisma.SortOrder
   storageKey?: Prisma.SortOrder
   bucket?: Prisma.SortOrder
   mimeType?: Prisma.SortOrder
@@ -603,6 +627,48 @@ export type AnswerUncheckedUpdateManyWithoutSubmissionNestedInput = {
   deleteMany?: Prisma.AnswerScalarWhereInput | Prisma.AnswerScalarWhereInput[]
 }
 
+export type AnswerCreateNestedManyWithoutManifestEntryInput = {
+  create?: Prisma.XOR<Prisma.AnswerCreateWithoutManifestEntryInput, Prisma.AnswerUncheckedCreateWithoutManifestEntryInput> | Prisma.AnswerCreateWithoutManifestEntryInput[] | Prisma.AnswerUncheckedCreateWithoutManifestEntryInput[]
+  connectOrCreate?: Prisma.AnswerCreateOrConnectWithoutManifestEntryInput | Prisma.AnswerCreateOrConnectWithoutManifestEntryInput[]
+  createMany?: Prisma.AnswerCreateManyManifestEntryInputEnvelope
+  connect?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+}
+
+export type AnswerUncheckedCreateNestedManyWithoutManifestEntryInput = {
+  create?: Prisma.XOR<Prisma.AnswerCreateWithoutManifestEntryInput, Prisma.AnswerUncheckedCreateWithoutManifestEntryInput> | Prisma.AnswerCreateWithoutManifestEntryInput[] | Prisma.AnswerUncheckedCreateWithoutManifestEntryInput[]
+  connectOrCreate?: Prisma.AnswerCreateOrConnectWithoutManifestEntryInput | Prisma.AnswerCreateOrConnectWithoutManifestEntryInput[]
+  createMany?: Prisma.AnswerCreateManyManifestEntryInputEnvelope
+  connect?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+}
+
+export type AnswerUpdateManyWithoutManifestEntryNestedInput = {
+  create?: Prisma.XOR<Prisma.AnswerCreateWithoutManifestEntryInput, Prisma.AnswerUncheckedCreateWithoutManifestEntryInput> | Prisma.AnswerCreateWithoutManifestEntryInput[] | Prisma.AnswerUncheckedCreateWithoutManifestEntryInput[]
+  connectOrCreate?: Prisma.AnswerCreateOrConnectWithoutManifestEntryInput | Prisma.AnswerCreateOrConnectWithoutManifestEntryInput[]
+  upsert?: Prisma.AnswerUpsertWithWhereUniqueWithoutManifestEntryInput | Prisma.AnswerUpsertWithWhereUniqueWithoutManifestEntryInput[]
+  createMany?: Prisma.AnswerCreateManyManifestEntryInputEnvelope
+  set?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+  disconnect?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+  delete?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+  connect?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+  update?: Prisma.AnswerUpdateWithWhereUniqueWithoutManifestEntryInput | Prisma.AnswerUpdateWithWhereUniqueWithoutManifestEntryInput[]
+  updateMany?: Prisma.AnswerUpdateManyWithWhereWithoutManifestEntryInput | Prisma.AnswerUpdateManyWithWhereWithoutManifestEntryInput[]
+  deleteMany?: Prisma.AnswerScalarWhereInput | Prisma.AnswerScalarWhereInput[]
+}
+
+export type AnswerUncheckedUpdateManyWithoutManifestEntryNestedInput = {
+  create?: Prisma.XOR<Prisma.AnswerCreateWithoutManifestEntryInput, Prisma.AnswerUncheckedCreateWithoutManifestEntryInput> | Prisma.AnswerCreateWithoutManifestEntryInput[] | Prisma.AnswerUncheckedCreateWithoutManifestEntryInput[]
+  connectOrCreate?: Prisma.AnswerCreateOrConnectWithoutManifestEntryInput | Prisma.AnswerCreateOrConnectWithoutManifestEntryInput[]
+  upsert?: Prisma.AnswerUpsertWithWhereUniqueWithoutManifestEntryInput | Prisma.AnswerUpsertWithWhereUniqueWithoutManifestEntryInput[]
+  createMany?: Prisma.AnswerCreateManyManifestEntryInputEnvelope
+  set?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+  disconnect?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+  delete?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+  connect?: Prisma.AnswerWhereUniqueInput | Prisma.AnswerWhereUniqueInput[]
+  update?: Prisma.AnswerUpdateWithWhereUniqueWithoutManifestEntryInput | Prisma.AnswerUpdateWithWhereUniqueWithoutManifestEntryInput[]
+  updateMany?: Prisma.AnswerUpdateManyWithWhereWithoutManifestEntryInput | Prisma.AnswerUpdateManyWithWhereWithoutManifestEntryInput[]
+  deleteMany?: Prisma.AnswerScalarWhereInput | Prisma.AnswerScalarWhereInput[]
+}
+
 export type AnswerCreateNestedOneWithoutScoresInput = {
   create?: Prisma.XOR<Prisma.AnswerCreateWithoutScoresInput, Prisma.AnswerUncheckedCreateWithoutScoresInput>
   connectOrCreate?: Prisma.AnswerCreateOrConnectWithoutScoresInput
@@ -628,12 +694,14 @@ export type AnswerCreateWithoutQuestionInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
+  manifestEntry?: Prisma.ManifestEntryCreateNestedOneWithoutAnswersInput
   scores?: Prisma.ScoreCreateNestedManyWithoutAnswerInput
 }
 
 export type AnswerUncheckedCreateWithoutQuestionInput = {
   id?: string
   submissionId: string
+  manifestEntryId?: string | null
   storageKey: string
   bucket?: string | null
   mimeType?: string | null
@@ -677,7 +745,8 @@ export type AnswerScalarWhereInput = {
   NOT?: Prisma.AnswerScalarWhereInput | Prisma.AnswerScalarWhereInput[]
   id?: Prisma.UuidFilter<"Answer"> | string
   submissionId?: Prisma.UuidFilter<"Answer"> | string
-  questionId?: Prisma.UuidFilter<"Answer"> | string
+  questionId?: Prisma.UuidNullableFilter<"Answer"> | string | null
+  manifestEntryId?: Prisma.UuidNullableFilter<"Answer"> | string | null
   storageKey?: Prisma.StringFilter<"Answer"> | string
   bucket?: Prisma.StringNullableFilter<"Answer"> | string | null
   mimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
@@ -698,13 +767,15 @@ export type AnswerCreateWithoutSubmissionInput = {
   uploadStatus?: $Enums.UploadStatus
   createdAt?: Date | string
   updatedAt?: Date | string
-  question: Prisma.QuestionCreateNestedOneWithoutAnswersInput
+  question?: Prisma.QuestionCreateNestedOneWithoutAnswersInput
+  manifestEntry?: Prisma.ManifestEntryCreateNestedOneWithoutAnswersInput
   scores?: Prisma.ScoreCreateNestedManyWithoutAnswerInput
 }
 
 export type AnswerUncheckedCreateWithoutSubmissionInput = {
   id?: string
-  questionId: string
+  questionId?: string | null
+  manifestEntryId?: string | null
   storageKey: string
   bucket?: string | null
   mimeType?: string | null
@@ -742,6 +813,61 @@ export type AnswerUpdateManyWithWhereWithoutSubmissionInput = {
   data: Prisma.XOR<Prisma.AnswerUpdateManyMutationInput, Prisma.AnswerUncheckedUpdateManyWithoutSubmissionInput>
 }
 
+export type AnswerCreateWithoutManifestEntryInput = {
+  id?: string
+  storageKey: string
+  bucket?: string | null
+  mimeType?: string | null
+  sizeBytes?: number | null
+  durationSeconds?: number | null
+  uploadStatus?: $Enums.UploadStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
+  question?: Prisma.QuestionCreateNestedOneWithoutAnswersInput
+  scores?: Prisma.ScoreCreateNestedManyWithoutAnswerInput
+}
+
+export type AnswerUncheckedCreateWithoutManifestEntryInput = {
+  id?: string
+  questionId?: string | null
+  storageKey: string
+  bucket?: string | null
+  mimeType?: string | null
+  sizeBytes?: number | null
+  durationSeconds?: number | null
+  uploadStatus?: $Enums.UploadStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
+}
+
+export type AnswerCreateOrConnectWithoutManifestEntryInput = {
+  where: Prisma.AnswerWhereUniqueInput
+  create: Prisma.XOR<Prisma.AnswerCreateWithoutManifestEntryInput, Prisma.AnswerUncheckedCreateWithoutManifestEntryInput>
+}
+
+export type AnswerCreateManyManifestEntryInputEnvelope = {
+  data: Prisma.AnswerCreateManyManifestEntryInput | Prisma.AnswerCreateManyManifestEntryInput[]
+  skipDuplicates?: boolean
+}
+
+export type AnswerUpsertWithWhereUniqueWithoutManifestEntryInput = {
+  where: Prisma.AnswerWhereUniqueInput
+  update: Prisma.XOR<Prisma.AnswerUpdateWithoutManifestEntryInput, Prisma.AnswerUncheckedUpdateWithoutManifestEntryInput>
+  create: Prisma.XOR<Prisma.AnswerCreateWithoutManifestEntryInput, Prisma.AnswerUncheckedCreateWithoutManifestEntryInput>
+}
+
+export type AnswerUpdateWithWhereUniqueWithoutManifestEntryInput = {
+  where: Prisma.AnswerWhereUniqueInput
+  data: Prisma.XOR<Prisma.AnswerUpdateWithoutManifestEntryInput, Prisma.AnswerUncheckedUpdateWithoutManifestEntryInput>
+}
+
+export type AnswerUpdateManyWithWhereWithoutManifestEntryInput = {
+  where: Prisma.AnswerScalarWhereInput
+  data: Prisma.XOR<Prisma.AnswerUpdateManyMutationInput, Prisma.AnswerUncheckedUpdateManyWithoutManifestEntryInput>
+}
+
 export type AnswerCreateWithoutScoresInput = {
   id?: string
   storageKey: string
@@ -753,13 +879,15 @@ export type AnswerCreateWithoutScoresInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
-  question: Prisma.QuestionCreateNestedOneWithoutAnswersInput
+  question?: Prisma.QuestionCreateNestedOneWithoutAnswersInput
+  manifestEntry?: Prisma.ManifestEntryCreateNestedOneWithoutAnswersInput
 }
 
 export type AnswerUncheckedCreateWithoutScoresInput = {
   id?: string
   submissionId: string
-  questionId: string
+  questionId?: string | null
+  manifestEntryId?: string | null
   storageKey: string
   bucket?: string | null
   mimeType?: string | null
@@ -797,13 +925,15 @@ export type AnswerUpdateWithoutScoresInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
-  question?: Prisma.QuestionUpdateOneRequiredWithoutAnswersNestedInput
+  question?: Prisma.QuestionUpdateOneWithoutAnswersNestedInput
+  manifestEntry?: Prisma.ManifestEntryUpdateOneWithoutAnswersNestedInput
 }
 
 export type AnswerUncheckedUpdateWithoutScoresInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
-  questionId?: Prisma.StringFieldUpdateOperationsInput | string
+  questionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  manifestEntryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -817,6 +947,7 @@ export type AnswerUncheckedUpdateWithoutScoresInput = {
 export type AnswerCreateManyQuestionInput = {
   id?: string
   submissionId: string
+  manifestEntryId?: string | null
   storageKey: string
   bucket?: string | null
   mimeType?: string | null
@@ -838,12 +969,14 @@ export type AnswerUpdateWithoutQuestionInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
+  manifestEntry?: Prisma.ManifestEntryUpdateOneWithoutAnswersNestedInput
   scores?: Prisma.ScoreUpdateManyWithoutAnswerNestedInput
 }
 
 export type AnswerUncheckedUpdateWithoutQuestionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
+  manifestEntryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -858,6 +991,7 @@ export type AnswerUncheckedUpdateWithoutQuestionInput = {
 export type AnswerUncheckedUpdateManyWithoutQuestionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
+  manifestEntryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -870,7 +1004,8 @@ export type AnswerUncheckedUpdateManyWithoutQuestionInput = {
 
 export type AnswerCreateManySubmissionInput = {
   id?: string
-  questionId: string
+  questionId?: string | null
+  manifestEntryId?: string | null
   storageKey: string
   bucket?: string | null
   mimeType?: string | null
@@ -891,13 +1026,15 @@ export type AnswerUpdateWithoutSubmissionInput = {
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  question?: Prisma.QuestionUpdateOneRequiredWithoutAnswersNestedInput
+  question?: Prisma.QuestionUpdateOneWithoutAnswersNestedInput
+  manifestEntry?: Prisma.ManifestEntryUpdateOneWithoutAnswersNestedInput
   scores?: Prisma.ScoreUpdateManyWithoutAnswerNestedInput
 }
 
 export type AnswerUncheckedUpdateWithoutSubmissionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  questionId?: Prisma.StringFieldUpdateOperationsInput | string
+  questionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  manifestEntryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -911,7 +1048,63 @@ export type AnswerUncheckedUpdateWithoutSubmissionInput = {
 
 export type AnswerUncheckedUpdateManyWithoutSubmissionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  questionId?: Prisma.StringFieldUpdateOperationsInput | string
+  questionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  manifestEntryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type AnswerCreateManyManifestEntryInput = {
+  id?: string
+  questionId?: string | null
+  storageKey: string
+  bucket?: string | null
+  mimeType?: string | null
+  sizeBytes?: number | null
+  durationSeconds?: number | null
+  uploadStatus?: $Enums.UploadStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type AnswerUpdateWithoutManifestEntryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
+  question?: Prisma.QuestionUpdateOneWithoutAnswersNestedInput
+  scores?: Prisma.ScoreUpdateManyWithoutAnswerNestedInput
+}
+
+export type AnswerUncheckedUpdateWithoutManifestEntryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  questionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
+}
+
+export type AnswerUncheckedUpdateManyWithoutManifestEntryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  questionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   storageKey?: Prisma.StringFieldUpdateOperationsInput | string
   bucket?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -957,6 +1150,7 @@ export type AnswerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   id?: boolean
   submissionId?: boolean
   questionId?: boolean
+  manifestEntryId?: boolean
   storageKey?: boolean
   bucket?: boolean
   mimeType?: boolean
@@ -966,7 +1160,8 @@ export type AnswerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
-  question?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
+  question?: boolean | Prisma.Answer$questionArgs<ExtArgs>
+  manifestEntry?: boolean | Prisma.Answer$manifestEntryArgs<ExtArgs>
   scores?: boolean | Prisma.Answer$scoresArgs<ExtArgs>
   _count?: boolean | Prisma.AnswerCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["answer"]>
@@ -975,6 +1170,7 @@ export type AnswerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   id?: boolean
   submissionId?: boolean
   questionId?: boolean
+  manifestEntryId?: boolean
   storageKey?: boolean
   bucket?: boolean
   mimeType?: boolean
@@ -984,13 +1180,15 @@ export type AnswerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
-  question?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
+  question?: boolean | Prisma.Answer$questionArgs<ExtArgs>
+  manifestEntry?: boolean | Prisma.Answer$manifestEntryArgs<ExtArgs>
 }, ExtArgs["result"]["answer"]>
 
 export type AnswerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   submissionId?: boolean
   questionId?: boolean
+  manifestEntryId?: boolean
   storageKey?: boolean
   bucket?: boolean
   mimeType?: boolean
@@ -1000,13 +1198,15 @@ export type AnswerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
-  question?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
+  question?: boolean | Prisma.Answer$questionArgs<ExtArgs>
+  manifestEntry?: boolean | Prisma.Answer$manifestEntryArgs<ExtArgs>
 }, ExtArgs["result"]["answer"]>
 
 export type AnswerSelectScalar = {
   id?: boolean
   submissionId?: boolean
   questionId?: boolean
+  manifestEntryId?: boolean
   storageKey?: boolean
   bucket?: boolean
   mimeType?: boolean
@@ -1017,33 +1217,38 @@ export type AnswerSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AnswerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "questionId" | "storageKey" | "bucket" | "mimeType" | "sizeBytes" | "durationSeconds" | "uploadStatus" | "createdAt" | "updatedAt", ExtArgs["result"]["answer"]>
+export type AnswerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "questionId" | "manifestEntryId" | "storageKey" | "bucket" | "mimeType" | "sizeBytes" | "durationSeconds" | "uploadStatus" | "createdAt" | "updatedAt", ExtArgs["result"]["answer"]>
 export type AnswerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
-  question?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
+  question?: boolean | Prisma.Answer$questionArgs<ExtArgs>
+  manifestEntry?: boolean | Prisma.Answer$manifestEntryArgs<ExtArgs>
   scores?: boolean | Prisma.Answer$scoresArgs<ExtArgs>
   _count?: boolean | Prisma.AnswerCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AnswerIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
-  question?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
+  question?: boolean | Prisma.Answer$questionArgs<ExtArgs>
+  manifestEntry?: boolean | Prisma.Answer$manifestEntryArgs<ExtArgs>
 }
 export type AnswerIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
-  question?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
+  question?: boolean | Prisma.Answer$questionArgs<ExtArgs>
+  manifestEntry?: boolean | Prisma.Answer$manifestEntryArgs<ExtArgs>
 }
 
 export type $AnswerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Answer"
   objects: {
     submission: Prisma.$SubmissionPayload<ExtArgs>
-    question: Prisma.$QuestionPayload<ExtArgs>
+    question: Prisma.$QuestionPayload<ExtArgs> | null
+    manifestEntry: Prisma.$ManifestEntryPayload<ExtArgs> | null
     scores: Prisma.$ScorePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     submissionId: string
-    questionId: string
+    questionId: string | null
+    manifestEntryId: string | null
     storageKey: string
     bucket: string | null
     mimeType: string | null
@@ -1447,7 +1652,8 @@ readonly fields: AnswerFieldRefs;
 export interface Prisma__AnswerClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   submission<T extends Prisma.SubmissionDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SubmissionDefaultArgs<ExtArgs>>): Prisma.Prisma__SubmissionClient<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  question<T extends Prisma.QuestionDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QuestionDefaultArgs<ExtArgs>>): Prisma.Prisma__QuestionClient<runtime.Types.Result.GetResult<Prisma.$QuestionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  question<T extends Prisma.Answer$questionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Answer$questionArgs<ExtArgs>>): Prisma.Prisma__QuestionClient<runtime.Types.Result.GetResult<Prisma.$QuestionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  manifestEntry<T extends Prisma.Answer$manifestEntryArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Answer$manifestEntryArgs<ExtArgs>>): Prisma.Prisma__ManifestEntryClient<runtime.Types.Result.GetResult<Prisma.$ManifestEntryPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   scores<T extends Prisma.Answer$scoresArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Answer$scoresArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ScorePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1481,6 +1687,7 @@ export interface AnswerFieldRefs {
   readonly id: Prisma.FieldRef<"Answer", 'String'>
   readonly submissionId: Prisma.FieldRef<"Answer", 'String'>
   readonly questionId: Prisma.FieldRef<"Answer", 'String'>
+  readonly manifestEntryId: Prisma.FieldRef<"Answer", 'String'>
   readonly storageKey: Prisma.FieldRef<"Answer", 'String'>
   readonly bucket: Prisma.FieldRef<"Answer", 'String'>
   readonly mimeType: Prisma.FieldRef<"Answer", 'String'>
@@ -1887,6 +2094,44 @@ export type AnswerDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Limit how many Answers to delete.
    */
   limit?: number
+}
+
+/**
+ * Answer.question
+ */
+export type Answer$questionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Question
+   */
+  select?: Prisma.QuestionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Question
+   */
+  omit?: Prisma.QuestionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.QuestionInclude<ExtArgs> | null
+  where?: Prisma.QuestionWhereInput
+}
+
+/**
+ * Answer.manifestEntry
+ */
+export type Answer$manifestEntryArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ManifestEntry
+   */
+  select?: Prisma.ManifestEntrySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ManifestEntry
+   */
+  omit?: Prisma.ManifestEntryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ManifestEntryInclude<ExtArgs> | null
+  where?: Prisma.ManifestEntryWhereInput
 }
 
 /**

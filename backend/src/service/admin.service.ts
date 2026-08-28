@@ -17,6 +17,10 @@ import {
   readStoredRubric,
   roundScore,
 } from "../utils/scoring.js";
+import {
+  assertLegacyAnswerQuestion,
+  assertLegacySubmissionEvidence,
+} from "./submissionManifest.service.js";
 
 export interface ListUsersParams {
   page: number;
@@ -105,6 +109,9 @@ export async function getAdminSubmissionDetail(submissionId: string) {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     include: {
+      manifest: {
+        select: { id: true, version: true },
+      },
       student: {
         select: { id: true, username: true, email: true },
       },
@@ -183,9 +190,11 @@ export async function getAdminSubmissionDetail(submissionId: string) {
   if (!submission) {
     throw new Error("Submission not found");
   }
+  assertLegacySubmissionEvidence(submission.manifest);
 
   const answers = await Promise.all(
     submission.answers.map(async (answer) => {
+      assertLegacyAnswerQuestion(answer);
       let videoUrl: string | null = null;
       if (answer.uploadStatus === "UPLOADED") {
         try {

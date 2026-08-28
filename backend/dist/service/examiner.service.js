@@ -1,6 +1,7 @@
 import { prisma } from "../config/db.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { ScoreValidationError, calculateRubricOverall, readStoredRubric, roundScore, validateAnswerCoverage, validateLegacyScore, validateRubricValues, } from "../utils/scoring.js";
+import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
 /**
  * List all assignments for the examiner, ordered by newest first.
  */
@@ -40,6 +41,9 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
         include: {
             submission: {
                 include: {
+                    manifest: {
+                        select: { id: true, version: true },
+                    },
                     student: {
                         select: { username: true },
                     },
@@ -82,7 +86,9 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
     if (assignment.examinerId !== examinerId) {
         throw new Error("Unauthorized");
     }
+    assertLegacySubmissionEvidence(assignment.submission.manifest);
     const answers = await Promise.all(assignment.submission.answers.map(async (answer) => {
+        assertLegacyAnswerQuestion(answer);
         let videoUrl = null;
         if (answer.uploadStatus === "UPLOADED") {
             try {

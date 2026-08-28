@@ -1,6 +1,7 @@
 import { prisma } from "../config/db.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
 import { getAppSettings } from "./settings.service.js";
+import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, roundScore, } from "../utils/scoring.js";
 /**
@@ -94,6 +95,9 @@ export async function getSubmissionDetail(submissionId, userId) {
     const submission = await prisma.submission.findUnique({
         where: { id: submissionId },
         include: {
+            manifest: {
+                select: { id: true, version: true },
+            },
             certificate: {
                 select: { finalScore: true },
             },
@@ -128,7 +132,9 @@ export async function getSubmissionDetail(submissionId, userId) {
     if (submission.studentId !== userId) {
         throw new Error("Unauthorized");
     }
+    assertLegacySubmissionEvidence(submission.manifest);
     const answers = await Promise.all(submission.answers.map(async (answer) => {
+        assertLegacyAnswerQuestion(answer);
         let videoUrl = null;
         if (answer.uploadStatus === "UPLOADED") {
             try {

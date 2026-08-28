@@ -388,6 +388,9 @@ export const ModelName = {
   Question: 'Question',
   Task: 'Task',
   Submission: 'Submission',
+  SubmissionManifest: 'SubmissionManifest',
+  ManifestEntry: 'ManifestEntry',
+  ManifestTask: 'ManifestTask',
   AppSettings: 'AppSettings',
   Answer: 'Answer',
   Payment: 'Payment',
@@ -409,7 +412,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "question" | "task" | "submission" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "score" | "certificate"
+    modelProps: "user" | "question" | "task" | "submission" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -706,6 +709,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.SubmissionCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.SubmissionCountAggregateOutputType> | number
+        }
+      }
+    }
+    SubmissionManifest: {
+      payload: Prisma.$SubmissionManifestPayload<ExtArgs>
+      fields: Prisma.SubmissionManifestFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SubmissionManifestFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SubmissionManifestFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>
+        }
+        findFirst: {
+          args: Prisma.SubmissionManifestFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SubmissionManifestFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>
+        }
+        findMany: {
+          args: Prisma.SubmissionManifestFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>[]
+        }
+        create: {
+          args: Prisma.SubmissionManifestCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>
+        }
+        createMany: {
+          args: Prisma.SubmissionManifestCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SubmissionManifestCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>[]
+        }
+        delete: {
+          args: Prisma.SubmissionManifestDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>
+        }
+        update: {
+          args: Prisma.SubmissionManifestUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>
+        }
+        deleteMany: {
+          args: Prisma.SubmissionManifestDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SubmissionManifestUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SubmissionManifestUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>[]
+        }
+        upsert: {
+          args: Prisma.SubmissionManifestUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionManifestPayload>
+        }
+        aggregate: {
+          args: Prisma.SubmissionManifestAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSubmissionManifest>
+        }
+        groupBy: {
+          args: Prisma.SubmissionManifestGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionManifestGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SubmissionManifestCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionManifestCountAggregateOutputType> | number
+        }
+      }
+    }
+    ManifestEntry: {
+      payload: Prisma.$ManifestEntryPayload<ExtArgs>
+      fields: Prisma.ManifestEntryFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ManifestEntryFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ManifestEntryFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>
+        }
+        findFirst: {
+          args: Prisma.ManifestEntryFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ManifestEntryFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>
+        }
+        findMany: {
+          args: Prisma.ManifestEntryFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>[]
+        }
+        create: {
+          args: Prisma.ManifestEntryCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>
+        }
+        createMany: {
+          args: Prisma.ManifestEntryCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ManifestEntryCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>[]
+        }
+        delete: {
+          args: Prisma.ManifestEntryDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>
+        }
+        update: {
+          args: Prisma.ManifestEntryUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>
+        }
+        deleteMany: {
+          args: Prisma.ManifestEntryDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ManifestEntryUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ManifestEntryUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>[]
+        }
+        upsert: {
+          args: Prisma.ManifestEntryUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestEntryPayload>
+        }
+        aggregate: {
+          args: Prisma.ManifestEntryAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateManifestEntry>
+        }
+        groupBy: {
+          args: Prisma.ManifestEntryGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ManifestEntryGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ManifestEntryCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ManifestEntryCountAggregateOutputType> | number
+        }
+      }
+    }
+    ManifestTask: {
+      payload: Prisma.$ManifestTaskPayload<ExtArgs>
+      fields: Prisma.ManifestTaskFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ManifestTaskFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ManifestTaskFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>
+        }
+        findFirst: {
+          args: Prisma.ManifestTaskFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ManifestTaskFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>
+        }
+        findMany: {
+          args: Prisma.ManifestTaskFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>[]
+        }
+        create: {
+          args: Prisma.ManifestTaskCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>
+        }
+        createMany: {
+          args: Prisma.ManifestTaskCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ManifestTaskCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>[]
+        }
+        delete: {
+          args: Prisma.ManifestTaskDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>
+        }
+        update: {
+          args: Prisma.ManifestTaskUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>
+        }
+        deleteMany: {
+          args: Prisma.ManifestTaskDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ManifestTaskUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ManifestTaskUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>[]
+        }
+        upsert: {
+          args: Prisma.ManifestTaskUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ManifestTaskPayload>
+        }
+        aggregate: {
+          args: Prisma.ManifestTaskAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateManifestTask>
+        }
+        groupBy: {
+          args: Prisma.ManifestTaskGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ManifestTaskGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ManifestTaskCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ManifestTaskCountAggregateOutputType> | number
         }
       }
     }
@@ -1251,6 +1476,41 @@ export const SubmissionScalarFieldEnum = {
 export type SubmissionScalarFieldEnum = (typeof SubmissionScalarFieldEnum)[keyof typeof SubmissionScalarFieldEnum]
 
 
+export const SubmissionManifestScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  version: 'version',
+  createdAt: 'createdAt'
+} as const
+
+export type SubmissionManifestScalarFieldEnum = (typeof SubmissionManifestScalarFieldEnum)[keyof typeof SubmissionManifestScalarFieldEnum]
+
+
+export const ManifestEntryScalarFieldEnum = {
+  id: 'id',
+  manifestId: 'manifestId',
+  submissionId: 'submissionId',
+  category: 'category',
+  deliveryPosition: 'deliveryPosition',
+  sourceQuestionId: 'sourceQuestionId',
+  createdAt: 'createdAt'
+} as const
+
+export type ManifestEntryScalarFieldEnum = (typeof ManifestEntryScalarFieldEnum)[keyof typeof ManifestEntryScalarFieldEnum]
+
+
+export const ManifestTaskScalarFieldEnum = {
+  id: 'id',
+  manifestEntryId: 'manifestEntryId',
+  sourceQuestionId: 'sourceQuestionId',
+  sourceTaskId: 'sourceTaskId',
+  deliveredOrder: 'deliveredOrder',
+  createdAt: 'createdAt'
+} as const
+
+export type ManifestTaskScalarFieldEnum = (typeof ManifestTaskScalarFieldEnum)[keyof typeof ManifestTaskScalarFieldEnum]
+
+
 export const AppSettingsScalarFieldEnum = {
   id: 'id',
   paymentEnabled: 'paymentEnabled',
@@ -1265,6 +1525,7 @@ export const AnswerScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
   questionId: 'questionId',
+  manifestEntryId: 'manifestEntryId',
   storageKey: 'storageKey',
   bucket: 'bucket',
   mimeType: 'mimeType',
@@ -1657,6 +1918,9 @@ export type GlobalOmitConfig = {
   question?: Prisma.QuestionOmit
   task?: Prisma.TaskOmit
   submission?: Prisma.SubmissionOmit
+  submissionManifest?: Prisma.SubmissionManifestOmit
+  manifestEntry?: Prisma.ManifestEntryOmit
+  manifestTask?: Prisma.ManifestTaskOmit
   appSettings?: Prisma.AppSettingsOmit
   answer?: Prisma.AnswerOmit
   payment?: Prisma.PaymentOmit

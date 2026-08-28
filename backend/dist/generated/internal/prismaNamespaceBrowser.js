@@ -43,6 +43,9 @@ export const ModelName = {
     Question: 'Question',
     Task: 'Task',
     Submission: 'Submission',
+    SubmissionManifest: 'SubmissionManifest',
+    ManifestEntry: 'ManifestEntry',
+    ManifestTask: 'ManifestTask',
     AppSettings: 'AppSettings',
     Answer: 'Answer',
     Payment: 'Payment',
@@ -102,6 +105,29 @@ export const SubmissionScalarFieldEnum = {
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
+export const SubmissionManifestScalarFieldEnum = {
+    id: 'id',
+    submissionId: 'submissionId',
+    version: 'version',
+    createdAt: 'createdAt'
+};
+export const ManifestEntryScalarFieldEnum = {
+    id: 'id',
+    manifestId: 'manifestId',
+    submissionId: 'submissionId',
+    category: 'category',
+    deliveryPosition: 'deliveryPosition',
+    sourceQuestionId: 'sourceQuestionId',
+    createdAt: 'createdAt'
+};
+export const ManifestTaskScalarFieldEnum = {
+    id: 'id',
+    manifestEntryId: 'manifestEntryId',
+    sourceQuestionId: 'sourceQuestionId',
+    sourceTaskId: 'sourceTaskId',
+    deliveredOrder: 'deliveredOrder',
+    createdAt: 'createdAt'
+};
 export const AppSettingsScalarFieldEnum = {
     id: 'id',
     paymentEnabled: 'paymentEnabled',
@@ -112,6 +138,7 @@ export const AnswerScalarFieldEnum = {
     id: 'id',
     submissionId: 'submissionId',
     questionId: 'questionId',
+    manifestEntryId: 'manifestEntryId',
     storageKey: 'storageKey',
     bucket: 'bucket',
     mimeType: 'mimeType',

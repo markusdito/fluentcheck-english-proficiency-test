@@ -14,6 +14,10 @@ import {
   type RubricValues,
   type ScoringSystemValue,
 } from "../utils/scoring.js";
+import {
+  assertLegacyAnswerQuestion,
+  assertLegacySubmissionEvidence,
+} from "./submissionManifest.service.js";
 
 export interface ExaminerAssignmentSummary {
   id: string;
@@ -115,6 +119,9 @@ export async function getExaminerAssignmentDetail(
     include: {
       submission: {
         include: {
+          manifest: {
+            select: { id: true, version: true },
+          },
           student: {
             select: { username: true },
           },
@@ -159,9 +166,11 @@ export async function getExaminerAssignmentDetail(
   if (assignment.examinerId !== examinerId) {
     throw new Error("Unauthorized");
   }
+  assertLegacySubmissionEvidence(assignment.submission.manifest);
 
   const answers: AssignmentAnswer[] = await Promise.all(
     assignment.submission.answers.map(async (answer) => {
+      assertLegacyAnswerQuestion(answer);
       let videoUrl: string | null = null;
       if (answer.uploadStatus === "UPLOADED") {
         try {

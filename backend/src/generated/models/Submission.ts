@@ -200,6 +200,7 @@ export type SubmissionWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   answers?: Prisma.AnswerListRelationFilter
+  manifest?: Prisma.XOR<Prisma.SubmissionManifestNullableScalarRelationFilter, Prisma.SubmissionManifestWhereInput> | null
   payments?: Prisma.PaymentListRelationFilter
   assignments?: Prisma.ExaminerAssignmentListRelationFilter
   certificate?: Prisma.XOR<Prisma.CertificateNullableScalarRelationFilter, Prisma.CertificateWhereInput> | null
@@ -215,6 +216,7 @@ export type SubmissionOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   student?: Prisma.UserOrderByWithRelationInput
   answers?: Prisma.AnswerOrderByRelationAggregateInput
+  manifest?: Prisma.SubmissionManifestOrderByWithRelationInput
   payments?: Prisma.PaymentOrderByRelationAggregateInput
   assignments?: Prisma.ExaminerAssignmentOrderByRelationAggregateInput
   certificate?: Prisma.CertificateOrderByWithRelationInput
@@ -233,6 +235,7 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   answers?: Prisma.AnswerListRelationFilter
+  manifest?: Prisma.XOR<Prisma.SubmissionManifestNullableScalarRelationFilter, Prisma.SubmissionManifestWhereInput> | null
   payments?: Prisma.PaymentListRelationFilter
   assignments?: Prisma.ExaminerAssignmentListRelationFilter
   certificate?: Prisma.XOR<Prisma.CertificateNullableScalarRelationFilter, Prisma.CertificateWhereInput> | null
@@ -273,6 +276,7 @@ export type SubmissionCreateInput = {
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
@@ -287,6 +291,7 @@ export type SubmissionUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
@@ -301,6 +306,7 @@ export type SubmissionUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
@@ -315,6 +321,7 @@ export type SubmissionUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
@@ -448,6 +455,20 @@ export type BoolFieldUpdateOperationsInput = {
   set?: boolean
 }
 
+export type SubmissionCreateNestedOneWithoutManifestInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutManifestInput, Prisma.SubmissionUncheckedCreateWithoutManifestInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutManifestInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+}
+
+export type SubmissionUpdateOneRequiredWithoutManifestNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutManifestInput, Prisma.SubmissionUncheckedCreateWithoutManifestInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutManifestInput
+  upsert?: Prisma.SubmissionUpsertWithoutManifestInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutManifestInput, Prisma.SubmissionUpdateWithoutManifestInput>, Prisma.SubmissionUncheckedUpdateWithoutManifestInput>
+}
+
 export type SubmissionCreateNestedOneWithoutAnswersInput = {
   create?: Prisma.XOR<Prisma.SubmissionCreateWithoutAnswersInput, Prisma.SubmissionUncheckedCreateWithoutAnswersInput>
   connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutAnswersInput
@@ -512,6 +533,7 @@ export type SubmissionCreateWithoutStudentInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
@@ -525,6 +547,7 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
@@ -569,6 +592,78 @@ export type SubmissionScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
 }
 
+export type SubmissionCreateWithoutManifestInput = {
+  id?: string
+  status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+}
+
+export type SubmissionUncheckedCreateWithoutManifestInput = {
+  id?: string
+  studentId: string
+  status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+}
+
+export type SubmissionCreateOrConnectWithoutManifestInput = {
+  where: Prisma.SubmissionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutManifestInput, Prisma.SubmissionUncheckedCreateWithoutManifestInput>
+}
+
+export type SubmissionUpsertWithoutManifestInput = {
+  update: Prisma.XOR<Prisma.SubmissionUpdateWithoutManifestInput, Prisma.SubmissionUncheckedUpdateWithoutManifestInput>
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutManifestInput, Prisma.SubmissionUncheckedCreateWithoutManifestInput>
+  where?: Prisma.SubmissionWhereInput
+}
+
+export type SubmissionUpdateToOneWithWhereWithoutManifestInput = {
+  where?: Prisma.SubmissionWhereInput
+  data: Prisma.XOR<Prisma.SubmissionUpdateWithoutManifestInput, Prisma.SubmissionUncheckedUpdateWithoutManifestInput>
+}
+
+export type SubmissionUpdateWithoutManifestInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+}
+
+export type SubmissionUncheckedUpdateWithoutManifestInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  studentId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+}
+
 export type SubmissionCreateWithoutAnswersInput = {
   id?: string
   status?: $Enums.SubmissionStatus
@@ -577,6 +672,7 @@ export type SubmissionCreateWithoutAnswersInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
@@ -590,6 +686,7 @@ export type SubmissionUncheckedCreateWithoutAnswersInput = {
   paymentRequired?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
@@ -619,6 +716,7 @@ export type SubmissionUpdateWithoutAnswersInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
@@ -632,6 +730,7 @@ export type SubmissionUncheckedUpdateWithoutAnswersInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
@@ -646,6 +745,7 @@ export type SubmissionCreateWithoutPaymentsInput = {
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
 }
@@ -659,6 +759,7 @@ export type SubmissionUncheckedCreateWithoutPaymentsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
 }
@@ -688,6 +789,7 @@ export type SubmissionUpdateWithoutPaymentsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
 }
@@ -701,6 +803,7 @@ export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
 }
@@ -714,6 +817,7 @@ export type SubmissionCreateWithoutAssignmentsInput = {
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
 }
@@ -727,6 +831,7 @@ export type SubmissionUncheckedCreateWithoutAssignmentsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
 }
@@ -756,6 +861,7 @@ export type SubmissionUpdateWithoutAssignmentsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
 }
@@ -769,6 +875,7 @@ export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
 }
@@ -782,6 +889,7 @@ export type SubmissionCreateWithoutCertificateInput = {
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
 }
@@ -795,6 +903,7 @@ export type SubmissionUncheckedCreateWithoutCertificateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
 }
@@ -824,6 +933,7 @@ export type SubmissionUpdateWithoutCertificateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
 }
@@ -837,6 +947,7 @@ export type SubmissionUncheckedUpdateWithoutCertificateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
 }
@@ -858,6 +969,7 @@ export type SubmissionUpdateWithoutStudentInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
@@ -871,6 +983,7 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
@@ -944,6 +1057,7 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   answers?: boolean | Prisma.Submission$answersArgs<ExtArgs>
+  manifest?: boolean | Prisma.Submission$manifestArgs<ExtArgs>
   payments?: boolean | Prisma.Submission$paymentsArgs<ExtArgs>
   assignments?: boolean | Prisma.Submission$assignmentsArgs<ExtArgs>
   certificate?: boolean | Prisma.Submission$certificateArgs<ExtArgs>
@@ -986,6 +1100,7 @@ export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs
 export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   answers?: boolean | Prisma.Submission$answersArgs<ExtArgs>
+  manifest?: boolean | Prisma.Submission$manifestArgs<ExtArgs>
   payments?: boolean | Prisma.Submission$paymentsArgs<ExtArgs>
   assignments?: boolean | Prisma.Submission$assignmentsArgs<ExtArgs>
   certificate?: boolean | Prisma.Submission$certificateArgs<ExtArgs>
@@ -1003,6 +1118,7 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
   objects: {
     student: Prisma.$UserPayload<ExtArgs>
     answers: Prisma.$AnswerPayload<ExtArgs>[]
+    manifest: Prisma.$SubmissionManifestPayload<ExtArgs> | null
     payments: Prisma.$PaymentPayload<ExtArgs>[]
     assignments: Prisma.$ExaminerAssignmentPayload<ExtArgs>[]
     certificate: Prisma.$CertificatePayload<ExtArgs> | null
@@ -1411,6 +1527,7 @@ export interface Prisma__SubmissionClient<T, Null = never, ExtArgs extends runti
   readonly [Symbol.toStringTag]: "PrismaPromise"
   student<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   answers<T extends Prisma.Submission$answersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$answersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AnswerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  manifest<T extends Prisma.Submission$manifestArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$manifestArgs<ExtArgs>>): Prisma.Prisma__SubmissionManifestClient<runtime.Types.Result.GetResult<Prisma.$SubmissionManifestPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   payments<T extends Prisma.Submission$paymentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assignments<T extends Prisma.Submission$assignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$assignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ExaminerAssignmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   certificate<T extends Prisma.Submission$certificateArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$certificateArgs<ExtArgs>>): Prisma.Prisma__CertificateClient<runtime.Types.Result.GetResult<Prisma.$CertificatePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
@@ -1872,6 +1989,25 @@ export type Submission$answersArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.AnswerScalarFieldEnum | Prisma.AnswerScalarFieldEnum[]
+}
+
+/**
+ * Submission.manifest
+ */
+export type Submission$manifestArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionManifest
+   */
+  select?: Prisma.SubmissionManifestSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionManifest
+   */
+  omit?: Prisma.SubmissionManifestOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionManifestInclude<ExtArgs> | null
+  where?: Prisma.SubmissionManifestWhereInput
 }
 
 /**

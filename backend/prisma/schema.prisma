@@ -83,6 +83,7 @@ model Question {
   createdBy          User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
   tasks              Task[]
   answers            Answer[]
+  manifestEntries    ManifestEntry[]
 
   // Recorded prompt audio lives in Cloudflare R2 / S3 — DB stores metadata only
   audioStorageKey   String?
@@ -107,8 +108,10 @@ model Task {
   createdAt  DateTime  @default(now()) @db.Timestamptz()
   updatedAt  DateTime  @updatedAt @db.Timestamptz()
   deletedAt  DateTime? @db.Timestamptz()
+  manifestTasks ManifestTask[]
 
   @@unique([questionId, order])
+  @@unique([id, questionId])
   @@index([questionId])
 }
 
@@ -120,6 +123,7 @@ model Submission {
   scoringSystem   ScoringSystem        @default(RUBRIC_6)
   paymentRequired Boolean              @default(true)
   answers         Answer[]
+  manifest        SubmissionManifest?
   payments        Payment[]
   assignments     ExaminerAssignment[]
   certificate     Certificate?
@@ -128,6 +132,52 @@ model Submission {
 
   @@index([studentId, status])
   @@index([status])
+}
+
+model SubmissionManifest {
+  id           String          @id @default(uuid()) @db.Uuid
+  submissionId String          @unique @db.Uuid
+  submission   Submission      @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  version      Int
+  entries      ManifestEntry[]
+  createdAt    DateTime        @default(now()) @db.Timestamptz()
+
+  @@unique([id, submissionId])
+}
+
+model ManifestEntry {
+  id               String             @id @default(uuid()) @db.Uuid
+  manifestId       String             @db.Uuid
+  submissionId     String             @db.Uuid
+  manifest         SubmissionManifest @relation(fields: [manifestId, submissionId], references: [id, submissionId], onDelete: Restrict)
+  category         QuestionCategory
+  deliveryPosition Int
+  sourceQuestionId String             @db.Uuid
+  sourceQuestion   Question           @relation(fields: [sourceQuestionId], references: [id], onDelete: Restrict)
+  tasks            ManifestTask[]
+  answers          Answer[]
+  createdAt        DateTime           @default(now()) @db.Timestamptz()
+
+  @@unique([id, submissionId])
+  @@unique([id, sourceQuestionId])
+  @@unique([manifestId, category])
+  @@unique([manifestId, deliveryPosition])
+  @@index([sourceQuestionId])
+}
+
+model ManifestTask {
+  id               String        @id @default(uuid()) @db.Uuid
+  manifestEntryId  String        @db.Uuid
+  sourceQuestionId String        @db.Uuid
+  manifestEntry    ManifestEntry @relation(fields: [manifestEntryId, sourceQuestionId], references: [id, sourceQuestionId], onDelete: Restrict)
+  sourceTaskId     String        @db.Uuid
+  sourceTask       Task          @relation(fields: [sourceTaskId, sourceQuestionId], references: [id, questionId], onDelete: Restrict)
+  deliveredOrder   Int
+  createdAt        DateTime      @default(now()) @db.Timestamptz()
+
+  @@unique([manifestEntryId, sourceTaskId])
+  @@unique([manifestEntryId, deliveredOrder])
+  @@index([sourceTaskId])
 }
 
 model AppSettings {
@@ -141,8 +191,10 @@ model Answer {
   id           String     @id @default(uuid()) @db.Uuid
   submissionId String     @db.Uuid
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  questionId   String     @db.Uuid
-  question     Question   @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  questionId      String?        @db.Uuid
+  question        Question?      @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  manifestEntryId String?        @db.Uuid
+  manifestEntry   ManifestEntry? @relation(fields: [manifestEntryId, submissionId], references: [id, submissionId], onDelete: Restrict)
 
   // Video lives in Cloudflare R2 / S3 — DB stores metadata only
   storageKey      String
@@ -157,6 +209,7 @@ model Answer {
   updatedAt DateTime @updatedAt @db.Timestamptz()
 
   @@unique([submissionId, questionId]) // one video per question per attempt
+  @@unique([manifestEntryId]) // one video per Manifest entry
   @@index([questionId])
 }
 

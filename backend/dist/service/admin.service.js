@@ -2,6 +2,7 @@ import { prisma } from "../config/db.js";
 import { assignExaminersToSubmission, } from "./examiner.service.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, calculateRubricOverall, readStoredRubric, roundScore, } from "../utils/scoring.js";
+import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
 /**
  * List completed submissions with optional status filtering and pagination.
  * IN_PROGRESS submissions are abandoned drafts, not admin history.
@@ -71,6 +72,9 @@ export async function getAdminSubmissionDetail(submissionId) {
     const submission = await prisma.submission.findUnique({
         where: { id: submissionId },
         include: {
+            manifest: {
+                select: { id: true, version: true },
+            },
             student: {
                 select: { id: true, username: true, email: true },
             },
@@ -148,7 +152,9 @@ export async function getAdminSubmissionDetail(submissionId) {
     if (!submission) {
         throw new Error("Submission not found");
     }
+    assertLegacySubmissionEvidence(submission.manifest);
     const answers = await Promise.all(submission.answers.map(async (answer) => {
+        assertLegacyAnswerQuestion(answer);
         let videoUrl = null;
         if (answer.uploadStatus === "UPLOADED") {
             try {

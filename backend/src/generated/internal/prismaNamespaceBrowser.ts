@@ -55,6 +55,9 @@ export const ModelName = {
   Question: 'Question',
   Task: 'Task',
   Submission: 'Submission',
+  SubmissionManifest: 'SubmissionManifest',
+  ManifestEntry: 'ManifestEntry',
+  ManifestTask: 'ManifestTask',
   AppSettings: 'AppSettings',
   Answer: 'Answer',
   Payment: 'Payment',
@@ -138,6 +141,41 @@ export const SubmissionScalarFieldEnum = {
 export type SubmissionScalarFieldEnum = (typeof SubmissionScalarFieldEnum)[keyof typeof SubmissionScalarFieldEnum]
 
 
+export const SubmissionManifestScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  version: 'version',
+  createdAt: 'createdAt'
+} as const
+
+export type SubmissionManifestScalarFieldEnum = (typeof SubmissionManifestScalarFieldEnum)[keyof typeof SubmissionManifestScalarFieldEnum]
+
+
+export const ManifestEntryScalarFieldEnum = {
+  id: 'id',
+  manifestId: 'manifestId',
+  submissionId: 'submissionId',
+  category: 'category',
+  deliveryPosition: 'deliveryPosition',
+  sourceQuestionId: 'sourceQuestionId',
+  createdAt: 'createdAt'
+} as const
+
+export type ManifestEntryScalarFieldEnum = (typeof ManifestEntryScalarFieldEnum)[keyof typeof ManifestEntryScalarFieldEnum]
+
+
+export const ManifestTaskScalarFieldEnum = {
+  id: 'id',
+  manifestEntryId: 'manifestEntryId',
+  sourceQuestionId: 'sourceQuestionId',
+  sourceTaskId: 'sourceTaskId',
+  deliveredOrder: 'deliveredOrder',
+  createdAt: 'createdAt'
+} as const
+
+export type ManifestTaskScalarFieldEnum = (typeof ManifestTaskScalarFieldEnum)[keyof typeof ManifestTaskScalarFieldEnum]
+
+
 export const AppSettingsScalarFieldEnum = {
   id: 'id',
   paymentEnabled: 'paymentEnabled',
@@ -152,6 +190,7 @@ export const AnswerScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
   questionId: 'questionId',
+  manifestEntryId: 'manifestEntryId',
   storageKey: 'storageKey',
   bucket: 'bucket',
   mimeType: 'mimeType',
