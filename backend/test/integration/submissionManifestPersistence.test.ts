@@ -41,12 +41,16 @@ async function createDatabase(name: keyof typeof createDatabaseSql) {
   return databaseUrl.toString();
 }
 
-async function migrationNames() {
+async function migrationNames(options: { includeActiveSubmissionIndex?: boolean } = {}) {
   const migrationsPath = path.join(process.cwd(), "prisma", "migrations");
-  return (await readdir(migrationsPath, { withFileTypes: true }))
+  const names = (await readdir(migrationsPath, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
+  if (options.includeActiveSubmissionIndex === false) {
+    return names.filter((name) => name !== "20260829120000_enforce_one_active_submission");
+  }
+  return names;
 }
 
 async function applyMigration(client: Client, migrationName: string) {
@@ -583,7 +587,7 @@ test("the read-only preflight reports Legacy lifecycle, Answers, conflicts, and 
   await client.connect();
 
   try {
-    for (const name of await migrationNames()) {
+    for (const name of await migrationNames({ includeActiveSubmissionIndex: false })) {
       await applyMigration(client, name);
     }
     const fixture = await createManifestSources(
@@ -666,7 +670,7 @@ test("the preflight permits one active Legacy Submission while still reporting i
   await client.connect();
 
   try {
-    for (const name of await migrationNames()) {
+    for (const name of await migrationNames({ includeActiveSubmissionIndex: false })) {
       await applyMigration(client, name);
     }
     const fixture = await createManifestSources(

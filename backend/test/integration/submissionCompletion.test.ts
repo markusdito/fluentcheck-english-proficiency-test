@@ -59,23 +59,26 @@ async function fixture() {
       password: "unused",
     },
   });
-  const submission = await prisma.submission.create({ data: { studentId: student.id } });
-  const manifest = await prisma.submissionManifest.create({ data: { submissionId: submission.id, version: 1 } });
-  const entries: any[] = [];
-  for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
-    const question = await prisma.question.create({
-      data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
-    });
-    entries.push(await prisma.manifestEntry.create({
-      data: {
-        manifestId: manifest.id,
-        submissionId: submission.id,
-        category,
-        deliveryPosition: index + 1,
-        sourceQuestionId: question.id,
-      },
-    }));
-  }
+  const { submission, entries } = await prisma.$transaction(async (tx: any) => {
+    const submission = await tx.submission.create({ data: { studentId: student.id } });
+    const manifest = await tx.submissionManifest.create({ data: { submissionId: submission.id, version: 1 } });
+    const entries: any[] = [];
+    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+      const question = await tx.question.create({
+        data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+      });
+      entries.push(await tx.manifestEntry.create({
+        data: {
+          manifestId: manifest.id,
+          submissionId: submission.id,
+          category,
+          deliveryPosition: index + 1,
+          sourceQuestionId: question.id,
+        },
+      }));
+    }
+    return { submission, entries };
+  });
   return { student, submission, entries };
 }
 
