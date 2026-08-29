@@ -19,6 +19,10 @@ import {
   assertLegacyAnswerQuestion,
   assertLegacySubmissionEvidence,
 } from "./submissionManifest.service.js";
+import type {
+  AssignmentStatus,
+  SubmissionStatus,
+} from "../generated/enums.js";
 
 export interface ExaminerAssignmentSummary {
   id: string;
@@ -620,7 +624,7 @@ export interface ScoreInput {
 export type ScoringFinalizationErrorCode =
   | "ASSIGNMENT_NOT_FOUND"
   | "UNAUTHORIZED"
-  | "ALREADY_COMPLETED"
+  | "DRAFT_FROZEN"
   | "INVALID_LIFECYCLE"
   | "INVALID_ASSIGNMENT_SET";
 
@@ -639,6 +643,14 @@ interface ValidatedScoreInput {
   value: number;
   rubric: RubricValues | null;
   comment: string | null;
+}
+
+export type ScoringFinalizationOutcome = "COMPLETED" | "ALREADY_COMPLETED";
+
+export interface ScoringFinalizationResult {
+  outcome: ScoringFinalizationOutcome;
+  assignmentStatus: AssignmentStatus;
+  submissionStatus: SubmissionStatus;
 }
 
 function validateScoreInput(
@@ -709,44 +721,279 @@ function validateStoredScore(
   validateLegacyScore(Number(score.value));
 }
 
+async function lockScoringSubmission(
+  tx: Prisma.TransactionClient,
+  submissionId: string,
+): Promise<void> {
+  const lockedSubmission = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "Submission" WHERE "id" = ${submissionId} FOR UPDATE
+  `;
+  if (lockedSubmission.length === 0) {
+    throw new ScoringFinalizationError(
+      "ASSIGNMENT_NOT_FOUND",
+      "Assignment not found",
+    );
+  }
+}
+
+async function findAssignmentSubmissionId(
+  assignmentId: string,
+): Promise<string> {
+  const assignment = await prisma.examinerAssignment.findUnique({
+    where: { id: assignmentId },
+    select: { submissionId: true },
+  });
+  if (!assignment) {
+    throw new ScoringFinalizationError(
+      "ASSIGNMENT_NOT_FOUND",
+      "Assignment not found",
+    );
+  }
+  return assignment.submissionId;
+}
+
+function assertValidAssignmentSet(
+  assignments: { examinerId: string; slot: number }[],
+): void {
+  const assignmentSetIsValid =
+    assignments.length === 2 &&
+    new Set(assignments.map(({ examinerId }) => examinerId)).size === 2 &&
+    new Set(assignments.map(({ slot }) => slot)).size === 2 &&
+    assignments.every(({ slot }) => slot === 1 || slot === 2);
+  if (!assignmentSetIsValid) {
+    throw new ScoringFinalizationError(
+      "INVALID_ASSIGNMENT_SET",
+      "Examiner assignment set is invalid and requires data repair",
+    );
+  }
+}
+
+function assertValidScoringLifecycle(
+  submissionStatus: SubmissionStatus,
+  assignments: { status: AssignmentStatus }[],
+): void {
+  if (
+    submissionStatus !== "SCORING" &&
+    submissionStatus !== "SCORED" &&
+    submissionStatus !== "CERTIFIED"
+  ) {
+    throw new ScoringFinalizationError(
+      "INVALID_LIFECYCLE",
+      "Submission is not in a scoring lifecycle",
+    );
+  }
+
+  if (
+    submissionStatus !== "SCORING" &&
+    assignments.some(({ status }) => status !== "COMPLETED")
+  ) {
+    throw new ScoringFinalizationError(
+      "INVALID_LIFECYCLE",
+      "Submission has an inconsistent terminal scoring state",
+    );
+  }
+
+  if (
+    submissionStatus === "SCORING" &&
+    assignments.length > 0 &&
+    assignments.every(({ status }) => status === "COMPLETED")
+  ) {
+    throw new ScoringFinalizationError(
+      "INVALID_LIFECYCLE",
+      "Submission has an inconsistent scoring state",
+    );
+  }
+}
+
+async function finalizeExaminerScoring(
+  assignmentId: string,
+  examinerId: string,
+  scores?: ScoreInput[],
+): Promise<ScoringFinalizationResult> {
+  const submissionId = await findAssignmentSubmissionId(assignmentId);
+
+  return prisma.$transaction(async (tx) => {
+    await lockScoringSubmission(tx, submissionId);
+
+    const submission = await tx.submission.findUnique({
+      where: { id: submissionId },
+      select: {
+        status: true,
+        scoringSystem: true,
+        answers: { select: { id: true } },
+      },
+    });
+    const assignments = await tx.examinerAssignment.findMany({
+      where: { submissionId },
+      orderBy: [{ slot: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        examinerId: true,
+        slot: true,
+        status: true,
+        scores: {
+          select: {
+            answerId: true,
+            value: true,
+            pronunciation: true,
+            fluency: true,
+            vocabulary: true,
+            grammar: true,
+          },
+        },
+      },
+    });
+    const assignment = assignments.find(({ id }) => id === assignmentId);
+
+    if (!submission || !assignment) {
+      throw new ScoringFinalizationError(
+        "ASSIGNMENT_NOT_FOUND",
+        "Assignment not found",
+      );
+    }
+    if (assignment.examinerId !== examinerId) {
+      throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
+    }
+
+    assertValidAssignmentSet(assignments);
+    assertValidScoringLifecycle(submission.status, assignments);
+
+    if (assignment.status === "COMPLETED") {
+      return {
+        outcome: "ALREADY_COMPLETED",
+        assignmentStatus: assignment.status,
+        submissionStatus: submission.status,
+      };
+    }
+
+    if (assignment.status !== "ASSIGNED" && assignment.status !== "IN_PROGRESS") {
+      throw new ScoringFinalizationError(
+        "INVALID_LIFECYCLE",
+        "Assignment is not active",
+      );
+    }
+
+    let validatedScores: ValidatedScoreInput[] = [];
+    if (scores === undefined) {
+      validateAnswerCoverage(
+        submission.answers.map((answer) => answer.id),
+        assignment.scores.map((score) => score.answerId),
+      );
+      for (const score of assignment.scores) {
+        validateStoredScore(score, submission.scoringSystem);
+      }
+    } else {
+      validateAnswerCoverage(
+        submission.answers.map((answer) => answer.id),
+        scores.map((score) => score?.answerId),
+      );
+      validatedScores = scores.map((score) =>
+        validateScoreInput(score, submission.scoringSystem),
+      );
+      for (const score of validatedScores) {
+        await tx.score.upsert({
+          where: {
+            assignmentId_answerId: {
+              assignmentId,
+              answerId: score.answerId,
+            },
+          },
+          update: scoreWriteData(score),
+          create: {
+            assignmentId,
+            answerId: score.answerId,
+            ...scoreWriteData(score),
+          },
+        });
+      }
+    }
+
+    await tx.examinerAssignment.update({
+      where: { id: assignmentId },
+      data: { status: "COMPLETED" },
+    });
+
+    const allAssignmentsCompleted = assignments.every(
+      ({ id, status }) => id === assignmentId || status === "COMPLETED",
+    );
+    const nextSubmissionStatus: SubmissionStatus = allAssignmentsCompleted
+      ? "SCORED"
+      : "SCORING";
+
+    if (nextSubmissionStatus !== submission.status) {
+      await tx.submission.update({
+        where: { id: submissionId },
+        data: { status: nextSubmissionStatus },
+      });
+    }
+
+    return {
+      outcome: "COMPLETED",
+      assignmentStatus: "COMPLETED",
+      submissionStatus: nextSubmissionStatus,
+    };
+  });
+}
+
 /** Save one answer score without completing the examiner assignment. */
 export async function saveExaminerScore(
   assignmentId: string,
   examinerId: string,
   score: ScoreInput,
 ): Promise<void> {
-  const assignment = await prisma.examinerAssignment.findUnique({
-    where: { id: assignmentId },
-    select: {
-      examinerId: true,
-      status: true,
-      submission: {
-        select: {
-          scoringSystem: true,
-          answers: {
-            where: { id: score.answerId },
-            select: { id: true },
+  const submissionId = await findAssignmentSubmissionId(assignmentId);
+
+  await prisma.$transaction(async (tx) => {
+    await lockScoringSubmission(tx, submissionId);
+
+    const assignment = await tx.examinerAssignment.findUnique({
+      where: { id: assignmentId },
+      select: {
+        examinerId: true,
+        submissionId: true,
+        status: true,
+        submission: {
+          select: {
+            scoringSystem: true,
+            answers: {
+              where: { id: score.answerId },
+              select: { id: true },
+            },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!assignment) throw new Error("Assignment not found");
-  if (assignment.examinerId !== examinerId) throw new Error("Unauthorized");
-  if (assignment.status === "COMPLETED") {
-    throw new Error("Assignment is already completed");
-  }
-  if (assignment.submission.answers.length !== 1) {
-    throw new ScoreValidationError("A score references an answer outside this assignment");
-  }
+    if (!assignment || assignment.submissionId !== submissionId) {
+      throw new ScoringFinalizationError(
+        "ASSIGNMENT_NOT_FOUND",
+        "Assignment not found",
+      );
+    }
+    if (assignment.examinerId !== examinerId) {
+      throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
+    }
+    if (assignment.status === "COMPLETED") {
+      throw new ScoringFinalizationError(
+        "DRAFT_FROZEN",
+        "Completed Examiner assignments cannot be changed",
+      );
+    }
+    if (assignment.status !== "ASSIGNED" && assignment.status !== "IN_PROGRESS") {
+      throw new ScoringFinalizationError(
+        "INVALID_LIFECYCLE",
+        "Assignment is not active",
+      );
+    }
+    if (assignment.submission.answers.length !== 1) {
+      throw new ScoreValidationError("A score references an answer outside this assignment");
+    }
 
-  const validated = validateScoreInput(
-    score,
-    assignment.submission.scoringSystem,
-  );
+    const validated = validateScoreInput(
+      score,
+      assignment.submission.scoringSystem,
+    );
 
-  await prisma.$transaction(async (tx) => {
     await tx.score.upsert({
       where: {
         assignmentId_answerId: {
@@ -775,245 +1022,18 @@ export async function saveExaminerScore(
 export async function completeExaminerScoring(
   assignmentId: string,
   examinerId: string,
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    // The assignment is only used to discover the owner. Every state that can
-    // affect finalization is read again after the Submission lock is held.
-    const assignmentOwner = await tx.$queryRawUnsafe<{ submissionId: string }[]>(
-      'SELECT "submissionId" FROM "ExaminerAssignment" WHERE "id" = $1',
-      assignmentId,
-    );
-    if (assignmentOwner.length === 0) {
-      throw new ScoringFinalizationError(
-        "ASSIGNMENT_NOT_FOUND",
-        "Assignment not found",
-      );
-    }
-
-    await tx.$queryRawUnsafe(
-      'SELECT "id" FROM "Submission" WHERE "id" = $1 FOR UPDATE',
-      assignmentOwner[0].submissionId,
-    );
-
-    const submission = await tx.submission.findUnique({
-      where: { id: assignmentOwner[0].submissionId },
-      select: {
-        status: true,
-        scoringSystem: true,
-        answers: { select: { id: true } },
-      },
-    });
-    if (!submission) {
-      throw new ScoringFinalizationError(
-        "ASSIGNMENT_NOT_FOUND",
-        "Assignment not found",
-      );
-    }
-
-    const assignments = await tx.examinerAssignment.findMany({
-      where: { submissionId: assignmentOwner[0].submissionId },
-      orderBy: [{ slot: "asc" }, { id: "asc" }],
-      select: {
-        id: true,
-        examinerId: true,
-        slot: true,
-        status: true,
-        scores: {
-          select: {
-            answerId: true,
-            value: true,
-            pronunciation: true,
-            fluency: true,
-            vocabulary: true,
-            grammar: true,
-          },
-        },
-      },
-    });
-    const assignment = assignments.find(({ id }) => id === assignmentId);
-
-    if (!assignment) {
-      throw new ScoringFinalizationError(
-        "ASSIGNMENT_NOT_FOUND",
-        "Assignment not found",
-      );
-    }
-    if (assignment.examinerId !== examinerId) {
-      throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
-    }
-    if (assignment.status === "COMPLETED") {
-      throw new ScoringFinalizationError(
-        "ALREADY_COMPLETED",
-        "Assignment is already completed",
-      );
-    }
-    if (assignment.status !== "ASSIGNED" && assignment.status !== "IN_PROGRESS") {
-      throw new ScoringFinalizationError(
-        "INVALID_LIFECYCLE",
-        "Assignment is not active",
-      );
-    }
-
-    const assignmentSetIsValid =
-      assignments.length === 2 &&
-      new Set(assignments.map(({ examinerId: id }) => id)).size === 2 &&
-      new Set(assignments.map(({ slot }) => slot)).size === 2 &&
-      assignments.every(({ slot }) => slot === 1 || slot === 2);
-    if (!assignmentSetIsValid) {
-      throw new ScoringFinalizationError(
-        "INVALID_ASSIGNMENT_SET",
-        "Examiner assignment set is invalid and requires data repair",
-      );
-    }
-
-    if (!["SCORING", "SCORED", "CERTIFIED"].includes(submission.status)) {
-      throw new ScoringFinalizationError(
-        "INVALID_LIFECYCLE",
-        "Submission is not in a scoring lifecycle",
-      );
-    }
-
-    // A terminal Submission with an open assignment is already inconsistent;
-    // normal completion must not repair it or downgrade its status.
-    if (
-      submission.status !== "SCORING" &&
-      assignments.some(({ status }) => status !== "COMPLETED")
-    ) {
-      throw new ScoringFinalizationError(
-        "INVALID_LIFECYCLE",
-        "Submission has an inconsistent terminal scoring state",
-      );
-    }
-
-    validateAnswerCoverage(
-      submission.answers.map((answer) => answer.id),
-      assignment.scores.map((score) => score.answerId),
-    );
-
-    for (const score of assignment.scores) {
-      validateStoredScore(score, submission.scoringSystem);
-    }
-
-    await tx.examinerAssignment.update({
-      where: { id: assignmentId },
-      data: { status: "COMPLETED" },
-    });
-
-    const allAssignmentsCompleted = assignments.every(
-      ({ id, status }) => id === assignmentId || status === "COMPLETED",
-    );
-    const nextSubmissionStatus =
-      submission.status === "CERTIFIED"
-        ? "CERTIFIED"
-        : submission.status === "SCORED"
-          ? "SCORED"
-          : allAssignmentsCompleted
-            ? "SCORED"
-            : "SCORING";
-
-    if (nextSubmissionStatus !== submission.status) {
-      await tx.submission.update({
-        where: { id: assignmentOwner[0].submissionId },
-        data: { status: nextSubmissionStatus },
-      });
-    }
-  });
+): Promise<ScoringFinalizationResult> {
+  return finalizeExaminerScoring(assignmentId, examinerId);
 }
 
 /**
  * Submit scores for all answers in an assignment.
- * After submission, check if both examiners have completed → transition submission to SCORED.
+ * Scores, assignment completion, and Submission status share one transaction.
  */
 export async function submitExaminerScores(
   assignmentId: string,
   examinerId: string,
   scores: ScoreInput[]
-): Promise<void> {
-  const assignment = await prisma.examinerAssignment.findUnique({
-    where: { id: assignmentId },
-    select: {
-      examinerId: true,
-      status: true,
-      submissionId: true,
-      submission: {
-        select: {
-          scoringSystem: true,
-          answers: { select: { id: true } },
-        },
-      },
-    },
-  });
-
-  if (!assignment) {
-    throw new Error("Assignment not found");
-  }
-
-  if (assignment.examinerId !== examinerId) {
-    throw new Error("Unauthorized");
-  }
-
-  if (assignment.status !== "ASSIGNED" && assignment.status !== "IN_PROGRESS") {
-    throw new Error("Assignment is already completed");
-  }
-
-  validateAnswerCoverage(
-    assignment.submission.answers.map((answer) => answer.id),
-    scores.map((score) => score?.answerId),
-  );
-
-  const validatedScores = scores.map((score) =>
-    validateScoreInput(score, assignment.submission.scoringSystem),
-  );
-
-  // Validate and create scores in a transaction
-  await prisma.$transaction(async (tx) => {
-    for (const score of validatedScores) {
-      await tx.score.upsert({
-        where: {
-          assignmentId_answerId: {
-            assignmentId,
-            answerId: score.answerId,
-          },
-        },
-        update: {
-          ...scoreWriteData(score),
-        },
-        create: {
-          assignmentId,
-          answerId: score.answerId,
-          ...scoreWriteData(score),
-        },
-      });
-    }
-
-    // Mark assignment as COMPLETED
-    await tx.examinerAssignment.update({
-      where: { id: assignmentId },
-      data: { status: "COMPLETED" },
-    });
-  });
-
-  // Check if both examiners have completed → transition submission to SCORED
-  const otherAssignments = await prisma.examinerAssignment.findMany({
-    where: {
-      submissionId: assignment.submissionId,
-      id: { not: assignmentId },
-    },
-    select: { status: true },
-  });
-
-  const allCompleted = otherAssignments.every((a) => a.status === "COMPLETED");
-
-  if (allCompleted) {
-    await prisma.submission.update({
-      where: { id: assignment.submissionId },
-      data: { status: "SCORED" },
-    });
-  } else {
-    // If this is the first to complete, ensure submission is in SCORING status
-    await prisma.submission.update({
-      where: { id: assignment.submissionId },
-      data: { status: "SCORING" },
-    });
-  }
+): Promise<ScoringFinalizationResult> {
+  return finalizeExaminerScoring(assignmentId, examinerId, scores);
 }

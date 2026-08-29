@@ -12,6 +12,17 @@ interface AssignmentDetailResponse {
   data: AssignmentDetail;
 }
 
+export interface ScoringFinalizationResult {
+  outcome: "COMPLETED" | "ALREADY_COMPLETED";
+  assignmentStatus: string;
+  submissionStatus: string;
+}
+
+interface ScoringFinalizationResponse {
+  status: string;
+  data: ScoringFinalizationResult;
+}
+
 export async function fetchExaminerAssignments(signal?: AbortSignal): Promise<ExaminerAssignmentSummary[]> {
   const res = await api.get<AssignmentsResponse>("/examiner/assignments", { signal });
   return res.data;
@@ -35,8 +46,12 @@ export async function startExaminerAssignment(assignmentId: string): Promise<voi
 export async function submitExaminerScores(
   assignmentId: string,
   scores: ScoreSubmissionInput[]
-): Promise<void> {
-  await api.post(`/examiner/assignments/${assignmentId}/scores`, { scores });
+): Promise<ScoringFinalizationResult> {
+  const response = await api.post<ScoringFinalizationResponse>(
+    `/examiner/assignments/${assignmentId}/scores`,
+    { scores },
+  );
+  return response.data;
 }
 
 export async function saveExaminerAnswerScore(
@@ -51,6 +66,9 @@ export async function saveExaminerAnswerScore(
 
 export async function completeExaminerScoring(
   assignmentId: string,
-): Promise<void> {
-  await api.post(`/examiner/assignments/${assignmentId}/complete`);
+): Promise<ScoringFinalizationResult> {
+  const response = await api.post<ScoringFinalizationResponse>(
+    `/examiner/assignments/${assignmentId}/complete`,
+  );
+  return response.data;
 }
