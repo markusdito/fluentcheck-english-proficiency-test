@@ -123,7 +123,7 @@ async function insertSubmissionManifest(
   await client.query(
     `INSERT INTO "Submission"
       ("id", "studentId", "status", "createdAt", "updatedAt")
-     VALUES ($1, $2, 'IN_PROGRESS', NOW(), NOW())`,
+     VALUES ($1, $2, 'AWAITING_PAYMENT', NOW(), NOW())`,
     [submissionId, fixture.studentId],
   );
   await client.query(
@@ -374,7 +374,7 @@ test("Answers use exactly one Legacy-question or same-Submission Manifest-entry 
   await constraintsClient.query(
     `INSERT INTO "Submission"
       ("id", "studentId", "status", "createdAt", "updatedAt")
-     VALUES ($1, $2, 'IN_PROGRESS', NOW(), NOW())`,
+     VALUES ($1, $2, 'AWAITING_PAYMENT', NOW(), NOW())`,
     [legacySubmissionId, fixture.studentId],
   );
   await constraintsClient.query(
@@ -470,10 +470,14 @@ test("manifest identities enforce one manifest and unique entry and Task positio
     /SubmissionManifest_submissionId_key/,
   );
 
+  const duplicateFixture = await createManifestSources(
+    constraintsClient,
+    `unique-duplicate-${randomUUID()}`,
+  );
   await constraintsClient.query("BEGIN");
   const duplicateCategory = await insertSubmissionManifest(
     constraintsClient,
-    fixture,
+    duplicateFixture,
     0,
   );
   await constraintsClient.query(
@@ -484,7 +488,7 @@ test("manifest identities enforce one manifest and unique entry and Task positio
       randomUUID(),
       duplicateCategory.manifestId,
       duplicateCategory.submissionId,
-      fixture.questions[0].questionId,
+      duplicateFixture.questions[0].questionId,
     ],
   );
   await assert.rejects(

@@ -276,64 +276,82 @@ export async function getSubmissionStatus(submissionId, userId) {
  * Only the student who owns the submission can complete it.
  */
 export async function completeSubmission(submissionId, userId) {
-    // Verify the submission belongs to this user and is still IN_PROGRESS
-    const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-        select: {
-            studentId: true,
-            status: true,
-            manifest: {
-                select: {
-                    version: true,
-                    entries: { select: { id: true } },
+    const { paymentEnabled } = await getAppSettings();
+    const paymentRequired = paymentEnabled;
+    // Lock the Submission before reading its evidence. Confirmation and every
+    // later upload mutation use the same lifecycle predicate, so a concurrent
+    // confirmation either commits before this proof is evaluated or observes
+    // the completed status and is rejected.
+    const transitioned = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw `SELECT "id" FROM "Submission" WHERE "id" = ${submissionId} FOR UPDATE`;
+        const submission = await tx.submission.findUnique({
+            where: { id: submissionId },
+            select: {
+                studentId: true,
+                status: true,
+                manifest: {
+                    select: {
+                        version: true,
+                        entries: { select: { id: true } },
+                    },
+                },
+                answers: {
+                    select: {
+                        manifestEntryId: true,
+                        questionId: true,
+                        uploadStatus: true,
+                        verifiedAt: true,
+                        proofVersion: true,
+                        observedMimeType: true,
+                        mimeType: true,
+                        sizeBytes: true,
+                    },
                 },
             },
-            answers: { select: { manifestEntryId: true, questionId: true, uploadStatus: true } },
-        },
-    });
-    if (!submission) {
-        throw new Error("Submission not found");
-    }
-    if (submission.studentId !== userId) {
-        throw new Error("Unauthorized");
-    }
-    if (submission.status !== "IN_PROGRESS") {
-        throw new Error("Submission is not in progress");
-    }
-    if (submission.manifest) {
+        });
+        if (!submission)
+            throw new Error("Submission not found");
+        if (submission.studentId !== userId)
+            throw new Error("Unauthorized");
+        // A retry after a committed transition is a successful no-op. Abandoned,
+        // legacy in-progress, corrupt, and unknown lifecycle states remain closed.
+        if (submission.status !== "IN_PROGRESS") {
+            if (["AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"].includes(submission.status)) {
+                return false;
+            }
+            throw new Error("Submission is not in progress");
+        }
+        if (!submission.manifest) {
+            throw new Error("Submission does not contain the exact verified answer set");
+        }
         if (submission.manifest.version !== 1)
             throw new Error("Unsupported manifest version");
         const entryIds = new Set(submission.manifest.entries.map((entry) => entry.id));
         const answerIds = submission.answers.map((answer) => answer.manifestEntryId);
+        const hasVerifiedProof = submission.answers.every((answer) => answer.uploadStatus === "UPLOADED" &&
+            answer.verifiedAt !== null &&
+            answer.proofVersion === 1 &&
+            answer.sizeBytes !== null && answer.sizeBytes > 0 &&
+            answer.observedMimeType !== null &&
+            answer.observedMimeType === answer.mimeType);
         if (entryIds.size !== 3 ||
             answerIds.length !== entryIds.size ||
             answerIds.some((id) => !id || !entryIds.has(id)) ||
             new Set(answerIds).size !== entryIds.size ||
-            submission.answers.some((answer) => answer.questionId !== null || answer.uploadStatus !== "UPLOADED")) {
+            !hasVerifiedProof ||
+            submission.answers.some((answer) => answer.questionId !== null)) {
             throw new Error("Submission does not contain the exact verified answer set");
         }
-    }
-    else {
-        const totalAnswers = submission.answers.length;
-        const uploadedAnswers = submission.answers.filter((answer) => answer.uploadStatus === "UPLOADED").length;
-        if (totalAnswers === 0)
-            throw new Error("No answers recorded");
-        if (uploadedAnswers < totalAnswers)
-            throw new Error(`Not all answers uploaded yet (${uploadedAnswers}/${totalAnswers})`);
-    }
-    const { paymentEnabled } = await getAppSettings();
-    const paymentRequired = paymentEnabled;
-    const transition = await prisma.submission.updateMany({
-        where: { id: submissionId, status: "IN_PROGRESS" },
-        data: {
-            paymentRequired,
-            status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
-        },
+        await tx.submission.update({
+            where: { id: submissionId },
+            data: {
+                paymentRequired,
+                status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
+            },
+        });
+        return true;
     });
-    if (transition.count === 0) {
-        throw new Error("Submission is not in progress");
-    }
-    if (!paymentRequired) {
+    if (transitioned && !paymentRequired) {
         try {
             await assignExaminersToSubmission(submissionId);
         }
