@@ -33,6 +33,8 @@ export interface AssignmentAnswer {
   id: string;
   questionId: string;
   questionCategory: string;
+  preparationSeconds: number;
+  recordingSeconds: number;
   audioUrl: string | null;
   tasks: { id: string; promptText: string; order: number }[];
   durationSeconds: number | null;
@@ -120,7 +122,24 @@ export async function getExaminerAssignmentDetail(
       submission: {
         include: {
           manifest: {
-            select: { id: true, version: true },
+            select: {
+              id: true,
+              version: true,
+              entries: {
+                select: {
+                  id: true,
+                  category: true,
+                  preparationSeconds: true,
+                  recordingSeconds: true,
+                  promptMediaStorageKey: true,
+                  promptMediaMimeType: true,
+                  tasks: {
+                    orderBy: { deliveredOrder: "asc" },
+                    select: { id: true, deliveredOrder: true, deliveredText: true },
+                  },
+                },
+              },
+            },
           },
           student: {
             select: { username: true },
@@ -130,6 +149,8 @@ export async function getExaminerAssignmentDetail(
               question: {
                 select: {
                   category: true,
+                  preparationSeconds: true,
+                  recordingSeconds: true,
                   audioUploadStatus: true,
                   audioStorageKey: true,
                   audioMimeType: true,
@@ -166,11 +187,15 @@ export async function getExaminerAssignmentDetail(
   if (assignment.examinerId !== examinerId) {
     throw new Error("Unauthorized");
   }
-  assertLegacySubmissionEvidence(assignment.submission.manifest);
+  const manifest = assignment.submission.manifest;
+  if (manifest && manifest.version !== 1) throw new Error("Unsupported manifest version");
+  if (!manifest) assertLegacySubmissionEvidence(manifest);
 
   const answers: AssignmentAnswer[] = await Promise.all(
     assignment.submission.answers.map(async (answer) => {
-      assertLegacyAnswerQuestion(answer);
+      const manifestEntry = manifest?.entries.find((entry) => entry.id === answer.manifestEntryId);
+      if (manifest && !manifestEntry) throw new Error("Manifest evidence unavailable");
+      if (!manifest) assertLegacyAnswerQuestion(answer);
       let videoUrl: string | null = null;
       if (answer.uploadStatus === "UPLOADED") {
         try {
@@ -185,26 +210,34 @@ export async function getExaminerAssignmentDetail(
       }
 
       let audioUrl: string | null = null;
-      if (
-        answer.question.audioUploadStatus === "UPLOADED" &&
-        answer.question.audioStorageKey
-      ) {
+      const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
+      const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
+      if (manifestEntry && (!promptStorageKey || !promptMimeType)) {
+        throw new Error("Manifest evidence unavailable");
+      }
+      if (promptStorageKey && (!manifestEntry || answer.question?.audioUploadStatus === "UPLOADED")) {
         try {
           audioUrl = await createQuestionAudioViewUrlFromMetadata(
-            answer.question.audioStorageKey,
-            answer.question.audioMimeType,
+            promptStorageKey,
+            promptMimeType,
           );
         } catch {
+          if (manifestEntry) throw new Error("Manifest evidence unavailable");
           audioUrl = null;
         }
       }
+      if (manifestEntry && !audioUrl) throw new Error("Manifest evidence unavailable");
 
       return {
         id: answer.id,
-        questionId: answer.questionId,
-        questionCategory: answer.question.category,
+        questionId: manifestEntry?.id ?? answer.questionId!,
+        questionCategory: manifestEntry?.category ?? answer.question!.category,
+        preparationSeconds: manifestEntry?.preparationSeconds ?? answer.question!.preparationSeconds,
+        recordingSeconds: manifestEntry?.recordingSeconds ?? answer.question!.recordingSeconds,
         audioUrl,
-        tasks: answer.question.tasks,
+        tasks: manifestEntry
+          ? manifestEntry.tasks.map((task) => ({ id: task.id, promptText: task.deliveredText, order: task.deliveredOrder }))
+          : answer.question!.tasks,
         durationSeconds: answer.durationSeconds,
         videoUrl,
         savedScore: answer.scores[0]
