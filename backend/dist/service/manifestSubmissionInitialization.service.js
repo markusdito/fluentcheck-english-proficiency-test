@@ -61,6 +61,12 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 return { submissionId: existingIntent.submissionId, status: existingIntent.submission.status, manifestId: manifest.id, version: manifest.version, entries };
             }
         }
+        const active = await prisma.submission.findFirst({
+            where: { studentId, status: "IN_PROGRESS" },
+            select: { id: true },
+        });
+        if (active)
+            throw new ActiveSubmissionConflictError(active.id);
         const selected = await Promise.all(CATEGORIES.map(async (category) => {
             const candidates = await prisma.question.findMany({
                 where: {
