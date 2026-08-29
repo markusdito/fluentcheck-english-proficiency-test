@@ -271,26 +271,19 @@ test("an unknown submission fails with SUBMISSION_NOT_FOUND", async () => {
   );
 });
 
-test("a corrupted existing set fails closed with INVARIANT_VIOLATION", async () => {
+test("a lifecycle-inconsistent existing set fails closed with INVARIANT_VIOLATION", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const three = await createExaminer("three");
   const submission = await createAssignmentReadySubmission();
 
-  // Simulate corrupted history: three assignments for one submission.
-  for (const [index, examiner] of [one, two, three].entries()) {
-    await prisma.examinerAssignment.create({
-      data: {
-        submissionId: submission.id,
-        examinerId: examiner.id,
-        slot: index < 2 ? index + 1 : null,
-        status: "ASSIGNED",
-      },
-    });
-  }
-  await prisma.submission.update({
-    where: { id: submission.id },
-    data: { status: "SCORING" },
+  // Simulate corrupted history: a complete assignment pair on a
+  // non-scoring Submission. The final schema rejects cardinality corruption;
+  // this test covers the remaining lifecycle invariant at the service seam.
+  await prisma.examinerAssignment.createMany({
+    data: [
+      { submissionId: submission.id, examinerId: one.id, slot: 1, status: "ASSIGNED" },
+      { submissionId: submission.id, examinerId: two.id, slot: 2, status: "ASSIGNED" },
+    ],
   });
 
   await assert.rejects(
@@ -304,7 +297,7 @@ test("a corrupted existing set fails closed with INVARIANT_VIOLATION", async () 
 
   assert.equal(
     await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
-    3,
+    2,
   );
 });
 

@@ -29,12 +29,21 @@ report is read-only; operators must reconcile the named conflicts and rerun it.
 2. Drain old writer instances. Confirm that no instance capable of split
    `Submission` creation or student Question delivery remains in service.
 3. Run the preflight again from a repeatable-read snapshot.
-4. Apply Prisma migrations, including
-   `20260829130000_enforce_manifest_on_new_submissions`. The migration adds a
-   deferred database trigger, so the application may insert the Submission,
-   manifest, entries, and tasks in one transaction while the database rejects
-   an incomplete commit.
-5. Run the authenticated HTTP smoke suite and retain its output. It must cover
+4. Apply the expansion migration
+   `20260829140000_expand_examiner_assignment_slots`. Confirm that every
+   assignment writer now populates both fixed slots, drain every older writer
+   capable of omitting a slot, and rerun the read-only examiner-assignment
+   preflight immediately before enforcement. Do not continue while it reports
+   any irregularity.
+5. Apply Prisma migrations, including
+   `20260829130000_enforce_manifest_on_new_submissions` and
+   `20260829150000_enforce_required_examiner_assignment_slots`. The manifest
+   migration adds a deferred database trigger, so the application may insert
+   the Submission, manifest, entries, and tasks in one transaction while the
+   database rejects an incomplete commit. The final assignment migration
+   makes slots mandatory and replaces the expansion-stage partial uniqueness
+   guard with the required two-slot constraint.
+6. Run the authenticated HTTP smoke suite and retain its output. It must cover
    successful, unavailable, retry, replay, resume, abandonment, conflict,
    upload proof, completion, downstream reads, and prompt authorization paths.
 

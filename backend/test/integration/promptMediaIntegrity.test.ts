@@ -240,6 +240,7 @@ async function createRetirementFixture() {
     data: {
       submissionId: submission.id,
       examinerId: examiner.id,
+      slot: 1,
     },
   });
 

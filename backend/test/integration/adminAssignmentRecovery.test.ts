@@ -268,18 +268,13 @@ test("insufficient capacity returns 409 with retryable metadata and observed cou
 test("an invariant violation returns 409 and identifies repair-required data", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const three = await createExaminer("three");
-  const submission = await createAssignmentReadySubmission("SCORING");
-  for (const [index, examiner] of [one, two, three].entries()) {
-    await prisma.examinerAssignment.create({
-      data: {
-        submissionId: submission.id,
-        examinerId: examiner.id,
-        slot: index < 2 ? index + 1 : null,
-        status: "ASSIGNED",
-      },
-    });
-  }
+  const submission = await createAssignmentReadySubmission("PAID");
+  await prisma.examinerAssignment.createMany({
+    data: [
+      { submissionId: submission.id, examinerId: one.id, slot: 1, status: "ASSIGNED" },
+      { submissionId: submission.id, examinerId: two.id, slot: 2, status: "ASSIGNED" },
+    ],
+  });
   const cookie = await createAdmin();
 
   const response = await fetch(assignUrl(submission.id), {

@@ -11,6 +11,7 @@ import { Client } from "pg";
 import { inspectExaminerAssignmentReadiness } from "../../src/service/examinerAssignmentPreflight.service.js";
 
 const EXPANSION_MIGRATION = "20260829140000_expand_examiner_assignment_slots";
+const FINAL_MIGRATION = "20260829150000_enforce_required_examiner_assignment_slots";
 
 let container: StartedPostgreSqlContainer;
 let constraintsClient: Client;
@@ -18,6 +19,8 @@ let nextQuestionOrder = 910_000;
 
 const createDatabaseSql = {
   assignment_expansion: 'CREATE DATABASE "assignment_expansion"',
+  assignment_final_cutover: 'CREATE DATABASE "assignment_final_cutover"',
+  assignment_final_failures: 'CREATE DATABASE "assignment_final_failures"',
   assignment_constraints: 'CREATE DATABASE "assignment_constraints"',
   assignment_expansion_failures:
     'CREATE DATABASE "assignment_expansion_failures"',
@@ -39,14 +42,18 @@ async function createDatabase(name: keyof typeof createDatabaseSql) {
   return databaseUrl.toString();
 }
 
-async function migrationNames(options: { includeExpansion?: boolean } = {}) {
+async function migrationNames(
+  options: { includeExpansion?: boolean; includeFinal?: boolean } = {},
+) {
   const migrationsPath = path.join(process.cwd(), "prisma", "migrations");
   const names = (await readdir(migrationsPath, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
   return names.filter(
-    (name) => options.includeExpansion !== false || name !== EXPANSION_MIGRATION,
+    (name) =>
+      (options.includeExpansion !== false || name !== EXPANSION_MIGRATION) &&
+      (options.includeFinal !== false || name !== FINAL_MIGRATION),
   );
 }
 
@@ -173,19 +180,20 @@ async function insertAssignment(
   client: Client,
   submissionId: string,
   examinerId: string,
-  options: { slot?: number | null; createdAt?: string } = {},
+  options: { slot: number; createdAt?: string },
 ) {
   const assignmentId = randomUUID();
   await client.query(
     `INSERT INTO "ExaminerAssignment"
       ("id", "submissionId", "examinerId", "slot", "status", "createdAt", "updatedAt")
      VALUES ($1, $2, $3, $4, 'ASSIGNED', COALESCE($5::timestamptz, NOW()), NOW())`,
-    [assignmentId, submissionId, examinerId, options.slot ?? null, options.createdAt ?? null],
+    [assignmentId, submissionId, examinerId, options.slot, options.createdAt ?? null],
   );
   return assignmentId;
 }
 
-// Insert an assignment before the expansion migration added the slot column.
+// Intentionally omit slot to model a legacy/old-writer assignment during the
+// expansion stage and to verify that the final migration fails closed.
 async function insertLegacyAssignment(
   client: Client,
   submissionId: string,
@@ -202,13 +210,43 @@ async function insertLegacyAssignment(
   return assignmentId;
 }
 
+async function insertScoreEvidence(
+  client: Client,
+  submissionId: string,
+  assignmentId: string,
+  value: number,
+  deliveryPosition: number,
+) {
+  const entry = await client.query<{ id: string }>(
+    `SELECT "id"
+       FROM "ManifestEntry"
+      WHERE "submissionId" = $1 AND "deliveryPosition" = $2`,
+    [submissionId, deliveryPosition],
+  );
+  const answerId = randomUUID();
+  await client.query(
+    `INSERT INTO "Answer"
+      ("id", "submissionId", "manifestEntryId", "storageKey", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+    [answerId, submissionId, entry.rows[0].id, `answers/${answerId}.webm`],
+  );
+  const scoreId = randomUUID();
+  await client.query(
+    `INSERT INTO "Score"
+      ("id", "assignmentId", "answerId", "value", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+    [scoreId, assignmentId, answerId, value],
+  );
+  return scoreId;
+}
+
 test("the expansion migration backfills valid two-assignment sets deterministically", async () => {
   const databaseUrl = await createDatabase("assignment_expansion");
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
 
   try {
-    for (const name of await migrationNames({ includeExpansion: false })) {
+    for (const name of await migrationNames({ includeExpansion: false, includeFinal: false })) {
       await applyMigration(client, name);
     }
 
@@ -255,7 +293,7 @@ test("the expansion migration fails closed on partial, excess, and lifecycle-inc
   await client.connect();
 
   try {
-    for (const name of await migrationNames({ includeExpansion: false })) {
+    for (const name of await migrationNames({ includeExpansion: false, includeFinal: false })) {
       await applyMigration(client, name);
     }
 
@@ -280,7 +318,7 @@ test("the expansion migration fails closed on partial, excess, and lifecycle-inc
   }
 });
 
-test("the expanded schema rejects invalid slot values, duplicate populated slots, and duplicate examiner identity", async () => {
+test("the final schema rejects invalid slot values, duplicate slots, and duplicate examiner identity", async () => {
   const client = constraintsClient;
 
   const submission = await insertSubmission(client, "constraint", "SCORING");
@@ -297,12 +335,165 @@ test("the expanded schema rejects invalid slot values, duplicate populated slots
   );
   await assert.rejects(
     () => insertAssignment(client, submission, examinerThree, { slot: 1 }),
-    /ExaminerAssignment_submissionId_populated_slot_key/,
+    /ExaminerAssignment_submissionId_slot_key/,
   );
+  const duplicateExaminerSubmission = await insertSubmission(
+    client,
+    "constraint-duplicate-examiner",
+    "SCORING",
+  );
+  await insertAssignment(client, duplicateExaminerSubmission, examinerOne, {
+    slot: 1,
+  });
   await assert.rejects(
-    () => insertAssignment(client, submission, examinerOne, { slot: null }),
+    () => insertAssignment(client, duplicateExaminerSubmission, examinerOne, { slot: 2 }),
     /ExaminerAssignment_submissionId_examinerId_key/,
   );
+});
+
+test("the final migration requires populated slots and preserves valid assignment pairs", async () => {
+  const databaseUrl = await createDatabase("assignment_final_cutover");
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+
+  try {
+    for (const name of await migrationNames({
+      includeExpansion: false,
+      includeFinal: false,
+    })) {
+      await applyMigration(client, name);
+    }
+
+    const submission = await insertSubmission(client, "final", "SCORING");
+    const firstExaminer = await insertExaminer(client, "final-one");
+    const secondExaminer = await insertExaminer(client, "final-two");
+    const firstAssignment = await insertLegacyAssignment(
+      client,
+      submission,
+      firstExaminer,
+      { createdAt: "2026-01-01T00:00:00Z" },
+    );
+    const secondAssignment = await insertLegacyAssignment(
+      client,
+      submission,
+      secondExaminer,
+      { createdAt: "2026-01-02T00:00:00Z" },
+    );
+    const firstScore = await insertScoreEvidence(
+      client,
+      submission,
+      firstAssignment,
+      80,
+      1,
+    );
+    const secondScore = await insertScoreEvidence(
+      client,
+      submission,
+      secondAssignment,
+      90,
+      2,
+    );
+
+    await applyMigration(client, EXPANSION_MIGRATION);
+    await applyMigration(client, FINAL_MIGRATION);
+
+    const column = await client.query<{ isNullable: string }>(
+      `SELECT "is_nullable" AS "isNullable"
+         FROM information_schema.columns
+        WHERE table_name = 'ExaminerAssignment' AND column_name = 'slot'`,
+    );
+    assert.equal(column.rows[0].isNullable, "NO");
+
+    const slots = await client.query<{ id: string; slot: number }>(
+      `SELECT "id", "slot"
+         FROM "ExaminerAssignment"
+        WHERE "submissionId" = $1
+        ORDER BY "slot"`,
+      [submission],
+    );
+    assert.deepEqual(slots.rows, [
+      { id: firstAssignment, slot: 1 },
+      { id: secondAssignment, slot: 2 },
+    ]);
+
+    const scores = await client.query<{ id: string; value: string }>(
+      `SELECT sc."id", sc."value"::text
+         FROM "Score" sc
+         JOIN "ExaminerAssignment" a ON a."id" = sc."assignmentId"
+        WHERE sc."assignmentId" IN ($1, $2)
+        ORDER BY a."slot"`,
+      [firstAssignment, secondAssignment],
+    );
+    assert.deepEqual(scores.rows, [
+      { id: firstScore, value: "80.000" },
+      { id: secondScore, value: "90.000" },
+    ]);
+
+    const thirdExaminer = await insertExaminer(client, "final-three");
+    await assert.rejects(
+      () => insertAssignment(client, submission, thirdExaminer, { slot: 1 }),
+      /ExaminerAssignment_submissionId_slot_key/,
+    );
+    const fourthExaminer = await insertExaminer(client, "final-four");
+    await assert.rejects(
+      () => insertLegacyAssignment(client, submission, fourthExaminer),
+      /not-null|null value/i,
+    );
+  } finally {
+    await client.end();
+  }
+});
+
+test("the final migration fails closed when an old writer leaves an unpopulated slot", async () => {
+  const databaseUrl = await createDatabase("assignment_final_failures");
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+
+  try {
+    for (const name of await migrationNames({
+      includeExpansion: false,
+      includeFinal: false,
+    })) {
+      await applyMigration(client, name);
+    }
+
+    const submission = await insertSubmission(client, "final-failure", "SCORING");
+    await insertLegacyAssignment(
+      client,
+      submission,
+      await insertExaminer(client, "final-failure-one"),
+      { createdAt: "2026-01-01T00:00:00Z" },
+    );
+    await insertLegacyAssignment(
+      client,
+      submission,
+      await insertExaminer(client, "final-failure-two"),
+      { createdAt: "2026-01-02T00:00:00Z" },
+    );
+
+    await applyMigration(client, EXPANSION_MIGRATION);
+    await insertLegacyAssignment(
+      client,
+      submission,
+      await insertExaminer(client, "final-failure-three"),
+    );
+
+    await assert.rejects(
+      () => applyMigration(client, FINAL_MIGRATION),
+      /Unpopulated or invalid Examiner assignment slots/,
+    );
+
+    const state = await client.query<{ count: string; nullSlots: string }>(
+      `SELECT COUNT(*)::text AS "count",
+              COUNT(*) FILTER (WHERE "slot" IS NULL)::text AS "nullSlots"
+         FROM "ExaminerAssignment"
+        WHERE "submissionId" = $1`,
+      [submission],
+    );
+    assert.deepEqual(state.rows[0], { count: "3", nullSlots: "1" });
+  } finally {
+    await client.end();
+  }
 });
 
 test("the preflight reports cardinality, slot, identity, and lifecycle conflicts", async () => {
@@ -311,7 +502,7 @@ test("the preflight reports cardinality, slot, identity, and lifecycle conflicts
   await client.connect();
 
   try {
-    for (const name of await migrationNames()) {
+    for (const name of await migrationNames({ includeFinal: false })) {
       await applyMigration(client, name);
     }
 
@@ -328,7 +519,7 @@ test("the preflight reports cardinality, slot, identity, and lifecycle conflicts
     const excess = await insertSubmission(client, "excess", "SCORING");
     await insertAssignment(client, excess, await insertExaminer(client, "excess-one"), { slot: 1 });
     await insertAssignment(client, excess, await insertExaminer(client, "excess-two"), { slot: 2 });
-    await insertAssignment(client, excess, await insertExaminer(client, "excess-three"), { slot: null });
+    await insertLegacyAssignment(client, excess, await insertExaminer(client, "excess-three"));
 
     // Lifecycle-inconsistent set.
     const lifecycle = await insertSubmission(client, "lifecycle", "PAID");

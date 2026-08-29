@@ -364,11 +364,9 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
     };
 }
 /**
- * Assign examiners to a submission.
- * - 1 examiner available → assign that one
- * - 2+ examiners available → randomly pick 2
- * - 0 examiners → throw error
- * Transitions submission from PAID to SCORING when at least one examiner is assigned.
+ * Assign exactly two Eligible examiners to a submission through the shared
+ * atomic assignment-set operation. The submission enters scoring only after
+ * both assignments are committed.
  */
 export async function assignExaminersToSubmission(submissionId) {
     const result = await createExaminerAssignmentSet(submissionId);
