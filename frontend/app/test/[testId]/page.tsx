@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, use, useRef } from "react";
+import { useEffect, useState, useCallback, use, useRef, useReducer } from "react";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { useRecording } from "@/hooks/useRecording";
 import { useCountdown } from "@/hooks/useCountdown";
@@ -19,6 +19,7 @@ import {
   initializeUploadStates,
   uploadStatusLabel,
 } from "@/lib/recording-upload-state";
+import { entryMachinesReducer } from "@/lib/recording-state-machine";
 
 type TestPhase = "loading" | "preparation" | "recording" | "stopped" | "completed";
 
@@ -55,6 +56,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Upload state per question
   const [uploadStates, setUploadStates] = useState<UploadState>({});
+  const [, dispatchEntryMachine] = useReducer(entryMachinesReducer, {});
   const getUploadStatus = (state: QuestionUploadState | undefined): UploadStatus => state?.status ?? "idle";
   const getUploadError = (state: QuestionUploadState | undefined): string | undefined => state?.error;
   // Ref to track uploads in progress (avoid stale closure issues)
@@ -197,6 +199,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     if (!currentSubmissionId) return;
 
     setUploadStates((prev) => ({ ...prev, [questionId]: { status: "signing" } }));
+    dispatchEntryMachine({ entryId: questionId, event: { type: "UPLOAD_STARTED" } });
 
     const uploadPromise = (async () => {
       try {
@@ -209,19 +212,23 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
         // Step 2: Upload directly to R2
         setUploadStates((prev) => ({ ...prev, [questionId]: { status: "uploading" } }));
+        dispatchEntryMachine({ entryId: questionId, event: { type: "SIGNED" } });
         await uploadToR2(presignedUrl, videoBlob);
 
         // Step 3: Confirm upload to backend. This is the server verification phase.
         setUploadStates((prev) => ({ ...prev, [questionId]: { status: "verifying" } }));
+        dispatchEntryMachine({ entryId: questionId, event: { type: "UPLOAD_FINISHED" } });
         const sizeBytes = videoBlob.size;
         await confirmUpload(currentSubmissionId, questionId, { sizeBytes, durationSeconds });
 
         // Step 4: Mark as uploaded
         setUploadStates((prev) => ({ ...prev, [questionId]: { status: "uploaded" } }));
+        dispatchEntryMachine({ entryId: questionId, event: { type: "VERIFIED" } });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Upload failed";
         console.error("Upload error for question", questionId, err);
         setUploadStates((prev) => ({ ...prev, [questionId]: { status: "error", error: message } }));
+        dispatchEntryMachine({ entryId: questionId, event: { type: "FAILED", message } });
       } finally {
         uploadRef.current.delete(questionId);
       }

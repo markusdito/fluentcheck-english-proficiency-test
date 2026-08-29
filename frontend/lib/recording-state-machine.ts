@@ -42,3 +42,14 @@ export function entryReducer(current: EntryMachineState, event: EntryEvent): Ent
     case "RESET": return initialEntryState();
   }
 }
+
+export type EntryMachineEvent = { entryId: string; event: EntryEvent };
+
+export function entryMachinesReducer(
+  current: Record<string, EntryMachineState>,
+  action: EntryMachineEvent,
+): Record<string, EntryMachineState> {
+  const previous = current[action.entryId] ?? initialEntryState();
+  const next = entryReducer(previous, action.event);
+  return next === previous ? current : { ...current, [action.entryId]: next };
+}
