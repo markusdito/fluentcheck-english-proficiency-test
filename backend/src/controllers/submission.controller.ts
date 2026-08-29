@@ -10,6 +10,7 @@ import {
   ActiveSubmissionConflictError,
   AssessmentUnavailableError,
   initializeManifestSubmission,
+  resumeManifestSubmission,
 } from "../service/manifestSubmissionInitialization.service.js";
 
 /**
@@ -61,6 +62,16 @@ export async function abandonSubmissionById(req: Request, res: Response) {
     const message = error instanceof Error ? error.message : "Failed to abandon submission";
     const status = message === "Submission not found" || message === "Unauthorized" ? 404 : 409;
     res.status(status).json({ error: message });
+  }
+}
+
+export async function resumeActiveSubmission(req: Request, res: Response) {
+  try {
+    const data = await resumeManifestSubmission(req.user!.id);
+    res.status(200).json({ status: "success", data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Assessment unavailable";
+    res.status(404).json({ error: message });
   }
 }
 

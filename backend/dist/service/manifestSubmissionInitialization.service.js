@@ -195,3 +195,30 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
         throw error;
     }
 }
+export async function resumeManifestSubmission(studentId, dependencies = {}) {
+    const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
+    const submission = await prisma.submission.findFirst({
+        where: { studentId, status: "IN_PROGRESS" },
+        orderBy: { createdAt: "desc" },
+        include: { manifest: { include: { entries: { include: { tasks: true } } } } },
+    });
+    if (!submission?.manifest)
+        throw new AssessmentUnavailableError("No active assessment");
+    const manifest = {
+        id: submission.manifest.id,
+        version: submission.manifest.version,
+        entries: submission.manifest.entries.map((entry) => ({
+            id: entry.id,
+            category: entry.category,
+            deliveryPosition: entry.deliveryPosition,
+            preparationSeconds: entry.preparationSeconds,
+            recordingSeconds: entry.recordingSeconds,
+            promptMediaStorageKey: entry.promptMediaStorageKey,
+            promptMediaMimeType: entry.promptMediaMimeType,
+            promptMediaSizeBytes: entry.promptMediaSizeBytes,
+            tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
+        })),
+    };
+    const entries = await buildManifestDelivery(manifest, signPromptMedia);
+    return { submissionId: submission.id, status: submission.status, manifestId: manifest.id, version: manifest.version, entries };
+}

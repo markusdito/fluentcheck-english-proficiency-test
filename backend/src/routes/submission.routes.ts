@@ -7,6 +7,7 @@ import {
   getSubmissionById,
   getSubmissionStatusById,
   abandonSubmissionById,
+  resumeActiveSubmission,
 } from "../controllers/submission.controller.js";
 
 const router = Router();
@@ -16,6 +17,7 @@ router.get("/", verifyToken, getDashboard);
 
 // Create a new submission (requires authentication)
 router.post("/", verifyToken, startSubmission);
+router.get("/active", verifyToken, resumeActiveSubmission);
 
 // Get a single submission with answers and video URLs (requires authentication)
 router.get("/:id/status", verifyToken, getSubmissionStatusById);

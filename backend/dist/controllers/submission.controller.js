@@ -1,5 +1,5 @@
 import { completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, abandonSubmission, } from "../service/submission.service.js";
-import { ActiveSubmissionConflictError, AssessmentUnavailableError, initializeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
+import { ActiveSubmissionConflictError, AssessmentUnavailableError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
 /**
  * POST /api/submissions
  * Create a new test submission for the authenticated student.
@@ -47,6 +47,16 @@ export async function abandonSubmissionById(req, res) {
         const message = error instanceof Error ? error.message : "Failed to abandon submission";
         const status = message === "Submission not found" || message === "Unauthorized" ? 404 : 409;
         res.status(status).json({ error: message });
+    }
+}
+export async function resumeActiveSubmission(req, res) {
+    try {
+        const data = await resumeManifestSubmission(req.user.id);
+        res.status(200).json({ status: "success", data });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : "Assessment unavailable";
+        res.status(404).json({ error: message });
     }
 }
 /**
