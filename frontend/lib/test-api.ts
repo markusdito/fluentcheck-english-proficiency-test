@@ -34,6 +34,45 @@ interface CreateSubmissionResponse {
   };
 }
 
+export interface InitializedSubmission {
+  submissionId: string;
+  status: string;
+  manifestId: string;
+  version: number;
+  entries: Array<{
+    id: string;
+    category: "PART_1" | "PART_2" | "PART_3";
+    deliveryPosition: number;
+    preparationSeconds: number;
+    recordingSeconds: number;
+    promptMediaMimeType: string;
+    promptMediaSizeBytes: number;
+    promptMediaUrl: string;
+    tasks: Array<{ order: number; promptText: string }>;
+  }>;
+  uploadedEntryIds?: string[];
+}
+
+export async function initializeSubmission(idempotencyKey: string): Promise<InitializedSubmission> {
+  const res = await api.post<{ status: string; data: InitializedSubmission }>(
+    "/submissions",
+    undefined,
+    { headers: { "Idempotency-Key": idempotencyKey } },
+  );
+  return res.data;
+}
+
+/** Resume the student's current manifest when a fresh tab has lost its key. */
+export async function resumeActiveSubmission(): Promise<InitializedSubmission> {
+  const res = await api.get<{ status: string; data: InitializedSubmission }>("/submissions/active");
+  return res.data;
+}
+
+/** Explicitly abandon an unfinished attempt before starting another one. */
+export async function abandonSubmission(submissionId: string): Promise<void> {
+  await api.post(`/submissions/${submissionId}/abandon`);
+}
+
 /**
  * Create a new test submission.
  * POST /api/submissions

@@ -27,8 +27,9 @@ function metadataProblems(question) {
 function makeRecord(question, classification, reasons, inspection) {
     return {
         questionId: question.id,
-        referenceStatus: question.answerCount > 0 ? "REFERENCED" : "UNREFERENCED",
+        referenceStatus: question.answerCount > 0 || question.manifestEntryCount > 0 ? "REFERENCED" : "UNREFERENCED",
         answerCount: question.answerCount,
+        manifestEntryCount: question.manifestEntryCount,
         classification,
         storageKey: question.audioStorageKey,
         mimeType: question.audioMimeType,
@@ -90,12 +91,13 @@ export async function reconcileRetiredPromptMedia(dependencies = {}) {
             audioMimeType: true,
             audioSizeBytes: true,
             audioUploadStatus: true,
-            _count: { select: { answers: true } },
+            _count: { select: { answers: true, manifestEntries: true } },
         },
     });
     const questions = questionRows.map(({ _count, ...question }) => ({
         ...question,
         answerCount: _count.answers,
+        manifestEntryCount: _count.manifestEntries,
     }));
     const records = [];
     for (const question of questions) {

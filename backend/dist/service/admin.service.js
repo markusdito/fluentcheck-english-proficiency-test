@@ -2,6 +2,7 @@ import { prisma } from "../config/db.js";
 import { assignExaminersToSubmission, } from "./examiner.service.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, calculateRubricOverall, readStoredRubric, roundScore, } from "../utils/scoring.js";
+import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
 /**
  * List completed submissions with optional status filtering and pagination.
  * IN_PROGRESS submissions are abandoned drafts, not admin history.
@@ -71,6 +72,26 @@ export async function getAdminSubmissionDetail(submissionId) {
     const submission = await prisma.submission.findUnique({
         where: { id: submissionId },
         include: {
+            manifest: {
+                select: {
+                    id: true,
+                    version: true,
+                    entries: {
+                        select: {
+                            id: true,
+                            category: true,
+                            preparationSeconds: true,
+                            recordingSeconds: true,
+                            promptMediaStorageKey: true,
+                            promptMediaMimeType: true,
+                            tasks: {
+                                orderBy: { deliveredOrder: "asc" },
+                                select: { id: true, deliveredOrder: true, deliveredText: true },
+                            },
+                        },
+                    },
+                },
+            },
             student: {
                 select: { id: true, username: true, email: true },
             },
@@ -148,7 +169,18 @@ export async function getAdminSubmissionDetail(submissionId) {
     if (!submission) {
         throw new Error("Submission not found");
     }
+    const manifest = submission.manifest;
+    if (manifest && manifest.version !== 1) {
+        throw new Error("Unsupported manifest version");
+    }
+    if (!manifest)
+        assertLegacySubmissionEvidence(manifest);
     const answers = await Promise.all(submission.answers.map(async (answer) => {
+        const manifestEntry = manifest?.entries.find((entry) => entry.id === answer.manifestEntryId);
+        if (manifest && !manifestEntry)
+            throw new Error("Manifest evidence unavailable");
+        if (!manifest)
+            assertLegacyAnswerQuestion(answer);
         let videoUrl = null;
         if (answer.uploadStatus === "UPLOADED") {
             try {
@@ -159,15 +191,23 @@ export async function getAdminSubmissionDetail(submissionId) {
             }
         }
         let audioUrl = null;
-        if (answer.question.audioUploadStatus === "UPLOADED" &&
-            answer.question.audioStorageKey) {
+        const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
+        const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
+        if (manifestEntry && (!promptStorageKey || !promptMimeType)) {
+            throw new Error("Manifest evidence unavailable");
+        }
+        if (promptStorageKey && (manifestEntry || answer.question?.audioUploadStatus === "UPLOADED")) {
             try {
-                audioUrl = await createQuestionAudioViewUrlFromMetadata(answer.question.audioStorageKey, answer.question.audioMimeType);
+                audioUrl = await createQuestionAudioViewUrlFromMetadata(promptStorageKey, promptMimeType);
             }
             catch {
+                if (manifestEntry)
+                    throw new Error("Manifest evidence unavailable");
                 audioUrl = null;
             }
         }
+        if (manifestEntry && !audioUrl)
+            throw new Error("Manifest evidence unavailable");
         const scores = answer.scores.map((score) => {
             const comment = score.comment?.trim();
             const storedRubric = readStoredRubric(score);
@@ -189,9 +229,11 @@ export async function getAdminSubmissionDetail(submissionId) {
         const scoreSummary = aggregateStoredScores(answer.scores, submission.scoringSystem);
         return {
             id: answer.id,
-            questionId: answer.questionId,
-            questionCategory: answer.question.category,
-            tasks: answer.question.tasks,
+            questionId: manifestEntry?.id ?? answer.questionId,
+            questionCategory: manifestEntry?.category ?? answer.question.category,
+            tasks: manifestEntry
+                ? manifestEntry.tasks.map((task) => ({ id: task.id, promptText: task.deliveredText, order: task.deliveredOrder }))
+                : answer.question.tasks,
             audioUrl,
             durationSeconds: answer.durationSeconds,
             uploadStatus: answer.uploadStatus,

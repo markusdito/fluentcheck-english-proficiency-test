@@ -1,5 +1,6 @@
 import { PutObjectCommand, PutObjectCommandInput, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { randomUUID } from "node:crypto";
 import { r2Client } from "../config/r2.js";
 import { env } from "../config/env.js";
 import { prisma } from "../config/db.js";
@@ -9,7 +10,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Server-generated question audio keys only — never trust client-supplied keys.
 export const AUDIO_KEY_RE = /^questions\/[0-9a-f-]{36}\/prompt\.(webm|mp3|m4a|ogg)$/;
 export const AUDIO_MIME_RE = /^audio\/(webm|mpeg|mp4|ogg|m4a)$/;
-export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}\.webm$/;
+// New uploads include a unique attempt component. The legacy form remains
+// readable for historical submissions, but is never issued for new uploads.
+export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}(?:\/[0-9a-f-]{36})?\.webm$/;
+export const VERSIONED_VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.webm$/;
+export const VIDEO_MIME_RE = /^video\/(webm|mp4|quicktime)$/;
+export const MAX_ANSWER_SIZE_BYTES = 100 * 1024 * 1024;
 
 /**
  * Generate the storage key for a question's recorded prompt audio.
@@ -23,6 +29,8 @@ export interface PromptMediaInspection {
   exists: boolean;
   contentLength: number | null;
   contentType: string | null;
+  etag?: string | null;
+  versionId?: string | null;
 }
 
 /** Read Prompt media metadata without mutating storage. */
@@ -37,10 +45,12 @@ export async function inspectPromptMedia(
       exists: true,
       contentLength: head.ContentLength ?? null,
       contentType: head.ContentType ?? null,
+      etag: head.ETag ?? null,
+      versionId: head.VersionId ?? null,
     };
   } catch (error) {
     if ((error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) {
-      return { exists: false, contentLength: null, contentType: null };
+      return { exists: false, contentLength: null, contentType: null, etag: null, versionId: null };
     }
     throw error;
   }
@@ -49,7 +59,7 @@ export async function inspectPromptMedia(
 async function headObject(
   storageKey: string,
   mimeType?: string | null
-): Promise<{ exists: boolean; contentLength: number }> {
+): Promise<{ exists: boolean; contentLength: number; contentType: string | null; etag: string | null; versionId: string | null }> {
   const inspection = await inspectPromptMedia(storageKey);
   if (
     mimeType &&
@@ -61,6 +71,9 @@ async function headObject(
   return {
     exists: inspection.exists,
     contentLength: inspection.contentLength ?? -1,
+    contentType: inspection.contentType,
+    etag: inspection.etag ?? null,
+    versionId: inspection.versionId ?? null,
   };
 }
 
@@ -229,15 +242,48 @@ export async function createQuestionAudioViewUrlFromMetadata(
     ResponseContentType: mimeType ?? "audio/webm",
     ResponseCacheControl: "no-cache",
   });
-  return getSignedUrl(r2Client, command, { expiresIn: 3600 });
+  return getSignedUrl(r2Client, command, { expiresIn: 300 });
+}
+
+/**
+ * Sign prompt media only when it belongs to the student's active manifest.
+ * The source Question is deliberately not consulted: a retained manifest
+ * remains playable if the question bank row is later edited or retired.
+ */
+export async function createStudentPromptAudioViewUrl(
+  submissionId: string,
+  manifestEntryId: string,
+  userId: string,
+): Promise<string> {
+  const entry = await prisma.manifestEntry.findFirst({
+    where: {
+      submissionId,
+      id: manifestEntryId,
+      manifest: { submission: { studentId: userId, status: "IN_PROGRESS" } },
+    },
+    select: {
+      promptMediaStorageKey: true,
+      promptMediaMimeType: true,
+    },
+  });
+
+  if (!entry) throw new Error("Question not found");
+  return createQuestionAudioViewUrlFromMetadata(
+    entry.promptMediaStorageKey,
+    entry.promptMediaMimeType,
+  );
 }
 
 /**
  * Generate a storage key for a video answer.
- * Format: submissions/{submissionId}/answers/{questionId}.webm
+ * Format: submissions/{submissionId}/answers/{manifestEntryId}/{uploadAttemptId}.webm
  */
-export function generateStorageKey(submissionId: string, questionId: string): string {
-  return `submissions/${submissionId}/answers/${questionId}.webm`;
+export function generateStorageKey(
+  submissionId: string,
+  manifestEntryId: string,
+  uploadAttemptId = randomUUID(),
+): string {
+  return `submissions/${submissionId}/answers/${manifestEntryId}/${uploadAttemptId}.webm`;
 }
 
 /**
@@ -246,36 +292,41 @@ export function generateStorageKey(submissionId: string, questionId: string): st
  */
 export async function createPresignedUpload(
   submissionId: string,
-  questionId: string,
+  manifestEntryId: string,
   mimeType: string,
   userId: string
 ): Promise<{ presignedUrl: string; storageKey: string; answerId: string }> {
+  if (!VIDEO_MIME_RE.test(mimeType)) throw new Error("Invalid video mimeType");
   // Verify the submission belongs to the user and is in IN_PROGRESS status
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
+  const submission = await prisma.submission.findFirst({
+    where: {
+      id: submissionId,
+      studentId: userId,
+      manifest: { entries: { some: { id: manifestEntryId } } },
+    },
     select: { studentId: true, status: true },
   });
 
-  if (!submission) {
-    throw new Error("Submission not found");
-  }
-
-  if (submission.studentId !== userId) {
-    throw new Error("Submission does not belong to this user");
-  }
+  if (!submission) throw new Error("Manifest entry not found");
 
   if (submission.status !== "IN_PROGRESS") {
     throw new Error("Submission is not in progress");
   }
 
-  const storageKey = generateStorageKey(submissionId, questionId);
+  const existingAnswer = await prisma.answer.findUnique({
+    where: { manifestEntryId },
+    select: { uploadStatus: true, verifiedAt: true },
+  });
+  if (existingAnswer?.uploadStatus === "UPLOADED" && existingAnswer.verifiedAt) {
+    throw new Error("Answer already uploaded");
+  }
+
+  const storageKey = generateStorageKey(submissionId, manifestEntryId);
   const bucket = env.R2_BUCKET_NAME;
 
   // Upsert the Answer record — one answer per submission+question pair
   const answer = await prisma.answer.upsert({
-    where: {
-      submissionId_questionId: { submissionId, questionId },
-    },
+    where: { manifestEntryId },
     update: {
       storageKey,
       bucket,
@@ -283,10 +334,13 @@ export async function createPresignedUpload(
       uploadStatus: "PENDING",
       sizeBytes: null,
       durationSeconds: null,
+      verifiedAt: null,
+      observedMimeType: null,
+      proofVersion: null,
     },
     create: {
       submissionId,
-      questionId,
+      manifestEntryId,
       storageKey,
       bucket,
       mimeType,
@@ -314,30 +368,50 @@ export async function createPresignedUpload(
  */
 export async function confirmUpload(
   submissionId: string,
-  questionId: string,
+  manifestEntryId: string,
   userId: string,
-  metadata?: { sizeBytes?: number; durationSeconds?: number }
+  _metadata?: { sizeBytes?: number; durationSeconds?: number }
 ): Promise<void> {
   // Verify the submission belongs to the user
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: { studentId: true },
+    select: { studentId: true, status: true },
   });
 
-  if (!submission || submission.studentId !== userId) {
-    throw new Error("Unauthorized");
-  }
+  if (!submission || submission.studentId !== userId) throw new Error("Manifest entry not found");
+  if (submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
 
-  await prisma.answer.update({
+  const answer = await prisma.answer.findUnique({
+    where: { manifestEntryId },
+    select: { id: true, storageKey: true, bucket: true, mimeType: true, uploadStatus: true, submissionId: true, verifiedAt: true },
+  });
+  if (!answer || answer.submissionId !== submissionId) throw new Error("Manifest entry not found");
+  if (answer.uploadStatus === "UPLOADED" && answer.verifiedAt) return;
+  if (answer.uploadStatus !== "PENDING") throw new Error("Answer upload is not pending");
+  if (!VIDEO_KEY_RE.test(answer.storageKey)) throw new Error("Invalid video storage key");
+  const observed = await headObject(answer.storageKey, answer.mimeType);
+  if (!observed.exists || observed.contentLength <= 0) throw new Error("Video not found in storage");
+  if (observed.contentLength > MAX_ANSWER_SIZE_BYTES) throw new Error("Video exceeds maximum size");
+  if (!observed.contentType || observed.contentType !== answer.mimeType) {
+    throw new Error("Video content-type mismatch");
+  }
+  const updated = await prisma.answer.updateMany({
     where: {
-      submissionId_questionId: { submissionId, questionId },
+      id: answer.id,
+      submissionId,
+      uploadStatus: "PENDING",
+      submission: { status: "IN_PROGRESS" },
     },
     data: {
       uploadStatus: "UPLOADED",
-      sizeBytes: metadata?.sizeBytes,
-      durationSeconds: metadata?.durationSeconds,
+      sizeBytes: observed.contentLength,
+      durationSeconds: null,
+      observedMimeType: answer.mimeType,
+      proofVersion: 1,
+      verifiedAt: new Date(),
     },
   });
+  if (updated.count !== 1) throw new Error("Submission is not in progress");
 }
 
 /**
@@ -346,7 +420,7 @@ export async function confirmUpload(
  */
 export async function createPresignedViewUrl(
   submissionId: string,
-  questionId: string,
+  manifestEntryId: string,
   userId: string
 ): Promise<string> {
   // Verify the submission belongs to the user
@@ -363,7 +437,7 @@ export async function createPresignedViewUrl(
     throw new Error("Unauthorized");
   }
 
-  return getPresignedViewUrl(submissionId, questionId);
+  return getPresignedViewUrl(submissionId, manifestEntryId);
 }
 
 /**
@@ -373,25 +447,24 @@ export async function createPresignedViewUrl(
  */
 export async function createPresignedViewUrlForAccessor(
   submissionId: string,
-  questionId: string
+  manifestEntryId: string
 ): Promise<string> {
-  return getPresignedViewUrl(submissionId, questionId);
+  return getPresignedViewUrl(submissionId, manifestEntryId);
 }
 
 async function getPresignedViewUrl(
   submissionId: string,
-  questionId: string
+  manifestEntryId: string
 ): Promise<string> {
   const answer = await prisma.answer.findUnique({
-    where: {
-      submissionId_questionId: { submissionId, questionId },
-    },
-    select: { storageKey: true, bucket: true, uploadStatus: true },
+    where: { manifestEntryId },
+    select: { storageKey: true, bucket: true, uploadStatus: true, submissionId: true },
   });
 
   if (!answer) {
     throw new Error("Answer not found");
   }
+  if (answer.submissionId !== submissionId) throw new Error("Answer not found");
 
   if (answer.uploadStatus !== "UPLOADED") {
     throw new Error("Video not yet uploaded");

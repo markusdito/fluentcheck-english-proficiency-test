@@ -358,6 +358,15 @@ async function main() {
       data: q,
       include: { tasks: true },
     });
+    await prisma.question.update({
+      where: { id: created.id },
+      data: {
+        audioStorageKey: `questions/${created.id}/prompt.webm`,
+        audioMimeType: "audio/webm",
+        audioSizeBytes: 1,
+        audioUploadStatus: "UPLOADED",
+      },
+    });
     console.log(`  ✅ Created: [${created.category}] order ${created.order} — ${created.tasks.length} tasks`);
   }
 

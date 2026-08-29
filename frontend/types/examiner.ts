@@ -23,6 +23,8 @@ export interface AssignmentAnswer {
   id: string;
   questionId: string;
   questionCategory: string;
+  preparationSeconds: number;
+  recordingSeconds: number;
   audioUrl: string | null;
   tasks: ExaminerTask[];
   durationSeconds: number | null;

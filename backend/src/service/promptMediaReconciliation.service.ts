@@ -25,6 +25,7 @@ export type PromptMediaExistenceStatus =
 interface RetiredQuestionPromptMediaSnapshot {
   id: string;
   answerCount: number;
+  manifestEntryCount: number;
   audioStorageKey: string | null;
   audioMimeType: string | null;
   audioSizeBytes: number | null;
@@ -35,6 +36,7 @@ export interface PromptMediaReconciliationRecord {
   questionId: string;
   referenceStatus: PromptMediaReferenceStatus;
   answerCount: number;
+  manifestEntryCount: number;
   classification: PromptMediaClassification;
   storageKey: string | null;
   mimeType: string | null;
@@ -113,8 +115,9 @@ function makeRecord(
   return {
     questionId: question.id,
     referenceStatus:
-      question.answerCount > 0 ? "REFERENCED" : "UNREFERENCED",
+      question.answerCount > 0 || question.manifestEntryCount > 0 ? "REFERENCED" : "UNREFERENCED",
     answerCount: question.answerCount,
+    manifestEntryCount: question.manifestEntryCount,
     classification,
     storageKey: question.audioStorageKey,
     mimeType: question.audioMimeType,
@@ -195,13 +198,14 @@ export async function reconcileRetiredPromptMedia(
       audioMimeType: true,
       audioSizeBytes: true,
       audioUploadStatus: true,
-      _count: { select: { answers: true } },
+      _count: { select: { answers: true, manifestEntries: true } },
     },
   });
   const questions: RetiredQuestionPromptMediaSnapshot[] = questionRows.map(
     ({ _count, ...question }) => ({
       ...question,
       answerCount: _count.answers,
+      manifestEntryCount: _count.manifestEntries,
     }),
   );
 
