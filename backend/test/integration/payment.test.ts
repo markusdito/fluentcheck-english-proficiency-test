@@ -11,7 +11,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import type { Express } from "express";
 import jwt from "jsonwebtoken";
 import { Client } from "pg";
-import type { PrismaClient } from "../../src/generated/client.js";
+import type { Prisma, PrismaClient } from "../../src/generated/client.js";
 import type { IpaymuTransport } from "../../src/service/ipaymu.transport.js";
 
 const execFileAsync = promisify(execFile);
@@ -201,8 +201,23 @@ beforeEach(async () => {
   ipaymuTransport = successfulCheckoutTransport();
   await prisma.examinerAssignment.deleteMany();
   await prisma.payment.deleteMany();
+  // Manifest evidence is immutable and shape-checked by deferred triggers;
+  // drop them for the privileged test cleanup path and restore afterwards.
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestEntry_immutable" ON "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestTask_immutable" ON "ManifestTask"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "SubmissionManifest_immutable" ON "SubmissionManifest"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestEntry_v1_shape_check" ON "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "SubmissionManifest_v1_shape_check" ON "SubmissionManifest"`);
+  await prisma.$executeRawUnsafe(`DELETE FROM "ManifestTask"`);
+  await prisma.$executeRawUnsafe(`DELETE FROM "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DELETE FROM "SubmissionManifest"`);
   await prisma.submission.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "SubmissionManifest_v1_shape_check" AFTER INSERT OR UPDATE ON "SubmissionManifest" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
+  await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "ManifestEntry_v1_shape_check" AFTER INSERT OR UPDATE OR DELETE ON "ManifestEntry" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "SubmissionManifest_immutable" BEFORE UPDATE OR DELETE ON "SubmissionManifest" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "ManifestEntry_immutable" BEFORE UPDATE OR DELETE ON "ManifestEntry" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "ManifestTask_immutable" BEFORE UPDATE OR DELETE ON "ManifestTask" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
 });
 
 after(async () => {
@@ -223,12 +238,34 @@ async function createAwaitingPaymentSubmission() {
       role: "STUDENT",
     },
   });
-  const submission = await prisma.submission.create({
-    data: {
-      studentId: student.id,
-      status: "AWAITING_PAYMENT",
-      paymentRequired: true,
-    },
+  // The manifest shape trigger is deferred to commit, so the Submission and
+  // its complete version-1 manifest must be created in one transaction.
+  const submission = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const created = await tx.submission.create({
+      data: {
+        studentId: student.id,
+        status: "AWAITING_PAYMENT",
+        paymentRequired: true,
+      },
+    });
+    const manifest = await tx.submissionManifest.create({
+      data: { submissionId: created.id, version: 1 },
+    });
+    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+      const question = await tx.question.create({
+        data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+      });
+      await tx.manifestEntry.create({
+        data: {
+          manifestId: manifest.id,
+          submissionId: created.id,
+          category,
+          deliveryPosition: index + 1,
+          sourceQuestionId: question.id,
+        },
+      });
+    }
+    return created;
   });
   const token = jwt.sign({ id: student.id }, process.env.JWT_SECRET!);
   return { student, submission, cookie: `jwt=${token}` };
@@ -666,13 +703,21 @@ test("successful callbacks reject mismatched reconciliation fields", async () =>
 });
 
 test("concurrent callback replay pays and dispatches assignment once", async () => {
-  await prisma.user.create({
-    data: {
-      username: "examiner-one",
-      email: "examiner-one@example.test",
-      password: "not-used-by-payment-tests",
-      role: "EXAMINER",
-    },
+  await prisma.user.createMany({
+    data: [
+      {
+        username: "examiner-one",
+        email: "examiner-one@example.test",
+        password: "not-used-by-payment-tests",
+        role: "EXAMINER",
+      },
+      {
+        username: "examiner-two",
+        email: "examiner-two@example.test",
+        password: "not-used-by-payment-tests",
+        role: "EXAMINER",
+      },
+    ],
   });
   const { payment, submission } = await createPaymentAttempt();
   const body = successCallback(payment);
@@ -692,18 +737,26 @@ test("concurrent callback replay pays and dispatches assignment once", async () 
   );
   assert.equal(
     await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
-    1,
+    2,
   );
 });
 
 test("sequential callback replay is acknowledged without a second transition", async () => {
-  await prisma.user.create({
-    data: {
-      username: "sequential-examiner",
-      email: "sequential-examiner@example.test",
-      password: "not-used-by-payment-tests",
-      role: "EXAMINER",
-    },
+  await prisma.user.createMany({
+    data: [
+      {
+        username: "sequential-examiner",
+        email: "sequential-examiner@example.test",
+        password: "not-used-by-payment-tests",
+        role: "EXAMINER",
+      },
+      {
+        username: "sequential-examiner-two",
+        email: "sequential-examiner-two@example.test",
+        password: "not-used-by-payment-tests",
+        role: "EXAMINER",
+      },
+    ],
   });
   const { payment, submission } = await createPaymentAttempt();
   const body = successCallback(payment);
@@ -716,7 +769,7 @@ test("sequential callback replay is acknowledged without a second transition", a
   );
   assert.equal(
     await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
-    1,
+    2,
   );
 });
 
@@ -755,13 +808,21 @@ test("success remains terminal while a delayed success can upgrade failure", asy
 });
 
 test("different successful attempts are recorded while assignment dispatches once", async () => {
-  await prisma.user.create({
-    data: {
-      username: "examiner-one",
-      email: "examiner-one@example.test",
-      password: "not-used-by-payment-tests",
-      role: "EXAMINER",
-    },
+  await prisma.user.createMany({
+    data: [
+      {
+        username: "examiner-one",
+        email: "examiner-one@example.test",
+        password: "not-used-by-payment-tests",
+        role: "EXAMINER",
+      },
+      {
+        username: "examiner-two",
+        email: "examiner-two@example.test",
+        password: "not-used-by-payment-tests",
+        role: "EXAMINER",
+      },
+    ],
   });
   const context = await createAwaitingPaymentSubmission();
   const attempts = [];
@@ -792,7 +853,7 @@ test("different successful attempts are recorded while assignment dispatches onc
     await prisma.examinerAssignment.count({
       where: { submissionId: context.submission.id },
     }),
-    1,
+    2,
   );
 });
 
@@ -956,13 +1017,21 @@ test("assignment failure remains replay-safe and recoverable through admin", asy
     0,
   );
 
-  await prisma.user.create({
-    data: {
-      username: "recovery-examiner",
-      email: "recovery-examiner@example.test",
-      password: "not-used-by-payment-tests",
-      role: "EXAMINER",
-    },
+  await prisma.user.createMany({
+    data: [
+      {
+        username: "recovery-examiner",
+        email: "recovery-examiner@example.test",
+        password: "not-used-by-payment-tests",
+        role: "EXAMINER",
+      },
+      {
+        username: "recovery-examiner-two",
+        email: "recovery-examiner-two@example.test",
+        password: "not-used-by-payment-tests",
+        role: "EXAMINER",
+      },
+    ],
   });
   const admin = await prisma.user.create({
     data: {
@@ -984,14 +1053,15 @@ test("assignment failure remains replay-safe and recoverable through admin", asy
 
   assert.equal(recoveryResponse.status, 200);
   assert.equal(recoveryPayload.data.status, "SCORING");
-  assert.equal(recoveryPayload.data.assignments.length, 1);
+  assert.equal(recoveryPayload.data.outcome, "CREATED");
+  assert.equal(recoveryPayload.data.assignments.length, 2);
   assert.equal(
     (await prisma.submission.findUniqueOrThrow({ where: { id: submission.id } })).status,
     "SCORING",
   );
   assert.equal(
     await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
-    1,
+    2,
   );
   assert.equal(
     (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
