@@ -277,6 +277,12 @@ export async function getSubmissionDetail(
       let audioUrl: string | null = null;
       const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
       const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
+      if (
+        manifestEntry &&
+        (!manifestEntry.promptMediaStorageKey || !manifestEntry.promptMediaMimeType)
+      ) {
+        throw new Error("Manifest evidence unavailable");
+      }
       if (promptStorageKey) {
         try {
           audioUrl = await createQuestionAudioViewUrlFromMetadata(
@@ -284,9 +290,14 @@ export async function getSubmissionDetail(
             promptMimeType,
           );
         } catch {
-          // If presigned URL generation fails, return null
+          // A retained manifest must never fall back to current Question media.
+          if (manifestEntry) throw new Error("Manifest evidence unavailable");
+          // Legacy readers preserve their historical best-effort behavior.
           audioUrl = null;
         }
+      }
+      if (manifestEntry && !audioUrl) {
+        throw new Error("Manifest evidence unavailable");
       }
 
       const scoreSummary = aggregateStoredScores(
