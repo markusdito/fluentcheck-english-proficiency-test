@@ -104,10 +104,11 @@ export const api = {
   ) =>
     request<T>(endpoint, { method: "GET", ...options }),
 
-  post: <T>(endpoint: string, body?: unknown) =>
+  post: <T>(endpoint: string, body?: unknown, options?: Pick<RequestOptions, "headers" | "signal">) =>
     request<T>(endpoint, {
       method: "POST",
       body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+      ...options,
     }),
 
   put: <T>(endpoint: string, body?: unknown) =>

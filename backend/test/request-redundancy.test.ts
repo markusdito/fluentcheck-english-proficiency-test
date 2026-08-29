@@ -88,6 +88,56 @@ test("submission detail hydrates any answer count from one submission query", as
   assert.equal(perQuestionLookupCalls, 0);
 });
 
+test("manifest-backed submission fails closed when historical Prompt media is unavailable", async () => {
+  replaceMethod(
+    prisma.submission,
+    "findUnique",
+    (async () =>
+      ({
+        id: "submission-1",
+        studentId: "student-1",
+        status: "CERTIFIED",
+        scoringSystem: "RUBRIC_6",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        certificate: null,
+        manifest: {
+          id: "manifest-1",
+          version: 1,
+          entries: [
+            {
+              id: "entry-1",
+              category: "PART_1",
+              preparationSeconds: 30,
+              recordingSeconds: 60,
+              promptMediaStorageKey: "missing-historical-media",
+              promptMediaMimeType: "audio/webm",
+              tasks: [{ deliveredOrder: 1, deliveredText: "Introduce yourself" }],
+            },
+          ],
+        },
+        answers: [
+          {
+            id: "answer-1",
+            questionId: null,
+            manifestEntryId: "entry-1",
+            uploadStatus: "PENDING",
+            storageKey: "unused",
+            bucket: null,
+            mimeType: null,
+            durationSeconds: null,
+            question: null,
+            scores: [],
+          },
+        ],
+      }) as never) as typeof prisma.submission.findUnique,
+  );
+
+  await assert.rejects(
+    getSubmissionDetail("submission-1", "student-1"),
+    /Manifest evidence unavailable/,
+  );
+});
+
 test("status lookup returns an owner snapshot and conceals other students", async () => {
   const updatedAt = new Date("2026-01-01T00:00:02.000Z");
   replaceMethod(

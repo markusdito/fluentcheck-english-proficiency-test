@@ -1,11 +1,19 @@
 import type { Request, Response } from "express";
 import {
-  createSubmission,
   completeSubmission,
   getStudentDashboard,
   getSubmissionDetail,
   getSubmissionStatus,
+  abandonSubmission,
 } from "../service/submission.service.js";
+import {
+  ActiveSubmissionConflictError,
+  AssessmentUnavailableError,
+  IdempotencyKeyConflictError,
+  initializeManifestSubmission,
+  resumeManifestSubmission,
+} from "../service/manifestSubmissionInitialization.service.js";
+import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
 
 /**
  * POST /api/submissions
@@ -14,14 +22,77 @@ import {
 export async function startSubmission(req: Request, res: Response) {
   try {
     const userId = req.user!.id;
-    const submission = await createSubmission(userId);
+    const submission = await initializeManifestSubmission(
+      userId,
+      req.header("Idempotency-Key") ?? undefined,
+    );
     res.status(201).json({
       status: "success",
       data: submission,
     });
   } catch (error) {
+    if (error instanceof ActiveSubmissionConflictError) {
+      res.status(409).json({ error: error.message, submissionId: error.submissionId });
+      return;
+    }
+    if (error instanceof IdempotencyKeyConflictError) {
+      res.status(409).json({ error: error.message });
+      return;
+    }
+    if (error instanceof AssessmentUnavailableError) {
+      res.setHeader("Retry-After", String(error.retryAfterSeconds));
+      res.status(503).json({
+        error: error.message,
+        code: error.code,
+        retryable: error.retryable,
+        retryAfterSeconds: error.retryAfterSeconds,
+      });
+      return;
+    }
     console.error("Create submission error:", error);
     res.status(500).json({ error: "Failed to create submission" });
+  }
+}
+
+/** POST /api/submissions/:id/abandon — explicitly end an active attempt. */
+export async function abandonSubmissionById(req: Request, res: Response) {
+  try {
+    const submissionId = req.params.id as string;
+    if (!submissionId) {
+      res.status(400).json({ error: "Submission ID is required" });
+      return;
+    }
+    const data = await abandonSubmission(submissionId, req.user!.id);
+    res.status(200).json({ status: "success", data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to abandon submission";
+    const status = message === "Submission not found" || message === "Unauthorized" ? 404 : 409;
+    res.status(status).json({ error: message });
+  }
+}
+
+export async function resumeActiveSubmission(req: Request, res: Response) {
+  try {
+    const data = await resumeManifestSubmission(req.user!.id);
+    res.status(200).json({ status: "success", data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Assessment unavailable";
+    res.status(404).json({ error: message });
+  }
+}
+
+/** GET /api/submissions/:id/prompts/:manifestEntryId — owner-scoped prompt media. */
+export async function getStudentPromptAudioUrl(req: Request, res: Response) {
+  try {
+    const url = await createStudentPromptAudioViewUrl(
+      req.params.id as string,
+      req.params.manifestEntryId as string,
+      req.user!.id,
+    );
+    res.status(200).json({ status: "success", data: { url } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Question not found";
+    res.status(message === "Question not found" ? 404 : 500).json({ error: message });
   }
 }
 
@@ -52,6 +123,7 @@ export async function finishSubmission(req: Request, res: Response) {
         ? 404
         : message === "Submission is not in progress" ||
           message === "No answers recorded" ||
+          message === "Submission does not contain the exact verified answer set" ||
           message.startsWith("Not all answers uploaded")
         ? 400
         : 500;

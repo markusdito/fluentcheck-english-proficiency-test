@@ -17,12 +17,12 @@ interface PresignedUrlResult {
  */
 export async function getPresignedUrl(
   submissionId: string,
-  questionId: string,
+  manifestEntryId: string,
   mimeType: string
 ): Promise<PresignedUrlResult> {
   const res = await api.post<{ status: string; data: PresignedUrlResponse }>("/uploads/presigned-url", {
     submissionId,
-    questionId,
+    manifestEntryId,
     mimeType,
   });
   return res.data;
@@ -53,12 +53,12 @@ export async function uploadToR2(presignedUrl: string, blob: Blob): Promise<void
  */
 export async function confirmUpload(
   submissionId: string,
-  questionId: string,
+  manifestEntryId: string,
   metadata?: { sizeBytes?: number; durationSeconds?: number }
 ): Promise<void> {
   await api.post("/uploads/confirm", {
     submissionId,
-    questionId,
+    manifestEntryId,
     sizeBytes: metadata?.sizeBytes,
     durationSeconds: metadata?.durationSeconds,
   });

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-type RecordingState = "idle" | "preparing" | "recording" | "stopped" | "uploading" | "error";
+export type RecordingState = "idle" | "preparing" | "recording" | "finalizing" | "blob-ready" | "error";
 
 interface UseRecordingReturn {
   state: RecordingState;
@@ -38,6 +38,7 @@ export function useRecording(): UseRecordingReturn {
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      setState("finalizing");
       mediaRecorderRef.current.stop();
     }
   }, []);
@@ -70,8 +71,13 @@ export function useRecording(): UseRecordingReturn {
 
       recorder.onstop = () => {
         const recordedBlob = new Blob(chunksRef.current, { type: mimeType });
-        setBlob(recordedBlob);
-        setState("stopped");
+        if (recordedBlob.size === 0) {
+          setError("Recording produced an empty video. Please try again.");
+          setState("error");
+        } else {
+          setBlob(recordedBlob);
+          setState("blob-ready");
+        }
         if (durationRef.current) {
           clearInterval(durationRef.current);
           durationRef.current = null;

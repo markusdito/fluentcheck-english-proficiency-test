@@ -19,16 +19,16 @@ import {
 const router = Router();
 
 // GET /api/questions — list all active questions with tasks
-router.get("/", getQuestions);
+router.get("/", verifyToken, requireRole("ADMIN"), getQuestions);
 
 // Test delivery — questions and signed prompt URLs in one authenticated request
-router.get("/test", verifyToken, getTestQuestions);
+router.get("/test", verifyToken, requireRole("ADMIN"), getTestQuestions);
 
 // Admin question bank — all active questions, including incomplete drafts
 router.get("/admin", verifyToken, requireRole("ADMIN"), getAdminQuestions);
 
 // GET /api/questions/:id/audio-url — presigned GET for question prompt audio
-router.get("/:id/audio-url", verifyToken, getQuestionAudioUrl);
+router.get("/:id/audio-url", verifyToken, requireRole("ADMIN"), getQuestionAudioUrl);
 
 // Admin: question management
 router.post("/", verifyToken, requireRole("ADMIN"), createQuestion);

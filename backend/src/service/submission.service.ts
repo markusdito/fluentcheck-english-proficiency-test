@@ -1,6 +1,11 @@
 import { prisma } from "../config/db.js";
+import type { Prisma } from "../generated/client.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
 import { getAppSettings } from "./settings.service.js";
+import {
+  assertLegacyAnswerQuestion,
+  assertLegacySubmissionEvidence,
+} from "./submissionManifest.service.js";
 import {
   createQuestionAudioViewUrlFromMetadata,
   createVideoViewUrlFromMetadata,
@@ -77,6 +82,26 @@ export async function createSubmission(userId: string): Promise<{ id: string; st
   });
 
   return submission;
+}
+
+/** Explicitly abandon an in-progress attempt; the transition is terminal and idempotent. */
+export async function abandonSubmission(submissionId: string, userId: string) {
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { id: true, studentId: true, status: true },
+  });
+  if (!submission) throw new Error("Submission not found");
+  if (submission.studentId !== userId) throw new Error("Unauthorized");
+  if (submission.status === "ABANDONED") return submission;
+  if (submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
+  await prisma.submission.updateMany({
+    where: { id: submissionId, studentId: userId, status: "IN_PROGRESS" },
+    data: { status: "ABANDONED" },
+  });
+  return prisma.submission.findUniqueOrThrow({
+    where: { id: submissionId },
+    select: { id: true, studentId: true, status: true },
+  });
 }
 
 /**
@@ -169,6 +194,23 @@ export async function getSubmissionDetail(
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     include: {
+      manifest: {
+        select: {
+          id: true,
+          version: true,
+          entries: {
+            select: {
+              id: true,
+              category: true,
+              preparationSeconds: true,
+              recordingSeconds: true,
+              promptMediaStorageKey: true,
+              promptMediaMimeType: true,
+              tasks: { orderBy: { deliveredOrder: "asc" }, select: { deliveredOrder: true, deliveredText: true } },
+            },
+          },
+        },
+      },
       certificate: {
         select: { finalScore: true },
       },
@@ -205,9 +247,20 @@ export async function getSubmissionDetail(
   if (submission.studentId !== userId) {
     throw new Error("Unauthorized");
   }
+  if (submission.manifest && submission.manifest.version !== 1) {
+    throw new Error("Unsupported manifest version");
+  }
+  if (!submission.manifest) assertLegacySubmissionEvidence(submission.manifest);
 
   const answers: AnswerDetail[] = await Promise.all(
     submission.answers.map(async (answer) => {
+      const manifestEntry = submission.manifest?.entries.find(
+        (entry) => entry.id === answer.manifestEntryId,
+      );
+      if (submission.manifest && !manifestEntry) {
+        throw new Error("Manifest evidence unavailable");
+      }
+      if (!submission.manifest) assertLegacyAnswerQuestion(answer);
       let videoUrl: string | null = null;
       if (answer.uploadStatus === "UPLOADED") {
         try {
@@ -223,19 +276,29 @@ export async function getSubmissionDetail(
       }
 
       let audioUrl: string | null = null;
+      const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
+      const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
       if (
-        answer.question.audioUploadStatus === "UPLOADED" &&
-        answer.question.audioStorageKey
+        manifestEntry &&
+        (!manifestEntry.promptMediaStorageKey || !manifestEntry.promptMediaMimeType)
       ) {
+        throw new Error("Manifest evidence unavailable");
+      }
+      if (promptStorageKey) {
         try {
           audioUrl = await createQuestionAudioViewUrlFromMetadata(
-            answer.question.audioStorageKey,
-            answer.question.audioMimeType,
+            promptStorageKey,
+            promptMimeType,
           );
         } catch {
-          // If presigned URL generation fails, return null
+          // A retained manifest must never fall back to current Question media.
+          if (manifestEntry) throw new Error("Manifest evidence unavailable");
+          // Legacy readers preserve their historical best-effort behavior.
           audioUrl = null;
         }
+      }
+      if (manifestEntry && !audioUrl) {
+        throw new Error("Manifest evidence unavailable");
       }
 
       const scoreSummary = aggregateStoredScores(
@@ -249,8 +312,8 @@ export async function getSubmissionDetail(
 
       return {
         id: answer.id,
-        questionId: answer.questionId,
-        questionCategory: answer.question.category,
+        questionId: manifestEntry?.id ?? answer.questionId!,
+        questionCategory: manifestEntry?.category ?? answer.question!.category,
         audioUrl,
         durationSeconds: answer.durationSeconds,
         videoUrl,
@@ -323,59 +386,91 @@ export async function completeSubmission(
   submissionId: string,
   userId: string
 ): Promise<void> {
-  // Verify the submission belongs to this user and is still IN_PROGRESS
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-    select: { studentId: true, status: true },
-  });
-
-  if (!submission) {
-    throw new Error("Submission not found");
-  }
-
-  if (submission.studentId !== userId) {
-    throw new Error("Unauthorized");
-  }
-
-  if (submission.status !== "IN_PROGRESS") {
-    throw new Error("Submission is not in progress");
-  }
-
-  // Count all answers and check all are uploaded
-  const [totalAnswers, uploadedAnswers] = await Promise.all([
-    prisma.answer.count({
-      where: { submissionId },
-    }),
-    prisma.answer.count({
-      where: { submissionId, uploadStatus: "UPLOADED" },
-    }),
-  ]);
-
-  if (totalAnswers === 0) {
-    throw new Error("No answers recorded");
-  }
-
-  if (uploadedAnswers < totalAnswers) {
-    throw new Error(
-      `Not all answers uploaded yet (${uploadedAnswers}/${totalAnswers})`
-    );
-  }
-
   const { paymentEnabled } = await getAppSettings();
   const paymentRequired = paymentEnabled;
-  const transition = await prisma.submission.updateMany({
-    where: { id: submissionId, status: "IN_PROGRESS" },
-    data: {
-      paymentRequired,
-      status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
-    },
+
+  // Lock the Submission before reading its evidence. Confirmation and every
+  // later upload mutation use the same lifecycle predicate, so a concurrent
+  // confirmation either commits before this proof is evaluated or observes
+  // the completed status and is rejected.
+  const transitioned = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await tx.$queryRaw`SELECT "id" FROM "Submission" WHERE "id" = ${submissionId} FOR UPDATE`;
+
+    const submission = await tx.submission.findUnique({
+      where: { id: submissionId },
+      select: {
+        studentId: true,
+        status: true,
+        manifest: {
+          select: {
+            version: true,
+            entries: { select: { id: true } },
+          },
+        },
+        answers: {
+          select: {
+            manifestEntryId: true,
+            questionId: true,
+            uploadStatus: true,
+            verifiedAt: true,
+            proofVersion: true,
+            observedMimeType: true,
+            mimeType: true,
+            sizeBytes: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) throw new Error("Submission not found");
+    if (submission.studentId !== userId) throw new Error("Unauthorized");
+
+    // A retry after a committed transition is a successful no-op. Abandoned,
+    // legacy in-progress, corrupt, and unknown lifecycle states remain closed.
+    if (submission.status !== "IN_PROGRESS") {
+      if (["AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"].includes(submission.status)) {
+        return false;
+      }
+      throw new Error("Submission is not in progress");
+    }
+
+    if (!submission.manifest) {
+      throw new Error("Submission does not contain the exact verified answer set");
+    }
+    if (submission.manifest.version !== 1) throw new Error("Unsupported manifest version");
+
+    const entryIds = new Set(submission.manifest.entries.map((entry) => entry.id));
+    const answerIds = submission.answers.map((answer) => answer.manifestEntryId);
+    const hasVerifiedProof = submission.answers.every((answer) =>
+      answer.uploadStatus === "UPLOADED" &&
+      answer.verifiedAt !== null &&
+      answer.proofVersion === 1 &&
+      answer.sizeBytes !== null && answer.sizeBytes > 0 &&
+      answer.observedMimeType !== null &&
+      answer.observedMimeType === answer.mimeType
+    );
+    if (
+      entryIds.size !== 3 ||
+      answerIds.length !== entryIds.size ||
+      answerIds.some((id) => !id || !entryIds.has(id)) ||
+      new Set(answerIds).size !== entryIds.size ||
+      !hasVerifiedProof ||
+      submission.answers.some((answer) => answer.questionId !== null)
+    ) {
+      throw new Error("Submission does not contain the exact verified answer set");
+    }
+
+    await tx.submission.update({
+      where: { id: submissionId },
+      data: {
+        paymentRequired,
+        status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
+      },
+    });
+    return true;
   });
 
-  if (transition.count === 0) {
-    throw new Error("Submission is not in progress");
-  }
-
-  if (!paymentRequired) {
+  if (transitioned && !paymentRequired) {
     try {
       await assignExaminersToSubmission(submissionId);
     } catch (error) {

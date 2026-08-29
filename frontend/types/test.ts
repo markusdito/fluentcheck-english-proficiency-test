@@ -63,7 +63,17 @@ export interface Recording {
 }
 
 /** Upload status for each question's video */
-export type UploadStatus = "idle" | "getting-url" | "uploading" | "uploaded" | "error";
+export type UploadStatus =
+  | "idle"
+  | "finalizing"
+  | "blob-ready"
+  | "signing"
+  | "getting-url" // retained for older consumers
+  | "uploading"
+  | "verifying"
+  | "uploaded"
+  | "failure"
+  | "error";
 
 export interface QuestionUploadState {
   status: UploadStatus;
