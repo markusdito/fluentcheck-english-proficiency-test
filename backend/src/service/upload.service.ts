@@ -337,8 +337,13 @@ export async function confirmUpload(
   const observed = await headObject(answer.storageKey, answer.mimeType);
   if (!observed.exists || observed.contentLength <= 0) throw new Error("Video not found in storage");
   if (observed.contentLength > MAX_ANSWER_SIZE_BYTES) throw new Error("Video exceeds maximum size");
-  await prisma.answer.updateMany({
-    where: { id: answer.id, submissionId, uploadStatus: "PENDING" },
+  const updated = await prisma.answer.updateMany({
+    where: {
+      id: answer.id,
+      submissionId,
+      uploadStatus: "PENDING",
+      submission: { status: "IN_PROGRESS" },
+    },
     data: {
       uploadStatus: "UPLOADED",
       sizeBytes: observed.contentLength,
@@ -348,6 +353,7 @@ export async function confirmUpload(
       verifiedAt: new Date(),
     },
   });
+  if (updated.count !== 1) throw new Error("Submission is not in progress");
 }
 
 /**
