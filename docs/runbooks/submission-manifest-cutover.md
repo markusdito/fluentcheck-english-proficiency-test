@@ -26,23 +26,39 @@ report is read-only; operators must reconcile the named conflicts and rerun it.
    representative completed legacy submission still renders through the
    legacy reader and that a newly initialized submission has a complete
    version-1 manifest.
-2. Drain old writer instances. Confirm that no instance capable of split
-   `Submission` creation or student Question delivery remains in service.
-3. Run the preflight again from a repeatable-read snapshot.
+2. Apply the prior manifest-enforcement migration
+   `20260829130000_enforce_manifest_on_new_submissions` before starting the
+   assignment cutover. Its deferred database trigger lets the application
+   insert the Submission, manifest, entries, and tasks in one transaction
+   while the database rejects an incomplete commit. If later migrations are
+   pending, apply only this named migration in the release stage; do not run a
+   blanket `prisma migrate deploy` that would skip the assignment preflight
+   gate. For a manually staged migration, run its SQL with
+   the following commands, then record it in Prisma's migration history:
+
+   ```sh
+   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+     -f "prisma/migrations/<migration-name>/migration.sql"
+   npx prisma migrate resolve --schema prisma/schema.prisma \
+     --applied "<migration-name>"
+   ```
+3. Drain old Submission writer instances. Confirm that no instance capable of
+   split `Submission` creation or student Question delivery remains in
+   service, then run the manifest preflight again from a repeatable-read
+   snapshot.
 4. Apply the expansion migration
-   `20260829140000_expand_examiner_assignment_slots`. Confirm that every
-   assignment writer now populates both fixed slots, drain every older writer
-   capable of omitting a slot, and rerun the read-only examiner-assignment
-   preflight immediately before enforcement. Do not continue while it reports
-   any irregularity.
-5. Apply Prisma migrations, including
-   `20260829130000_enforce_manifest_on_new_submissions` and
-   `20260829150000_enforce_required_examiner_assignment_slots`. The manifest
-   migration adds a deferred database trigger, so the application may insert
-   the Submission, manifest, entries, and tasks in one transaction while the
-   database rejects an incomplete commit. The final assignment migration
-   makes slots mandatory and replaces the expansion-stage partial uniqueness
-   guard with the required two-slot constraint.
+   `20260829140000_expand_examiner_assignment_slots`. Deploy the assignment
+   writers that populate both fixed slots, drain every older writer capable of
+   omitting a slot, and rerun the read-only examiner-assignment preflight
+   immediately before enforcement. Do not continue while it reports any
+   irregularity.
+5. Apply only
+   `20260829150000_enforce_required_examiner_assignment_slots` after the
+   assignment preflight passes. This final migration makes slots mandatory
+   and replaces the expansion-stage partial uniqueness guard with the required
+   two-slot constraint. Use the same staged SQL-plus-`migrate resolve` method
+   when other migrations are pending so the preflight remains immediately
+   before this enforcement step.
 6. Run the authenticated HTTP smoke suite and retain its output. It must cover
    successful, unavailable, retry, replay, resume, abandonment, conflict,
    upload proof, completion, downstream reads, and prompt authorization paths.

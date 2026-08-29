@@ -2,7 +2,6 @@ import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
 import {
-  assignExaminersToSubmission,
   createExaminerAssignmentSet,
   type AssignExaminersResult,
 } from "./examiner.service.js";

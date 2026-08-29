@@ -12,6 +12,7 @@ interface AssignmentGroupRow extends QueryResultRow {
   invalidSlots: number;
   duplicateSlots: number;
   duplicateExaminers: number;
+  lifecycleInconsistent: number;
 }
 
 export interface ExaminerAssignmentPreflightResult {

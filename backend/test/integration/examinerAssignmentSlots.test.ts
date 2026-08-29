@@ -240,6 +240,56 @@ async function insertScoreEvidence(
   return scoreId;
 }
 
+interface AssignmentEvidenceSnapshot {
+  assignments: Array<{
+    id: string;
+    submissionId: string;
+    examinerId: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  scores: Array<{
+    id: string;
+    assignmentId: string;
+    answerId: string;
+    value: string;
+    pronunciation: string | null;
+    fluency: string | null;
+    vocabulary: string | null;
+    grammar: string | null;
+    comment: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}
+
+async function readAssignmentEvidence(
+  client: Client,
+  submissionIds: string[],
+): Promise<AssignmentEvidenceSnapshot> {
+  const assignments = await client.query<AssignmentEvidenceSnapshot["assignments"][number]>(
+    `SELECT "id", "submissionId", "examinerId", "status"::text AS "status",
+            "createdAt"::text AS "createdAt", "updatedAt"::text AS "updatedAt"
+       FROM "ExaminerAssignment"
+      WHERE "submissionId" = ANY($1::uuid[])
+      ORDER BY "submissionId", "id"`,
+    [submissionIds],
+  );
+  const scores = await client.query<AssignmentEvidenceSnapshot["scores"][number]>(
+    `SELECT sc."id", sc."assignmentId", sc."answerId", sc."value"::text AS "value",
+            sc."pronunciation"::text AS "pronunciation", sc."fluency"::text AS "fluency",
+            sc."vocabulary"::text AS "vocabulary", sc."grammar"::text AS "grammar",
+            sc."comment", sc."createdAt"::text AS "createdAt", sc."updatedAt"::text AS "updatedAt"
+       FROM "Score" sc
+       JOIN "ExaminerAssignment" a ON a."id" = sc."assignmentId"
+      WHERE a."submissionId" = ANY($1::uuid[])
+      ORDER BY sc."assignmentId", sc."id"`,
+    [submissionIds],
+  );
+  return { assignments: assignments.rows, scores: scores.rows };
+}
+
 test("the expansion migration backfills valid two-assignment sets deterministically", async () => {
   const databaseUrl = await createDatabase("assignment_expansion");
   const client = new Client({ connectionString: databaseUrl });
@@ -298,21 +348,37 @@ test("the expansion migration fails closed on partial, excess, and lifecycle-inc
     }
 
     const partial = await insertSubmission(client, "partial", "SCORING");
-    await insertLegacyAssignment(client, partial, await insertExaminer(client, "partial"));
+    const partialAssignment = await insertLegacyAssignment(
+      client,
+      partial,
+      await insertExaminer(client, "partial"),
+    );
+    await insertScoreEvidence(client, partial, partialAssignment, 61, 1);
 
     const excess = await insertSubmission(client, "excess", "SCORING");
-    await insertLegacyAssignment(client, excess, await insertExaminer(client, "excess-one"));
-    await insertLegacyAssignment(client, excess, await insertExaminer(client, "excess-two"));
-    await insertLegacyAssignment(client, excess, await insertExaminer(client, "excess-three"));
+    const excessAssignments = await Promise.all([
+      insertLegacyAssignment(client, excess, await insertExaminer(client, "excess-one")),
+      insertLegacyAssignment(client, excess, await insertExaminer(client, "excess-two")),
+      insertLegacyAssignment(client, excess, await insertExaminer(client, "excess-three")),
+    ]);
+    await insertScoreEvidence(client, excess, excessAssignments[0], 62, 1);
 
     const lifecycle = await insertSubmission(client, "lifecycle", "PAID");
-    await insertLegacyAssignment(client, lifecycle, await insertExaminer(client, "lifecycle-one"));
-    await insertLegacyAssignment(client, lifecycle, await insertExaminer(client, "lifecycle-two"));
+    const lifecycleAssignments = await Promise.all([
+      insertLegacyAssignment(client, lifecycle, await insertExaminer(client, "lifecycle-one")),
+      insertLegacyAssignment(client, lifecycle, await insertExaminer(client, "lifecycle-two")),
+    ]);
+    await insertScoreEvidence(client, lifecycle, lifecycleAssignments[0], 63, 1);
+
+    const submissionIds = [partial, excess, lifecycle];
+    const before = await readAssignmentEvidence(client, submissionIds);
 
     await assert.rejects(
       () => applyMigration(client, EXPANSION_MIGRATION),
       /Irregular Examiner assignment sets/,
     );
+
+    assert.deepEqual(await readAssignmentEvidence(client, submissionIds), before);
   } finally {
     await client.end();
   }
