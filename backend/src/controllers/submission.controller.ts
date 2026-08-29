@@ -4,8 +4,10 @@ import {
   getStudentDashboard,
   getSubmissionDetail,
   getSubmissionStatus,
+  abandonSubmission,
 } from "../service/submission.service.js";
 import {
+  ActiveSubmissionConflictError,
   AssessmentUnavailableError,
   initializeManifestSubmission,
 } from "../service/manifestSubmissionInitialization.service.js";
@@ -17,12 +19,19 @@ import {
 export async function startSubmission(req: Request, res: Response) {
   try {
     const userId = req.user!.id;
-    const submission = await initializeManifestSubmission(userId);
+    const submission = await initializeManifestSubmission(
+      userId,
+      req.header("Idempotency-Key") ?? undefined,
+    );
     res.status(201).json({
       status: "success",
       data: submission,
     });
   } catch (error) {
+    if (error instanceof ActiveSubmissionConflictError) {
+      res.status(409).json({ error: error.message, submissionId: error.submissionId });
+      return;
+    }
     if (error instanceof AssessmentUnavailableError) {
       res.setHeader("Retry-After", String(error.retryAfterSeconds));
       res.status(503).json({
@@ -35,6 +44,23 @@ export async function startSubmission(req: Request, res: Response) {
     }
     console.error("Create submission error:", error);
     res.status(500).json({ error: "Failed to create submission" });
+  }
+}
+
+/** POST /api/submissions/:id/abandon — explicitly end an active attempt. */
+export async function abandonSubmissionById(req: Request, res: Response) {
+  try {
+    const submissionId = req.params.id as string;
+    if (!submissionId) {
+      res.status(400).json({ error: "Submission ID is required" });
+      return;
+    }
+    const data = await abandonSubmission(submissionId, req.user!.id);
+    res.status(200).json({ status: "success", data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to abandon submission";
+    const status = message === "Submission not found" || message === "Unauthorized" ? 404 : 409;
+    res.status(status).json({ error: message });
   }
 }
 

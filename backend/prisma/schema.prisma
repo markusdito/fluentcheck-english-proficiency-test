@@ -23,6 +23,7 @@ enum QuestionCategory {
 
 enum SubmissionStatus {
   IN_PROGRESS // student is recording
+  ABANDONED // student explicitly ended this attempt
   AWAITING_PAYMENT // all videos uploaded, waiting for payment
   PAID // paid, examiners can be assigned
   SCORING // examiners are grading
@@ -67,6 +68,7 @@ model User {
   deletedAt DateTime? @db.Timestamptz() // soft delete: account deactivated, history preserved
 
   submissions      Submission[]
+  startIntents      SubmissionStartIntent[]
   assignments      ExaminerAssignment[]
   questionsCreated Question[]
 
@@ -127,11 +129,24 @@ model Submission {
   payments        Payment[]
   assignments     ExaminerAssignment[]
   certificate     Certificate?
+  startIntent     SubmissionStartIntent?
   createdAt       DateTime             @default(now()) @db.Timestamptz()
   updatedAt       DateTime             @updatedAt @db.Timestamptz()
 
   @@index([studentId, status])
   @@index([status])
+}
+
+model SubmissionStartIntent {
+  idempotencyKey String     @id
+  studentId      String     @db.Uuid
+  student        User       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  submissionId   String     @unique @db.Uuid
+  submission     Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  createdAt      DateTime   @default(now()) @db.Timestamptz()
+
+  @@unique([studentId, idempotencyKey])
+  @@index([studentId])
 }
 
 model SubmissionManifest {

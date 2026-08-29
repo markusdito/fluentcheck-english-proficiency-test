@@ -6,6 +6,7 @@ import {
   getDashboard,
   getSubmissionById,
   getSubmissionStatusById,
+  abandonSubmissionById,
 } from "../controllers/submission.controller.js";
 
 const router = Router();
@@ -18,6 +19,8 @@ router.post("/", verifyToken, startSubmission);
 
 // Get a single submission with answers and video URLs (requires authentication)
 router.get("/:id/status", verifyToken, getSubmissionStatusById);
+
+router.post("/:id/abandon", verifyToken, abandonSubmissionById);
 
 // Get a single submission with answers and video URLs (requires authentication)
 router.get("/:id", verifyToken, getSubmissionById);

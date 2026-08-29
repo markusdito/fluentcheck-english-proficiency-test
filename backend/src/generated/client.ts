@@ -62,6 +62,11 @@ export type Task = Prisma.TaskModel
  */
 export type Submission = Prisma.SubmissionModel
 /**
+ * Model SubmissionStartIntent
+ *
+ */
+export type SubmissionStartIntent = Prisma.SubmissionStartIntentModel
+/**
  * Model SubmissionManifest
  *
  */

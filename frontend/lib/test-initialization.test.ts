@@ -2,54 +2,42 @@ import { describe, expect, it, vi } from "vitest";
 import { initializeTest } from "@/lib/test-initialization";
 
 const mocks = vi.hoisted(() => ({
-  createSubmission: vi.fn(),
-  fetchTestQuestions: vi.fn(),
+  initializeSubmission: vi.fn(),
 }));
 
 vi.mock("@/lib/test-api", () => ({
-  createSubmission: mocks.createSubmission,
-  fetchTestQuestions: mocks.fetchTestQuestions,
+  initializeSubmission: mocks.initializeSubmission,
 }));
 
 describe("initializeTest", () => {
-  it("starts one submission request and one combined question request in parallel", async () => {
-    let resolveSubmission!: (value: string) => void;
-    let resolveQuestions!: (value: Array<Record<string, unknown>>) => void;
-    mocks.createSubmission.mockReturnValue(
-      new Promise<string>((resolve) => {
-        resolveSubmission = resolve;
-      }),
-    );
-    mocks.fetchTestQuestions.mockReturnValue(
-      new Promise((resolve) => {
-        resolveQuestions = resolve;
-      }),
-    );
-
-    const initialization = initializeTest();
-
-    expect(mocks.createSubmission).toHaveBeenCalledTimes(1);
-    expect(mocks.fetchTestQuestions).toHaveBeenCalledTimes(1);
-
-    resolveSubmission("submission-1");
-    resolveQuestions([
-      {
-        id: "question-1",
+  it("uses one authoritative manifest-backed initialization request", async () => {
+    mocks.initializeSubmission.mockResolvedValue({
+      submissionId: "submission-1",
+      status: "IN_PROGRESS",
+      manifestId: "manifest-1",
+      version: 1,
+      entries: [{
+        id: "entry-1",
         category: "PART_1",
-        order: 1,
+        deliveryPosition: 1,
         preparationSeconds: 30,
         recordingSeconds: 60,
-        audioUploadStatus: "UPLOADED",
-        audioUrl: "https://media.example/prompt.mp3",
-        tasks: [{ id: "task-1", promptText: "Introduce yourself", order: 1 }],
-      },
-    ]);
+        promptMediaMimeType: "audio/webm",
+        promptMediaSizeBytes: 42,
+        promptMediaUrl: "https://media.example/prompt.mp3",
+        tasks: [{ order: 1, promptText: "Introduce yourself" }],
+      }],
+    });
 
-    await expect(initialization).resolves.toEqual({
+    const initialization = await initializeTest();
+
+    expect(mocks.initializeSubmission).toHaveBeenCalledTimes(1);
+
+    expect(initialization).toEqual({
       submissionId: "submission-1",
       questions: [
         expect.objectContaining({
-          id: "question-1",
+          id: "entry-1",
           audioUrl: "https://media.example/prompt.mp3",
           task: "Introduce yourself",
         }),

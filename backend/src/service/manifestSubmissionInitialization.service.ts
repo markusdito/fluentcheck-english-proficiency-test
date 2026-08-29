@@ -27,6 +27,13 @@ interface InitializationDependencies {
   now?: () => number;
 }
 
+export class ActiveSubmissionConflictError extends Error {
+  constructor(readonly submissionId: string) {
+    super("An active Submission already exists");
+    this.name = "ActiveSubmissionConflictError";
+  }
+}
+
 function withDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
   const remaining = deadline - Date.now();
   if (remaining <= 0) return Promise.reject(new AssessmentUnavailableError());
@@ -41,6 +48,7 @@ function withDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
 /** Select, snapshot, and persist one complete manifest atomically. */
 export async function initializeManifestSubmission(
   studentId: string,
+  idempotencyKey?: string,
   dependencies: InitializationDependencies = {},
 ) {
   const chooseIndex = dependencies.chooseIndex ?? ((length: number) => randomInt(length));
@@ -48,6 +56,31 @@ export async function initializeManifestSubmission(
   const deadline = (dependencies.now ?? Date.now)() + INITIALIZATION_DEADLINE_MS;
 
   try {
+    if (idempotencyKey) {
+      const existingIntent = await prisma.submissionStartIntent.findUnique({
+        where: { idempotencyKey },
+        include: { submission: { include: { manifest: { include: { entries: { include: { tasks: true } } } } } } },
+      });
+      if (existingIntent && existingIntent.studentId === studentId && existingIntent.submission.manifest) {
+        const manifest: ManifestDeliveryManifest = {
+          id: existingIntent.submission.manifest.id,
+          version: existingIntent.submission.manifest.version,
+          entries: existingIntent.submission.manifest.entries.map((entry) => ({
+            id: entry.id,
+            category: entry.category,
+            deliveryPosition: entry.deliveryPosition,
+            preparationSeconds: entry.preparationSeconds,
+            recordingSeconds: entry.recordingSeconds,
+            promptMediaStorageKey: entry.promptMediaStorageKey,
+            promptMediaMimeType: entry.promptMediaMimeType,
+            promptMediaSizeBytes: entry.promptMediaSizeBytes,
+            tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
+          })),
+        };
+        const entries = await buildManifestDelivery(manifest, signPromptMedia);
+        return { submissionId: existingIntent.submissionId, status: existingIntent.submission.status, manifestId: manifest.id, version: manifest.version, entries };
+      }
+    }
     const selected = await Promise.all(
       CATEGORIES.map(async (category) => {
         const candidates = await prisma.question.findMany({
@@ -140,6 +173,11 @@ export async function initializeManifestSubmission(
           });
         }
       }
+      if (idempotencyKey) {
+        await tx.submissionStartIntent.create({
+          data: { idempotencyKey, studentId, submissionId: submission.id },
+        });
+      }
       return { submission, manifest };
     });
 
@@ -174,6 +212,13 @@ export async function initializeManifestSubmission(
     });
     return { submissionId: result.submission.id, status: result.submission.status, manifestId: result.manifest.id, version: result.manifest.version, entries: safe };
   } catch (error) {
+    if (error instanceof Error && error.message.includes("Submission_one_active_per_student_key")) {
+      const active = await prisma.submission.findFirst({
+        where: { studentId, status: "IN_PROGRESS" },
+        select: { id: true },
+      });
+      if (active) throw new ActiveSubmissionConflictError(active.id);
+    }
     if (error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError) {
       throw new AssessmentUnavailableError();
     }

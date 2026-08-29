@@ -83,6 +83,26 @@ export async function createSubmission(userId: string): Promise<{ id: string; st
   return submission;
 }
 
+/** Explicitly abandon an in-progress attempt; the transition is terminal and idempotent. */
+export async function abandonSubmission(submissionId: string, userId: string) {
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { id: true, studentId: true, status: true },
+  });
+  if (!submission) throw new Error("Submission not found");
+  if (submission.studentId !== userId) throw new Error("Unauthorized");
+  if (submission.status === "ABANDONED") return submission;
+  if (submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
+  await prisma.submission.updateMany({
+    where: { id: submissionId, studentId: userId, status: "IN_PROGRESS" },
+    data: { status: "ABANDONED" },
+  });
+  return prisma.submission.findUniqueOrThrow({
+    where: { id: submissionId },
+    select: { id: true, studentId: true, status: true },
+  });
+}
+
 /**
  * Fetch dashboard stats and submission history for the authenticated student.
  */

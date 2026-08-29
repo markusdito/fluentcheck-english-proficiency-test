@@ -43,6 +43,7 @@ export const ModelName = {
     Question: 'Question',
     Task: 'Task',
     Submission: 'Submission',
+    SubmissionStartIntent: 'SubmissionStartIntent',
     SubmissionManifest: 'SubmissionManifest',
     ManifestEntry: 'ManifestEntry',
     ManifestTask: 'ManifestTask',
@@ -104,6 +105,12 @@ export const SubmissionScalarFieldEnum = {
     paymentRequired: 'paymentRequired',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
+};
+export const SubmissionStartIntentScalarFieldEnum = {
+    idempotencyKey: 'idempotencyKey',
+    studentId: 'studentId',
+    submissionId: 'submissionId',
+    createdAt: 'createdAt'
 };
 export const SubmissionManifestScalarFieldEnum = {
     id: 'id',

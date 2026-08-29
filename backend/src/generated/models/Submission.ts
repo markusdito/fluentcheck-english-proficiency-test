@@ -204,6 +204,7 @@ export type SubmissionWhereInput = {
   payments?: Prisma.PaymentListRelationFilter
   assignments?: Prisma.ExaminerAssignmentListRelationFilter
   certificate?: Prisma.XOR<Prisma.CertificateNullableScalarRelationFilter, Prisma.CertificateWhereInput> | null
+  startIntent?: Prisma.XOR<Prisma.SubmissionStartIntentNullableScalarRelationFilter, Prisma.SubmissionStartIntentWhereInput> | null
 }
 
 export type SubmissionOrderByWithRelationInput = {
@@ -220,6 +221,7 @@ export type SubmissionOrderByWithRelationInput = {
   payments?: Prisma.PaymentOrderByRelationAggregateInput
   assignments?: Prisma.ExaminerAssignmentOrderByRelationAggregateInput
   certificate?: Prisma.CertificateOrderByWithRelationInput
+  startIntent?: Prisma.SubmissionStartIntentOrderByWithRelationInput
 }
 
 export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
@@ -239,6 +241,7 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   payments?: Prisma.PaymentListRelationFilter
   assignments?: Prisma.ExaminerAssignmentListRelationFilter
   certificate?: Prisma.XOR<Prisma.CertificateNullableScalarRelationFilter, Prisma.CertificateWhereInput> | null
+  startIntent?: Prisma.XOR<Prisma.SubmissionStartIntentNullableScalarRelationFilter, Prisma.SubmissionStartIntentWhereInput> | null
 }, "id">
 
 export type SubmissionOrderByWithAggregationInput = {
@@ -280,6 +283,7 @@ export type SubmissionCreateInput = {
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateInput = {
@@ -295,6 +299,7 @@ export type SubmissionUncheckedCreateInput = {
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionUpdateInput = {
@@ -310,6 +315,7 @@ export type SubmissionUpdateInput = {
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateInput = {
@@ -325,6 +331,7 @@ export type SubmissionUncheckedUpdateInput = {
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateManyInput = {
@@ -455,6 +462,20 @@ export type BoolFieldUpdateOperationsInput = {
   set?: boolean
 }
 
+export type SubmissionCreateNestedOneWithoutStartIntentInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutStartIntentInput, Prisma.SubmissionUncheckedCreateWithoutStartIntentInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutStartIntentInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+}
+
+export type SubmissionUpdateOneRequiredWithoutStartIntentNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutStartIntentInput, Prisma.SubmissionUncheckedCreateWithoutStartIntentInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutStartIntentInput
+  upsert?: Prisma.SubmissionUpsertWithoutStartIntentInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutStartIntentInput, Prisma.SubmissionUpdateWithoutStartIntentInput>, Prisma.SubmissionUncheckedUpdateWithoutStartIntentInput>
+}
+
 export type SubmissionCreateNestedOneWithoutManifestInput = {
   create?: Prisma.XOR<Prisma.SubmissionCreateWithoutManifestInput, Prisma.SubmissionUncheckedCreateWithoutManifestInput>
   connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutManifestInput
@@ -537,6 +558,7 @@ export type SubmissionCreateWithoutStudentInput = {
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutStudentInput = {
@@ -551,6 +573,7 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutStudentInput = {
@@ -592,6 +615,82 @@ export type SubmissionScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
 }
 
+export type SubmissionCreateWithoutStartIntentInput = {
+  id?: string
+  status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+}
+
+export type SubmissionUncheckedCreateWithoutStartIntentInput = {
+  id?: string
+  studentId: string
+  status?: $Enums.SubmissionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+}
+
+export type SubmissionCreateOrConnectWithoutStartIntentInput = {
+  where: Prisma.SubmissionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutStartIntentInput, Prisma.SubmissionUncheckedCreateWithoutStartIntentInput>
+}
+
+export type SubmissionUpsertWithoutStartIntentInput = {
+  update: Prisma.XOR<Prisma.SubmissionUpdateWithoutStartIntentInput, Prisma.SubmissionUncheckedUpdateWithoutStartIntentInput>
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutStartIntentInput, Prisma.SubmissionUncheckedCreateWithoutStartIntentInput>
+  where?: Prisma.SubmissionWhereInput
+}
+
+export type SubmissionUpdateToOneWithWhereWithoutStartIntentInput = {
+  where?: Prisma.SubmissionWhereInput
+  data: Prisma.XOR<Prisma.SubmissionUpdateWithoutStartIntentInput, Prisma.SubmissionUncheckedUpdateWithoutStartIntentInput>
+}
+
+export type SubmissionUpdateWithoutStartIntentInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+}
+
+export type SubmissionUncheckedUpdateWithoutStartIntentInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  studentId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+}
+
 export type SubmissionCreateWithoutManifestInput = {
   id?: string
   status?: $Enums.SubmissionStatus
@@ -604,6 +703,7 @@ export type SubmissionCreateWithoutManifestInput = {
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutManifestInput = {
@@ -618,6 +718,7 @@ export type SubmissionUncheckedCreateWithoutManifestInput = {
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutManifestInput = {
@@ -648,6 +749,7 @@ export type SubmissionUpdateWithoutManifestInput = {
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutManifestInput = {
@@ -662,6 +764,7 @@ export type SubmissionUncheckedUpdateWithoutManifestInput = {
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateWithoutAnswersInput = {
@@ -676,6 +779,7 @@ export type SubmissionCreateWithoutAnswersInput = {
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutAnswersInput = {
@@ -690,6 +794,7 @@ export type SubmissionUncheckedCreateWithoutAnswersInput = {
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutAnswersInput = {
@@ -720,6 +825,7 @@ export type SubmissionUpdateWithoutAnswersInput = {
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutAnswersInput = {
@@ -734,6 +840,7 @@ export type SubmissionUncheckedUpdateWithoutAnswersInput = {
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateWithoutPaymentsInput = {
@@ -748,6 +855,7 @@ export type SubmissionCreateWithoutPaymentsInput = {
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutPaymentsInput = {
@@ -762,6 +870,7 @@ export type SubmissionUncheckedCreateWithoutPaymentsInput = {
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutPaymentsInput = {
@@ -792,6 +901,7 @@ export type SubmissionUpdateWithoutPaymentsInput = {
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
@@ -806,6 +916,7 @@ export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateWithoutAssignmentsInput = {
@@ -820,6 +931,7 @@ export type SubmissionCreateWithoutAssignmentsInput = {
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutAssignmentsInput = {
@@ -834,6 +946,7 @@ export type SubmissionUncheckedCreateWithoutAssignmentsInput = {
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutAssignmentsInput = {
@@ -864,6 +977,7 @@ export type SubmissionUpdateWithoutAssignmentsInput = {
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
@@ -878,6 +992,7 @@ export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateWithoutCertificateInput = {
@@ -892,6 +1007,7 @@ export type SubmissionCreateWithoutCertificateInput = {
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionUncheckedCreateWithoutCertificateInput = {
@@ -906,6 +1022,7 @@ export type SubmissionUncheckedCreateWithoutCertificateInput = {
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
 }
 
 export type SubmissionCreateOrConnectWithoutCertificateInput = {
@@ -936,6 +1053,7 @@ export type SubmissionUpdateWithoutCertificateInput = {
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutCertificateInput = {
@@ -950,6 +1068,7 @@ export type SubmissionUncheckedUpdateWithoutCertificateInput = {
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionCreateManyStudentInput = {
@@ -973,6 +1092,7 @@ export type SubmissionUpdateWithoutStudentInput = {
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateWithoutStudentInput = {
@@ -987,6 +1107,7 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
   certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
 }
 
 export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
@@ -1061,6 +1182,7 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   payments?: boolean | Prisma.Submission$paymentsArgs<ExtArgs>
   assignments?: boolean | Prisma.Submission$assignmentsArgs<ExtArgs>
   certificate?: boolean | Prisma.Submission$certificateArgs<ExtArgs>
+  startIntent?: boolean | Prisma.Submission$startIntentArgs<ExtArgs>
   _count?: boolean | Prisma.SubmissionCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["submission"]>
 
@@ -1104,6 +1226,7 @@ export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   payments?: boolean | Prisma.Submission$paymentsArgs<ExtArgs>
   assignments?: boolean | Prisma.Submission$assignmentsArgs<ExtArgs>
   certificate?: boolean | Prisma.Submission$certificateArgs<ExtArgs>
+  startIntent?: boolean | Prisma.Submission$startIntentArgs<ExtArgs>
   _count?: boolean | Prisma.SubmissionCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type SubmissionIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1122,6 +1245,7 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     payments: Prisma.$PaymentPayload<ExtArgs>[]
     assignments: Prisma.$ExaminerAssignmentPayload<ExtArgs>[]
     certificate: Prisma.$CertificatePayload<ExtArgs> | null
+    startIntent: Prisma.$SubmissionStartIntentPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1531,6 +1655,7 @@ export interface Prisma__SubmissionClient<T, Null = never, ExtArgs extends runti
   payments<T extends Prisma.Submission$paymentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assignments<T extends Prisma.Submission$assignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$assignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ExaminerAssignmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   certificate<T extends Prisma.Submission$certificateArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$certificateArgs<ExtArgs>>): Prisma.Prisma__CertificateClient<runtime.Types.Result.GetResult<Prisma.$CertificatePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  startIntent<T extends Prisma.Submission$startIntentArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$startIntentArgs<ExtArgs>>): Prisma.Prisma__SubmissionStartIntentClient<runtime.Types.Result.GetResult<Prisma.$SubmissionStartIntentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2075,6 +2200,25 @@ export type Submission$certificateArgs<ExtArgs extends runtime.Types.Extensions.
    */
   include?: Prisma.CertificateInclude<ExtArgs> | null
   where?: Prisma.CertificateWhereInput
+}
+
+/**
+ * Submission.startIntent
+ */
+export type Submission$startIntentArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionStartIntent
+   */
+  select?: Prisma.SubmissionStartIntentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionStartIntent
+   */
+  omit?: Prisma.SubmissionStartIntentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionStartIntentInclude<ExtArgs> | null
+  where?: Prisma.SubmissionStartIntentWhereInput
 }
 
 /**

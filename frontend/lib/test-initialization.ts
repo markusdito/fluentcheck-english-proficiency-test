@@ -1,4 +1,4 @@
-import { createSubmission, fetchTestQuestions } from "@/lib/test-api";
+import { initializeSubmission } from "@/lib/test-api";
 import type { Prompt } from "@/types/test";
 
 export interface InitializedTest {
@@ -7,21 +7,23 @@ export interface InitializedTest {
 }
 
 export async function initializeTest(): Promise<InitializedTest> {
-  const [submissionId, questions] = await Promise.all([
-    createSubmission(),
-    fetchTestQuestions(),
-  ]);
+  const keyStorage = "fluentcheck.assessment-start-key";
+  const key = typeof window !== "undefined"
+    ? window.sessionStorage.getItem(keyStorage) ?? crypto.randomUUID()
+    : crypto.randomUUID();
+  if (typeof window !== "undefined") window.sessionStorage.setItem(keyStorage, key);
+  const initialized = await initializeSubmission(key);
 
   return {
-    submissionId,
-    questions: questions.map((question) => ({
-      id: question.id,
-      audioUrl: question.audioUrl,
-      tasks: question.tasks.map((task) => task.promptText),
-      task: question.tasks.map((task) => task.promptText).join("\n"),
-      prepTime: question.preparationSeconds,
-      recordingDuration: question.recordingSeconds,
-      order: question.order,
+    submissionId: initialized.submissionId,
+    questions: initialized.entries.map((entry) => ({
+      id: entry.id,
+      audioUrl: entry.promptMediaUrl,
+      tasks: entry.tasks.map((task) => task.promptText),
+      task: entry.tasks.map((task) => task.promptText).join("\n"),
+      prepTime: entry.preparationSeconds,
+      recordingDuration: entry.recordingSeconds,
+      order: entry.deliveryPosition,
     })),
   };
 }

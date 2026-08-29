@@ -55,6 +55,7 @@ export const ModelName = {
   Question: 'Question',
   Task: 'Task',
   Submission: 'Submission',
+  SubmissionStartIntent: 'SubmissionStartIntent',
   SubmissionManifest: 'SubmissionManifest',
   ManifestEntry: 'ManifestEntry',
   ManifestTask: 'ManifestTask',
@@ -139,6 +140,16 @@ export const SubmissionScalarFieldEnum = {
 } as const
 
 export type SubmissionScalarFieldEnum = (typeof SubmissionScalarFieldEnum)[keyof typeof SubmissionScalarFieldEnum]
+
+
+export const SubmissionStartIntentScalarFieldEnum = {
+  idempotencyKey: 'idempotencyKey',
+  studentId: 'studentId',
+  submissionId: 'submissionId',
+  createdAt: 'createdAt'
+} as const
+
+export type SubmissionStartIntentScalarFieldEnum = (typeof SubmissionStartIntentScalarFieldEnum)[keyof typeof SubmissionStartIntentScalarFieldEnum]
 
 
 export const SubmissionManifestScalarFieldEnum = {

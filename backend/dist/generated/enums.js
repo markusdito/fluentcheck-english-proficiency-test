@@ -19,6 +19,7 @@ export const QuestionCategory = {
 };
 export const SubmissionStatus = {
     IN_PROGRESS: 'IN_PROGRESS',
+    ABANDONED: 'ABANDONED',
     AWAITING_PAYMENT: 'AWAITING_PAYMENT',
     PAID: 'PAID',
     SCORING: 'SCORING',

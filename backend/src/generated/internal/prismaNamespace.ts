@@ -388,6 +388,7 @@ export const ModelName = {
   Question: 'Question',
   Task: 'Task',
   Submission: 'Submission',
+  SubmissionStartIntent: 'SubmissionStartIntent',
   SubmissionManifest: 'SubmissionManifest',
   ManifestEntry: 'ManifestEntry',
   ManifestTask: 'ManifestTask',
@@ -412,7 +413,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "question" | "task" | "submission" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "score" | "certificate"
+    modelProps: "user" | "question" | "task" | "submission" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -709,6 +710,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.SubmissionCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.SubmissionCountAggregateOutputType> | number
+        }
+      }
+    }
+    SubmissionStartIntent: {
+      payload: Prisma.$SubmissionStartIntentPayload<ExtArgs>
+      fields: Prisma.SubmissionStartIntentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SubmissionStartIntentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SubmissionStartIntentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>
+        }
+        findFirst: {
+          args: Prisma.SubmissionStartIntentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SubmissionStartIntentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>
+        }
+        findMany: {
+          args: Prisma.SubmissionStartIntentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>[]
+        }
+        create: {
+          args: Prisma.SubmissionStartIntentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>
+        }
+        createMany: {
+          args: Prisma.SubmissionStartIntentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SubmissionStartIntentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>[]
+        }
+        delete: {
+          args: Prisma.SubmissionStartIntentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>
+        }
+        update: {
+          args: Prisma.SubmissionStartIntentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>
+        }
+        deleteMany: {
+          args: Prisma.SubmissionStartIntentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SubmissionStartIntentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SubmissionStartIntentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>[]
+        }
+        upsert: {
+          args: Prisma.SubmissionStartIntentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionStartIntentPayload>
+        }
+        aggregate: {
+          args: Prisma.SubmissionStartIntentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSubmissionStartIntent>
+        }
+        groupBy: {
+          args: Prisma.SubmissionStartIntentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionStartIntentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SubmissionStartIntentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionStartIntentCountAggregateOutputType> | number
         }
       }
     }
@@ -1476,6 +1551,16 @@ export const SubmissionScalarFieldEnum = {
 export type SubmissionScalarFieldEnum = (typeof SubmissionScalarFieldEnum)[keyof typeof SubmissionScalarFieldEnum]
 
 
+export const SubmissionStartIntentScalarFieldEnum = {
+  idempotencyKey: 'idempotencyKey',
+  studentId: 'studentId',
+  submissionId: 'submissionId',
+  createdAt: 'createdAt'
+} as const
+
+export type SubmissionStartIntentScalarFieldEnum = (typeof SubmissionStartIntentScalarFieldEnum)[keyof typeof SubmissionStartIntentScalarFieldEnum]
+
+
 export const SubmissionManifestScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
@@ -1924,6 +2009,7 @@ export type GlobalOmitConfig = {
   question?: Prisma.QuestionOmit
   task?: Prisma.TaskOmit
   submission?: Prisma.SubmissionOmit
+  submissionStartIntent?: Prisma.SubmissionStartIntentOmit
   submissionManifest?: Prisma.SubmissionManifestOmit
   manifestEntry?: Prisma.ManifestEntryOmit
   manifestTask?: Prisma.ManifestTaskOmit
