@@ -29,6 +29,7 @@ export interface AdminAssignmentSummary {
 export interface AssignSubmissionResult {
   submissionId: string;
   status: string;
+  outcome?: "CREATED" | "EXISTING";
   assignments: AdminAssignmentSummary[];
   assignedExaminers: Array<{
     id: string;

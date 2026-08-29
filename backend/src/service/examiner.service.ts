@@ -366,7 +366,14 @@ export async function createExaminerAssignmentSet(
     }
   }
 
-  throw lastContentionError ?? new Error("Assignment transaction failed");
+  throw (
+    lastContentionError ??
+    new AssignmentSetError(
+      "ASSIGNMENT_BUSY",
+      "Assignment is busy; retry the request",
+      { retryable: true },
+    )
+  );
 }
 
 /**

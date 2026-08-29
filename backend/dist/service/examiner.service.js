@@ -186,7 +186,8 @@ export async function createExaminerAssignmentSet(submissionId, options = {}) {
             lastContentionError = error;
         }
     }
-    throw lastContentionError ?? new Error("Assignment transaction failed");
+    throw (lastContentionError ??
+        new AssignmentSetError("ASSIGNMENT_BUSY", "Assignment is busy; retry the request", { retryable: true }));
 }
 /**
  * List all assignments for the examiner, ordered by newest first.

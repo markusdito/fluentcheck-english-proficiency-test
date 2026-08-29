@@ -3,6 +3,7 @@ import { Prisma } from "../generated/client.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
 import {
   assignExaminersToSubmission,
+  createExaminerAssignmentSet,
   type AssignExaminersResult,
 } from "./examiner.service.js";
 import {
@@ -463,13 +464,13 @@ export async function listAdminExaminers() {
 }
 
 /**
- * Assign examiners to a PAID submission that has no existing assignments yet.
- * Reuses the shared assignExaminersToSubmission service.
+ * Assign examiners to an Assignment-ready submission through the shared
+ * atomic assignment-set operation, exposing the created/existing outcome.
  */
 export async function assignExaminers(
   submissionId: string
-): Promise<AssignExaminersResult> {
-  return assignExaminersToSubmission(submissionId);
+): Promise<AssignExaminersResult & { outcome: string }> {
+  return createExaminerAssignmentSet(submissionId);
 }
 
 /**

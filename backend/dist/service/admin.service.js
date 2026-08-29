@@ -1,5 +1,5 @@
 import { prisma } from "../config/db.js";
-import { assignExaminersToSubmission, } from "./examiner.service.js";
+import { createExaminerAssignmentSet, } from "./examiner.service.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, calculateRubricOverall, readStoredRubric, roundScore, } from "../utils/scoring.js";
 import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
@@ -396,11 +396,11 @@ export async function listAdminExaminers() {
     }));
 }
 /**
- * Assign examiners to a PAID submission that has no existing assignments yet.
- * Reuses the shared assignExaminersToSubmission service.
+ * Assign examiners to an Assignment-ready submission through the shared
+ * atomic assignment-set operation, exposing the created/existing outcome.
  */
 export async function assignExaminers(submissionId) {
-    return assignExaminersToSubmission(submissionId);
+    return createExaminerAssignmentSet(submissionId);
 }
 /**
  * Aggregate dashboard stats for the admin overview.

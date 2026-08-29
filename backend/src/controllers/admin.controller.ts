@@ -148,16 +148,23 @@ export async function assignSubmission(req: Request, res: Response) {
     });
   } catch (error) {
     if (error instanceof AssignmentSetError) {
+      // Approved mapping: missing Submission → 404; non-Assignment-ready,
+      // insufficient capacity, and invariant corruption → distinct 409 codes;
+      // exhausted contention → retryable 503.
       const status =
         error.code === "SUBMISSION_NOT_FOUND"
           ? 404
-          : error.code === "NOT_ASSIGNMENT_READY" ||
-              error.code === "INSUFFICIENT_CAPACITY"
-            ? 400
-            : error.code === "INVARIANT_VIOLATION"
-              ? 409
-              : 503;
-      res.status(status).json({ error: error.message, code: error.code });
+          : error.code === "ASSIGNMENT_BUSY"
+            ? 503
+            : 409;
+      res.status(status).json({
+        error: error.message,
+        code: error.code,
+        retryable: error.retryable,
+        ...(error.eligibleExaminerCount !== undefined
+          ? { eligibleExaminerCount: error.eligibleExaminerCount }
+          : {}),
+      });
       return;
     }
 
