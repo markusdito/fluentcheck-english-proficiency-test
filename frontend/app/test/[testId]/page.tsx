@@ -229,11 +229,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Watch for recording auto-stop (duration reached max, triggered inside useRecording)
   useEffect(() => {
-    const currentBlob = blob;
+    const currentBlob = blobRef.current;
     if (phase === "recording" && currentBlob && currentBlob.size > 0) {
       setPhase("stopped");
       const qId = currentQuestion?.id;
       if (qId) {
+        // The blob arrives from MediaRecorder's asynchronous onstop callback.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setPendingUploadTrigger({ qId, durationSeconds: recDuration });
       }
@@ -345,6 +346,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     stopStream();
     sessionStorage.removeItem("fluentcheck_hardware_passed");
     sessionStorage.removeItem("fluentcheck_hardware_video");
+    sessionStorage.removeItem("fluentcheck.assessment-start-key");
     window.location.href = "/dashboard";
   };
 
@@ -448,9 +450,11 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             <p className="mt-2 text-studio-text/70">
               You have answered all {totalQuestions} questions.
             </p>
-            {!allDone && (
+            {!allDone && !completionError && (
               <p className="mt-2 text-sm text-amber-400">
-                Uploading {pendingUploadsCount} remaining video{pendingUploadsCount !== 1 ? "s" : ""} in background...
+                {completionPending
+                  ? "Finalizing your submission..."
+                  : `Uploading ${pendingUploadsCount} remaining video${pendingUploadsCount !== 1 ? "s" : ""}...`}
               </p>
             )}
             {failedUploadsCount > 0 && (

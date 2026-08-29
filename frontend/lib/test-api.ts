@@ -61,6 +61,17 @@ export async function initializeSubmission(idempotencyKey: string): Promise<Init
   return res.data;
 }
 
+/** Resume the student's current manifest when a fresh tab has lost its key. */
+export async function resumeActiveSubmission(): Promise<InitializedSubmission> {
+  const res = await api.get<{ status: string; data: InitializedSubmission }>("/submissions/active");
+  return res.data;
+}
+
+/** Explicitly abandon an unfinished attempt before starting another one. */
+export async function abandonSubmission(submissionId: string): Promise<void> {
+  await api.post(`/submissions/${submissionId}/abandon`);
+}
+
 /**
  * Create a new test submission.
  * POST /api/submissions

@@ -3,10 +3,12 @@ import { initializeTest } from "@/lib/test-initialization";
 
 const mocks = vi.hoisted(() => ({
   initializeSubmission: vi.fn(),
+  resumeActiveSubmission: vi.fn(),
 }));
 
 vi.mock("@/lib/test-api", () => ({
   initializeSubmission: mocks.initializeSubmission,
+  resumeActiveSubmission: mocks.resumeActiveSubmission,
 }));
 
 describe("initializeTest", () => {
@@ -43,5 +45,22 @@ describe("initializeTest", () => {
         }),
       ],
     });
+  });
+
+  it("resumes the active manifest when initialization reports a conflict", async () => {
+    const { ApiError } = await import("@/lib/api");
+    mocks.initializeSubmission.mockRejectedValueOnce(new ApiError("An active Submission already exists", 409));
+    mocks.resumeActiveSubmission.mockResolvedValueOnce({
+      submissionId: "resumed-submission",
+      status: "IN_PROGRESS",
+      manifestId: "manifest-2",
+      version: 1,
+      entries: [],
+    });
+
+    const result = await initializeTest();
+
+    expect(mocks.resumeActiveSubmission).toHaveBeenCalledOnce();
+    expect(result.submissionId).toBe("resumed-submission");
   });
 });
