@@ -25,12 +25,26 @@ interface InitializationDependencies {
   chooseIndex?: (length: number) => number;
   signPromptMedia?: (storageKey: string, mimeType: string) => Promise<string>;
   now?: () => number;
+  deadline?: number;
+  attempt?: number;
+  observeFailure?: (event: {
+    classification: "BANK" | "PREPARATION" | "TIMEOUT" | "ELIGIBILITY_CONFLICT" | "UNKNOWN";
+    categoryCount: number;
+    failureCount: number;
+  }) => void;
 }
 
 export class ActiveSubmissionConflictError extends Error {
   constructor(readonly submissionId: string) {
     super("An active Submission already exists");
     this.name = "ActiveSubmissionConflictError";
+  }
+}
+
+class EligibilityConflictError extends Error {
+  constructor() {
+    super("Selected assessment evidence changed during initialization");
+    this.name = "EligibilityConflictError";
   }
 }
 
@@ -53,7 +67,7 @@ export async function initializeManifestSubmission(
 ) {
   const chooseIndex = dependencies.chooseIndex ?? ((length: number) => randomInt(length));
   const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
-  const deadline = (dependencies.now ?? Date.now)() + INITIALIZATION_DEADLINE_MS;
+  const deadline = dependencies.deadline ?? (dependencies.now ?? Date.now)() + INITIALIZATION_DEADLINE_MS;
 
   try {
     if (idempotencyKey) {
@@ -116,10 +130,15 @@ export async function initializeManifestSubmission(
         if (!question.audioStorageKey || !question.audioMimeType || question.audioSizeBytes === null) {
           throw new AssessmentUnavailableError();
         }
-        const promptMediaUrl = await withDeadline(
-          signPromptMedia(question.audioStorageKey, question.audioMimeType),
-          deadline,
-        );
+        let promptMediaUrl: string;
+        try {
+          promptMediaUrl = await withDeadline(
+            signPromptMedia(question.audioStorageKey, question.audioMimeType),
+            deadline,
+          );
+        } catch {
+          throw new AssessmentUnavailableError();
+        }
         if (!promptMediaUrl || !/^https:\/\//.test(promptMediaUrl)) {
           throw new AssessmentUnavailableError();
         }
@@ -146,11 +165,13 @@ export async function initializeManifestSubmission(
         if (
           !current || current.deletedAt || current.audioStorageKey !== item.question.audioStorageKey ||
           current.audioMimeType !== item.question.audioMimeType || current.audioSizeBytes !== item.question.audioSizeBytes ||
+          current.preparationSeconds !== item.question.preparationSeconds ||
+          current.recordingSeconds !== item.question.recordingSeconds ||
           current.tasks.length !== item.question.tasks.length || current.tasks.some((task, index) =>
             task.id !== item.question.tasks[index]?.id || task.promptText !== item.question.tasks[index]?.promptText ||
             task.order !== item.question.tasks[index]?.order)
         ) {
-          throw new AssessmentUnavailableError();
+          throw new EligibilityConflictError();
         }
         const entry = await tx.manifestEntry.create({
           data: {
@@ -217,6 +238,13 @@ export async function initializeManifestSubmission(
     });
     return { submissionId: result.submission.id, status: result.submission.status, manifestId: result.manifest.id, version: result.manifest.version, entries: safe };
   } catch (error) {
+    if (error instanceof EligibilityConflictError && (dependencies.attempt ?? 0) < 2) {
+      return initializeManifestSubmission(studentId, idempotencyKey, {
+        ...dependencies,
+        attempt: (dependencies.attempt ?? 0) + 1,
+        deadline,
+      });
+    }
     if (error instanceof Error && error.message.includes("Submission_one_active_per_student_key")) {
       const active = await prisma.submission.findFirst({
         where: { studentId, status: "IN_PROGRESS" },
@@ -224,7 +252,23 @@ export async function initializeManifestSubmission(
       });
       if (active) throw new ActiveSubmissionConflictError(active.id);
     }
-    if (error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError) {
+    if (dependencies.observeFailure && !(error instanceof ActiveSubmissionConflictError)) {
+      const classification = error instanceof EligibilityConflictError
+        ? "ELIGIBILITY_CONFLICT"
+        : error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError
+          ? "PREPARATION"
+          : "UNKNOWN";
+      try {
+        dependencies.observeFailure({
+          classification,
+          categoryCount: CATEGORIES.length,
+          failureCount: 1,
+        });
+      } catch {
+        // Observability failures must never alter initialization behavior.
+      }
+    }
+    if (error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError || error instanceof EligibilityConflictError) {
       throw new AssessmentUnavailableError();
     }
     throw error;
