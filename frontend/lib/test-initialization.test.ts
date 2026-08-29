@@ -37,6 +37,7 @@ describe("initializeTest", () => {
 
     expect(initialization).toEqual({
       submissionId: "submission-1",
+      uploadedEntryIds: [],
       questions: [
         expect.objectContaining({
           id: "entry-1",

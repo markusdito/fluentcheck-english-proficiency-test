@@ -1,8 +1,9 @@
 import type { QuestionUploadState, UploadStatus } from "@/types/test";
 
 /** Create an explicit state entry for every immutable manifest entry. */
-export function initializeUploadStates(entryIds: string[]): Record<string, QuestionUploadState> {
-  return Object.fromEntries(entryIds.map((entryId) => [entryId, { status: "idle" as const }]));
+export function initializeUploadStates(entryIds: string[], uploadedEntryIds: string[] = []): Record<string, QuestionUploadState> {
+  const uploaded = new Set(uploadedEntryIds);
+  return Object.fromEntries(entryIds.map((entryId) => [entryId, { status: uploaded.has(entryId) ? "uploaded" as const : "idle" as const }]));
 }
 
 /** A manifest is complete only when every known entry has server confirmation. */

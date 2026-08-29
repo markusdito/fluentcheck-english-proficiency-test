@@ -196,7 +196,7 @@ export async function getAdminSubmissionDetail(submissionId) {
         if (manifestEntry && (!promptStorageKey || !promptMimeType)) {
             throw new Error("Manifest evidence unavailable");
         }
-        if (promptStorageKey && (!manifestEntry || answer.question?.audioUploadStatus === "UPLOADED")) {
+        if (promptStorageKey && (manifestEntry || answer.question?.audioUploadStatus === "UPLOADED")) {
             try {
                 audioUrl = await createQuestionAudioViewUrlFromMetadata(promptStorageKey, promptMimeType);
             }

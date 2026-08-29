@@ -89,7 +89,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         const initialized = await initializeTest();
         setSubmissionId(initialized.submissionId);
         setQuestions(initialized.questions);
-        setUploadStates(initializeUploadStates(initialized.questions.map((question) => question.id)));
+        setUploadStates(initializeUploadStates(
+          initialized.questions.map((question) => question.id),
+          initialized.uploadedEntryIds,
+        ));
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to initialize test";
         setFetchError(message);

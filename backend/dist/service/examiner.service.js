@@ -131,7 +131,7 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
         if (manifestEntry && (!promptStorageKey || !promptMimeType)) {
             throw new Error("Manifest evidence unavailable");
         }
-        if (promptStorageKey && (!manifestEntry || answer.question?.audioUploadStatus === "UPLOADED")) {
+        if (promptStorageKey && (manifestEntry || answer.question?.audioUploadStatus === "UPLOADED")) {
             try {
                 audioUrl = await createQuestionAudioViewUrlFromMetadata(promptStorageKey, promptMimeType);
             }

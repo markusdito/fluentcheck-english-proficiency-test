@@ -272,7 +272,10 @@ export async function resumeManifestSubmission(studentId, dependencies = {}) {
     const submission = await prisma.submission.findFirst({
         where: { studentId, status: "IN_PROGRESS" },
         orderBy: { createdAt: "desc" },
-        include: { manifest: { include: { entries: { include: { tasks: true } } } } },
+        include: {
+            manifest: { include: { entries: { include: { tasks: true } } } },
+            answers: { select: { manifestEntryId: true, uploadStatus: true } },
+        },
     });
     if (!submission?.manifest)
         throw new AssessmentUnavailableError("No active assessment");
@@ -292,5 +295,14 @@ export async function resumeManifestSubmission(studentId, dependencies = {}) {
         })),
     };
     const entries = await buildManifestDelivery(manifest, signPromptMedia);
-    return { submissionId: submission.id, status: submission.status, manifestId: manifest.id, version: manifest.version, entries };
+    return {
+        submissionId: submission.id,
+        status: submission.status,
+        manifestId: manifest.id,
+        version: manifest.version,
+        entries,
+        uploadedEntryIds: submission.answers
+            .filter((answer) => answer.uploadStatus === "UPLOADED" && answer.manifestEntryId)
+            .map((answer) => answer.manifestEntryId),
+    };
 }

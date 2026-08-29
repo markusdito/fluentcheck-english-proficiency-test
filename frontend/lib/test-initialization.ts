@@ -5,6 +5,7 @@ import type { Prompt } from "@/types/test";
 export interface InitializedTest {
   submissionId: string;
   questions: Prompt[];
+  uploadedEntryIds: string[];
 }
 
 export async function initializeTest(): Promise<InitializedTest> {
@@ -31,6 +32,7 @@ export async function initializeTest(): Promise<InitializedTest> {
 
   return {
     submissionId: initialized.submissionId,
+    uploadedEntryIds: initialized.uploadedEntryIds ?? [],
     questions: initialized.entries.map((entry) => ({
       id: entry.id,
       audioUrl: entry.promptMediaUrl,

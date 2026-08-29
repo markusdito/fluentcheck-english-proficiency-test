@@ -50,6 +50,7 @@ export interface InitializedSubmission {
     promptMediaUrl: string;
     tasks: Array<{ order: number; promptText: string }>;
   }>;
+  uploadedEntryIds?: string[];
 }
 
 export async function initializeSubmission(idempotencyKey: string): Promise<InitializedSubmission> {
