@@ -15,17 +15,40 @@ import examinerRoutes from "./routes/examiner.routes.js";
 import { createPaymentRouter } from "./routes/payment.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import type { IpaymuTransport } from "./service/ipaymu.transport.js";
+import { createRateLimitConfig } from "./config/rate-limit.js";
+import {
+  RateLimitKeyUnavailableError,
+  RateLimitStoreUnavailableError,
+  createRateLimitRuntime,
+  type RateLimitRuntime,
+  type RateLimitRuntimeOptions,
+} from "./middleware/rate-limit.middleware.js";
 
 export interface AppDependencies {
   ipaymuTransport?: IpaymuTransport;
+  rateLimit?: RateLimitRuntimeOptions;
 }
 
-const unhandledRequestError: ErrorRequestHandler = (
+export const unhandledRequestError: ErrorRequestHandler = (
   error,
   _req,
   res,
   _next,
 ) => {
+  if (
+    error instanceof RateLimitStoreUnavailableError ||
+    error instanceof RateLimitKeyUnavailableError
+  ) {
+    console.error("Rate-limit request protection unavailable", {
+      code: error.code,
+      ...(error instanceof RateLimitStoreUnavailableError
+        ? { policyName: error.policyName, failureMode: error.failureMode }
+        : {}),
+    });
+    res.status(503).json({ error: "Service temporarily unavailable" });
+    return;
+  }
+
   console.error("Unhandled request error", {
     error: error instanceof Error ? error.message : "Unknown error",
   });
@@ -34,6 +57,11 @@ const unhandledRequestError: ErrorRequestHandler = (
 
 export function createApp(dependencies: AppDependencies = {}) {
   const app = express();
+  if (dependencies.rateLimit) {
+    const rateLimitRuntime = createRateLimitRuntime(dependencies.rateLimit);
+    app.locals.rateLimit = rateLimitRuntime;
+    app.set("trust proxy", rateLimitRuntime.config.trustProxy);
+  }
 
   app.use(
     cors({
@@ -62,16 +90,25 @@ export function createApp(dependencies: AppDependencies = {}) {
   return app;
 }
 
-function closeServer(server: Server, exitCode: number) {
+function closeServer(
+  server: Server,
+  exitCode: number,
+  rateLimitRuntime?: RateLimitRuntime,
+) {
   server.close(async () => {
+    await rateLimitRuntime?.shutdown();
     await disconnectDB();
     process.exit(exitCode);
   });
 }
 
 async function startServer() {
+  const rateLimitConfig = createRateLimitConfig();
   await connectDB();
-  const app = createApp();
+  const app = createApp({
+    rateLimit: { config: rateLimitConfig },
+  });
+  const rateLimitRuntime = app.locals.rateLimit as RateLimitRuntime;
   const port = process.env.PORT || 5001;
   const server = app.listen(port, () => {
     console.log(`Server started on port: ${port}`);
@@ -79,17 +116,17 @@ async function startServer() {
 
   process.on("unhandledRejection", (error) => {
     console.error("Unhandled Rejection: ", error);
-    closeServer(server, 1);
+    closeServer(server, 1, rateLimitRuntime);
   });
 
   process.on("uncaughtException", (error) => {
     console.error("Uncaught Exception: ", error);
-    closeServer(server, 1);
+    closeServer(server, 1, rateLimitRuntime);
   });
 
   process.on("SIGTERM", () => {
     console.log("SIGTERM received, shutting down gracefully");
-    closeServer(server, 0);
+    closeServer(server, 0, rateLimitRuntime);
   });
 }
 
