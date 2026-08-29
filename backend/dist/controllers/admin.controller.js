@@ -1,5 +1,6 @@
 import { listAdminUsers, changeUserRole, listAdminExaminers, assignExaminers, getAdminStats, getAdminSubmissionDetail, listAdminSubmissions, } from "../service/admin.service.js";
 import { getAppSettings, updatePaymentEnabled, } from "../service/settings.service.js";
+import { AssignmentSetError } from "../service/examiner.service.js";
 import { SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 const ADMIN_ROLES = ["STUDENT", "EXAMINER", "ADMIN"];
@@ -119,6 +120,18 @@ export async function assignSubmission(req, res) {
         });
     }
     catch (error) {
+        if (error instanceof AssignmentSetError) {
+            const status = error.code === "SUBMISSION_NOT_FOUND"
+                ? 404
+                : error.code === "NOT_ASSIGNMENT_READY" ||
+                    error.code === "INSUFFICIENT_CAPACITY"
+                    ? 400
+                    : error.code === "INVARIANT_VIOLATION"
+                        ? 409
+                        : 503;
+            res.status(status).json({ error: error.message, code: error.code });
+            return;
+        }
         if (error instanceof Prisma.PrismaClientKnownRequestError &&
             error.code === "P2002") {
             res.status(409).json({ error: "Examiners already assigned" });

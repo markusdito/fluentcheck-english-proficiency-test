@@ -1,4 +1,5 @@
 import { prisma } from "../config/db.js";
+import { Prisma } from "../generated/client.js";
 import {
   createQuestionAudioViewUrlFromMetadata,
   createVideoViewUrlFromMetadata,
@@ -75,6 +76,297 @@ export interface AssignExaminersResult {
   status: string;
   assignments: AssignmentCreationSummary[];
   assignedExaminers: AssignedExaminer[];
+}
+
+/**
+ * Stable outcome of the atomic Examiner assignment-set operation. `CREATED`
+ * marks a newly committed set; `EXISTING` replays an already committed one.
+ */
+export type AssignmentSetOutcome = "CREATED" | "EXISTING";
+
+/**
+ * Failure classification for assignment-set attempts. Capacity and contention
+ * failures are retryable; invariant failures require explicit data repair.
+ */
+export type AssignmentSetErrorCode =
+  | "SUBMISSION_NOT_FOUND"
+  | "NOT_ASSIGNMENT_READY"
+  | "INSUFFICIENT_CAPACITY"
+  | "INVARIANT_VIOLATION"
+  | "ASSIGNMENT_BUSY";
+
+export class AssignmentSetError extends Error {
+  public readonly code: AssignmentSetErrorCode;
+  public readonly retryable: boolean;
+  public readonly eligibleExaminerCount?: number;
+
+  constructor(
+    code: AssignmentSetErrorCode,
+    message: string,
+    options: {
+      retryable?: boolean;
+      eligibleExaminerCount?: number;
+    } = {},
+  ) {
+    super(message);
+    this.name = "AssignmentSetError";
+    this.code = code;
+    this.retryable = options.retryable ?? false;
+    this.eligibleExaminerCount = options.eligibleExaminerCount;
+  }
+}
+
+export interface CreateAssignmentSetOptions {
+  /**
+   * Injectable candidate selector for deterministic tests. Production uses
+   * unbiased random sampling. The selector receives the Eligible examiner ids
+   * and must return exactly two distinct ids.
+   */
+  selectCandidates?: (eligibleExaminerIds: string[]) => [string, string];
+}
+
+const ASSIGNMENT_SET_TRANSACTION_ATTEMPTS = 3;
+
+const ASSIGNMENT_READY_STATUSES = ["PAID"] as const;
+const ASSIGNMENT_READBACK_STATUSES = [
+  "SCORING",
+  "SCORED",
+  "CERTIFIED",
+] as const;
+
+function selectRandomCandidates(
+  eligibleExaminerIds: string[],
+): [string, string] {
+  const shuffled = [...eligibleExaminerIds];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swap]] = [shuffled[swap], shuffled[index]];
+  }
+  return [shuffled[0], shuffled[1]];
+}
+
+/**
+ * Read back an already committed assignment set in deterministic slot order.
+ * Any cardinality, slot, identity, or lifecycle irregularity fails closed:
+ * normal assignment never silently repairs or conceals corrupted history.
+ */
+async function readExistingAssignmentSet(
+  tx: Prisma.TransactionClient,
+  submissionId: string,
+): Promise<AssignExaminersResult | null> {
+  const submission = await tx.submission.findUnique({
+    where: { id: submissionId },
+    select: { status: true },
+  });
+  if (!submission) {
+    throw new AssignmentSetError(
+      "SUBMISSION_NOT_FOUND",
+      "Submission not found",
+    );
+  }
+
+  const assignments = await tx.examinerAssignment.findMany({
+    where: { submissionId },
+    orderBy: [{ slot: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      status: true,
+      slot: true,
+      examinerId: true,
+      examiner: { select: { id: true, username: true, email: true } },
+    },
+  });
+
+  if (assignments.length === 0) return null;
+
+  const populatedSlots = assignments
+    .map((assignment) => assignment.slot)
+    .filter((slot): slot is number => slot !== null);
+
+  const valid =
+    assignments.length === 2 &&
+    populatedSlots.length === 2 &&
+    new Set(populatedSlots).size === 2 &&
+    new Set(assignments.map((assignment) => assignment.examinerId)).size === 2 &&
+    (ASSIGNMENT_READBACK_STATUSES as readonly string[]).includes(
+      submission.status,
+    );
+
+  if (!valid) {
+    throw new AssignmentSetError(
+      "INVARIANT_VIOLATION",
+      "Existing Examiner assignment state is invalid and requires data repair",
+    );
+  }
+
+  return {
+    submissionId,
+    status: submission.status,
+    assignments: assignments.map((assignment) => ({
+      id: assignment.id,
+      status: assignment.status,
+      examinerName: assignment.examiner.username,
+    })),
+    assignedExaminers: assignments.map((assignment) => ({
+      id: assignment.examiner.id,
+      name: assignment.examiner.username,
+      email: assignment.examiner.email,
+    })),
+  };
+}
+
+/**
+ * Commit one complete Examiner assignment set: choose two Eligible examiners,
+ * populate both non-ranked slots, claim the Assignment-ready submission, and
+ * enter scoring through one serializable transaction. Repeated and concurrent
+ * attempts converge on the same committed set. Capacity shortages and
+ * malformed existing state leave the database unchanged.
+ */
+export async function createExaminerAssignmentSet(
+  submissionId: string,
+  options: CreateAssignmentSetOptions = {},
+): Promise<AssignExaminersResult & { outcome: AssignmentSetOutcome }> {
+  const selectCandidates = options.selectCandidates ?? selectRandomCandidates;
+
+  let lastContentionError: unknown;
+
+  for (let attempt = 1; attempt <= ASSIGNMENT_SET_TRANSACTION_ATTEMPTS; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const existing = await readExistingAssignmentSet(tx, submissionId);
+          if (existing) {
+            return { ...existing, outcome: "EXISTING" as const };
+          }
+
+          const submission = await tx.submission.findUnique({
+            where: { id: submissionId },
+            select: { status: true },
+          });
+          if (!submission) {
+            throw new AssignmentSetError(
+              "SUBMISSION_NOT_FOUND",
+              "Submission not found",
+            );
+          }
+          if (
+            !(ASSIGNMENT_READY_STATUSES as readonly string[]).includes(
+              submission.status,
+            )
+          ) {
+            throw new AssignmentSetError(
+              "NOT_ASSIGNMENT_READY",
+              "Submission is not Assignment-ready",
+            );
+          }
+
+          const eligible = await tx.user.findMany({
+            where: { role: "EXAMINER", deletedAt: null },
+            select: { id: true },
+          });
+          if (eligible.length < 2) {
+            throw new AssignmentSetError(
+              "INSUFFICIENT_CAPACITY",
+              "Two Eligible examiners are required",
+              { retryable: true, eligibleExaminerCount: eligible.length },
+            );
+          }
+
+          const [firstId, secondId] = selectCandidates(
+            eligible.map((examiner) => examiner.id),
+          );
+          if (!firstId || !secondId || firstId === secondId) {
+            throw new AssignmentSetError(
+              "INVARIANT_VIOLATION",
+              "Candidate selection must return two distinct examiners",
+            );
+          }
+
+          // Lock and revalidate both chosen accounts so a concurrent role
+          // change or soft delete cannot invalidate the selection mid-flight.
+          const locked = await tx.$queryRaw<{ id: string; role: string; deletedAt: Date | null }[]>`
+            SELECT "id", "role"::text AS "role", "deletedAt"
+              FROM "User"
+             WHERE "id" IN (${firstId}::uuid, ${secondId}::uuid)
+             ORDER BY "id"
+             FOR UPDATE
+          `;
+          if (
+            locked.length !== 2 ||
+            locked.some(
+              (account) =>
+                account.role !== "EXAMINER" || account.deletedAt !== null,
+            )
+          ) {
+            throw new AssignmentSetError(
+              "INSUFFICIENT_CAPACITY",
+              "Two Eligible examiners are required",
+              { retryable: true, eligibleExaminerCount: locked.length },
+            );
+          }
+
+          // Conditionally claim the Assignment-ready submission. Only the
+          // winning claim inserts the assignment set and enters scoring.
+          const claim = await tx.submission.updateMany({
+            where: { id: submissionId, status: "PAID" },
+            data: { status: "SCORING" },
+          });
+          if (claim.count !== 1) {
+            throw new AssignmentSetError(
+              "NOT_ASSIGNMENT_READY",
+              "Submission is not Assignment-ready",
+            );
+          }
+
+          const created: AssignmentCreationSummary[] = [];
+          for (const [slot, examinerId] of [
+            [1, firstId],
+            [2, secondId],
+          ] as const) {
+            const assignment = await tx.examinerAssignment.create({
+              data: { submissionId, examinerId, slot, status: "ASSIGNED" },
+              select: { id: true, status: true, examiner: { select: { username: true } } },
+            });
+            created.push({
+              id: assignment.id,
+              status: assignment.status,
+              examinerName: assignment.examiner.username,
+            });
+          }
+
+          const assignedExaminers = await tx.user.findMany({
+            where: { id: { in: [firstId, secondId] } },
+            select: { id: true, username: true, email: true },
+            orderBy: { id: "asc" },
+          });
+
+          return {
+            submissionId,
+            status: "SCORING",
+            outcome: "CREATED" as const,
+            assignments: created,
+            assignedExaminers: assignedExaminers.map((examiner) => ({
+              id: examiner.id,
+              name: examiner.username,
+              email: examiner.email,
+            })),
+          };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (error instanceof AssignmentSetError) throw error;
+      const isContention =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === "P2034" || error.code === "P2024");
+      if (!isContention || attempt === ASSIGNMENT_SET_TRANSACTION_ATTEMPTS) {
+        throw error;
+      }
+      lastContentionError = error;
+    }
+  }
+
+  throw lastContentionError ?? new Error("Assignment transaction failed");
 }
 
 /**
@@ -274,67 +566,12 @@ export async function getExaminerAssignmentDetail(
 export async function assignExaminersToSubmission(
   submissionId: string
 ): Promise<AssignExaminersResult> {
-  const examiners = await prisma.user.findMany({
-    where: { role: "EXAMINER" },
-    select: { id: true, username: true, email: true },
-  });
-
-  if (examiners.length === 0) {
-    throw new Error("No examiners available. Create an examiner user first.");
-  }
-
-  const shuffled = [...examiners].sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, Math.min(2, shuffled.length));
-
-  const assignments = await prisma.$transaction(async (tx) => {
-    const submission = await tx.submission.findUnique({
-      where: { id: submissionId },
-      select: { status: true },
-    });
-    if (!submission) throw new Error("Submission not found");
-    if (submission.status !== "PAID") {
-      throw new Error("Submission must be in PAID status");
-    }
-
-    const existing = await tx.examinerAssignment.count({
-      where: { submissionId },
-    });
-    if (existing > 0) throw new Error("Examiners already assigned");
-
-    const created: AssignmentCreationSummary[] = [];
-    for (const examiner of selected) {
-      const assignment = await tx.examinerAssignment.create({
-        data: {
-          submissionId,
-          examinerId: examiner.id,
-          status: "ASSIGNED",
-        },
-        select: { id: true, status: true },
-      });
-      created.push({
-        id: assignment.id,
-        status: assignment.status,
-        examinerName: examiner.username,
-      });
-    }
-
-    await tx.submission.update({
-      where: { id: submissionId },
-      data: { status: "SCORING" },
-    });
-
-    return created;
-  });
-
+  const result = await createExaminerAssignmentSet(submissionId);
   return {
-    submissionId,
-    status: "SCORING",
-    assignments,
-    assignedExaminers: selected.map((examiner) => ({
-      id: examiner.id,
-      name: examiner.username,
-      email: examiner.email,
-    })),
+    submissionId: result.submissionId,
+    status: result.status,
+    assignments: result.assignments,
+    assignedExaminers: result.assignedExaminers,
   };
 }
 

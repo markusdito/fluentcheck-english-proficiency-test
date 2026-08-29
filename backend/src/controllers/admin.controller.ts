@@ -12,6 +12,7 @@ import {
   getAppSettings,
   updatePaymentEnabled,
 } from "../service/settings.service.js";
+import { AssignmentSetError } from "../service/examiner.service.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 
@@ -146,6 +147,20 @@ export async function assignSubmission(req: Request, res: Response) {
       data: result,
     });
   } catch (error) {
+    if (error instanceof AssignmentSetError) {
+      const status =
+        error.code === "SUBMISSION_NOT_FOUND"
+          ? 404
+          : error.code === "NOT_ASSIGNMENT_READY" ||
+              error.code === "INSUFFICIENT_CAPACITY"
+            ? 400
+            : error.code === "INVARIANT_VIOLATION"
+              ? 409
+              : 503;
+      res.status(status).json({ error: error.message, code: error.code });
+      return;
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
