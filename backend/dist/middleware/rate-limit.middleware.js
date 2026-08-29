@@ -113,6 +113,11 @@ function safeLogger() {
     };
 }
 export function createRateLimitRuntime(options) {
+    const requiresSharedStore = options.config.storeType === "shared" ||
+        options.config.topology !== "single-process";
+    if (requiresSharedStore && !options.storeFactory) {
+        throw new Error("A shared rate-limit store factory is required for the configured topology");
+    }
     const storeFactory = options.storeFactory ?? (() => new MemoryStore());
     const reportFailure = options.onStoreFailure ??
         ((event) => {

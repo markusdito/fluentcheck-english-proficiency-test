@@ -3,7 +3,9 @@ import { env } from "./env.js";
 const IPV6_SUBNET_DEFAULT = 56;
 const RATE_LIMIT_SECRET_MIN_BYTES = 32;
 const MAX_MEMORY_STORE_WINDOW_MS = 2 ** 32 - 1;
-function assertPositiveInteger(value, label) {
+const RATE_LIMIT_STORE_TIMEOUT_DEFAULT_MS = 1_000;
+const RATE_LIMIT_STORE_TIMEOUT_MAX_MS = 60_000;
+export function assertPositiveInteger(value, label) {
     if (!Number.isSafeInteger(value) || value <= 0) {
         throw new Error(`${label} must be a positive integer`);
     }
@@ -61,6 +63,40 @@ function parseIpv6Subnet(value) {
     }
     return subnet;
 }
+export function parseRateLimitTopology(value, nodeEnv = process.env.NODE_ENV ?? "development") {
+    if (value === undefined) {
+        if (nodeEnv === "production") {
+            throw new Error("RATE_LIMIT_TOPOLOGY must be explicitly set to single-process, multi-process, or multi-instance in production");
+        }
+        return "single-process";
+    }
+    if (value !== "single-process" &&
+        value !== "multi-process" &&
+        value !== "multi-instance") {
+        throw new Error("RATE_LIMIT_TOPOLOGY must be single-process, multi-process, or multi-instance");
+    }
+    return value;
+}
+export function parseRateLimitStoreType(value) {
+    if (value === undefined || value === "memory")
+        return "memory";
+    if (value === "shared")
+        return "shared";
+    throw new Error("RATE_LIMIT_STORE must be memory or shared");
+}
+function parseRateLimitStoreTimeout(value) {
+    const timeoutValue = value === undefined
+        ? RATE_LIMIT_STORE_TIMEOUT_DEFAULT_MS
+        : typeof value === "number"
+            ? value
+            : Number(value);
+    if (!Number.isSafeInteger(timeoutValue) ||
+        timeoutValue <= 0 ||
+        timeoutValue > RATE_LIMIT_STORE_TIMEOUT_MAX_MS) {
+        throw new Error(`RATE_LIMIT_STORE_TIMEOUT_MS must be a positive integer no greater than ${RATE_LIMIT_STORE_TIMEOUT_MAX_MS}`);
+    }
+    return timeoutValue;
+}
 export function createRateLimitConfig(input = {}) {
     const hmacSecret = input.hmacSecret ?? env.RATE_LIMIT_HMAC_SECRET;
     if (!hmacSecret || Buffer.byteLength(hmacSecret, "utf8") < RATE_LIMIT_SECRET_MIN_BYTES) {
@@ -71,10 +107,19 @@ export function createRateLimitConfig(input = {}) {
         throw new Error("RATE_LIMIT_HMAC_SECRET must be distinct from JWT_SECRET");
     }
     const nodeEnv = input.nodeEnv ?? env.NODE_ENV;
+    const trustProxy = parseRateLimitTrustProxy(input.trustProxy ?? env.RATE_LIMIT_TRUST_PROXY, nodeEnv);
+    const topology = parseRateLimitTopology(input.topology ?? env.RATE_LIMIT_TOPOLOGY, nodeEnv);
+    const storeType = parseRateLimitStoreType(input.storeType ?? env.RATE_LIMIT_STORE);
+    if (topology !== "single-process" && storeType !== "shared") {
+        throw new Error("RATE_LIMIT_STORE must be shared for multi-process or multi-instance topology");
+    }
     return Object.freeze({
         hmacSecret,
-        trustProxy: parseRateLimitTrustProxy(input.trustProxy ?? env.RATE_LIMIT_TRUST_PROXY, nodeEnv),
+        trustProxy,
         ipv6Subnet: parseIpv6Subnet(input.ipv6Subnet ?? env.RATE_LIMIT_IPV6_SUBNET),
+        topology,
+        storeType,
+        storeTimeoutMs: parseRateLimitStoreTimeout(input.storeTimeoutMs ?? env.RATE_LIMIT_STORE_TIMEOUT_MS),
     });
 }
 export function defineRateLimitPolicy(input) {

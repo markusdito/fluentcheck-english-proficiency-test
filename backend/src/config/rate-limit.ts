@@ -3,6 +3,11 @@ import { env } from "./env.js";
 
 export type RateLimitFailureMode = "fail-closed" | "fail-open";
 export type RateLimitScope = "ip" | "account" | "email";
+export type RateLimitTopology =
+  | "single-process"
+  | "multi-process"
+  | "multi-instance";
+export type RateLimitStoreType = "memory" | "shared";
 
 export interface RateLimitPolicy {
   readonly name: string;
@@ -26,6 +31,9 @@ export interface RateLimitConfig {
   readonly hmacSecret: string;
   readonly trustProxy: false | readonly string[];
   readonly ipv6Subnet: number | false;
+  readonly topology: RateLimitTopology;
+  readonly storeType: RateLimitStoreType;
+  readonly storeTimeoutMs: number;
 }
 
 export interface RateLimitConfigInput {
@@ -34,13 +42,18 @@ export interface RateLimitConfigInput {
   readonly trustProxy?: string;
   readonly ipv6Subnet?: number | string | false;
   readonly nodeEnv?: string;
+  readonly topology?: RateLimitTopology | string;
+  readonly storeType?: RateLimitStoreType | string;
+  readonly storeTimeoutMs?: number | string;
 }
 
 const IPV6_SUBNET_DEFAULT = 56;
 const RATE_LIMIT_SECRET_MIN_BYTES = 32;
 const MAX_MEMORY_STORE_WINDOW_MS = 2 ** 32 - 1;
+const RATE_LIMIT_STORE_TIMEOUT_DEFAULT_MS = 1_000;
+const RATE_LIMIT_STORE_TIMEOUT_MAX_MS = 60_000;
 
-function assertPositiveInteger(value: number, label: string) {
+export function assertPositiveInteger(value: number, label: string) {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${label} must be a positive integer`);
   }
@@ -112,6 +125,58 @@ function parseIpv6Subnet(value: number | string | false | undefined): number | f
   return subnet;
 }
 
+export function parseRateLimitTopology(
+  value: string | undefined,
+  nodeEnv = process.env.NODE_ENV ?? "development",
+): RateLimitTopology {
+  if (value === undefined) {
+    if (nodeEnv === "production") {
+      throw new Error(
+        "RATE_LIMIT_TOPOLOGY must be explicitly set to single-process, multi-process, or multi-instance in production",
+      );
+    }
+    return "single-process";
+  }
+
+  if (
+    value !== "single-process" &&
+    value !== "multi-process" &&
+    value !== "multi-instance"
+  ) {
+    throw new Error(
+      "RATE_LIMIT_TOPOLOGY must be single-process, multi-process, or multi-instance",
+    );
+  }
+  return value;
+}
+
+export function parseRateLimitStoreType(
+  value: string | undefined,
+): RateLimitStoreType {
+  if (value === undefined || value === "memory") return "memory";
+  if (value === "shared") return "shared";
+  throw new Error("RATE_LIMIT_STORE must be memory or shared");
+}
+
+function parseRateLimitStoreTimeout(value: number | string | undefined): number {
+  const timeoutValue =
+    value === undefined
+      ? RATE_LIMIT_STORE_TIMEOUT_DEFAULT_MS
+      : typeof value === "number"
+        ? value
+        : Number(value);
+  if (
+    !Number.isSafeInteger(timeoutValue) ||
+    timeoutValue <= 0 ||
+    timeoutValue > RATE_LIMIT_STORE_TIMEOUT_MAX_MS
+  ) {
+    throw new Error(
+      `RATE_LIMIT_STORE_TIMEOUT_MS must be a positive integer no greater than ${RATE_LIMIT_STORE_TIMEOUT_MAX_MS}`,
+    );
+  }
+  return timeoutValue;
+}
+
 export function createRateLimitConfig(input: RateLimitConfigInput = {}): RateLimitConfig {
   const hmacSecret = input.hmacSecret ?? env.RATE_LIMIT_HMAC_SECRET;
   if (!hmacSecret || Buffer.byteLength(hmacSecret, "utf8") < RATE_LIMIT_SECRET_MIN_BYTES) {
@@ -124,14 +189,33 @@ export function createRateLimitConfig(input: RateLimitConfigInput = {}): RateLim
   }
 
   const nodeEnv = input.nodeEnv ?? env.NODE_ENV;
+  const trustProxy = parseRateLimitTrustProxy(
+    input.trustProxy ?? env.RATE_LIMIT_TRUST_PROXY,
+    nodeEnv,
+  );
+  const topology = parseRateLimitTopology(
+    input.topology ?? env.RATE_LIMIT_TOPOLOGY,
+    nodeEnv,
+  );
+  const storeType = parseRateLimitStoreType(
+    input.storeType ?? env.RATE_LIMIT_STORE,
+  );
+  if (topology !== "single-process" && storeType !== "shared") {
+    throw new Error(
+      "RATE_LIMIT_STORE must be shared for multi-process or multi-instance topology",
+    );
+  }
+
   return Object.freeze({
     hmacSecret,
-    trustProxy: parseRateLimitTrustProxy(
-      input.trustProxy ?? env.RATE_LIMIT_TRUST_PROXY,
-      nodeEnv,
-    ),
+    trustProxy,
     ipv6Subnet: parseIpv6Subnet(
       input.ipv6Subnet ?? env.RATE_LIMIT_IPV6_SUBNET,
+    ),
+    topology,
+    storeType,
+    storeTimeoutMs: parseRateLimitStoreTimeout(
+      input.storeTimeoutMs ?? env.RATE_LIMIT_STORE_TIMEOUT_MS,
     ),
   });
 }

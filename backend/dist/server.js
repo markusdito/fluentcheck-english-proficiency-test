@@ -14,6 +14,7 @@ import examinerRoutes from "./routes/examiner.routes.js";
 import { createPaymentRouter } from "./routes/payment.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { createRateLimitConfig } from "./config/rate-limit.js";
+import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";
 import { RateLimitKeyUnavailableError, RateLimitStoreUnavailableError, createRateLimitRuntime, } from "./middleware/rate-limit.middleware.js";
 export const unhandledRequestError = (error, _req, res, _next) => {
     if (error instanceof RateLimitStoreUnavailableError ||
@@ -69,9 +70,13 @@ function closeServer(server, exitCode, rateLimitRuntime) {
 }
 async function startServer() {
     const rateLimitConfig = createRateLimitConfig();
+    const rateLimitStoreFactory = createConfiguredRateLimitStoreFactory(rateLimitConfig);
     await connectDB();
     const app = createApp({
-        rateLimit: { config: rateLimitConfig },
+        rateLimit: {
+            config: rateLimitConfig,
+            storeFactory: rateLimitStoreFactory,
+        },
     });
     const rateLimitRuntime = app.locals.rateLimit;
     const port = process.env.PORT || 5001;

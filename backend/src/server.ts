@@ -16,6 +16,7 @@ import { createPaymentRouter } from "./routes/payment.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import type { IpaymuTransport } from "./service/ipaymu.transport.js";
 import { createRateLimitConfig } from "./config/rate-limit.js";
+import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";
 import {
   RateLimitKeyUnavailableError,
   RateLimitStoreUnavailableError,
@@ -104,9 +105,14 @@ function closeServer(
 
 async function startServer() {
   const rateLimitConfig = createRateLimitConfig();
+  const rateLimitStoreFactory =
+    createConfiguredRateLimitStoreFactory(rateLimitConfig);
   await connectDB();
   const app = createApp({
-    rateLimit: { config: rateLimitConfig },
+    rateLimit: {
+      config: rateLimitConfig,
+      storeFactory: rateLimitStoreFactory,
+    },
   });
   const rateLimitRuntime = app.locals.rateLimit as RateLimitRuntime;
   const port = process.env.PORT || 5001;
