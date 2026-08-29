@@ -21,7 +21,7 @@ When a new Submission is created, FluentCheck selects one Eligible question from
 - Initialization retries reuse an idempotency key and do not create duplicate Submissions.
 - Successful idempotency results remain available with the Retained submission; failed attempts that create no Submission remain retryable.
 - Seed fixtures represent a complete uploaded-media bank; real R2 provisioning remains a separate verification concern.
-- Submission completion requires exactly one uploaded Answer for every manifest entry and does not consult the current Question bank.
+- Submission completion requires exactly one Verified answer for every Manifest entry and does not consult the current Question bank.
 - The frontend presents assessment unavailability as a server-owned condition with retry and support guidance.
 - The former standalone student delivery route is transitional only and is not an authoritative source of delivery.
 

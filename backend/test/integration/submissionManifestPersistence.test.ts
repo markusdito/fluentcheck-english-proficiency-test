@@ -16,11 +16,22 @@ let container: StartedPostgreSqlContainer;
 let constraintsClient: Client;
 let nextQuestionOrder = 820_000;
 
-async function createDatabase(name: string) {
+const createDatabaseSql = {
+  manifest_additive_migration:
+    'CREATE DATABASE "manifest_additive_migration"',
+  manifest_constraints: 'CREATE DATABASE "manifest_constraints"',
+  manifest_preflight: 'CREATE DATABASE "manifest_preflight"',
+  manifest_preflight_broken_task:
+    'CREATE DATABASE "manifest_preflight_broken_task"',
+  manifest_preflight_single_active:
+    'CREATE DATABASE "manifest_preflight_single_active"',
+} as const;
+
+async function createDatabase(name: keyof typeof createDatabaseSql) {
   const client = new Client({ connectionString: container.getConnectionUri() });
   await client.connect();
   try {
-    await client.query(`CREATE DATABASE "${name}"`);
+    await client.query(createDatabaseSql[name]);
   } finally {
     await client.end();
   }
@@ -625,7 +636,6 @@ test("the read-only preflight reports Legacy lifecycle, Answers, conflicts, and 
         manifestAnswersWithoutEntries: 0,
       },
       laterEnforcementViolations: {
-        activeLegacySubmissions: 2,
         answersWithNoIdentity: 0,
         answersWithCompetingIdentities: 0,
         manifestAnswersWithSubmissionMismatch: 0,
@@ -634,6 +644,74 @@ test("the read-only preflight reports Legacy lifecycle, Answers, conflicts, and 
       exitCode: 1,
     });
     assert.deepEqual(afterCounts.rows, beforeCounts.rows);
+  } finally {
+    await client.end();
+  }
+}, { timeout: 120_000 });
+
+test("the preflight permits one active Legacy Submission while still reporting it", async () => {
+  const databaseUrl = await createDatabase("manifest_preflight_single_active");
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+
+  try {
+    for (const name of await migrationNames()) {
+      await applyMigration(client, name);
+    }
+    const fixture = await createManifestSources(
+      client,
+      `single-active-${randomUUID()}`,
+    );
+    await client.query(
+      `INSERT INTO "Submission"
+        ("id", "studentId", "status", "createdAt", "updatedAt")
+       VALUES ($1, $2, 'IN_PROGRESS', NOW(), NOW())`,
+      [randomUUID(), fixture.studentId],
+    );
+
+    const result = await inspectSubmissionManifestReadiness(client);
+    assert.equal(result.legacy.submissionCount, 1);
+    assert.deepEqual(result.duplicateActiveLegacySubmissions, []);
+    assert.equal(result.exitCode, 0);
+  } finally {
+    await client.end();
+  }
+}, { timeout: 120_000 });
+
+test("the preflight detects Manifest Tasks whose source Question disagrees with their entry", async () => {
+  const databaseUrl = await createDatabase("manifest_preflight_broken_task");
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+
+  try {
+    for (const name of await migrationNames()) {
+      await applyMigration(client, name);
+    }
+    const fixture = await createManifestSources(
+      client,
+      `broken-task-${randomUUID()}`,
+    );
+    await client.query("BEGIN");
+    const manifest = await insertSubmissionManifest(client, fixture, 3);
+    await client.query("COMMIT");
+    await client.query(
+      'ALTER TABLE "ManifestTask" DROP CONSTRAINT "ManifestTask_manifestEntryId_sourceQuestionId_fkey"',
+    );
+    await client.query(
+      `INSERT INTO "ManifestTask"
+        ("id", "manifestEntryId", "sourceTaskId", "sourceQuestionId", "deliveredOrder")
+       VALUES ($1, $2, $3, $4, 2)`,
+      [
+        randomUUID(),
+        manifest.entryIds[0],
+        fixture.questions[1].taskId,
+        fixture.questions[1].questionId,
+      ],
+    );
+
+    const result = await inspectSubmissionManifestReadiness(client);
+    assert.equal(result.brokenReferences.manifestTasksWithoutEntries, 1);
+    assert.equal(result.exitCode, 1);
   } finally {
     await client.end();
   }

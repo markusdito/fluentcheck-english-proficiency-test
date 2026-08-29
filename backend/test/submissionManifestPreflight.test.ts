@@ -26,7 +26,6 @@ const conflictReport: SubmissionManifestPreflightResult = {
     manifestAnswersWithoutEntries: 0,
   },
   laterEnforcementViolations: {
-    activeLegacySubmissions: 2,
     answersWithNoIdentity: 0,
     answersWithCompetingIdentities: 0,
     manifestAnswersWithSubmissionMismatch: 0,

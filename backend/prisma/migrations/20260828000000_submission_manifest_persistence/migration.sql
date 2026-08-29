@@ -115,9 +115,26 @@ FOREIGN KEY ("manifestEntryId", "submissionId")
 REFERENCES "ManifestEntry"("id", "submissionId")
 ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- Version 1 is complete only when all three Required categories and positions
--- exist. The check is deferred so callers can build the relational aggregate in
--- any order inside one transaction while an incomplete commit still fails.
+-- Keep the exact version-1 predicate reusable by constraint enforcement and the
+-- operator preflight so those two boundaries cannot drift apart.
+CREATE FUNCTION submission_manifest_v1_has_exact_shape(target_manifest_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT COUNT(*) = 3
+       AND COUNT(*) FILTER (WHERE "category" = 'PART_1') = 1
+       AND COUNT(*) FILTER (WHERE "category" = 'PART_2') = 1
+       AND COUNT(*) FILTER (WHERE "category" = 'PART_3') = 1
+       AND COUNT(*) FILTER (WHERE "deliveryPosition" = 1) = 1
+       AND COUNT(*) FILTER (WHERE "deliveryPosition" = 2) = 1
+       AND COUNT(*) FILTER (WHERE "deliveryPosition" = 3) = 1
+      FROM "ManifestEntry"
+     WHERE "manifestId" = target_manifest_id;
+$$;
+
+-- The check is deferred so callers can build the relational aggregate in any
+-- order inside one transaction while an incomplete commit still fails.
 CREATE FUNCTION enforce_submission_manifest_v1_shape()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -142,16 +159,9 @@ BEGIN
         RETURN NULL;
     END IF;
 
-    SELECT COUNT(*) = 3
-       AND COUNT(*) FILTER (WHERE "category" = 'PART_1') = 1
-       AND COUNT(*) FILTER (WHERE "category" = 'PART_2') = 1
-       AND COUNT(*) FILTER (WHERE "category" = 'PART_3') = 1
-       AND COUNT(*) FILTER (WHERE "deliveryPosition" = 1) = 1
-       AND COUNT(*) FILTER (WHERE "deliveryPosition" = 2) = 1
-       AND COUNT(*) FILTER (WHERE "deliveryPosition" = 3) = 1
-      INTO has_exact_shape
-      FROM "ManifestEntry"
-     WHERE "manifestId" = target_manifest_id;
+    has_exact_shape := submission_manifest_v1_has_exact_shape(
+      target_manifest_id
+    );
 
     IF NOT has_exact_shape THEN
         RAISE EXCEPTION
