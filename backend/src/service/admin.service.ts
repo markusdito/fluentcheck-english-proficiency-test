@@ -4,6 +4,7 @@ import { Role, SubmissionStatus } from "../generated/enums.js";
 import {
   createExaminerAssignmentSet,
   type AssignExaminersResult,
+  type AssignmentSetOutcome,
 } from "./examiner.service.js";
 import {
   createQuestionAudioViewUrlFromMetadata,
@@ -468,7 +469,7 @@ export async function listAdminExaminers() {
  */
 export async function assignExaminers(
   submissionId: string
-): Promise<AssignExaminersResult & { outcome: string }> {
+): Promise<AssignExaminersResult & { outcome: AssignmentSetOutcome }> {
   return createExaminerAssignmentSet(submissionId);
 }
 

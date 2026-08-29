@@ -113,10 +113,7 @@ test("a committed set has exactly two distinct examiners in slots 1 and 2 and en
   assert.equal(result.outcome, "CREATED");
   assert.equal(result.status, "SCORING");
   assert.equal(result.assignments.length, 2);
-  assert.deepEqual(
-    result.assignedExaminers.map((examiner) => examiner.id).sort(),
-    result.assignedExaminers.map((examiner) => examiner.id).sort(),
-  );
+  assert.equal(new Set(result.assignedExaminers.map((examiner) => examiner.id)).size, 2);
 
   const rows = await prisma.examinerAssignment.findMany({
     where: { submissionId: submission.id },
@@ -125,6 +122,10 @@ test("a committed set has exactly two distinct examiners in slots 1 and 2 and en
   assert.equal(rows.length, 2);
   assert.deepEqual(rows.map((row) => row.slot), [1, 2]);
   assert.notEqual(rows[0].examinerId, rows[1].examinerId);
+  assert.deepEqual(
+    rows.map((row) => row.examinerId).sort(),
+    result.assignedExaminers.map((examiner) => examiner.id).sort(),
+  );
   assert.deepEqual(
     rows.map((row) => row.status),
     ["ASSIGNED", "ASSIGNED"],

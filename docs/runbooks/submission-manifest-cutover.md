@@ -37,7 +37,7 @@ report is read-only; operators must reconcile the named conflicts and rerun it.
    the following commands, then record it in Prisma's migration history:
 
    ```sh
-   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+   psql "$DATABASE_URL" --single-transaction -v ON_ERROR_STOP=1 \
      -f "prisma/migrations/<migration-name>/migration.sql"
    npx prisma migrate resolve --schema prisma/schema.prisma \
      --applied "<migration-name>"

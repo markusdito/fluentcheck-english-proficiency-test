@@ -245,6 +245,7 @@ interface AssignmentEvidenceSnapshot {
     id: string;
     submissionId: string;
     examinerId: string;
+    slot: number | null;
     status: string;
     createdAt: string;
     updatedAt: string;
@@ -267,9 +268,14 @@ interface AssignmentEvidenceSnapshot {
 async function readAssignmentEvidence(
   client: Client,
   submissionIds: string[],
+  includeSlots = false,
 ): Promise<AssignmentEvidenceSnapshot> {
+  const slotExpression = includeSlots
+    ? '"slot"'
+    : 'NULL::integer';
   const assignments = await client.query<AssignmentEvidenceSnapshot["assignments"][number]>(
-    `SELECT "id", "submissionId", "examinerId", "status"::text AS "status",
+    `SELECT "id", "submissionId", "examinerId", ${slotExpression} AS "slot",
+            "status"::text AS "status",
             "createdAt"::text AS "createdAt", "updatedAt"::text AS "updatedAt"
        FROM "ExaminerAssignment"
       WHERE "submissionId" = ANY($1::uuid[])
@@ -378,7 +384,18 @@ test("the expansion migration fails closed on partial, excess, and lifecycle-inc
       /Irregular Examiner assignment sets/,
     );
 
-    assert.deepEqual(await readAssignmentEvidence(client, submissionIds), before);
+    await client.query("ROLLBACK").catch(() => undefined);
+    const slotColumn = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+           FROM information_schema.columns
+          WHERE table_name = 'ExaminerAssignment' AND column_name = 'slot'
+       ) AS "exists"`,
+    );
+    assert.deepEqual(
+      await readAssignmentEvidence(client, submissionIds, slotColumn.rows[0]?.exists === true),
+      before,
+    );
   } finally {
     await client.end();
   }

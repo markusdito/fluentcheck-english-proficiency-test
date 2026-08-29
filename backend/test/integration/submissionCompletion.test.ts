@@ -8,10 +8,11 @@ import type { Server } from "node:http";
 import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { Prisma, PrismaClient } from "../../src/generated/client.js";
 
 const execFileAsync = promisify(execFile);
 let container: StartedPostgreSqlContainer;
-let prisma: any;
+let prisma: PrismaClient;
 let disconnectDB: (() => Promise<void>) | undefined;
 let app: Express;
 let server: Server;
@@ -59,10 +60,10 @@ async function fixture() {
       password: "unused",
     },
   });
-  const { submission, entries } = await prisma.$transaction(async (tx: any) => {
+  const { submission, entries } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const submission = await tx.submission.create({ data: { studentId: student.id } });
     const manifest = await tx.submissionManifest.create({ data: { submissionId: submission.id, version: 1 } });
-    const entries: any[] = [];
+    const entries: Prisma.ManifestEntryGetPayload<{}>[] = [];
     for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
       const question = await tx.question.create({
         data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
@@ -110,11 +111,11 @@ test("completion requires exact server proofs and is idempotent after the atomic
   });
   const first = await complete();
   assert.equal(first.status, 200);
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } })).status, "AWAITING_PAYMENT");
+  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "AWAITING_PAYMENT");
 
   const replay = await complete();
   assert.equal(replay.status, 200);
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } })).status, "AWAITING_PAYMENT");
+  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "AWAITING_PAYMENT");
 });
 
 test("pending or invalidated evidence leaves the submission in progress", async () => {
@@ -140,10 +141,13 @@ test("pending or invalidated evidence leaves the submission in progress", async 
     headers: { Cookie: cookie(student.id) },
   });
   assert.equal(response.status, 400);
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } })).status, "IN_PROGRESS");
+  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "IN_PROGRESS");
 });
 
-async function provisionVerifiedAnswers(entries: any[], submissionId: string) {
+async function provisionVerifiedAnswers(
+  entries: Prisma.ManifestEntryGetPayload<{}>[],
+  submissionId: string,
+) {
   for (const entry of entries) {
     await prisma.answer.create({
       data: {

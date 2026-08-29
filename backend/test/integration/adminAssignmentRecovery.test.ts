@@ -8,10 +8,16 @@ import type { Server } from "node:http";
 import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import type { Prisma, PrismaClient } from "../../src/generated/client.js";
+import type {
+  AssignExaminersResult,
+  AssignmentSetOutcome,
+} from "../../src/service/examiner.service.js";
+import type { SubmissionStatus } from "../../src/generated/enums.js";
 
 const execFileAsync = promisify(execFile);
 let container: StartedPostgreSqlContainer;
-let prisma: any;
+let prisma: PrismaClient;
 let disconnectDB: (() => Promise<void>) | undefined;
 let app: Express;
 let server: Server;
@@ -88,7 +94,7 @@ async function createAdmin() {
   return `jwt=${jwt.sign({ id: admin.id }, process.env.JWT_SECRET!)}`;
 }
 
-async function createAssignmentReadySubmission(status = "PAID") {
+async function createAssignmentReadySubmission(status: SubmissionStatus = "PAID") {
   const student = await prisma.user.create({
     data: {
       username: `student-${crypto.randomUUID()}`,
@@ -97,7 +103,7 @@ async function createAssignmentReadySubmission(status = "PAID") {
       role: "STUDENT",
     },
   });
-  return prisma.$transaction(async (tx: any) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const submission = await tx.submission.create({
       data: { studentId: student.id, status, paymentRequired: true },
     });
@@ -136,7 +142,9 @@ test("admin assignment creates a set and reports the CREATED outcome with two ex
     method: "POST",
     headers: { Cookie: cookie },
   });
-  const payload = await response.json();
+  const payload = (await response.json()) as {
+    data: AssignExaminersResult & { outcome: AssignmentSetOutcome };
+  };
 
   assert.equal(response.status, 200);
   assert.equal(payload.data.outcome, "CREATED");
@@ -144,7 +152,7 @@ test("admin assignment creates a set and reports the CREATED outcome with two ex
   assert.equal(payload.data.assignments.length, 2);
   assert.equal(payload.data.assignedExaminers.length, 2);
   assert.equal(
-    new Set(payload.data.assignedExaminers.map((e: any) => e.id)).size,
+    new Set(payload.data.assignedExaminers.map((e) => e.id)).size,
     2,
   );
   assert.equal(
@@ -164,19 +172,27 @@ test("a repeated admin assignment reports the EXISTING outcome without new rows"
     headers: { Cookie: cookie },
   });
   assert.equal(first.status, 200);
-  const firstPayload = (await first.json()).data;
+  const firstPayload = (
+    (await first.json()) as {
+      data: AssignExaminersResult & { outcome: AssignmentSetOutcome };
+    }
+  ).data;
 
   const replay = await fetch(assignUrl(submission.id), {
     method: "POST",
     headers: { Cookie: cookie },
   });
-  const replayPayload = (await replay.json()).data;
+  const replayPayload = (
+    (await replay.json()) as {
+      data: AssignExaminersResult & { outcome: AssignmentSetOutcome };
+    }
+  ).data;
 
   assert.equal(replay.status, 200);
   assert.equal(replayPayload.outcome, "EXISTING");
   assert.deepEqual(
-    replayPayload.assignments.map((a: any) => a.id).sort(),
-    firstPayload.assignments.map((a: any) => a.id).sort(),
+    replayPayload.assignments.map((a) => a.id).sort(),
+    firstPayload.assignments.map((a) => a.id).sort(),
   );
   assert.equal(
     await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
@@ -260,7 +276,7 @@ test("insufficient capacity returns 409 with retryable metadata and observed cou
   assert.equal(payload.retryable, true);
   assert.equal(payload.eligibleExaminerCount, 1);
   assert.equal(
-    (await prisma.submission.findUnique({ where: { id: submission.id } })).status,
+    (await prisma.submission.findUnique({ where: { id: submission.id } }))?.status,
     "PAID",
   );
 });
@@ -305,7 +321,7 @@ test("automatic payment failure preserves the committed payment and later admin 
       role: "STUDENT",
     },
   });
-  const submission = await prisma.$transaction(async (tx: any) => {
+  const submission = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.submission.create({
       data: { studentId: student.id, status: "AWAITING_PAYMENT", paymentRequired: true },
     });
@@ -350,7 +366,7 @@ test("automatic payment failure preserves the committed payment and later admin 
   assert.equal(recoveryPayload.data.outcome, "CREATED");
   assert.equal(recoveryPayload.data.assignments.length, 2);
   assert.equal(
-    (await prisma.submission.findUnique({ where: { id: submission.id } })).status,
+    (await prisma.submission.findUnique({ where: { id: submission.id } }))?.status,
     "SCORING",
   );
 });
