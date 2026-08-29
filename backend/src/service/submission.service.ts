@@ -194,7 +194,21 @@ export async function getSubmissionDetail(
     where: { id: submissionId },
     include: {
       manifest: {
-        select: { id: true, version: true },
+        select: {
+          id: true,
+          version: true,
+          entries: {
+            select: {
+              id: true,
+              category: true,
+              preparationSeconds: true,
+              recordingSeconds: true,
+              promptMediaStorageKey: true,
+              promptMediaMimeType: true,
+              tasks: { orderBy: { deliveredOrder: "asc" }, select: { deliveredOrder: true, deliveredText: true } },
+            },
+          },
+        },
       },
       certificate: {
         select: { finalScore: true },
@@ -232,11 +246,20 @@ export async function getSubmissionDetail(
   if (submission.studentId !== userId) {
     throw new Error("Unauthorized");
   }
-  assertLegacySubmissionEvidence(submission.manifest);
+  if (submission.manifest && submission.manifest.version !== 1) {
+    throw new Error("Unsupported manifest version");
+  }
+  if (!submission.manifest) assertLegacySubmissionEvidence(submission.manifest);
 
   const answers: AnswerDetail[] = await Promise.all(
     submission.answers.map(async (answer) => {
-      assertLegacyAnswerQuestion(answer);
+      const manifestEntry = submission.manifest?.entries.find(
+        (entry) => entry.id === answer.manifestEntryId,
+      );
+      if (submission.manifest && !manifestEntry) {
+        throw new Error("Manifest evidence unavailable");
+      }
+      if (!submission.manifest) assertLegacyAnswerQuestion(answer);
       let videoUrl: string | null = null;
       if (answer.uploadStatus === "UPLOADED") {
         try {
@@ -252,14 +275,13 @@ export async function getSubmissionDetail(
       }
 
       let audioUrl: string | null = null;
-      if (
-        answer.question.audioUploadStatus === "UPLOADED" &&
-        answer.question.audioStorageKey
-      ) {
+      const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
+      const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
+      if (promptStorageKey) {
         try {
           audioUrl = await createQuestionAudioViewUrlFromMetadata(
-            answer.question.audioStorageKey,
-            answer.question.audioMimeType,
+            promptStorageKey,
+            promptMimeType,
           );
         } catch {
           // If presigned URL generation fails, return null
@@ -278,8 +300,8 @@ export async function getSubmissionDetail(
 
       return {
         id: answer.id,
-        questionId: answer.questionId,
-        questionCategory: answer.question.category,
+        questionId: manifestEntry?.id ?? answer.questionId!,
+        questionCategory: manifestEntry?.category ?? answer.question!.category,
         audioUrl,
         durationSeconds: answer.durationSeconds,
         videoUrl,
