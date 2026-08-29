@@ -158,6 +158,9 @@ export const AnswerScalarFieldEnum = {
     sizeBytes: 'sizeBytes',
     durationSeconds: 'durationSeconds',
     uploadStatus: 'uploadStatus',
+    verifiedAt: 'verifiedAt',
+    observedMimeType: 'observedMimeType',
+    proofVersion: 'proofVersion',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };

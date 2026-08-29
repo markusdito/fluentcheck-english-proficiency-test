@@ -10,6 +10,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const AUDIO_KEY_RE = /^questions\/[0-9a-f-]{36}\/prompt\.(webm|mp3|m4a|ogg)$/;
 export const AUDIO_MIME_RE = /^audio\/(webm|mpeg|mp4|ogg|m4a)$/;
 export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}\.webm$/;
+export const VIDEO_MIME_RE = /^video\/(webm|mp4|quicktime)$/;
+export const MAX_ANSWER_SIZE_BYTES = 100 * 1024 * 1024;
 
 /**
  * Generate the storage key for a question's recorded prompt audio.
@@ -250,6 +252,7 @@ export async function createPresignedUpload(
   mimeType: string,
   userId: string
 ): Promise<{ presignedUrl: string; storageKey: string; answerId: string }> {
+  if (!VIDEO_MIME_RE.test(mimeType)) throw new Error("Invalid video mimeType");
   // Verify the submission belongs to the user and is in IN_PROGRESS status
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
@@ -315,7 +318,7 @@ export async function confirmUpload(
   submissionId: string,
   manifestEntryId: string,
   userId: string,
-  metadata?: { sizeBytes?: number; durationSeconds?: number }
+  _metadata?: { sizeBytes?: number; durationSeconds?: number }
 ): Promise<void> {
   // Verify the submission belongs to the user
   const submission = await prisma.submission.findUnique({
@@ -328,12 +331,26 @@ export async function confirmUpload(
   }
   if (submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
 
-  await prisma.answer.update({
+  const answer = await prisma.answer.findUnique({
     where: { manifestEntryId },
+    select: { id: true, storageKey: true, bucket: true, mimeType: true, uploadStatus: true, submissionId: true, verifiedAt: true },
+  });
+  if (!answer || answer.submissionId !== submissionId) throw new Error("Answer not found");
+  if (answer.uploadStatus === "UPLOADED" && answer.verifiedAt) return;
+  if (answer.uploadStatus !== "PENDING") throw new Error("Answer upload is not pending");
+  if (!VIDEO_KEY_RE.test(answer.storageKey)) throw new Error("Invalid video storage key");
+  const observed = await headObject(answer.storageKey, answer.mimeType);
+  if (!observed.exists || observed.contentLength <= 0) throw new Error("Video not found in storage");
+  if (observed.contentLength > MAX_ANSWER_SIZE_BYTES) throw new Error("Video exceeds maximum size");
+  await prisma.answer.updateMany({
+    where: { id: answer.id, submissionId, uploadStatus: "PENDING" },
     data: {
       uploadStatus: "UPLOADED",
-      sizeBytes: metadata?.sizeBytes,
-      durationSeconds: metadata?.durationSeconds,
+      sizeBytes: observed.contentLength,
+      durationSeconds: null,
+      observedMimeType: answer.mimeType,
+      proofVersion: 1,
+      verifiedAt: new Date(),
     },
   });
 }

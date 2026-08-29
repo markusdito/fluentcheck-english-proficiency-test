@@ -13,5 +13,3 @@ CREATE TABLE "SubmissionStartIntent" (
 );
 
 CREATE INDEX "SubmissionStartIntent_studentId_idx" ON "SubmissionStartIntent"("studentId");
-CREATE UNIQUE INDEX "Submission_one_active_per_student_key"
-  ON "Submission"("studentId") WHERE "status" = 'IN_PROGRESS';

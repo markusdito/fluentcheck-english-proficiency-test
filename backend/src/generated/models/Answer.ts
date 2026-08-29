@@ -29,11 +29,13 @@ export type AggregateAnswer = {
 export type AnswerAvgAggregateOutputType = {
   sizeBytes: number | null
   durationSeconds: number | null
+  proofVersion: number | null
 }
 
 export type AnswerSumAggregateOutputType = {
   sizeBytes: number | null
   durationSeconds: number | null
+  proofVersion: number | null
 }
 
 export type AnswerMinAggregateOutputType = {
@@ -47,6 +49,9 @@ export type AnswerMinAggregateOutputType = {
   sizeBytes: number | null
   durationSeconds: number | null
   uploadStatus: $Enums.UploadStatus | null
+  verifiedAt: Date | null
+  observedMimeType: string | null
+  proofVersion: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -62,6 +67,9 @@ export type AnswerMaxAggregateOutputType = {
   sizeBytes: number | null
   durationSeconds: number | null
   uploadStatus: $Enums.UploadStatus | null
+  verifiedAt: Date | null
+  observedMimeType: string | null
+  proofVersion: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -77,6 +85,9 @@ export type AnswerCountAggregateOutputType = {
   sizeBytes: number
   durationSeconds: number
   uploadStatus: number
+  verifiedAt: number
+  observedMimeType: number
+  proofVersion: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -86,11 +97,13 @@ export type AnswerCountAggregateOutputType = {
 export type AnswerAvgAggregateInputType = {
   sizeBytes?: true
   durationSeconds?: true
+  proofVersion?: true
 }
 
 export type AnswerSumAggregateInputType = {
   sizeBytes?: true
   durationSeconds?: true
+  proofVersion?: true
 }
 
 export type AnswerMinAggregateInputType = {
@@ -104,6 +117,9 @@ export type AnswerMinAggregateInputType = {
   sizeBytes?: true
   durationSeconds?: true
   uploadStatus?: true
+  verifiedAt?: true
+  observedMimeType?: true
+  proofVersion?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -119,6 +135,9 @@ export type AnswerMaxAggregateInputType = {
   sizeBytes?: true
   durationSeconds?: true
   uploadStatus?: true
+  verifiedAt?: true
+  observedMimeType?: true
+  proofVersion?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -134,6 +153,9 @@ export type AnswerCountAggregateInputType = {
   sizeBytes?: true
   durationSeconds?: true
   uploadStatus?: true
+  verifiedAt?: true
+  observedMimeType?: true
+  proofVersion?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -236,6 +258,9 @@ export type AnswerGroupByOutputType = {
   sizeBytes: number | null
   durationSeconds: number | null
   uploadStatus: $Enums.UploadStatus
+  verifiedAt: Date | null
+  observedMimeType: string | null
+  proofVersion: number | null
   createdAt: Date
   updatedAt: Date
   _count: AnswerCountAggregateOutputType | null
@@ -274,6 +299,9 @@ export type AnswerWhereInput = {
   sizeBytes?: Prisma.IntNullableFilter<"Answer"> | number | null
   durationSeconds?: Prisma.IntNullableFilter<"Answer"> | number | null
   uploadStatus?: Prisma.EnumUploadStatusFilter<"Answer"> | $Enums.UploadStatus
+  verifiedAt?: Prisma.DateTimeNullableFilter<"Answer"> | Date | string | null
+  observedMimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
+  proofVersion?: Prisma.IntNullableFilter<"Answer"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
@@ -293,6 +321,9 @@ export type AnswerOrderByWithRelationInput = {
   sizeBytes?: Prisma.SortOrderInput | Prisma.SortOrder
   durationSeconds?: Prisma.SortOrderInput | Prisma.SortOrder
   uploadStatus?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  observedMimeType?: Prisma.SortOrderInput | Prisma.SortOrder
+  proofVersion?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   submission?: Prisma.SubmissionOrderByWithRelationInput
@@ -316,6 +347,9 @@ export type AnswerWhereUniqueInput = Prisma.AtLeast<{
   sizeBytes?: Prisma.IntNullableFilter<"Answer"> | number | null
   durationSeconds?: Prisma.IntNullableFilter<"Answer"> | number | null
   uploadStatus?: Prisma.EnumUploadStatusFilter<"Answer"> | $Enums.UploadStatus
+  verifiedAt?: Prisma.DateTimeNullableFilter<"Answer"> | Date | string | null
+  observedMimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
+  proofVersion?: Prisma.IntNullableFilter<"Answer"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
@@ -335,6 +369,9 @@ export type AnswerOrderByWithAggregationInput = {
   sizeBytes?: Prisma.SortOrderInput | Prisma.SortOrder
   durationSeconds?: Prisma.SortOrderInput | Prisma.SortOrder
   uploadStatus?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  observedMimeType?: Prisma.SortOrderInput | Prisma.SortOrder
+  proofVersion?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AnswerCountOrderByAggregateInput
@@ -358,6 +395,9 @@ export type AnswerScalarWhereWithAggregatesInput = {
   sizeBytes?: Prisma.IntNullableWithAggregatesFilter<"Answer"> | number | null
   durationSeconds?: Prisma.IntNullableWithAggregatesFilter<"Answer"> | number | null
   uploadStatus?: Prisma.EnumUploadStatusWithAggregatesFilter<"Answer"> | $Enums.UploadStatus
+  verifiedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Answer"> | Date | string | null
+  observedMimeType?: Prisma.StringNullableWithAggregatesFilter<"Answer"> | string | null
+  proofVersion?: Prisma.IntNullableWithAggregatesFilter<"Answer"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Answer"> | Date | string
 }
@@ -370,6 +410,9 @@ export type AnswerCreateInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -389,6 +432,9 @@ export type AnswerUncheckedCreateInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -402,6 +448,9 @@ export type AnswerUpdateInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -421,6 +470,9 @@ export type AnswerUncheckedUpdateInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -437,6 +489,9 @@ export type AnswerCreateManyInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -449,6 +504,9 @@ export type AnswerUpdateManyMutationInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -464,6 +522,9 @@ export type AnswerUncheckedUpdateManyInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -494,6 +555,9 @@ export type AnswerCountOrderByAggregateInput = {
   sizeBytes?: Prisma.SortOrder
   durationSeconds?: Prisma.SortOrder
   uploadStatus?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrder
+  observedMimeType?: Prisma.SortOrder
+  proofVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -501,6 +565,7 @@ export type AnswerCountOrderByAggregateInput = {
 export type AnswerAvgOrderByAggregateInput = {
   sizeBytes?: Prisma.SortOrder
   durationSeconds?: Prisma.SortOrder
+  proofVersion?: Prisma.SortOrder
 }
 
 export type AnswerMaxOrderByAggregateInput = {
@@ -514,6 +579,9 @@ export type AnswerMaxOrderByAggregateInput = {
   sizeBytes?: Prisma.SortOrder
   durationSeconds?: Prisma.SortOrder
   uploadStatus?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrder
+  observedMimeType?: Prisma.SortOrder
+  proofVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -529,6 +597,9 @@ export type AnswerMinOrderByAggregateInput = {
   sizeBytes?: Prisma.SortOrder
   durationSeconds?: Prisma.SortOrder
   uploadStatus?: Prisma.SortOrder
+  verifiedAt?: Prisma.SortOrder
+  observedMimeType?: Prisma.SortOrder
+  proofVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -536,6 +607,7 @@ export type AnswerMinOrderByAggregateInput = {
 export type AnswerSumOrderByAggregateInput = {
   sizeBytes?: Prisma.SortOrder
   durationSeconds?: Prisma.SortOrder
+  proofVersion?: Prisma.SortOrder
 }
 
 export type AnswerScalarRelationFilter = {
@@ -691,6 +763,9 @@ export type AnswerCreateWithoutQuestionInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -708,6 +783,9 @@ export type AnswerUncheckedCreateWithoutQuestionInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -753,6 +831,9 @@ export type AnswerScalarWhereInput = {
   sizeBytes?: Prisma.IntNullableFilter<"Answer"> | number | null
   durationSeconds?: Prisma.IntNullableFilter<"Answer"> | number | null
   uploadStatus?: Prisma.EnumUploadStatusFilter<"Answer"> | $Enums.UploadStatus
+  verifiedAt?: Prisma.DateTimeNullableFilter<"Answer"> | Date | string | null
+  observedMimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
+  proofVersion?: Prisma.IntNullableFilter<"Answer"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
 }
@@ -765,6 +846,9 @@ export type AnswerCreateWithoutSubmissionInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   question?: Prisma.QuestionCreateNestedOneWithoutAnswersInput
@@ -782,6 +866,9 @@ export type AnswerUncheckedCreateWithoutSubmissionInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -821,6 +908,9 @@ export type AnswerCreateWithoutManifestEntryInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -837,6 +927,9 @@ export type AnswerUncheckedCreateWithoutManifestEntryInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -876,6 +969,9 @@ export type AnswerCreateWithoutScoresInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -894,6 +990,9 @@ export type AnswerUncheckedCreateWithoutScoresInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -922,6 +1021,9 @@ export type AnswerUpdateWithoutScoresInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -940,6 +1042,9 @@ export type AnswerUncheckedUpdateWithoutScoresInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -954,6 +1059,9 @@ export type AnswerCreateManyQuestionInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -966,6 +1074,9 @@ export type AnswerUpdateWithoutQuestionInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -983,6 +1094,9 @@ export type AnswerUncheckedUpdateWithoutQuestionInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -998,6 +1112,9 @@ export type AnswerUncheckedUpdateManyWithoutQuestionInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1012,6 +1129,9 @@ export type AnswerCreateManySubmissionInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1024,6 +1144,9 @@ export type AnswerUpdateWithoutSubmissionInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   question?: Prisma.QuestionUpdateOneWithoutAnswersNestedInput
@@ -1041,6 +1164,9 @@ export type AnswerUncheckedUpdateWithoutSubmissionInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -1056,6 +1182,9 @@ export type AnswerUncheckedUpdateManyWithoutSubmissionInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1069,6 +1198,9 @@ export type AnswerCreateManyManifestEntryInput = {
   sizeBytes?: number | null
   durationSeconds?: number | null
   uploadStatus?: $Enums.UploadStatus
+  verifiedAt?: Date | string | null
+  observedMimeType?: string | null
+  proofVersion?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1081,6 +1213,9 @@ export type AnswerUpdateWithoutManifestEntryInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -1097,6 +1232,9 @@ export type AnswerUncheckedUpdateWithoutManifestEntryInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -1111,6 +1249,9 @@ export type AnswerUncheckedUpdateManyWithoutManifestEntryInput = {
   sizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   durationSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   uploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1157,6 +1298,9 @@ export type AnswerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   sizeBytes?: boolean
   durationSeconds?: boolean
   uploadStatus?: boolean
+  verifiedAt?: boolean
+  observedMimeType?: boolean
+  proofVersion?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
@@ -1177,6 +1321,9 @@ export type AnswerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   sizeBytes?: boolean
   durationSeconds?: boolean
   uploadStatus?: boolean
+  verifiedAt?: boolean
+  observedMimeType?: boolean
+  proofVersion?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
@@ -1195,6 +1342,9 @@ export type AnswerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   sizeBytes?: boolean
   durationSeconds?: boolean
   uploadStatus?: boolean
+  verifiedAt?: boolean
+  observedMimeType?: boolean
+  proofVersion?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
@@ -1213,11 +1363,14 @@ export type AnswerSelectScalar = {
   sizeBytes?: boolean
   durationSeconds?: boolean
   uploadStatus?: boolean
+  verifiedAt?: boolean
+  observedMimeType?: boolean
+  proofVersion?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AnswerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "questionId" | "manifestEntryId" | "storageKey" | "bucket" | "mimeType" | "sizeBytes" | "durationSeconds" | "uploadStatus" | "createdAt" | "updatedAt", ExtArgs["result"]["answer"]>
+export type AnswerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "questionId" | "manifestEntryId" | "storageKey" | "bucket" | "mimeType" | "sizeBytes" | "durationSeconds" | "uploadStatus" | "verifiedAt" | "observedMimeType" | "proofVersion" | "createdAt" | "updatedAt", ExtArgs["result"]["answer"]>
 export type AnswerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
   question?: boolean | Prisma.Answer$questionArgs<ExtArgs>
@@ -1255,6 +1408,9 @@ export type $AnswerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     sizeBytes: number | null
     durationSeconds: number | null
     uploadStatus: $Enums.UploadStatus
+    verifiedAt: Date | null
+    observedMimeType: string | null
+    proofVersion: number | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["answer"]>
@@ -1694,6 +1850,9 @@ export interface AnswerFieldRefs {
   readonly sizeBytes: Prisma.FieldRef<"Answer", 'Int'>
   readonly durationSeconds: Prisma.FieldRef<"Answer", 'Int'>
   readonly uploadStatus: Prisma.FieldRef<"Answer", 'UploadStatus'>
+  readonly verifiedAt: Prisma.FieldRef<"Answer", 'DateTime'>
+  readonly observedMimeType: Prisma.FieldRef<"Answer", 'String'>
+  readonly proofVersion: Prisma.FieldRef<"Answer", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Answer", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Answer", 'DateTime'>
 }

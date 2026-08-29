@@ -39,6 +39,8 @@ export async function getPresignedUrl(req: Request, res: Response) {
       ? 404
       : message === "Submission is not in progress"
       ? 400
+      : message === "Manifest entry not found" || message === "Invalid video mimeType"
+      ? 404
       : 500;
     res.status(status).json({ error: message });
   }
@@ -65,7 +67,7 @@ export async function confirmUploadHandler(req: Request, res: Response) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to confirm upload";
-    const status = message === "Unauthorized" ? 404 : 500;
+    const status = message === "Unauthorized" || message === "Answer not found" ? 404 : message.includes("Video") || message.includes("Answer upload") ? 409 : 500;
     res.status(status).json({ error: message });
   }
 }

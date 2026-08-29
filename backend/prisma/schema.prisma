@@ -224,6 +224,9 @@ model Answer {
   sizeBytes       Int?
   durationSeconds Int?
   uploadStatus    UploadStatus @default(PENDING)
+  verifiedAt      DateTime?    @db.Timestamptz()
+  observedMimeType String?
+  proofVersion    Int?
 
   scores    Score[]
   createdAt DateTime @default(now()) @db.Timestamptz()
