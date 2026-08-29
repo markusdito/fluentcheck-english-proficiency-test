@@ -6,6 +6,7 @@ import {
   saveExaminerScore,
   startExaminerAssignment,
   submitExaminerScores,
+  ScoringFinalizationError,
   type ScoreInput,
 } from "../service/examiner.service.js";
 import { ScoreValidationError } from "../utils/scoring.js";
@@ -99,6 +100,12 @@ interface ScoreBody {
 type SingleScoreBody = Omit<ScoreInput, "answerId">;
 
 function scoringErrorStatus(error: unknown): number {
+  if (error instanceof ScoringFinalizationError) {
+    if (error.code === "ASSIGNMENT_NOT_FOUND") return 404;
+    if (error.code === "UNAUTHORIZED") return 403;
+    if (error.code === "ALREADY_COMPLETED") return 400;
+    return 409;
+  }
   const message = error instanceof Error ? error.message : "";
   if (message === "Assignment not found") return 404;
   if (message === "Unauthorized") return 403;

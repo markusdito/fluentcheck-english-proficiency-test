@@ -1,4 +1,4 @@
-import { getExaminerAssignments, getExaminerAssignmentDetail, completeExaminerScoring, saveExaminerScore, startExaminerAssignment, submitExaminerScores, } from "../service/examiner.service.js";
+import { getExaminerAssignments, getExaminerAssignmentDetail, completeExaminerScoring, saveExaminerScore, startExaminerAssignment, submitExaminerScores, ScoringFinalizationError, } from "../service/examiner.service.js";
 import { ScoreValidationError } from "../utils/scoring.js";
 /**
  * GET /api/examiner/assignments
@@ -77,6 +77,15 @@ export async function startAssignment(req, res) {
     }
 }
 function scoringErrorStatus(error) {
+    if (error instanceof ScoringFinalizationError) {
+        if (error.code === "ASSIGNMENT_NOT_FOUND")
+            return 404;
+        if (error.code === "UNAUTHORIZED")
+            return 403;
+        if (error.code === "ALREADY_COMPLETED")
+            return 400;
+        return 409;
+    }
     const message = error instanceof Error ? error.message : "";
     if (message === "Assignment not found")
         return 404;
