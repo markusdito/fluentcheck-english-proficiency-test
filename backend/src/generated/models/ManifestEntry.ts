@@ -28,10 +28,16 @@ export type AggregateManifestEntry = {
 
 export type ManifestEntryAvgAggregateOutputType = {
   deliveryPosition: number | null
+  preparationSeconds: number | null
+  recordingSeconds: number | null
+  promptMediaSizeBytes: number | null
 }
 
 export type ManifestEntrySumAggregateOutputType = {
   deliveryPosition: number | null
+  preparationSeconds: number | null
+  recordingSeconds: number | null
+  promptMediaSizeBytes: number | null
 }
 
 export type ManifestEntryMinAggregateOutputType = {
@@ -40,6 +46,11 @@ export type ManifestEntryMinAggregateOutputType = {
   submissionId: string | null
   category: $Enums.QuestionCategory | null
   deliveryPosition: number | null
+  preparationSeconds: number | null
+  recordingSeconds: number | null
+  promptMediaStorageKey: string | null
+  promptMediaMimeType: string | null
+  promptMediaSizeBytes: number | null
   sourceQuestionId: string | null
   createdAt: Date | null
 }
@@ -50,6 +61,11 @@ export type ManifestEntryMaxAggregateOutputType = {
   submissionId: string | null
   category: $Enums.QuestionCategory | null
   deliveryPosition: number | null
+  preparationSeconds: number | null
+  recordingSeconds: number | null
+  promptMediaStorageKey: string | null
+  promptMediaMimeType: string | null
+  promptMediaSizeBytes: number | null
   sourceQuestionId: string | null
   createdAt: Date | null
 }
@@ -60,6 +76,11 @@ export type ManifestEntryCountAggregateOutputType = {
   submissionId: number
   category: number
   deliveryPosition: number
+  preparationSeconds: number
+  recordingSeconds: number
+  promptMediaStorageKey: number
+  promptMediaMimeType: number
+  promptMediaSizeBytes: number
   sourceQuestionId: number
   createdAt: number
   _all: number
@@ -68,10 +89,16 @@ export type ManifestEntryCountAggregateOutputType = {
 
 export type ManifestEntryAvgAggregateInputType = {
   deliveryPosition?: true
+  preparationSeconds?: true
+  recordingSeconds?: true
+  promptMediaSizeBytes?: true
 }
 
 export type ManifestEntrySumAggregateInputType = {
   deliveryPosition?: true
+  preparationSeconds?: true
+  recordingSeconds?: true
+  promptMediaSizeBytes?: true
 }
 
 export type ManifestEntryMinAggregateInputType = {
@@ -80,6 +107,11 @@ export type ManifestEntryMinAggregateInputType = {
   submissionId?: true
   category?: true
   deliveryPosition?: true
+  preparationSeconds?: true
+  recordingSeconds?: true
+  promptMediaStorageKey?: true
+  promptMediaMimeType?: true
+  promptMediaSizeBytes?: true
   sourceQuestionId?: true
   createdAt?: true
 }
@@ -90,6 +122,11 @@ export type ManifestEntryMaxAggregateInputType = {
   submissionId?: true
   category?: true
   deliveryPosition?: true
+  preparationSeconds?: true
+  recordingSeconds?: true
+  promptMediaStorageKey?: true
+  promptMediaMimeType?: true
+  promptMediaSizeBytes?: true
   sourceQuestionId?: true
   createdAt?: true
 }
@@ -100,6 +137,11 @@ export type ManifestEntryCountAggregateInputType = {
   submissionId?: true
   category?: true
   deliveryPosition?: true
+  preparationSeconds?: true
+  recordingSeconds?: true
+  promptMediaStorageKey?: true
+  promptMediaMimeType?: true
+  promptMediaSizeBytes?: true
   sourceQuestionId?: true
   createdAt?: true
   _all?: true
@@ -197,6 +239,11 @@ export type ManifestEntryGroupByOutputType = {
   submissionId: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds: number
+  recordingSeconds: number
+  promptMediaStorageKey: string
+  promptMediaMimeType: string
+  promptMediaSizeBytes: number
   sourceQuestionId: string
   createdAt: Date
   _count: ManifestEntryCountAggregateOutputType | null
@@ -230,6 +277,11 @@ export type ManifestEntryWhereInput = {
   submissionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   category?: Prisma.EnumQuestionCategoryFilter<"ManifestEntry"> | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFilter<"ManifestEntry"> | number
+  preparationSeconds?: Prisma.IntFilter<"ManifestEntry"> | number
+  recordingSeconds?: Prisma.IntFilter<"ManifestEntry"> | number
+  promptMediaStorageKey?: Prisma.StringFilter<"ManifestEntry"> | string
+  promptMediaMimeType?: Prisma.StringFilter<"ManifestEntry"> | string
+  promptMediaSizeBytes?: Prisma.IntFilter<"ManifestEntry"> | number
   sourceQuestionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestEntry"> | Date | string
   manifest?: Prisma.XOR<Prisma.SubmissionManifestScalarRelationFilter, Prisma.SubmissionManifestWhereInput>
@@ -244,6 +296,11 @@ export type ManifestEntryOrderByWithRelationInput = {
   submissionId?: Prisma.SortOrder
   category?: Prisma.SortOrder
   deliveryPosition?: Prisma.SortOrder
+  preparationSeconds?: Prisma.SortOrder
+  recordingSeconds?: Prisma.SortOrder
+  promptMediaStorageKey?: Prisma.SortOrder
+  promptMediaMimeType?: Prisma.SortOrder
+  promptMediaSizeBytes?: Prisma.SortOrder
   sourceQuestionId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   manifest?: Prisma.SubmissionManifestOrderByWithRelationInput
@@ -265,6 +322,11 @@ export type ManifestEntryWhereUniqueInput = Prisma.AtLeast<{
   submissionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   category?: Prisma.EnumQuestionCategoryFilter<"ManifestEntry"> | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFilter<"ManifestEntry"> | number
+  preparationSeconds?: Prisma.IntFilter<"ManifestEntry"> | number
+  recordingSeconds?: Prisma.IntFilter<"ManifestEntry"> | number
+  promptMediaStorageKey?: Prisma.StringFilter<"ManifestEntry"> | string
+  promptMediaMimeType?: Prisma.StringFilter<"ManifestEntry"> | string
+  promptMediaSizeBytes?: Prisma.IntFilter<"ManifestEntry"> | number
   sourceQuestionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestEntry"> | Date | string
   manifest?: Prisma.XOR<Prisma.SubmissionManifestScalarRelationFilter, Prisma.SubmissionManifestWhereInput>
@@ -279,6 +341,11 @@ export type ManifestEntryOrderByWithAggregationInput = {
   submissionId?: Prisma.SortOrder
   category?: Prisma.SortOrder
   deliveryPosition?: Prisma.SortOrder
+  preparationSeconds?: Prisma.SortOrder
+  recordingSeconds?: Prisma.SortOrder
+  promptMediaStorageKey?: Prisma.SortOrder
+  promptMediaMimeType?: Prisma.SortOrder
+  promptMediaSizeBytes?: Prisma.SortOrder
   sourceQuestionId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ManifestEntryCountOrderByAggregateInput
@@ -297,6 +364,11 @@ export type ManifestEntryScalarWhereWithAggregatesInput = {
   submissionId?: Prisma.UuidWithAggregatesFilter<"ManifestEntry"> | string
   category?: Prisma.EnumQuestionCategoryWithAggregatesFilter<"ManifestEntry"> | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntWithAggregatesFilter<"ManifestEntry"> | number
+  preparationSeconds?: Prisma.IntWithAggregatesFilter<"ManifestEntry"> | number
+  recordingSeconds?: Prisma.IntWithAggregatesFilter<"ManifestEntry"> | number
+  promptMediaStorageKey?: Prisma.StringWithAggregatesFilter<"ManifestEntry"> | string
+  promptMediaMimeType?: Prisma.StringWithAggregatesFilter<"ManifestEntry"> | string
+  promptMediaSizeBytes?: Prisma.IntWithAggregatesFilter<"ManifestEntry"> | number
   sourceQuestionId?: Prisma.UuidWithAggregatesFilter<"ManifestEntry"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ManifestEntry"> | Date | string
 }
@@ -305,6 +377,11 @@ export type ManifestEntryCreateInput = {
   id?: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   createdAt?: Date | string
   manifest: Prisma.SubmissionManifestCreateNestedOneWithoutEntriesInput
   sourceQuestion: Prisma.QuestionCreateNestedOneWithoutManifestEntriesInput
@@ -318,6 +395,11 @@ export type ManifestEntryUncheckedCreateInput = {
   submissionId: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   sourceQuestionId: string
   createdAt?: Date | string
   tasks?: Prisma.ManifestTaskUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -328,6 +410,11 @@ export type ManifestEntryUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput
   sourceQuestion?: Prisma.QuestionUpdateOneRequiredWithoutManifestEntriesNestedInput
@@ -341,6 +428,11 @@ export type ManifestEntryUncheckedUpdateInput = {
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tasks?: Prisma.ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -353,6 +445,11 @@ export type ManifestEntryCreateManyInput = {
   submissionId: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   sourceQuestionId: string
   createdAt?: Date | string
 }
@@ -361,6 +458,11 @@ export type ManifestEntryUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -370,6 +472,11 @@ export type ManifestEntryUncheckedUpdateManyInput = {
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -410,12 +517,20 @@ export type ManifestEntryCountOrderByAggregateInput = {
   submissionId?: Prisma.SortOrder
   category?: Prisma.SortOrder
   deliveryPosition?: Prisma.SortOrder
+  preparationSeconds?: Prisma.SortOrder
+  recordingSeconds?: Prisma.SortOrder
+  promptMediaStorageKey?: Prisma.SortOrder
+  promptMediaMimeType?: Prisma.SortOrder
+  promptMediaSizeBytes?: Prisma.SortOrder
   sourceQuestionId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type ManifestEntryAvgOrderByAggregateInput = {
   deliveryPosition?: Prisma.SortOrder
+  preparationSeconds?: Prisma.SortOrder
+  recordingSeconds?: Prisma.SortOrder
+  promptMediaSizeBytes?: Prisma.SortOrder
 }
 
 export type ManifestEntryMaxOrderByAggregateInput = {
@@ -424,6 +539,11 @@ export type ManifestEntryMaxOrderByAggregateInput = {
   submissionId?: Prisma.SortOrder
   category?: Prisma.SortOrder
   deliveryPosition?: Prisma.SortOrder
+  preparationSeconds?: Prisma.SortOrder
+  recordingSeconds?: Prisma.SortOrder
+  promptMediaStorageKey?: Prisma.SortOrder
+  promptMediaMimeType?: Prisma.SortOrder
+  promptMediaSizeBytes?: Prisma.SortOrder
   sourceQuestionId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -434,12 +554,20 @@ export type ManifestEntryMinOrderByAggregateInput = {
   submissionId?: Prisma.SortOrder
   category?: Prisma.SortOrder
   deliveryPosition?: Prisma.SortOrder
+  preparationSeconds?: Prisma.SortOrder
+  recordingSeconds?: Prisma.SortOrder
+  promptMediaStorageKey?: Prisma.SortOrder
+  promptMediaMimeType?: Prisma.SortOrder
+  promptMediaSizeBytes?: Prisma.SortOrder
   sourceQuestionId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type ManifestEntrySumOrderByAggregateInput = {
   deliveryPosition?: Prisma.SortOrder
+  preparationSeconds?: Prisma.SortOrder
+  recordingSeconds?: Prisma.SortOrder
+  promptMediaSizeBytes?: Prisma.SortOrder
 }
 
 export type ManifestEntryScalarRelationFilter = {
@@ -570,6 +698,11 @@ export type ManifestEntryCreateWithoutSourceQuestionInput = {
   id?: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   createdAt?: Date | string
   manifest: Prisma.SubmissionManifestCreateNestedOneWithoutEntriesInput
   tasks?: Prisma.ManifestTaskCreateNestedManyWithoutManifestEntryInput
@@ -582,6 +715,11 @@ export type ManifestEntryUncheckedCreateWithoutSourceQuestionInput = {
   submissionId: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   createdAt?: Date | string
   tasks?: Prisma.ManifestTaskUncheckedCreateNestedManyWithoutManifestEntryInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -622,6 +760,11 @@ export type ManifestEntryScalarWhereInput = {
   submissionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   category?: Prisma.EnumQuestionCategoryFilter<"ManifestEntry"> | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFilter<"ManifestEntry"> | number
+  preparationSeconds?: Prisma.IntFilter<"ManifestEntry"> | number
+  recordingSeconds?: Prisma.IntFilter<"ManifestEntry"> | number
+  promptMediaStorageKey?: Prisma.StringFilter<"ManifestEntry"> | string
+  promptMediaMimeType?: Prisma.StringFilter<"ManifestEntry"> | string
+  promptMediaSizeBytes?: Prisma.IntFilter<"ManifestEntry"> | number
   sourceQuestionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestEntry"> | Date | string
 }
@@ -630,6 +773,11 @@ export type ManifestEntryCreateWithoutManifestInput = {
   id?: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   createdAt?: Date | string
   sourceQuestion: Prisma.QuestionCreateNestedOneWithoutManifestEntriesInput
   tasks?: Prisma.ManifestTaskCreateNestedManyWithoutManifestEntryInput
@@ -640,6 +788,11 @@ export type ManifestEntryUncheckedCreateWithoutManifestInput = {
   id?: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   sourceQuestionId: string
   createdAt?: Date | string
   tasks?: Prisma.ManifestTaskUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -676,6 +829,11 @@ export type ManifestEntryCreateWithoutTasksInput = {
   id?: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   createdAt?: Date | string
   manifest: Prisma.SubmissionManifestCreateNestedOneWithoutEntriesInput
   sourceQuestion: Prisma.QuestionCreateNestedOneWithoutManifestEntriesInput
@@ -688,6 +846,11 @@ export type ManifestEntryUncheckedCreateWithoutTasksInput = {
   submissionId: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   sourceQuestionId: string
   createdAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -713,6 +876,11 @@ export type ManifestEntryUpdateWithoutTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput
   sourceQuestion?: Prisma.QuestionUpdateOneRequiredWithoutManifestEntriesNestedInput
@@ -725,6 +893,11 @@ export type ManifestEntryUncheckedUpdateWithoutTasksInput = {
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -734,6 +907,11 @@ export type ManifestEntryCreateWithoutAnswersInput = {
   id?: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   createdAt?: Date | string
   manifest: Prisma.SubmissionManifestCreateNestedOneWithoutEntriesInput
   sourceQuestion: Prisma.QuestionCreateNestedOneWithoutManifestEntriesInput
@@ -746,6 +924,11 @@ export type ManifestEntryUncheckedCreateWithoutAnswersInput = {
   submissionId: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   sourceQuestionId: string
   createdAt?: Date | string
   tasks?: Prisma.ManifestTaskUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -771,6 +954,11 @@ export type ManifestEntryUpdateWithoutAnswersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput
   sourceQuestion?: Prisma.QuestionUpdateOneRequiredWithoutManifestEntriesNestedInput
@@ -783,6 +971,11 @@ export type ManifestEntryUncheckedUpdateWithoutAnswersInput = {
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tasks?: Prisma.ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -794,6 +987,11 @@ export type ManifestEntryCreateManySourceQuestionInput = {
   submissionId: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   createdAt?: Date | string
 }
 
@@ -801,6 +999,11 @@ export type ManifestEntryUpdateWithoutSourceQuestionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput
   tasks?: Prisma.ManifestTaskUpdateManyWithoutManifestEntryNestedInput
@@ -813,6 +1016,11 @@ export type ManifestEntryUncheckedUpdateWithoutSourceQuestionInput = {
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tasks?: Prisma.ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -824,6 +1032,11 @@ export type ManifestEntryUncheckedUpdateManyWithoutSourceQuestionInput = {
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -831,6 +1044,11 @@ export type ManifestEntryCreateManyManifestInput = {
   id?: string
   category: $Enums.QuestionCategory
   deliveryPosition: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  promptMediaStorageKey?: string
+  promptMediaMimeType?: string
+  promptMediaSizeBytes?: number
   sourceQuestionId: string
   createdAt?: Date | string
 }
@@ -839,6 +1057,11 @@ export type ManifestEntryUpdateWithoutManifestInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sourceQuestion?: Prisma.QuestionUpdateOneRequiredWithoutManifestEntriesNestedInput
   tasks?: Prisma.ManifestTaskUpdateManyWithoutManifestEntryNestedInput
@@ -849,6 +1072,11 @@ export type ManifestEntryUncheckedUpdateWithoutManifestInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tasks?: Prisma.ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -859,6 +1087,11 @@ export type ManifestEntryUncheckedUpdateManyWithoutManifestInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   deliveryPosition?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -909,6 +1142,11 @@ export type ManifestEntrySelect<ExtArgs extends runtime.Types.Extensions.Interna
   submissionId?: boolean
   category?: boolean
   deliveryPosition?: boolean
+  preparationSeconds?: boolean
+  recordingSeconds?: boolean
+  promptMediaStorageKey?: boolean
+  promptMediaMimeType?: boolean
+  promptMediaSizeBytes?: boolean
   sourceQuestionId?: boolean
   createdAt?: boolean
   manifest?: boolean | Prisma.SubmissionManifestDefaultArgs<ExtArgs>
@@ -924,6 +1162,11 @@ export type ManifestEntrySelectCreateManyAndReturn<ExtArgs extends runtime.Types
   submissionId?: boolean
   category?: boolean
   deliveryPosition?: boolean
+  preparationSeconds?: boolean
+  recordingSeconds?: boolean
+  promptMediaStorageKey?: boolean
+  promptMediaMimeType?: boolean
+  promptMediaSizeBytes?: boolean
   sourceQuestionId?: boolean
   createdAt?: boolean
   manifest?: boolean | Prisma.SubmissionManifestDefaultArgs<ExtArgs>
@@ -936,6 +1179,11 @@ export type ManifestEntrySelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   submissionId?: boolean
   category?: boolean
   deliveryPosition?: boolean
+  preparationSeconds?: boolean
+  recordingSeconds?: boolean
+  promptMediaStorageKey?: boolean
+  promptMediaMimeType?: boolean
+  promptMediaSizeBytes?: boolean
   sourceQuestionId?: boolean
   createdAt?: boolean
   manifest?: boolean | Prisma.SubmissionManifestDefaultArgs<ExtArgs>
@@ -948,11 +1196,16 @@ export type ManifestEntrySelectScalar = {
   submissionId?: boolean
   category?: boolean
   deliveryPosition?: boolean
+  preparationSeconds?: boolean
+  recordingSeconds?: boolean
+  promptMediaStorageKey?: boolean
+  promptMediaMimeType?: boolean
+  promptMediaSizeBytes?: boolean
   sourceQuestionId?: boolean
   createdAt?: boolean
 }
 
-export type ManifestEntryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "manifestId" | "submissionId" | "category" | "deliveryPosition" | "sourceQuestionId" | "createdAt", ExtArgs["result"]["manifestEntry"]>
+export type ManifestEntryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "manifestId" | "submissionId" | "category" | "deliveryPosition" | "preparationSeconds" | "recordingSeconds" | "promptMediaStorageKey" | "promptMediaMimeType" | "promptMediaSizeBytes" | "sourceQuestionId" | "createdAt", ExtArgs["result"]["manifestEntry"]>
 export type ManifestEntryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   manifest?: boolean | Prisma.SubmissionManifestDefaultArgs<ExtArgs>
   sourceQuestion?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
@@ -983,6 +1236,11 @@ export type $ManifestEntryPayload<ExtArgs extends runtime.Types.Extensions.Inter
     submissionId: string
     category: $Enums.QuestionCategory
     deliveryPosition: number
+    preparationSeconds: number
+    recordingSeconds: number
+    promptMediaStorageKey: string
+    promptMediaMimeType: string
+    promptMediaSizeBytes: number
     sourceQuestionId: string
     createdAt: Date
   }, ExtArgs["result"]["manifestEntry"]>
@@ -1417,6 +1675,11 @@ export interface ManifestEntryFieldRefs {
   readonly submissionId: Prisma.FieldRef<"ManifestEntry", 'String'>
   readonly category: Prisma.FieldRef<"ManifestEntry", 'QuestionCategory'>
   readonly deliveryPosition: Prisma.FieldRef<"ManifestEntry", 'Int'>
+  readonly preparationSeconds: Prisma.FieldRef<"ManifestEntry", 'Int'>
+  readonly recordingSeconds: Prisma.FieldRef<"ManifestEntry", 'Int'>
+  readonly promptMediaStorageKey: Prisma.FieldRef<"ManifestEntry", 'String'>
+  readonly promptMediaMimeType: Prisma.FieldRef<"ManifestEntry", 'String'>
+  readonly promptMediaSizeBytes: Prisma.FieldRef<"ManifestEntry", 'Int'>
   readonly sourceQuestionId: Prisma.FieldRef<"ManifestEntry", 'String'>
   readonly createdAt: Prisma.FieldRef<"ManifestEntry", 'DateTime'>
 }

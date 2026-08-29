@@ -1,4 +1,5 @@
-import { createSubmission, completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, } from "../service/submission.service.js";
+import { completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, } from "../service/submission.service.js";
+import { AssessmentUnavailableError, initializeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
 /**
  * POST /api/submissions
  * Create a new test submission for the authenticated student.
@@ -6,13 +7,23 @@ import { createSubmission, completeSubmission, getStudentDashboard, getSubmissio
 export async function startSubmission(req, res) {
     try {
         const userId = req.user.id;
-        const submission = await createSubmission(userId);
+        const submission = await initializeManifestSubmission(userId);
         res.status(201).json({
             status: "success",
             data: submission,
         });
     }
     catch (error) {
+        if (error instanceof AssessmentUnavailableError) {
+            res.setHeader("Retry-After", String(error.retryAfterSeconds));
+            res.status(503).json({
+                error: error.message,
+                code: error.code,
+                retryable: error.retryable,
+                retryAfterSeconds: error.retryAfterSeconds,
+            });
+            return;
+        }
         console.error("Create submission error:", error);
         res.status(500).json({ error: "Failed to create submission" });
     }

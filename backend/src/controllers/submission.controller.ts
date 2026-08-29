@@ -1,11 +1,14 @@
 import type { Request, Response } from "express";
 import {
-  createSubmission,
   completeSubmission,
   getStudentDashboard,
   getSubmissionDetail,
   getSubmissionStatus,
 } from "../service/submission.service.js";
+import {
+  AssessmentUnavailableError,
+  initializeManifestSubmission,
+} from "../service/manifestSubmissionInitialization.service.js";
 
 /**
  * POST /api/submissions
@@ -14,12 +17,22 @@ import {
 export async function startSubmission(req: Request, res: Response) {
   try {
     const userId = req.user!.id;
-    const submission = await createSubmission(userId);
+    const submission = await initializeManifestSubmission(userId);
     res.status(201).json({
       status: "success",
       data: submission,
     });
   } catch (error) {
+    if (error instanceof AssessmentUnavailableError) {
+      res.setHeader("Retry-After", String(error.retryAfterSeconds));
+      res.status(503).json({
+        error: error.message,
+        code: error.code,
+        retryable: error.retryable,
+        retryAfterSeconds: error.retryAfterSeconds,
+      });
+      return;
+    }
     console.error("Create submission error:", error);
     res.status(500).json({ error: "Failed to create submission" });
   }

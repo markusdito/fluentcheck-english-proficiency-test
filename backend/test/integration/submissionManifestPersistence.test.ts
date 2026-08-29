@@ -133,22 +133,23 @@ async function insertSubmissionManifest(
     const entryId = randomUUID();
     await client.query(
       `INSERT INTO "ManifestEntry"
-        ("id", "manifestId", "submissionId", "category", "deliveryPosition", "sourceQuestionId")
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+        ("id", "manifestId", "submissionId", "category", "deliveryPosition", "preparationSeconds", "recordingSeconds", "promptMediaStorageKey", "promptMediaMimeType", "promptMediaSizeBytes", "sourceQuestionId")
+       VALUES ($1, $2, $3, $4, $5, 30, 120, $6, 'audio/webm', 1234, $7)`,
       [
         entryId,
         manifestId,
         submissionId,
         source.category,
         index + 1,
+        `questions/${source.questionId}/prompt.webm`,
         source.questionId,
       ],
     );
     await client.query(
       `INSERT INTO "ManifestTask"
-        ("id", "manifestEntryId", "sourceTaskId", "sourceQuestionId", "deliveredOrder")
-       VALUES ($1, $2, $3, $4, 1)`,
-      [randomUUID(), entryId, source.taskId, source.questionId],
+        ("id", "manifestEntryId", "sourceTaskId", "sourceQuestionId", "deliveredOrder", "deliveredText")
+       VALUES ($1, $2, $3, $4, 1, $5)`,
+      [randomUUID(), entryId, source.taskId, source.questionId, `Delivered task ${index + 1}`],
     );
     entryIds.push(entryId);
   }
@@ -337,6 +338,16 @@ test("bound manifest evidence is immutable and retains its source evidence", asy
     ]),
     /violates foreign key constraint/,
   );
+
+  await constraintsClient.query(
+    `UPDATE "Question" SET "preparationSeconds" = 99 WHERE "id" = $1`,
+    [fixture.questions[0].questionId],
+  );
+  const retained = await constraintsClient.query<{ preparationSeconds: number }>(
+    `SELECT "preparationSeconds" FROM "ManifestEntry" WHERE "id" = $1`,
+    [manifest.entryIds[0]],
+  );
+  assert.equal(retained.rows[0]?.preparationSeconds, 30);
 });
 
 test("Answers use exactly one Legacy-question or same-Submission Manifest-entry identity", async () => {

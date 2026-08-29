@@ -40,6 +40,7 @@ export type ManifestTaskMinAggregateOutputType = {
   sourceQuestionId: string | null
   sourceTaskId: string | null
   deliveredOrder: number | null
+  deliveredText: string | null
   createdAt: Date | null
 }
 
@@ -49,6 +50,7 @@ export type ManifestTaskMaxAggregateOutputType = {
   sourceQuestionId: string | null
   sourceTaskId: string | null
   deliveredOrder: number | null
+  deliveredText: string | null
   createdAt: Date | null
 }
 
@@ -58,6 +60,7 @@ export type ManifestTaskCountAggregateOutputType = {
   sourceQuestionId: number
   sourceTaskId: number
   deliveredOrder: number
+  deliveredText: number
   createdAt: number
   _all: number
 }
@@ -77,6 +80,7 @@ export type ManifestTaskMinAggregateInputType = {
   sourceQuestionId?: true
   sourceTaskId?: true
   deliveredOrder?: true
+  deliveredText?: true
   createdAt?: true
 }
 
@@ -86,6 +90,7 @@ export type ManifestTaskMaxAggregateInputType = {
   sourceQuestionId?: true
   sourceTaskId?: true
   deliveredOrder?: true
+  deliveredText?: true
   createdAt?: true
 }
 
@@ -95,6 +100,7 @@ export type ManifestTaskCountAggregateInputType = {
   sourceQuestionId?: true
   sourceTaskId?: true
   deliveredOrder?: true
+  deliveredText?: true
   createdAt?: true
   _all?: true
 }
@@ -191,6 +197,7 @@ export type ManifestTaskGroupByOutputType = {
   sourceQuestionId: string
   sourceTaskId: string
   deliveredOrder: number
+  deliveredText: string
   createdAt: Date
   _count: ManifestTaskCountAggregateOutputType | null
   _avg: ManifestTaskAvgAggregateOutputType | null
@@ -223,6 +230,7 @@ export type ManifestTaskWhereInput = {
   sourceQuestionId?: Prisma.UuidFilter<"ManifestTask"> | string
   sourceTaskId?: Prisma.UuidFilter<"ManifestTask"> | string
   deliveredOrder?: Prisma.IntFilter<"ManifestTask"> | number
+  deliveredText?: Prisma.StringFilter<"ManifestTask"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestTask"> | Date | string
   manifestEntry?: Prisma.XOR<Prisma.ManifestEntryScalarRelationFilter, Prisma.ManifestEntryWhereInput>
   sourceTask?: Prisma.XOR<Prisma.TaskScalarRelationFilter, Prisma.TaskWhereInput>
@@ -234,6 +242,7 @@ export type ManifestTaskOrderByWithRelationInput = {
   sourceQuestionId?: Prisma.SortOrder
   sourceTaskId?: Prisma.SortOrder
   deliveredOrder?: Prisma.SortOrder
+  deliveredText?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   manifestEntry?: Prisma.ManifestEntryOrderByWithRelationInput
   sourceTask?: Prisma.TaskOrderByWithRelationInput
@@ -250,6 +259,7 @@ export type ManifestTaskWhereUniqueInput = Prisma.AtLeast<{
   sourceQuestionId?: Prisma.UuidFilter<"ManifestTask"> | string
   sourceTaskId?: Prisma.UuidFilter<"ManifestTask"> | string
   deliveredOrder?: Prisma.IntFilter<"ManifestTask"> | number
+  deliveredText?: Prisma.StringFilter<"ManifestTask"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestTask"> | Date | string
   manifestEntry?: Prisma.XOR<Prisma.ManifestEntryScalarRelationFilter, Prisma.ManifestEntryWhereInput>
   sourceTask?: Prisma.XOR<Prisma.TaskScalarRelationFilter, Prisma.TaskWhereInput>
@@ -261,6 +271,7 @@ export type ManifestTaskOrderByWithAggregationInput = {
   sourceQuestionId?: Prisma.SortOrder
   sourceTaskId?: Prisma.SortOrder
   deliveredOrder?: Prisma.SortOrder
+  deliveredText?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ManifestTaskCountOrderByAggregateInput
   _avg?: Prisma.ManifestTaskAvgOrderByAggregateInput
@@ -278,12 +289,14 @@ export type ManifestTaskScalarWhereWithAggregatesInput = {
   sourceQuestionId?: Prisma.UuidWithAggregatesFilter<"ManifestTask"> | string
   sourceTaskId?: Prisma.UuidWithAggregatesFilter<"ManifestTask"> | string
   deliveredOrder?: Prisma.IntWithAggregatesFilter<"ManifestTask"> | number
+  deliveredText?: Prisma.StringWithAggregatesFilter<"ManifestTask"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ManifestTask"> | Date | string
 }
 
 export type ManifestTaskCreateInput = {
   id?: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
   manifestEntry: Prisma.ManifestEntryCreateNestedOneWithoutTasksInput
   sourceTask: Prisma.TaskCreateNestedOneWithoutManifestTasksInput
@@ -295,12 +308,14 @@ export type ManifestTaskUncheckedCreateInput = {
   sourceQuestionId: string
   sourceTaskId: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
 }
 
 export type ManifestTaskUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifestEntry?: Prisma.ManifestEntryUpdateOneRequiredWithoutTasksNestedInput
   sourceTask?: Prisma.TaskUpdateOneRequiredWithoutManifestTasksNestedInput
@@ -312,6 +327,7 @@ export type ManifestTaskUncheckedUpdateInput = {
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   sourceTaskId?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -321,12 +337,14 @@ export type ManifestTaskCreateManyInput = {
   sourceQuestionId: string
   sourceTaskId: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
 }
 
 export type ManifestTaskUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -336,6 +354,7 @@ export type ManifestTaskUncheckedUpdateManyInput = {
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   sourceTaskId?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -365,6 +384,7 @@ export type ManifestTaskCountOrderByAggregateInput = {
   sourceQuestionId?: Prisma.SortOrder
   sourceTaskId?: Prisma.SortOrder
   deliveredOrder?: Prisma.SortOrder
+  deliveredText?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -378,6 +398,7 @@ export type ManifestTaskMaxOrderByAggregateInput = {
   sourceQuestionId?: Prisma.SortOrder
   sourceTaskId?: Prisma.SortOrder
   deliveredOrder?: Prisma.SortOrder
+  deliveredText?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -387,6 +408,7 @@ export type ManifestTaskMinOrderByAggregateInput = {
   sourceQuestionId?: Prisma.SortOrder
   sourceTaskId?: Prisma.SortOrder
   deliveredOrder?: Prisma.SortOrder
+  deliveredText?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -481,6 +503,7 @@ export type ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput = {
 export type ManifestTaskCreateWithoutSourceTaskInput = {
   id?: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
   manifestEntry: Prisma.ManifestEntryCreateNestedOneWithoutTasksInput
 }
@@ -489,6 +512,7 @@ export type ManifestTaskUncheckedCreateWithoutSourceTaskInput = {
   id?: string
   manifestEntryId: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
 }
 
@@ -527,12 +551,14 @@ export type ManifestTaskScalarWhereInput = {
   sourceQuestionId?: Prisma.UuidFilter<"ManifestTask"> | string
   sourceTaskId?: Prisma.UuidFilter<"ManifestTask"> | string
   deliveredOrder?: Prisma.IntFilter<"ManifestTask"> | number
+  deliveredText?: Prisma.StringFilter<"ManifestTask"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestTask"> | Date | string
 }
 
 export type ManifestTaskCreateWithoutManifestEntryInput = {
   id?: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
   sourceTask: Prisma.TaskCreateNestedOneWithoutManifestTasksInput
 }
@@ -541,6 +567,7 @@ export type ManifestTaskUncheckedCreateWithoutManifestEntryInput = {
   id?: string
   sourceTaskId: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
 }
 
@@ -574,12 +601,14 @@ export type ManifestTaskCreateManySourceTaskInput = {
   id?: string
   manifestEntryId: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
 }
 
 export type ManifestTaskUpdateWithoutSourceTaskInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifestEntry?: Prisma.ManifestEntryUpdateOneRequiredWithoutTasksNestedInput
 }
@@ -588,6 +617,7 @@ export type ManifestTaskUncheckedUpdateWithoutSourceTaskInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   manifestEntryId?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -595,6 +625,7 @@ export type ManifestTaskUncheckedUpdateManyWithoutSourceTaskInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   manifestEntryId?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -602,12 +633,14 @@ export type ManifestTaskCreateManyManifestEntryInput = {
   id?: string
   sourceTaskId: string
   deliveredOrder: number
+  deliveredText?: string
   createdAt?: Date | string
 }
 
 export type ManifestTaskUpdateWithoutManifestEntryInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sourceTask?: Prisma.TaskUpdateOneRequiredWithoutManifestTasksNestedInput
 }
@@ -616,6 +649,7 @@ export type ManifestTaskUncheckedUpdateWithoutManifestEntryInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   sourceTaskId?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -623,6 +657,7 @@ export type ManifestTaskUncheckedUpdateManyWithoutManifestEntryInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   sourceTaskId?: Prisma.StringFieldUpdateOperationsInput | string
   deliveredOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  deliveredText?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -634,6 +669,7 @@ export type ManifestTaskSelect<ExtArgs extends runtime.Types.Extensions.Internal
   sourceQuestionId?: boolean
   sourceTaskId?: boolean
   deliveredOrder?: boolean
+  deliveredText?: boolean
   createdAt?: boolean
   manifestEntry?: boolean | Prisma.ManifestEntryDefaultArgs<ExtArgs>
   sourceTask?: boolean | Prisma.TaskDefaultArgs<ExtArgs>
@@ -645,6 +681,7 @@ export type ManifestTaskSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   sourceQuestionId?: boolean
   sourceTaskId?: boolean
   deliveredOrder?: boolean
+  deliveredText?: boolean
   createdAt?: boolean
   manifestEntry?: boolean | Prisma.ManifestEntryDefaultArgs<ExtArgs>
   sourceTask?: boolean | Prisma.TaskDefaultArgs<ExtArgs>
@@ -656,6 +693,7 @@ export type ManifestTaskSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   sourceQuestionId?: boolean
   sourceTaskId?: boolean
   deliveredOrder?: boolean
+  deliveredText?: boolean
   createdAt?: boolean
   manifestEntry?: boolean | Prisma.ManifestEntryDefaultArgs<ExtArgs>
   sourceTask?: boolean | Prisma.TaskDefaultArgs<ExtArgs>
@@ -667,10 +705,11 @@ export type ManifestTaskSelectScalar = {
   sourceQuestionId?: boolean
   sourceTaskId?: boolean
   deliveredOrder?: boolean
+  deliveredText?: boolean
   createdAt?: boolean
 }
 
-export type ManifestTaskOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "manifestEntryId" | "sourceQuestionId" | "sourceTaskId" | "deliveredOrder" | "createdAt", ExtArgs["result"]["manifestTask"]>
+export type ManifestTaskOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "manifestEntryId" | "sourceQuestionId" | "sourceTaskId" | "deliveredOrder" | "deliveredText" | "createdAt", ExtArgs["result"]["manifestTask"]>
 export type ManifestTaskInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   manifestEntry?: boolean | Prisma.ManifestEntryDefaultArgs<ExtArgs>
   sourceTask?: boolean | Prisma.TaskDefaultArgs<ExtArgs>
@@ -696,6 +735,7 @@ export type $ManifestTaskPayload<ExtArgs extends runtime.Types.Extensions.Intern
     sourceQuestionId: string
     sourceTaskId: string
     deliveredOrder: number
+    deliveredText: string
     createdAt: Date
   }, ExtArgs["result"]["manifestTask"]>
   composites: {}
@@ -1127,6 +1167,7 @@ export interface ManifestTaskFieldRefs {
   readonly sourceQuestionId: Prisma.FieldRef<"ManifestTask", 'String'>
   readonly sourceTaskId: Prisma.FieldRef<"ManifestTask", 'String'>
   readonly deliveredOrder: Prisma.FieldRef<"ManifestTask", 'Int'>
+  readonly deliveredText: Prisma.FieldRef<"ManifestTask", 'String'>
   readonly createdAt: Prisma.FieldRef<"ManifestTask", 'DateTime'>
 }
 

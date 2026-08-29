@@ -152,6 +152,11 @@ model ManifestEntry {
   manifest         SubmissionManifest @relation(fields: [manifestId, submissionId], references: [id, submissionId], onDelete: Restrict)
   category         QuestionCategory
   deliveryPosition Int
+  preparationSeconds Int @default(0)
+  recordingSeconds   Int @default(0)
+  promptMediaStorageKey String @default("")
+  promptMediaMimeType  String @default("")
+  promptMediaSizeBytes Int @default(0)
   sourceQuestionId String             @db.Uuid
   sourceQuestion   Question           @relation(fields: [sourceQuestionId], references: [id], onDelete: Restrict)
   tasks            ManifestTask[]
@@ -173,6 +178,7 @@ model ManifestTask {
   sourceTaskId     String        @db.Uuid
   sourceTask       Task          @relation(fields: [sourceTaskId, sourceQuestionId], references: [id, questionId], onDelete: Restrict)
   deliveredOrder   Int
+  deliveredText    String @default("")
   createdAt        DateTime      @default(now()) @db.Timestamptz()
 
   @@unique([manifestEntryId, sourceTaskId])
