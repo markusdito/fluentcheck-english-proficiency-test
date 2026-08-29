@@ -19,7 +19,7 @@ export async function getPresignedUrl(req, res) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : "Failed to generate presigned URL";
-        const status = message === "Submission not found" || message === "Submission does not belong to this user"
+        const status = message === "Submission not found" || message === "Submission does not belong to this user" || message === "Manifest entry not found"
             ? 404
             : message === "Submission is not in progress"
                 ? 400
@@ -49,7 +49,7 @@ export async function confirmUploadHandler(req, res) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : "Failed to confirm upload";
-        const status = message === "Unauthorized" || message === "Answer not found" ? 404 : message.includes("Video") || message.includes("Answer upload") ? 409 : 500;
+        const status = message === "Unauthorized" || message === "Answer not found" || message === "Manifest entry not found" ? 404 : message.includes("Video") || message.includes("Answer upload") ? 409 : 500;
         res.status(status).json({ error: message });
     }
 }

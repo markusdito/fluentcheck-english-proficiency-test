@@ -203,21 +203,19 @@ export async function createPresignedUpload(submissionId, manifestEntryId, mimeT
     if (!VIDEO_MIME_RE.test(mimeType))
         throw new Error("Invalid video mimeType");
     // Verify the submission belongs to the user and is in IN_PROGRESS status
-    const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
-        select: { studentId: true, status: true, manifest: { select: { entries: { where: { id: manifestEntryId }, select: { id: true } } } } },
+    const submission = await prisma.submission.findFirst({
+        where: {
+            id: submissionId,
+            studentId: userId,
+            manifest: { entries: { some: { id: manifestEntryId } } },
+        },
+        select: { studentId: true, status: true },
     });
-    if (!submission) {
-        throw new Error("Submission not found");
-    }
-    if (submission.studentId !== userId) {
-        throw new Error("Submission does not belong to this user");
-    }
+    if (!submission)
+        throw new Error("Manifest entry not found");
     if (submission.status !== "IN_PROGRESS") {
         throw new Error("Submission is not in progress");
     }
-    if (!submission.manifest?.entries[0])
-        throw new Error("Manifest entry not found");
     const storageKey = generateStorageKey(submissionId, manifestEntryId);
     const bucket = env.R2_BUCKET_NAME;
     // Upsert the Answer record — one answer per submission+question pair
@@ -261,9 +259,8 @@ export async function confirmUpload(submissionId, manifestEntryId, userId, _meta
         where: { id: submissionId },
         select: { studentId: true, status: true },
     });
-    if (!submission || submission.studentId !== userId) {
-        throw new Error("Unauthorized");
-    }
+    if (!submission || submission.studentId !== userId)
+        throw new Error("Manifest entry not found");
     if (submission.status !== "IN_PROGRESS")
         throw new Error("Submission is not in progress");
     const answer = await prisma.answer.findUnique({
@@ -271,7 +268,7 @@ export async function confirmUpload(submissionId, manifestEntryId, userId, _meta
         select: { id: true, storageKey: true, bucket: true, mimeType: true, uploadStatus: true, submissionId: true, verifiedAt: true },
     });
     if (!answer || answer.submissionId !== submissionId)
-        throw new Error("Answer not found");
+        throw new Error("Manifest entry not found");
     if (answer.uploadStatus === "UPLOADED" && answer.verifiedAt)
         return;
     if (answer.uploadStatus !== "PENDING")
