@@ -194,14 +194,24 @@ export async function getSubmissionDetail(submissionId, userId) {
         let audioUrl = null;
         const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
         const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
+        if (manifestEntry &&
+            (!manifestEntry.promptMediaStorageKey || !manifestEntry.promptMediaMimeType)) {
+            throw new Error("Manifest evidence unavailable");
+        }
         if (promptStorageKey) {
             try {
                 audioUrl = await createQuestionAudioViewUrlFromMetadata(promptStorageKey, promptMimeType);
             }
             catch {
-                // If presigned URL generation fails, return null
+                // A retained manifest must never fall back to current Question media.
+                if (manifestEntry)
+                    throw new Error("Manifest evidence unavailable");
+                // Legacy readers preserve their historical best-effort behavior.
                 audioUrl = null;
             }
+        }
+        if (manifestEntry && !audioUrl) {
+            throw new Error("Manifest evidence unavailable");
         }
         const scoreSummary = aggregateStoredScores(answer.scores, submission.scoringSystem);
         const comments = answer.scores.flatMap(({ comment }) => {

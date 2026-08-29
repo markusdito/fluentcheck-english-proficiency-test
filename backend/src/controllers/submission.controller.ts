@@ -9,9 +9,11 @@ import {
 import {
   ActiveSubmissionConflictError,
   AssessmentUnavailableError,
+  IdempotencyKeyConflictError,
   initializeManifestSubmission,
   resumeManifestSubmission,
 } from "../service/manifestSubmissionInitialization.service.js";
+import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
 
 /**
  * POST /api/submissions
@@ -31,6 +33,10 @@ export async function startSubmission(req: Request, res: Response) {
   } catch (error) {
     if (error instanceof ActiveSubmissionConflictError) {
       res.status(409).json({ error: error.message, submissionId: error.submissionId });
+      return;
+    }
+    if (error instanceof IdempotencyKeyConflictError) {
+      res.status(409).json({ error: error.message });
       return;
     }
     if (error instanceof AssessmentUnavailableError) {
@@ -72,6 +78,21 @@ export async function resumeActiveSubmission(req: Request, res: Response) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Assessment unavailable";
     res.status(404).json({ error: message });
+  }
+}
+
+/** GET /api/submissions/:id/prompts/:manifestEntryId — owner-scoped prompt media. */
+export async function getStudentPromptAudioUrl(req: Request, res: Response) {
+  try {
+    const url = await createStudentPromptAudioViewUrl(
+      req.params.id as string,
+      req.params.manifestEntryId as string,
+      req.user!.id,
+    );
+    res.status(200).json({ status: "success", data: { url } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Question not found";
+    res.status(message === "Question not found" ? 404 : 500).json({ error: message });
   }
 }
 

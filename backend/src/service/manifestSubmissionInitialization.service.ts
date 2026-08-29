@@ -41,6 +41,14 @@ export class ActiveSubmissionConflictError extends Error {
   }
 }
 
+/** The same idempotency key cannot be used for another student's start intent. */
+export class IdempotencyKeyConflictError extends Error {
+  constructor() {
+    super("Idempotency-Key is already associated with another student");
+    this.name = "IdempotencyKeyConflictError";
+  }
+}
+
 class EligibilityConflictError extends Error {
   constructor() {
     super("Selected assessment evidence changed during initialization");
@@ -59,6 +67,41 @@ function withDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
   ]);
 }
 
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+
+async function replayStartIntent(
+  studentId: string,
+  idempotencyKey: string,
+  signPromptMedia: NonNullable<InitializationDependencies["signPromptMedia"]>,
+) {
+  const existingIntent = await prisma.submissionStartIntent.findUnique({
+    where: { idempotencyKey },
+    include: { submission: { include: { manifest: { include: { entries: { include: { tasks: true } } } } } } },
+  });
+  if (!existingIntent) return undefined;
+  if (existingIntent.studentId !== studentId) throw new IdempotencyKeyConflictError();
+  if (!existingIntent.submission.manifest) throw new AssessmentUnavailableError();
+  const manifest: ManifestDeliveryManifest = {
+    id: existingIntent.submission.manifest.id,
+    version: existingIntent.submission.manifest.version,
+    entries: existingIntent.submission.manifest.entries.map((entry) => ({
+      id: entry.id,
+      category: entry.category,
+      deliveryPosition: entry.deliveryPosition,
+      preparationSeconds: entry.preparationSeconds,
+      recordingSeconds: entry.recordingSeconds,
+      promptMediaStorageKey: entry.promptMediaStorageKey,
+      promptMediaMimeType: entry.promptMediaMimeType,
+      promptMediaSizeBytes: entry.promptMediaSizeBytes,
+      tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
+    })),
+  };
+  const entries = await buildManifestDelivery(manifest, signPromptMedia);
+  return { submissionId: existingIntent.submissionId, status: existingIntent.submission.status, manifestId: manifest.id, version: manifest.version, entries };
+}
+
 /** Select, snapshot, and persist one complete manifest atomically. */
 export async function initializeManifestSubmission(
   studentId: string,
@@ -71,29 +114,8 @@ export async function initializeManifestSubmission(
 
   try {
     if (idempotencyKey) {
-      const existingIntent = await prisma.submissionStartIntent.findUnique({
-        where: { idempotencyKey },
-        include: { submission: { include: { manifest: { include: { entries: { include: { tasks: true } } } } } } },
-      });
-      if (existingIntent && existingIntent.studentId === studentId && existingIntent.submission.manifest) {
-        const manifest: ManifestDeliveryManifest = {
-          id: existingIntent.submission.manifest.id,
-          version: existingIntent.submission.manifest.version,
-          entries: existingIntent.submission.manifest.entries.map((entry) => ({
-            id: entry.id,
-            category: entry.category,
-            deliveryPosition: entry.deliveryPosition,
-            preparationSeconds: entry.preparationSeconds,
-            recordingSeconds: entry.recordingSeconds,
-            promptMediaStorageKey: entry.promptMediaStorageKey,
-            promptMediaMimeType: entry.promptMediaMimeType,
-            promptMediaSizeBytes: entry.promptMediaSizeBytes,
-            tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
-          })),
-        };
-        const entries = await buildManifestDelivery(manifest, signPromptMedia);
-        return { submissionId: existingIntent.submissionId, status: existingIntent.submission.status, manifestId: manifest.id, version: manifest.version, entries };
-      }
+      const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia);
+      if (replay) return replay;
     }
     const active = await prisma.submission.findFirst({
       where: { studentId, status: "IN_PROGRESS" },
@@ -251,6 +273,14 @@ export async function initializeManifestSubmission(
         select: { id: true },
       });
       if (active) throw new ActiveSubmissionConflictError(active.id);
+    }
+    if (idempotencyKey && isUniqueViolation(error)) {
+      // A concurrent request may have won the idempotency insert after the
+      // initial lookup. Replay its committed result after the transaction rolls
+      // back, preserving exactly one manifest for the key.
+      const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia);
+      if (replay) return replay;
+      throw new IdempotencyKeyConflictError();
     }
     if (dependencies.observeFailure && !(error instanceof ActiveSubmissionConflictError)) {
       const classification = error instanceof EligibilityConflictError

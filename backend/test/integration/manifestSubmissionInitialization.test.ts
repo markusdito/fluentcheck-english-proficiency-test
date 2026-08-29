@@ -15,6 +15,7 @@ let prisma: any;
 let disconnectDB: (() => Promise<void>) | undefined;
 let initializeManifestSubmission: typeof import("../../src/service/manifestSubmissionInitialization.service.js").initializeManifestSubmission;
 let AssessmentUnavailableError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").AssessmentUnavailableError;
+let IdempotencyKeyConflictError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").IdempotencyKeyConflictError;
 let app: Express;
 let server: Server;
 let baseUrl: string;
@@ -33,7 +34,7 @@ before(async () => {
     timeout: 120_000,
   });
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
-  ({ initializeManifestSubmission, AssessmentUnavailableError } = await import("../../src/service/manifestSubmissionInitialization.service.js"));
+  ({ initializeManifestSubmission, AssessmentUnavailableError, IdempotencyKeyConflictError } = await import("../../src/service/manifestSubmissionInitialization.service.js"));
   const { createApp } = await import("../../src/server.js");
   app = createApp();
   server = app.listen(0);
@@ -160,4 +161,117 @@ test("retries once when selected source evidence changes before persistence", as
   assert.equal(mutated, true);
   assert.equal(result.entries.length, 3);
   assert.equal(result.entries[0]?.preparationSeconds, 99);
+});
+
+test("student prompt media is limited to the active submission manifest", async () => {
+  const [student, otherStudent, admin] = await Promise.all([
+    createStudent(),
+    createStudent(),
+    prisma.user.create({
+      data: {
+        username: `admin-${crypto.randomUUID()}`,
+        email: `${crypto.randomUUID()}@example.test`,
+        password: "unused",
+        role: "ADMIN",
+      },
+    }),
+  ]);
+  const questions = await Promise.all(([
+    "PART_1", "PART_2", "PART_3",
+  ] as const).map((category) => prisma.question.create({
+    data: {
+      category,
+      order: Math.floor(Math.random() * 1000000),
+      createdById: admin.id,
+      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 128,
+      audioUploadStatus: "UPLOADED",
+      tasks: { create: { promptText: "Describe the scene.", order: 1 } },
+    },
+  })));
+  const tasks = await Promise.all(questions.map((question) =>
+    prisma.task.findFirstOrThrow({ where: { questionId: question.id } }),
+  ));
+  const entryIds: string[] = [];
+  const submission = await prisma.$transaction(async (tx: any) => {
+    const created = await tx.submission.create({
+      data: { studentId: student.id, status: "IN_PROGRESS" },
+    });
+    const manifest = await tx.submissionManifest.create({
+      data: { submissionId: created.id, version: 1 },
+    });
+    for (const [index, question] of questions.entries()) {
+      const entry = await tx.manifestEntry.create({
+        data: {
+          manifestId: manifest.id,
+          submissionId: created.id,
+          category: question.category,
+          deliveryPosition: index + 1,
+          sourceQuestionId: question.id,
+          preparationSeconds: 20,
+          recordingSeconds: 60,
+          promptMediaStorageKey: question.audioStorageKey!,
+          promptMediaMimeType: question.audioMimeType!,
+          promptMediaSizeBytes: question.audioSizeBytes!,
+        },
+      });
+      await tx.manifestTask.create({
+        data: {
+          manifestEntryId: entry.id,
+          sourceQuestionId: question.id,
+          sourceTaskId: tasks[index]!.id,
+          deliveredOrder: 1,
+          deliveredText: "Describe the scene.",
+        },
+      });
+      entryIds.push(entry.id);
+    }
+    return created;
+  });
+  const cookie = (id: string) => `jwt=${jwt.sign({ id }, process.env.JWT_SECRET!)}`;
+  const anonymousQuestionBank = await fetch(`${baseUrl}/api/questions`);
+  assert.equal(anonymousQuestionBank.status, 401);
+  const studentQuestionBank = await fetch(`${baseUrl}/api/questions`, { headers: { Cookie: cookie(student.id) } });
+  assert.equal(studentQuestionBank.status, 403);
+  const anonymousAdminBank = await fetch(`${baseUrl}/api/questions/admin`);
+  assert.equal(anonymousAdminBank.status, 401);
+  const anonymous = await fetch(`${baseUrl}/api/submissions/${submission.id}/prompts/${entryIds[0]}`);
+  assert.equal(anonymous.status, 401);
+  const crossAttempt = await fetch(`${baseUrl}/api/submissions/${submission.id}/prompts/${entryIds[0]}`, { headers: { Cookie: cookie(otherStudent.id) } });
+  assert.equal(crossAttempt.status, 404);
+  const unassigned = await fetch(`${baseUrl}/api/submissions/${submission.id}/prompts/${crypto.randomUUID()}`, { headers: { Cookie: cookie(student.id) } });
+  assert.equal(unassigned.status, 404);
+  const valid = await fetch(`${baseUrl}/api/submissions/${submission.id}/prompts/${entryIds[0]}`, { headers: { Cookie: cookie(student.id) } });
+  assert.equal(valid.status, 200);
+  const payload = await valid.json();
+  assert.match(payload.data.url, /^https:\/\//);
+  assert.equal(JSON.stringify(payload).includes("storageKey"), false);
+});
+
+test("replaying an idempotency key converges on the same retained manifest", async () => {
+  const student = await createStudent();
+  const first = await initializeManifestSubmission(student.id, "replay-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  await prisma.submission.update({ where: { id: first.submissionId }, data: { status: "ABANDONED" } });
+  const replay = await initializeManifestSubmission(student.id, "replay-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/replay/${encodeURIComponent(key)}`,
+  });
+  assert.equal(replay.submissionId, first.submissionId);
+  assert.equal(replay.manifestId, first.manifestId);
+  assert.equal(replay.status, "ABANDONED");
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 1);
+});
+
+test("rejects reuse of an idempotency key by another student", async () => {
+  const other = await createStudent();
+  await assert.rejects(
+    initializeManifestSubmission(other.id, "replay-key", {
+      signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    }),
+    IdempotencyKeyConflictError,
+  );
 });

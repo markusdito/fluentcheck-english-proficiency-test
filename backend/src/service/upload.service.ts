@@ -231,7 +231,36 @@ export async function createQuestionAudioViewUrlFromMetadata(
     ResponseContentType: mimeType ?? "audio/webm",
     ResponseCacheControl: "no-cache",
   });
-  return getSignedUrl(r2Client, command, { expiresIn: 3600 });
+  return getSignedUrl(r2Client, command, { expiresIn: 300 });
+}
+
+/**
+ * Sign prompt media only when it belongs to the student's active manifest.
+ * The source Question is deliberately not consulted: a retained manifest
+ * remains playable if the question bank row is later edited or retired.
+ */
+export async function createStudentPromptAudioViewUrl(
+  submissionId: string,
+  manifestEntryId: string,
+  userId: string,
+): Promise<string> {
+  const entry = await prisma.manifestEntry.findFirst({
+    where: {
+      submissionId,
+      id: manifestEntryId,
+      manifest: { submission: { studentId: userId, status: "IN_PROGRESS" } },
+    },
+    select: {
+      promptMediaStorageKey: true,
+      promptMediaMimeType: true,
+    },
+  });
+
+  if (!entry) throw new Error("Question not found");
+  return createQuestionAudioViewUrlFromMetadata(
+    entry.promptMediaStorageKey,
+    entry.promptMediaMimeType,
+  );
 }
 
 /**

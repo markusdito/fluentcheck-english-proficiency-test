@@ -1,5 +1,6 @@
 import { completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, abandonSubmission, } from "../service/submission.service.js";
-import { ActiveSubmissionConflictError, AssessmentUnavailableError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
+import { ActiveSubmissionConflictError, AssessmentUnavailableError, IdempotencyKeyConflictError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
+import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
 /**
  * POST /api/submissions
  * Create a new test submission for the authenticated student.
@@ -16,6 +17,10 @@ export async function startSubmission(req, res) {
     catch (error) {
         if (error instanceof ActiveSubmissionConflictError) {
             res.status(409).json({ error: error.message, submissionId: error.submissionId });
+            return;
+        }
+        if (error instanceof IdempotencyKeyConflictError) {
+            res.status(409).json({ error: error.message });
             return;
         }
         if (error instanceof AssessmentUnavailableError) {
@@ -57,6 +62,17 @@ export async function resumeActiveSubmission(req, res) {
     catch (error) {
         const message = error instanceof Error ? error.message : "Assessment unavailable";
         res.status(404).json({ error: message });
+    }
+}
+/** GET /api/submissions/:id/prompts/:manifestEntryId — owner-scoped prompt media. */
+export async function getStudentPromptAudioUrl(req, res) {
+    try {
+        const url = await createStudentPromptAudioViewUrl(req.params.id, req.params.manifestEntryId, req.user.id);
+        res.status(200).json({ status: "success", data: { url } });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : "Question not found";
+        res.status(message === "Question not found" ? 404 : 500).json({ error: message });
     }
 }
 /**

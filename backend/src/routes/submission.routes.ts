@@ -8,6 +8,7 @@ import {
   getSubmissionStatusById,
   abandonSubmissionById,
   resumeActiveSubmission,
+  getStudentPromptAudioUrl,
 } from "../controllers/submission.controller.js";
 
 const router = Router();
@@ -18,6 +19,7 @@ router.get("/", verifyToken, getDashboard);
 // Create a new submission (requires authentication)
 router.post("/", verifyToken, startSubmission);
 router.get("/active", verifyToken, resumeActiveSubmission);
+router.get("/:id/prompts/:manifestEntryId", verifyToken, getStudentPromptAudioUrl);
 
 // Get a single submission with answers and video URLs (requires authentication)
 router.get("/:id/status", verifyToken, getSubmissionStatusById);
