@@ -279,7 +279,7 @@ async function readAssignmentEvidence(
             "createdAt"::text AS "createdAt", "updatedAt"::text AS "updatedAt"
        FROM "ExaminerAssignment"
       WHERE "submissionId" = ANY($1::uuid[])
-      ORDER BY "submissionId", "id"`,
+      ORDER BY "submissionId", "createdAt", "id"`,
     [submissionIds],
   );
   const scores = await client.query<AssignmentEvidenceSnapshot["scores"][number]>(
@@ -476,9 +476,28 @@ test("the final migration requires populated slots and preserves valid assignmen
       90,
       2,
     );
+    const before = await readAssignmentEvidence(client, [submission]);
 
     await applyMigration(client, EXPANSION_MIGRATION);
     await applyMigration(client, FINAL_MIGRATION);
+
+    const after = await readAssignmentEvidence(client, [submission], true);
+    assert.deepEqual(
+      after.assignments.map(({ slot: _slot, ...assignment }) => assignment),
+      before.assignments.map(({ slot: _slot, ...assignment }) => assignment),
+    );
+    assert.deepEqual(after.scores, before.scores);
+    assert.deepEqual(
+      after.assignments.map((assignment) => ({
+        id: assignment.id,
+        examinerId: assignment.examinerId,
+        slot: assignment.slot,
+      })),
+      [
+        { id: firstAssignment, examinerId: firstExaminer, slot: 1 },
+        { id: secondAssignment, examinerId: secondExaminer, slot: 2 },
+      ],
+    );
 
     const column = await client.query<{ isNullable: string }>(
       `SELECT "is_nullable" AS "isNullable"
@@ -541,13 +560,13 @@ test("the final migration fails closed when an old writer leaves an unpopulated 
     }
 
     const submission = await insertSubmission(client, "final-failure", "SCORING");
-    await insertLegacyAssignment(
+    const firstAssignment = await insertLegacyAssignment(
       client,
       submission,
       await insertExaminer(client, "final-failure-one"),
       { createdAt: "2026-01-01T00:00:00Z" },
     );
-    await insertLegacyAssignment(
+    const secondAssignment = await insertLegacyAssignment(
       client,
       submission,
       await insertExaminer(client, "final-failure-two"),
@@ -560,10 +579,19 @@ test("the final migration fails closed when an old writer leaves an unpopulated 
       submission,
       await insertExaminer(client, "final-failure-three"),
     );
+    await insertScoreEvidence(client, submission, firstAssignment, 70, 1);
+    await insertScoreEvidence(client, submission, secondAssignment, 71, 2);
+    const before = await readAssignmentEvidence(client, [submission], true);
 
     await assert.rejects(
       () => applyMigration(client, FINAL_MIGRATION),
       /Unpopulated or invalid Examiner assignment slots/,
+    );
+
+    await client.query("ROLLBACK").catch(() => undefined);
+    assert.deepEqual(
+      await readAssignmentEvidence(client, [submission], true),
+      before,
     );
 
     const state = await client.query<{ count: string; nullSlots: string }>(

@@ -165,10 +165,13 @@ test("concurrent attempts commit exactly one set and converge on the same examin
   ]);
   const submission = await createAssignmentReadySubmission();
   let selectionCount = 0;
+  const selectedPairs: [string, string][] = [];
   const selectCandidates = (eligibleExaminerIds: string[]): [string, string] => {
     const sorted = [...eligibleExaminerIds].sort();
     const offset = (selectionCount++ % 2) * 2;
-    return [sorted[offset], sorted[offset + 1]];
+    const pair: [string, string] = [sorted[offset], sorted[offset + 1]];
+    selectedPairs.push(pair);
+    return pair;
   };
 
   const results = await Promise.allSettled([
@@ -198,6 +201,14 @@ test("concurrent attempts commit exactly one set and converge on the same examin
     fulfilled[0].assignments.map((assignment) => assignment.id),
   );
   assert.equal(new Set(examiners.map((examiner) => examiner.id)).size, 4);
+  assert.equal(selectedPairs.length, 2);
+  assert.equal(new Set(selectedPairs.flat()).size, 4);
+  const returnedExaminerIds = new Set(
+    fulfilled[0].assignedExaminers.map((examiner) => examiner.id),
+  );
+  assert.ok(
+    selectedPairs.some((pair) => pair.every((examinerId) => returnedExaminerIds.has(examinerId))),
+  );
 
   assert.equal(
     await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
