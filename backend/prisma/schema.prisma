@@ -265,6 +265,7 @@ model ExaminerAssignment {
   submission   Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   examinerId   String           @db.Uuid
   examiner     User             @relation(fields: [examinerId], references: [id], onDelete: Restrict)
+  slot         Int? // 1 or 2 — populated by the atomic assignment-set operation; required after cutover
   status       AssignmentStatus @default(ASSIGNED)
   scores       Score[]
   createdAt    DateTime         @default(now()) @db.Timestamptz()
@@ -272,6 +273,7 @@ model ExaminerAssignment {
 
   // exactly 2 rows per submission — enforced transactionally at creation
   @@unique([submissionId, examinerId])
+  @@unique([submissionId, slot])
   @@index([examinerId, status]) // examiner's work queue
 }
 
