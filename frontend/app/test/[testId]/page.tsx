@@ -13,6 +13,12 @@ import { completeSubmission } from "@/lib/test-api";
 import { initializeTest } from "@/lib/test-initialization";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
+import {
+  areAllManifestEntriesUploaded,
+  canAdvanceFromEntry,
+  initializeUploadStates,
+  uploadStatusLabel,
+} from "@/lib/recording-upload-state";
 
 type TestPhase = "loading" | "preparation" | "recording" | "stopped" | "completed";
 
@@ -40,6 +46,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const [phase, setPhase] = useState<TestPhase>("loading");
   const [completedQuestions, setCompletedQuestions] = useState<string[]>([]);
   const [showCompletion, setShowCompletion] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const [completionPending, setCompletionPending] = useState(false);
   const [pendingUploadTrigger, setPendingUploadTrigger] = useState<{
     qId: string;
     durationSeconds: number;
@@ -68,6 +76,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
+  const currentUploadStatus = currentQuestion ? getUploadStatus(uploadStates[currentQuestion.id]) : "idle";
+  const recordingMutationPending = ["finalizing", "signing", "getting-url", "uploading", "verifying"].includes(currentUploadStatus);
 
   // Fetch questions + create submission on mount
   useEffect(() => {
@@ -79,6 +89,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         const initialized = await initializeTest();
         setSubmissionId(initialized.submissionId);
         setQuestions(initialized.questions);
+        setUploadStates(initializeUploadStates(initialized.questions.map((question) => question.id)));
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to initialize test";
         setFetchError(message);
@@ -118,7 +129,11 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Guard: stop camera stream on any navigation away from the test page.
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (recordingMutationPending) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
       stopStream();
     };
     const handlePopState = () => {
@@ -132,7 +147,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [stopStream]);
+  }, [recordingMutationPending, stopStream]);
 
   // Transition from loading to preparation once questions and stream are ready
   useEffect(() => {
@@ -178,7 +193,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     const currentSubmissionId = submissionIdRef.current;
     if (!currentSubmissionId) return;
 
-    setUploadStates((prev) => ({ ...prev, [questionId]: { status: "getting-url" } }));
+    setUploadStates((prev) => ({ ...prev, [questionId]: { status: "signing" } }));
 
     const uploadPromise = (async () => {
       try {
@@ -193,7 +208,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         setUploadStates((prev) => ({ ...prev, [questionId]: { status: "uploading" } }));
         await uploadToR2(presignedUrl, videoBlob);
 
-        // Step 3: Confirm upload to backend
+        // Step 3: Confirm upload to backend. This is the server verification phase.
+        setUploadStates((prev) => ({ ...prev, [questionId]: { status: "verifying" } }));
         const sizeBytes = videoBlob.size;
         await confirmUpload(currentSubmissionId, questionId, { sizeBytes, durationSeconds });
 
@@ -213,7 +229,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Watch for recording auto-stop (duration reached max, triggered inside useRecording)
   useEffect(() => {
-    const currentBlob = blobRef.current;
+    const currentBlob = blob;
     if (phase === "recording" && currentBlob && currentBlob.size > 0) {
       setPhase("stopped");
       const qId = currentQuestion?.id;
@@ -226,20 +242,27 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   }, [blob, phase]);
 
   // Derive whether all uploads are done from the current upload states
-  const allUploaded = Object.values(uploadStates).every((s) => s.status === "uploaded");
+  const allUploaded = areAllManifestEntriesUploaded(
+    questions.map((question) => question.id),
+    uploadStates,
+  );
 
   // When on the completion screen and all uploads finish, mark submission as complete
   useEffect(() => {
-    if (!showCompletion || !allUploaded || submissionCompleted) return;
+    if (!showCompletion || !allUploaded || submissionCompleted || completionPending || completionError) return;
     const sid = submissionIdRef.current;
     if (!sid) return;
 
-    setSubmissionCompleted(true);
-    completeSubmission(sid).catch((err) => {
-      console.error("Failed to complete submission:", err);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showCompletion, allUploaded]);
+    setCompletionPending(true);
+    setCompletionError(null);
+    completeSubmission(sid)
+      .then(() => setSubmissionCompleted(true))
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "Failed to complete submission";
+        setCompletionError(message);
+      })
+      .finally(() => setCompletionPending(false));
+  }, [showCompletion, allUploaded, submissionCompleted, completionPending, completionError]);
 
   // Upload tracking — when a new question finishes recording and blob becomes available, start upload
   // The durationSeconds is captured at stop-time so it isn't lost if resetRecording() zeroes the hook duration.
@@ -250,11 +273,18 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     if (!currentBlob) return; // blob not ready yet — will be retriggered by state change
 
     const state = getUploadStatus(uploadStatesRef.current[qId]);
-    if (state === "uploaded" || state === "uploading") return;
+    if (state === "uploaded" || state === "uploading" || state === "verifying" || state === "signing") return;
+
+    if (currentBlob.size === 0) {
+      setUploadStates((prev) => ({ ...prev, [qId]: { status: "error", error: "Recording was empty. Please try again." } }));
+      setPendingUploadTrigger(null);
+      return;
+    }
+    setUploadStates((prev) => ({ ...prev, [qId]: { status: "blob-ready" } }));
 
     startUpload(qId, currentBlob, durationSeconds);
     setPendingUploadTrigger(null);
-  }, [pendingUploadTrigger]);
+  }, [pendingUploadTrigger, blob]);
 
   const retryUpload = useCallback((questionId: string) => {
     setUploadStates((prev) => ({ ...prev, [questionId]: { status: "idle" } }));
@@ -267,20 +297,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     setPhase("preparation");
   }, [questions, resetRecording, prepCountdown]);
 
-  const getUploadStatusText = (status: UploadStatus): string | null => {
-    switch (status) {
-      case "getting-url":
-        return "Preparing upload...";
-      case "uploading":
-        return "Uploading video...";
-      case "uploaded":
-        return "Uploaded ✓";
-      case "error":
-        return "Upload failed";
-      default:
-        return null;
-    }
-  };
+  const getUploadStatusText = (status: UploadStatus): string | null => uploadStatusLabel(status);
 
   const handleStartRecording = () => {
     if (stream) {
@@ -291,19 +308,17 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   };
 
   const handleStopRecording = () => {
-    stopRecording(); // This schedules onstop asynchronously — blob will be set after
+    stopRecording(); // MediaRecorder finalizes asynchronously; the upload effect waits for blob-ready.
     setPhase("stopped");
 
-    // Defer upload trigger so the MediaRecorder onstop fires and blob is available
     const qId = currentQuestion?.id;
     if (qId) {
-      setTimeout(() => {
-        setPendingUploadTrigger({ qId, durationSeconds: recDuration });
-      }, 100);
+      setPendingUploadTrigger({ qId, durationSeconds: recDuration });
     }
   };
 
   const handleNextQuestion = () => {
+    if (!canAdvanceFromEntry(currentQuestion?.id, uploadStatesRef.current)) return;
     setCompletedQuestions((prev) => [...prev, currentQuestion.id]);
     resetRecording();
     prepCountdown.reset();
@@ -315,6 +330,11 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       setShowCompletion(true);
       setPhase("completed");
     }
+  };
+
+  const retryCompletion = () => {
+    setCompletionError(null);
+    setSubmissionCompleted(false);
   };
 
   const handleFinishTest = () => {
@@ -408,7 +428,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     const failedUploadsCount = Object.entries(uploadStates).filter(
       ([, s]) => getUploadStatus(s) === "error"
     ).length;
-    const allDone = allUploaded && failedUploadsCount === 0;
+    const allDone = allUploaded && failedUploadsCount === 0 && submissionCompleted;
 
     return (
       <div className="flex min-h-screen items-center justify-center bg-studio p-4">
@@ -437,6 +457,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               <p className="mt-2 text-sm text-signal">
                 {failedUploadsCount} upload{failedUploadsCount !== 1 ? "s" : ""} failed. Please retry or contact support.
               </p>
+            )}
+            {completionError && (
+              <div className="mt-2 border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
+                <p>Could not finalize this submission: {completionError}</p>
+                <Button className="mt-3" variant="outline" onClick={retryCompletion}>Retry submission</Button>
+              </div>
             )}
           </div>
           <div className="mb-8 border border-studio-rule bg-studio-panel p-6">
@@ -643,6 +669,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                     size="lg"
                     className="w-full"
                     onClick={handleNextQuestion}
+                    disabled={!canAdvanceFromEntry(currentQuestion?.id, uploadStates)}
                   >
                     {currentQuestionIndex < totalQuestions - 1
                       ? "Next question"
