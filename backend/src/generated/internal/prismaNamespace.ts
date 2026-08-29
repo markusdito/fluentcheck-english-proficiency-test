@@ -1656,6 +1656,7 @@ export const ExaminerAssignmentScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
   examinerId: 'examinerId',
+  slot: 'slot',
   status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

@@ -12,6 +12,7 @@ import {
   getAppSettings,
   updatePaymentEnabled,
 } from "../service/settings.service.js";
+import { AssignmentSetError } from "../service/examiner.service.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 
@@ -146,6 +147,27 @@ export async function assignSubmission(req: Request, res: Response) {
       data: result,
     });
   } catch (error) {
+    if (error instanceof AssignmentSetError) {
+      // Approved mapping: missing Submission → 404; non-Assignment-ready,
+      // insufficient capacity, and invariant corruption → distinct 409 codes;
+      // exhausted contention → retryable 503.
+      const status =
+        error.code === "SUBMISSION_NOT_FOUND"
+          ? 404
+          : error.code === "ASSIGNMENT_BUSY"
+            ? 503
+            : 409;
+      res.status(status).json({
+        error: error.message,
+        code: error.code,
+        retryable: error.retryable,
+        ...(error.eligibleExaminerCount !== undefined
+          ? { eligibleExaminerCount: error.eligibleExaminerCount }
+          : {}),
+      });
+      return;
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

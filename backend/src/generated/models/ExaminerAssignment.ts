@@ -20,14 +20,25 @@ export type ExaminerAssignmentModel = runtime.Types.Result.DefaultSelection<Pris
 
 export type AggregateExaminerAssignment = {
   _count: ExaminerAssignmentCountAggregateOutputType | null
+  _avg: ExaminerAssignmentAvgAggregateOutputType | null
+  _sum: ExaminerAssignmentSumAggregateOutputType | null
   _min: ExaminerAssignmentMinAggregateOutputType | null
   _max: ExaminerAssignmentMaxAggregateOutputType | null
+}
+
+export type ExaminerAssignmentAvgAggregateOutputType = {
+  slot: number | null
+}
+
+export type ExaminerAssignmentSumAggregateOutputType = {
+  slot: number | null
 }
 
 export type ExaminerAssignmentMinAggregateOutputType = {
   id: string | null
   submissionId: string | null
   examinerId: string | null
+  slot: number | null
   status: $Enums.AssignmentStatus | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -37,6 +48,7 @@ export type ExaminerAssignmentMaxAggregateOutputType = {
   id: string | null
   submissionId: string | null
   examinerId: string | null
+  slot: number | null
   status: $Enums.AssignmentStatus | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -46,6 +58,7 @@ export type ExaminerAssignmentCountAggregateOutputType = {
   id: number
   submissionId: number
   examinerId: number
+  slot: number
   status: number
   createdAt: number
   updatedAt: number
@@ -53,10 +66,19 @@ export type ExaminerAssignmentCountAggregateOutputType = {
 }
 
 
+export type ExaminerAssignmentAvgAggregateInputType = {
+  slot?: true
+}
+
+export type ExaminerAssignmentSumAggregateInputType = {
+  slot?: true
+}
+
 export type ExaminerAssignmentMinAggregateInputType = {
   id?: true
   submissionId?: true
   examinerId?: true
+  slot?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -66,6 +88,7 @@ export type ExaminerAssignmentMaxAggregateInputType = {
   id?: true
   submissionId?: true
   examinerId?: true
+  slot?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -75,6 +98,7 @@ export type ExaminerAssignmentCountAggregateInputType = {
   id?: true
   submissionId?: true
   examinerId?: true
+  slot?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -119,6 +143,18 @@ export type ExaminerAssignmentAggregateArgs<ExtArgs extends runtime.Types.Extens
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    *
+   * Select which fields to average
+  **/
+  _avg?: ExaminerAssignmentAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   *
+   * Select which fields to sum
+  **/
+  _sum?: ExaminerAssignmentSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   *
    * Select which fields to find the minimum value
   **/
   _min?: ExaminerAssignmentMinAggregateInputType
@@ -149,6 +185,8 @@ export type ExaminerAssignmentGroupByArgs<ExtArgs extends runtime.Types.Extensio
   take?: number
   skip?: number
   _count?: ExaminerAssignmentCountAggregateInputType | true
+  _avg?: ExaminerAssignmentAvgAggregateInputType
+  _sum?: ExaminerAssignmentSumAggregateInputType
   _min?: ExaminerAssignmentMinAggregateInputType
   _max?: ExaminerAssignmentMaxAggregateInputType
 }
@@ -157,10 +195,13 @@ export type ExaminerAssignmentGroupByOutputType = {
   id: string
   submissionId: string
   examinerId: string
+  slot: number
   status: $Enums.AssignmentStatus
   createdAt: Date
   updatedAt: Date
   _count: ExaminerAssignmentCountAggregateOutputType | null
+  _avg: ExaminerAssignmentAvgAggregateOutputType | null
+  _sum: ExaminerAssignmentSumAggregateOutputType | null
   _min: ExaminerAssignmentMinAggregateOutputType | null
   _max: ExaminerAssignmentMaxAggregateOutputType | null
 }
@@ -187,6 +228,7 @@ export type ExaminerAssignmentWhereInput = {
   id?: Prisma.UuidFilter<"ExaminerAssignment"> | string
   submissionId?: Prisma.UuidFilter<"ExaminerAssignment"> | string
   examinerId?: Prisma.UuidFilter<"ExaminerAssignment"> | string
+  slot?: Prisma.IntFilter<"ExaminerAssignment"> | number
   status?: Prisma.EnumAssignmentStatusFilter<"ExaminerAssignment"> | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFilter<"ExaminerAssignment"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ExaminerAssignment"> | Date | string
@@ -199,6 +241,7 @@ export type ExaminerAssignmentOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   examinerId?: Prisma.SortOrder
+  slot?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -210,29 +253,34 @@ export type ExaminerAssignmentOrderByWithRelationInput = {
 export type ExaminerAssignmentWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   submissionId_examinerId?: Prisma.ExaminerAssignmentSubmissionIdExaminerIdCompoundUniqueInput
+  submissionId_slot?: Prisma.ExaminerAssignmentSubmissionIdSlotCompoundUniqueInput
   AND?: Prisma.ExaminerAssignmentWhereInput | Prisma.ExaminerAssignmentWhereInput[]
   OR?: Prisma.ExaminerAssignmentWhereInput[]
   NOT?: Prisma.ExaminerAssignmentWhereInput | Prisma.ExaminerAssignmentWhereInput[]
   submissionId?: Prisma.UuidFilter<"ExaminerAssignment"> | string
   examinerId?: Prisma.UuidFilter<"ExaminerAssignment"> | string
+  slot?: Prisma.IntFilter<"ExaminerAssignment"> | number
   status?: Prisma.EnumAssignmentStatusFilter<"ExaminerAssignment"> | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFilter<"ExaminerAssignment"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ExaminerAssignment"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
   examiner?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   scores?: Prisma.ScoreListRelationFilter
-}, "id" | "submissionId_examinerId">
+}, "id" | "submissionId_examinerId" | "submissionId_slot">
 
 export type ExaminerAssignmentOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   examinerId?: Prisma.SortOrder
+  slot?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ExaminerAssignmentCountOrderByAggregateInput
+  _avg?: Prisma.ExaminerAssignmentAvgOrderByAggregateInput
   _max?: Prisma.ExaminerAssignmentMaxOrderByAggregateInput
   _min?: Prisma.ExaminerAssignmentMinOrderByAggregateInput
+  _sum?: Prisma.ExaminerAssignmentSumOrderByAggregateInput
 }
 
 export type ExaminerAssignmentScalarWhereWithAggregatesInput = {
@@ -242,6 +290,7 @@ export type ExaminerAssignmentScalarWhereWithAggregatesInput = {
   id?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignment"> | string
   submissionId?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignment"> | string
   examinerId?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignment"> | string
+  slot?: Prisma.IntWithAggregatesFilter<"ExaminerAssignment"> | number
   status?: Prisma.EnumAssignmentStatusWithAggregatesFilter<"ExaminerAssignment"> | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ExaminerAssignment"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"ExaminerAssignment"> | Date | string
@@ -249,6 +298,7 @@ export type ExaminerAssignmentScalarWhereWithAggregatesInput = {
 
 export type ExaminerAssignmentCreateInput = {
   id?: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -261,6 +311,7 @@ export type ExaminerAssignmentUncheckedCreateInput = {
   id?: string
   submissionId: string
   examinerId: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -269,6 +320,7 @@ export type ExaminerAssignmentUncheckedCreateInput = {
 
 export type ExaminerAssignmentUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -281,6 +333,7 @@ export type ExaminerAssignmentUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   examinerId?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -291,6 +344,7 @@ export type ExaminerAssignmentCreateManyInput = {
   id?: string
   submissionId: string
   examinerId: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -298,6 +352,7 @@ export type ExaminerAssignmentCreateManyInput = {
 
 export type ExaminerAssignmentUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -307,6 +362,7 @@ export type ExaminerAssignmentUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   examinerId?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -327,19 +383,30 @@ export type ExaminerAssignmentSubmissionIdExaminerIdCompoundUniqueInput = {
   examinerId: string
 }
 
+export type ExaminerAssignmentSubmissionIdSlotCompoundUniqueInput = {
+  submissionId: string
+  slot: number
+}
+
 export type ExaminerAssignmentCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   examinerId?: Prisma.SortOrder
+  slot?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ExaminerAssignmentAvgOrderByAggregateInput = {
+  slot?: Prisma.SortOrder
 }
 
 export type ExaminerAssignmentMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   examinerId?: Prisma.SortOrder
+  slot?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -349,9 +416,14 @@ export type ExaminerAssignmentMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   examinerId?: Prisma.SortOrder
+  slot?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ExaminerAssignmentSumOrderByAggregateInput = {
+  slot?: Prisma.SortOrder
 }
 
 export type ExaminerAssignmentScalarRelationFilter = {
@@ -463,6 +535,7 @@ export type ExaminerAssignmentUpdateOneRequiredWithoutScoresNestedInput = {
 
 export type ExaminerAssignmentCreateWithoutExaminerInput = {
   id?: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -473,6 +546,7 @@ export type ExaminerAssignmentCreateWithoutExaminerInput = {
 export type ExaminerAssignmentUncheckedCreateWithoutExaminerInput = {
   id?: string
   submissionId: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -512,6 +586,7 @@ export type ExaminerAssignmentScalarWhereInput = {
   id?: Prisma.UuidFilter<"ExaminerAssignment"> | string
   submissionId?: Prisma.UuidFilter<"ExaminerAssignment"> | string
   examinerId?: Prisma.UuidFilter<"ExaminerAssignment"> | string
+  slot?: Prisma.IntFilter<"ExaminerAssignment"> | number
   status?: Prisma.EnumAssignmentStatusFilter<"ExaminerAssignment"> | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFilter<"ExaminerAssignment"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ExaminerAssignment"> | Date | string
@@ -519,6 +594,7 @@ export type ExaminerAssignmentScalarWhereInput = {
 
 export type ExaminerAssignmentCreateWithoutSubmissionInput = {
   id?: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -529,6 +605,7 @@ export type ExaminerAssignmentCreateWithoutSubmissionInput = {
 export type ExaminerAssignmentUncheckedCreateWithoutSubmissionInput = {
   id?: string
   examinerId: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -563,6 +640,7 @@ export type ExaminerAssignmentUpdateManyWithWhereWithoutSubmissionInput = {
 
 export type ExaminerAssignmentCreateWithoutScoresInput = {
   id?: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -574,6 +652,7 @@ export type ExaminerAssignmentUncheckedCreateWithoutScoresInput = {
   id?: string
   submissionId: string
   examinerId: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -597,6 +676,7 @@ export type ExaminerAssignmentUpdateToOneWithWhereWithoutScoresInput = {
 
 export type ExaminerAssignmentUpdateWithoutScoresInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -608,6 +688,7 @@ export type ExaminerAssignmentUncheckedUpdateWithoutScoresInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   examinerId?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -616,6 +697,7 @@ export type ExaminerAssignmentUncheckedUpdateWithoutScoresInput = {
 export type ExaminerAssignmentCreateManyExaminerInput = {
   id?: string
   submissionId: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -623,6 +705,7 @@ export type ExaminerAssignmentCreateManyExaminerInput = {
 
 export type ExaminerAssignmentUpdateWithoutExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -633,6 +716,7 @@ export type ExaminerAssignmentUpdateWithoutExaminerInput = {
 export type ExaminerAssignmentUncheckedUpdateWithoutExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -642,6 +726,7 @@ export type ExaminerAssignmentUncheckedUpdateWithoutExaminerInput = {
 export type ExaminerAssignmentUncheckedUpdateManyWithoutExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -650,6 +735,7 @@ export type ExaminerAssignmentUncheckedUpdateManyWithoutExaminerInput = {
 export type ExaminerAssignmentCreateManySubmissionInput = {
   id?: string
   examinerId: string
+  slot: number
   status?: $Enums.AssignmentStatus
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -657,6 +743,7 @@ export type ExaminerAssignmentCreateManySubmissionInput = {
 
 export type ExaminerAssignmentUpdateWithoutSubmissionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -667,6 +754,7 @@ export type ExaminerAssignmentUpdateWithoutSubmissionInput = {
 export type ExaminerAssignmentUncheckedUpdateWithoutSubmissionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   examinerId?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -676,6 +764,7 @@ export type ExaminerAssignmentUncheckedUpdateWithoutSubmissionInput = {
 export type ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   examinerId?: Prisma.StringFieldUpdateOperationsInput | string
+  slot?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumAssignmentStatusFieldUpdateOperationsInput | $Enums.AssignmentStatus
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -716,6 +805,7 @@ export type ExaminerAssignmentSelect<ExtArgs extends runtime.Types.Extensions.In
   id?: boolean
   submissionId?: boolean
   examinerId?: boolean
+  slot?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -729,6 +819,7 @@ export type ExaminerAssignmentSelectCreateManyAndReturn<ExtArgs extends runtime.
   id?: boolean
   submissionId?: boolean
   examinerId?: boolean
+  slot?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -740,6 +831,7 @@ export type ExaminerAssignmentSelectUpdateManyAndReturn<ExtArgs extends runtime.
   id?: boolean
   submissionId?: boolean
   examinerId?: boolean
+  slot?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -751,12 +843,13 @@ export type ExaminerAssignmentSelectScalar = {
   id?: boolean
   submissionId?: boolean
   examinerId?: boolean
+  slot?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ExaminerAssignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "examinerId" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["examinerAssignment"]>
+export type ExaminerAssignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "examinerId" | "slot" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["examinerAssignment"]>
 export type ExaminerAssignmentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
   examiner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -783,6 +876,7 @@ export type $ExaminerAssignmentPayload<ExtArgs extends runtime.Types.Extensions.
     id: string
     submissionId: string
     examinerId: string
+    slot: number
     status: $Enums.AssignmentStatus
     createdAt: Date
     updatedAt: Date
@@ -1215,6 +1309,7 @@ export interface ExaminerAssignmentFieldRefs {
   readonly id: Prisma.FieldRef<"ExaminerAssignment", 'String'>
   readonly submissionId: Prisma.FieldRef<"ExaminerAssignment", 'String'>
   readonly examinerId: Prisma.FieldRef<"ExaminerAssignment", 'String'>
+  readonly slot: Prisma.FieldRef<"ExaminerAssignment", 'Int'>
   readonly status: Prisma.FieldRef<"ExaminerAssignment", 'AssignmentStatus'>
   readonly createdAt: Prisma.FieldRef<"ExaminerAssignment", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"ExaminerAssignment", 'DateTime'>
