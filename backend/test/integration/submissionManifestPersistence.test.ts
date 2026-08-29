@@ -25,6 +25,7 @@ const createDatabaseSql = {
     'CREATE DATABASE "manifest_preflight_broken_task"',
   manifest_preflight_single_active:
     'CREATE DATABASE "manifest_preflight_single_active"',
+  manifest_cutover: 'CREATE DATABASE "manifest_cutover"',
 } as const;
 
 async function createDatabase(name: keyof typeof createDatabaseSql) {
@@ -41,16 +42,21 @@ async function createDatabase(name: keyof typeof createDatabaseSql) {
   return databaseUrl.toString();
 }
 
-async function migrationNames(options: { includeActiveSubmissionIndex?: boolean } = {}) {
+async function migrationNames(options: {
+  includeActiveSubmissionIndex?: boolean;
+  includeManifestEnforcement?: boolean;
+} = {}) {
   const migrationsPath = path.join(process.cwd(), "prisma", "migrations");
   const names = (await readdir(migrationsPath, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
-  if (options.includeActiveSubmissionIndex === false) {
-    return names.filter((name) => name !== "20260829120000_enforce_one_active_submission");
-  }
-  return names;
+  return names.filter((name) =>
+    (options.includeActiveSubmissionIndex !== false ||
+      name !== "20260829120000_enforce_one_active_submission") &&
+    (options.includeManifestEnforcement !== false ||
+      name !== "20260829130000_enforce_manifest_on_new_submissions"),
+  );
 }
 
 async function applyMigration(client: Client, migrationName: string) {
@@ -72,7 +78,7 @@ before(async () => {
   const databaseUrl = await createDatabase("manifest_constraints");
   constraintsClient = new Client({ connectionString: databaseUrl });
   await constraintsClient.connect();
-  for (const name of await migrationNames()) {
+  for (const name of await migrationNames({ includeManifestEnforcement: false })) {
     await applyMigration(constraintsClient, name);
   }
 }, { timeout: 120_000 });
@@ -591,7 +597,10 @@ test("the read-only preflight reports Legacy lifecycle, Answers, conflicts, and 
   await client.connect();
 
   try {
-    for (const name of await migrationNames({ includeActiveSubmissionIndex: false })) {
+    for (const name of await migrationNames({
+      includeActiveSubmissionIndex: false,
+      includeManifestEnforcement: false,
+    })) {
       await applyMigration(client, name);
     }
     const fixture = await createManifestSources(
@@ -674,7 +683,10 @@ test("the preflight permits one active Legacy Submission while still reporting i
   await client.connect();
 
   try {
-    for (const name of await migrationNames({ includeActiveSubmissionIndex: false })) {
+    for (const name of await migrationNames({
+      includeActiveSubmissionIndex: false,
+      includeManifestEnforcement: false,
+    })) {
       await applyMigration(client, name);
     }
     const fixture = await createManifestSources(
@@ -731,6 +743,49 @@ test("the preflight detects Manifest Tasks whose source Question disagrees with 
     const result = await inspectSubmissionManifestReadiness(client);
     assert.equal(result.brokenReferences.manifestTasksWithoutEntries, 1);
     assert.equal(result.exitCode, 1);
+  } finally {
+    await client.end();
+  }
+}, { timeout: 120_000 });
+
+test("the cutover rejects new manifest-less Submissions while allowing atomic manifest creation", async () => {
+  const databaseUrl = await createDatabase("manifest_cutover");
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+
+  try {
+    for (const name of await migrationNames()) await applyMigration(client, name);
+
+    const studentId = randomUUID();
+    await client.query(
+      `INSERT INTO "User"
+        ("id", "username", "email", "password", "role", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, 'unused', 'STUDENT', NOW(), NOW())`,
+      [studentId, `cutover-${studentId}`, `${studentId}@example.test`],
+    );
+
+    const manifestlessSubmissionId = randomUUID();
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO "Submission"
+        ("id", "studentId", "status", "createdAt", "updatedAt")
+       VALUES ($1, $2, 'IN_PROGRESS', NOW(), NOW())`,
+      [manifestlessSubmissionId, studentId],
+    );
+    await assert.rejects(client.query("COMMIT"), /complete version-1 manifest/);
+    await client.query("ROLLBACK").catch(() => undefined);
+
+    const fixture = await createManifestSources(client, `cutover-valid-${studentId}`);
+    await client.query("BEGIN");
+    const valid = await insertSubmissionManifest(client, fixture, 3);
+    await assert.doesNotReject(client.query("COMMIT"));
+    const persisted = await client.query(
+      `SELECT COUNT(*)::int AS count
+         FROM "SubmissionManifest"
+        WHERE "submissionId" = $1`,
+      [valid.submissionId],
+    );
+    assert.equal(persisted.rows[0]?.count, 1);
   } finally {
     await client.end();
   }
