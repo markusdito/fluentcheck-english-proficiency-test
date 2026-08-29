@@ -1,5 +1,6 @@
 import { PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { randomUUID } from "node:crypto";
 import { r2Client } from "../config/r2.js";
 import { env } from "../config/env.js";
 import { prisma } from "../config/db.js";
@@ -7,7 +8,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Server-generated question audio keys only — never trust client-supplied keys.
 export const AUDIO_KEY_RE = /^questions\/[0-9a-f-]{36}\/prompt\.(webm|mp3|m4a|ogg)$/;
 export const AUDIO_MIME_RE = /^audio\/(webm|mpeg|mp4|ogg|m4a)$/;
-export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}\.webm$/;
+// New uploads include a unique attempt component. The legacy form remains
+// readable for historical submissions, but is never issued for new uploads.
+export const VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}(?:\/[0-9a-f-]{36})?\.webm$/;
+export const VERSIONED_VIDEO_KEY_RE = /^submissions\/[0-9a-f-]{36}\/answers\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.webm$/;
 export const VIDEO_MIME_RE = /^video\/(webm|mp4|quicktime)$/;
 export const MAX_ANSWER_SIZE_BYTES = 100 * 1024 * 1024;
 /**
@@ -25,11 +29,13 @@ export async function inspectPromptMedia(storageKey) {
             exists: true,
             contentLength: head.ContentLength ?? null,
             contentType: head.ContentType ?? null,
+            etag: head.ETag ?? null,
+            versionId: head.VersionId ?? null,
         };
     }
     catch (error) {
         if (error.$metadata?.httpStatusCode === 404) {
-            return { exists: false, contentLength: null, contentType: null };
+            return { exists: false, contentLength: null, contentType: null, etag: null, versionId: null };
         }
         throw error;
     }
@@ -44,6 +50,9 @@ async function headObject(storageKey, mimeType) {
     return {
         exists: inspection.exists,
         contentLength: inspection.contentLength ?? -1,
+        contentType: inspection.contentType,
+        etag: inspection.etag ?? null,
+        versionId: inspection.versionId ?? null,
     };
 }
 async function throwPromptMediaWriteConflict(questionId, activeQuestionMessage) {
@@ -211,10 +220,10 @@ export async function createStudentPromptAudioViewUrl(submissionId, manifestEntr
 }
 /**
  * Generate a storage key for a video answer.
- * Format: submissions/{submissionId}/answers/{questionId}.webm
+ * Format: submissions/{submissionId}/answers/{manifestEntryId}/{uploadAttemptId}.webm
  */
-export function generateStorageKey(submissionId, manifestEntryId) {
-    return `submissions/${submissionId}/answers/${manifestEntryId}.webm`;
+export function generateStorageKey(submissionId, manifestEntryId, uploadAttemptId = randomUUID()) {
+    return `submissions/${submissionId}/answers/${manifestEntryId}/${uploadAttemptId}.webm`;
 }
 /**
  * Generate a presigned PUT URL for direct upload to R2.
@@ -237,6 +246,13 @@ export async function createPresignedUpload(submissionId, manifestEntryId, mimeT
     if (submission.status !== "IN_PROGRESS") {
         throw new Error("Submission is not in progress");
     }
+    const existingAnswer = await prisma.answer.findUnique({
+        where: { manifestEntryId },
+        select: { uploadStatus: true, verifiedAt: true },
+    });
+    if (existingAnswer?.uploadStatus === "UPLOADED" && existingAnswer.verifiedAt) {
+        throw new Error("Answer already uploaded");
+    }
     const storageKey = generateStorageKey(submissionId, manifestEntryId);
     const bucket = env.R2_BUCKET_NAME;
     // Upsert the Answer record — one answer per submission+question pair
@@ -249,6 +265,9 @@ export async function createPresignedUpload(submissionId, manifestEntryId, mimeT
             uploadStatus: "PENDING",
             sizeBytes: null,
             durationSeconds: null,
+            verifiedAt: null,
+            observedMimeType: null,
+            proofVersion: null,
         },
         create: {
             submissionId,
@@ -301,6 +320,9 @@ export async function confirmUpload(submissionId, manifestEntryId, userId, _meta
         throw new Error("Video not found in storage");
     if (observed.contentLength > MAX_ANSWER_SIZE_BYTES)
         throw new Error("Video exceeds maximum size");
+    if (!observed.contentType || observed.contentType !== answer.mimeType) {
+        throw new Error("Video content-type mismatch");
+    }
     const updated = await prisma.answer.updateMany({
         where: {
             id: answer.id,

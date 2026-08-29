@@ -37,7 +37,7 @@ export async function getPresignedUrl(req: Request, res: Response) {
     const message = error instanceof Error ? error.message : "Failed to generate presigned URL";
     const status = message === "Submission not found" || message === "Submission does not belong to this user" || message === "Manifest entry not found"
       ? 404
-      : message === "Submission is not in progress"
+      : message === "Submission is not in progress" || message === "Answer already uploaded"
       ? 400
       : message === "Manifest entry not found" || message === "Invalid video mimeType"
       ? 404
