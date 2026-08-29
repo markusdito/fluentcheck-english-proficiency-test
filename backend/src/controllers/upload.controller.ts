@@ -3,13 +3,13 @@ import { createPresignedUpload, confirmUpload } from "../service/upload.service.
 
 interface PresignedUrlBody {
   submissionId: string;
-  questionId: string;
+  manifestEntryId: string;
   mimeType: string;
 }
 
 interface ConfirmUploadBody {
   submissionId: string;
-  questionId: string;
+  manifestEntryId: string;
   sizeBytes?: number;
   durationSeconds?: number;
 }
@@ -20,15 +20,15 @@ interface ConfirmUploadBody {
  */
 export async function getPresignedUrl(req: Request, res: Response) {
   try {
-    const { submissionId, questionId, mimeType } = req.body as PresignedUrlBody;
+    const { submissionId, manifestEntryId, mimeType } = req.body as PresignedUrlBody;
     const userId = req.user!.id;
 
-    if (!submissionId || !questionId || !mimeType) {
-      res.status(400).json({ error: "submissionId, questionId, and mimeType are required" });
+    if (!submissionId || !manifestEntryId || !mimeType) {
+      res.status(400).json({ error: "submissionId, manifestEntryId, and mimeType are required" });
       return;
     }
 
-    const result = await createPresignedUpload(submissionId, questionId, mimeType, userId);
+    const result = await createPresignedUpload(submissionId, manifestEntryId, mimeType, userId);
     res.status(201).json({
       status: "success",
       data: result,
@@ -50,15 +50,15 @@ export async function getPresignedUrl(req: Request, res: Response) {
  */
 export async function confirmUploadHandler(req: Request, res: Response) {
   try {
-    const { submissionId, questionId, sizeBytes, durationSeconds } = req.body as ConfirmUploadBody;
+    const { submissionId, manifestEntryId, sizeBytes, durationSeconds } = req.body as ConfirmUploadBody;
     const userId = req.user!.id;
 
-    if (!submissionId || !questionId) {
-      res.status(400).json({ error: "submissionId and questionId are required" });
+    if (!submissionId || !manifestEntryId) {
+      res.status(400).json({ error: "submissionId and manifestEntryId are required" });
       return;
     }
 
-    await confirmUpload(submissionId, questionId, userId, { sizeBytes, durationSeconds });
+    await confirmUpload(submissionId, manifestEntryId, userId, { sizeBytes, durationSeconds });
     res.status(200).json({
       status: "success",
       message: "Upload confirmed",

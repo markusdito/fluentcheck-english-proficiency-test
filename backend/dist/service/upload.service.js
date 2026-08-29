@@ -190,18 +190,18 @@ export async function createQuestionAudioViewUrlFromMetadata(storageKey, mimeTyp
  * Generate a storage key for a video answer.
  * Format: submissions/{submissionId}/answers/{questionId}.webm
  */
-export function generateStorageKey(submissionId, questionId) {
-    return `submissions/${submissionId}/answers/${questionId}.webm`;
+export function generateStorageKey(submissionId, manifestEntryId) {
+    return `submissions/${submissionId}/answers/${manifestEntryId}.webm`;
 }
 /**
  * Generate a presigned PUT URL for direct upload to R2.
  * Also creates an Answer record in the database with uploadStatus: PENDING.
  */
-export async function createPresignedUpload(submissionId, questionId, mimeType, userId) {
+export async function createPresignedUpload(submissionId, manifestEntryId, mimeType, userId) {
     // Verify the submission belongs to the user and is in IN_PROGRESS status
     const submission = await prisma.submission.findUnique({
         where: { id: submissionId },
-        select: { studentId: true, status: true },
+        select: { studentId: true, status: true, manifest: { select: { entries: { where: { id: manifestEntryId }, select: { id: true } } } } },
     });
     if (!submission) {
         throw new Error("Submission not found");
@@ -212,13 +212,13 @@ export async function createPresignedUpload(submissionId, questionId, mimeType, 
     if (submission.status !== "IN_PROGRESS") {
         throw new Error("Submission is not in progress");
     }
-    const storageKey = generateStorageKey(submissionId, questionId);
+    if (!submission.manifest?.entries[0])
+        throw new Error("Manifest entry not found");
+    const storageKey = generateStorageKey(submissionId, manifestEntryId);
     const bucket = env.R2_BUCKET_NAME;
     // Upsert the Answer record — one answer per submission+question pair
     const answer = await prisma.answer.upsert({
-        where: {
-            submissionId_questionId: { submissionId, questionId },
-        },
+        where: { manifestEntryId },
         update: {
             storageKey,
             bucket,
@@ -229,7 +229,7 @@ export async function createPresignedUpload(submissionId, questionId, mimeType, 
         },
         create: {
             submissionId,
-            questionId,
+            manifestEntryId,
             storageKey,
             bucket,
             mimeType,
@@ -251,19 +251,19 @@ export async function createPresignedUpload(submissionId, questionId, mimeType, 
  * Confirm that a video has been uploaded to R2.
  * Updates the Answer record with upload status, size, and duration.
  */
-export async function confirmUpload(submissionId, questionId, userId, metadata) {
+export async function confirmUpload(submissionId, manifestEntryId, userId, metadata) {
     // Verify the submission belongs to the user
     const submission = await prisma.submission.findUnique({
         where: { id: submissionId },
-        select: { studentId: true },
+        select: { studentId: true, status: true },
     });
     if (!submission || submission.studentId !== userId) {
         throw new Error("Unauthorized");
     }
+    if (submission.status !== "IN_PROGRESS")
+        throw new Error("Submission is not in progress");
     await prisma.answer.update({
-        where: {
-            submissionId_questionId: { submissionId, questionId },
-        },
+        where: { manifestEntryId },
         data: {
             uploadStatus: "UPLOADED",
             sizeBytes: metadata?.sizeBytes,
@@ -275,7 +275,7 @@ export async function confirmUpload(submissionId, questionId, userId, metadata) 
  * Generate a presigned GET URL for viewing a video.
  * Verifies the user owns the submission before generating the URL.
  */
-export async function createPresignedViewUrl(submissionId, questionId, userId) {
+export async function createPresignedViewUrl(submissionId, manifestEntryId, userId) {
     // Verify the submission belongs to the user
     const submission = await prisma.submission.findUnique({
         where: { id: submissionId },
@@ -287,26 +287,26 @@ export async function createPresignedViewUrl(submissionId, questionId, userId) {
     if (submission.studentId !== userId) {
         throw new Error("Unauthorized");
     }
-    return getPresignedViewUrl(submissionId, questionId);
+    return getPresignedViewUrl(submissionId, manifestEntryId);
 }
 /**
  * Generate a presigned GET URL for viewing a video.
  * Skips the student-ownership check — caller must verify authorization.
  * Used by the examiner service which checks ExaminerAssignment instead.
  */
-export async function createPresignedViewUrlForAccessor(submissionId, questionId) {
-    return getPresignedViewUrl(submissionId, questionId);
+export async function createPresignedViewUrlForAccessor(submissionId, manifestEntryId) {
+    return getPresignedViewUrl(submissionId, manifestEntryId);
 }
-async function getPresignedViewUrl(submissionId, questionId) {
+async function getPresignedViewUrl(submissionId, manifestEntryId) {
     const answer = await prisma.answer.findUnique({
-        where: {
-            submissionId_questionId: { submissionId, questionId },
-        },
-        select: { storageKey: true, bucket: true, uploadStatus: true },
+        where: { manifestEntryId },
+        select: { storageKey: true, bucket: true, uploadStatus: true, submissionId: true },
     });
     if (!answer) {
         throw new Error("Answer not found");
     }
+    if (answer.submissionId !== submissionId)
+        throw new Error("Answer not found");
     if (answer.uploadStatus !== "UPLOADED") {
         throw new Error("Video not yet uploaded");
     }

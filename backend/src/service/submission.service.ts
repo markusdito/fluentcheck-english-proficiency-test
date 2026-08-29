@@ -355,7 +355,17 @@ export async function completeSubmission(
   // Verify the submission belongs to this user and is still IN_PROGRESS
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: { studentId: true, status: true },
+    select: {
+      studentId: true,
+      status: true,
+      manifest: {
+        select: {
+          version: true,
+          entries: { select: { id: true } },
+        },
+      },
+      answers: { select: { manifestEntryId: true, questionId: true, uploadStatus: true } },
+    },
   });
 
   if (!submission) {
@@ -370,24 +380,24 @@ export async function completeSubmission(
     throw new Error("Submission is not in progress");
   }
 
-  // Count all answers and check all are uploaded
-  const [totalAnswers, uploadedAnswers] = await Promise.all([
-    prisma.answer.count({
-      where: { submissionId },
-    }),
-    prisma.answer.count({
-      where: { submissionId, uploadStatus: "UPLOADED" },
-    }),
-  ]);
-
-  if (totalAnswers === 0) {
-    throw new Error("No answers recorded");
-  }
-
-  if (uploadedAnswers < totalAnswers) {
-    throw new Error(
-      `Not all answers uploaded yet (${uploadedAnswers}/${totalAnswers})`
-    );
+  if (submission.manifest) {
+    if (submission.manifest.version !== 1) throw new Error("Unsupported manifest version");
+    const entryIds = new Set(submission.manifest.entries.map((entry) => entry.id));
+    const answerIds = submission.answers.map((answer) => answer.manifestEntryId);
+    if (
+      entryIds.size !== 3 ||
+      answerIds.length !== entryIds.size ||
+      answerIds.some((id) => !id || !entryIds.has(id)) ||
+      new Set(answerIds).size !== entryIds.size ||
+      submission.answers.some((answer) => answer.questionId !== null || answer.uploadStatus !== "UPLOADED")
+    ) {
+      throw new Error("Submission does not contain the exact verified answer set");
+    }
+  } else {
+    const totalAnswers = submission.answers.length;
+    const uploadedAnswers = submission.answers.filter((answer) => answer.uploadStatus === "UPLOADED").length;
+    if (totalAnswers === 0) throw new Error("No answers recorded");
+    if (uploadedAnswers < totalAnswers) throw new Error(`Not all answers uploaded yet (${uploadedAnswers}/${totalAnswers})`);
   }
 
   const { paymentEnabled } = await getAppSettings();

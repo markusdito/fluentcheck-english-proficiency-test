@@ -74,6 +74,7 @@ export async function finishSubmission(req, res) {
             ? 404
             : message === "Submission is not in progress" ||
                 message === "No answers recorded" ||
+                message === "Submission does not contain the exact verified answer set" ||
                 message.startsWith("Not all answers uploaded")
                 ? 400
                 : 500;

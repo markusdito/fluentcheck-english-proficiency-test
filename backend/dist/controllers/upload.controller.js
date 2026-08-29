@@ -5,13 +5,13 @@ import { createPresignedUpload, confirmUpload } from "../service/upload.service.
  */
 export async function getPresignedUrl(req, res) {
     try {
-        const { submissionId, questionId, mimeType } = req.body;
+        const { submissionId, manifestEntryId, mimeType } = req.body;
         const userId = req.user.id;
-        if (!submissionId || !questionId || !mimeType) {
-            res.status(400).json({ error: "submissionId, questionId, and mimeType are required" });
+        if (!submissionId || !manifestEntryId || !mimeType) {
+            res.status(400).json({ error: "submissionId, manifestEntryId, and mimeType are required" });
             return;
         }
-        const result = await createPresignedUpload(submissionId, questionId, mimeType, userId);
+        const result = await createPresignedUpload(submissionId, manifestEntryId, mimeType, userId);
         res.status(201).json({
             status: "success",
             data: result,
@@ -33,13 +33,13 @@ export async function getPresignedUrl(req, res) {
  */
 export async function confirmUploadHandler(req, res) {
     try {
-        const { submissionId, questionId, sizeBytes, durationSeconds } = req.body;
+        const { submissionId, manifestEntryId, sizeBytes, durationSeconds } = req.body;
         const userId = req.user.id;
-        if (!submissionId || !questionId) {
-            res.status(400).json({ error: "submissionId and questionId are required" });
+        if (!submissionId || !manifestEntryId) {
+            res.status(400).json({ error: "submissionId and manifestEntryId are required" });
             return;
         }
-        await confirmUpload(submissionId, questionId, userId, { sizeBytes, durationSeconds });
+        await confirmUpload(submissionId, manifestEntryId, userId, { sizeBytes, durationSeconds });
         res.status(200).json({
             status: "success",
             message: "Upload confirmed",

@@ -236,8 +236,8 @@ export async function createQuestionAudioViewUrlFromMetadata(
  * Generate a storage key for a video answer.
  * Format: submissions/{submissionId}/answers/{questionId}.webm
  */
-export function generateStorageKey(submissionId: string, questionId: string): string {
-  return `submissions/${submissionId}/answers/${questionId}.webm`;
+export function generateStorageKey(submissionId: string, manifestEntryId: string): string {
+  return `submissions/${submissionId}/answers/${manifestEntryId}.webm`;
 }
 
 /**
@@ -246,14 +246,14 @@ export function generateStorageKey(submissionId: string, questionId: string): st
  */
 export async function createPresignedUpload(
   submissionId: string,
-  questionId: string,
+  manifestEntryId: string,
   mimeType: string,
   userId: string
 ): Promise<{ presignedUrl: string; storageKey: string; answerId: string }> {
   // Verify the submission belongs to the user and is in IN_PROGRESS status
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: { studentId: true, status: true },
+    select: { studentId: true, status: true, manifest: { select: { entries: { where: { id: manifestEntryId }, select: { id: true } } } } },
   });
 
   if (!submission) {
@@ -267,15 +267,14 @@ export async function createPresignedUpload(
   if (submission.status !== "IN_PROGRESS") {
     throw new Error("Submission is not in progress");
   }
+  if (!submission.manifest?.entries[0]) throw new Error("Manifest entry not found");
 
-  const storageKey = generateStorageKey(submissionId, questionId);
+  const storageKey = generateStorageKey(submissionId, manifestEntryId);
   const bucket = env.R2_BUCKET_NAME;
 
   // Upsert the Answer record — one answer per submission+question pair
   const answer = await prisma.answer.upsert({
-    where: {
-      submissionId_questionId: { submissionId, questionId },
-    },
+    where: { manifestEntryId },
     update: {
       storageKey,
       bucket,
@@ -286,7 +285,7 @@ export async function createPresignedUpload(
     },
     create: {
       submissionId,
-      questionId,
+      manifestEntryId,
       storageKey,
       bucket,
       mimeType,
@@ -314,24 +313,23 @@ export async function createPresignedUpload(
  */
 export async function confirmUpload(
   submissionId: string,
-  questionId: string,
+  manifestEntryId: string,
   userId: string,
   metadata?: { sizeBytes?: number; durationSeconds?: number }
 ): Promise<void> {
   // Verify the submission belongs to the user
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: { studentId: true },
+    select: { studentId: true, status: true },
   });
 
   if (!submission || submission.studentId !== userId) {
     throw new Error("Unauthorized");
   }
+  if (submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
 
   await prisma.answer.update({
-    where: {
-      submissionId_questionId: { submissionId, questionId },
-    },
+    where: { manifestEntryId },
     data: {
       uploadStatus: "UPLOADED",
       sizeBytes: metadata?.sizeBytes,
@@ -346,7 +344,7 @@ export async function confirmUpload(
  */
 export async function createPresignedViewUrl(
   submissionId: string,
-  questionId: string,
+  manifestEntryId: string,
   userId: string
 ): Promise<string> {
   // Verify the submission belongs to the user
@@ -363,7 +361,7 @@ export async function createPresignedViewUrl(
     throw new Error("Unauthorized");
   }
 
-  return getPresignedViewUrl(submissionId, questionId);
+  return getPresignedViewUrl(submissionId, manifestEntryId);
 }
 
 /**
@@ -373,25 +371,24 @@ export async function createPresignedViewUrl(
  */
 export async function createPresignedViewUrlForAccessor(
   submissionId: string,
-  questionId: string
+  manifestEntryId: string
 ): Promise<string> {
-  return getPresignedViewUrl(submissionId, questionId);
+  return getPresignedViewUrl(submissionId, manifestEntryId);
 }
 
 async function getPresignedViewUrl(
   submissionId: string,
-  questionId: string
+  manifestEntryId: string
 ): Promise<string> {
   const answer = await prisma.answer.findUnique({
-    where: {
-      submissionId_questionId: { submissionId, questionId },
-    },
-    select: { storageKey: true, bucket: true, uploadStatus: true },
+    where: { manifestEntryId },
+    select: { storageKey: true, bucket: true, uploadStatus: true, submissionId: true },
   });
 
   if (!answer) {
     throw new Error("Answer not found");
   }
+  if (answer.submissionId !== submissionId) throw new Error("Answer not found");
 
   if (answer.uploadStatus !== "UPLOADED") {
     throw new Error("Video not yet uploaded");
