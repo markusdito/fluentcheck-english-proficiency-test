@@ -23,8 +23,8 @@ export async function getPresignedUrl(req, res) {
             ? 404
             : message === "Submission is not in progress" || message === "Answer already uploaded"
                 ? 400
-                : message === "Manifest entry not found" || message === "Invalid video mimeType"
-                    ? 404
+                : message === "Invalid video mimeType"
+                    ? 400
                     : 500;
         res.status(status).json({ error: message });
     }
