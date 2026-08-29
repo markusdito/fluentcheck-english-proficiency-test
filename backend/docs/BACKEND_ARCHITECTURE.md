@@ -120,6 +120,10 @@ backend/
 - **Controllers** parse request, validate body, call service, format response
 - **Services** contain all domain rules, transactions, and DB queries
 - **Prisma** handles data access (parameterized queries only — no raw SQL)
+- **Operational migration preflights** are the narrow exception: they may use
+  a dedicated `pg` client for a repeatable-read, read-only snapshot when the
+  report must run immediately before DDL enforcement. They must remain
+  reporting-only and must never repair application data.
 
 ---
 

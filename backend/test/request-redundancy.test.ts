@@ -192,18 +192,6 @@ test("combined test delivery signs uploaded prompts and never exposes storage ke
 
 test("assignment transaction returns additive assignment summaries", async () => {
   replaceMethod(
-    prisma.user,
-    "findMany",
-    (async () =>
-      ([
-        {
-          id: "examiner-1",
-          username: "Examiner One",
-          email: "examiner@example.com",
-        },
-      ]) as never) as typeof prisma.user.findMany,
-  );
-  replaceMethod(
     prisma,
     "$transaction",
     (async (callback: (tx: unknown) => unknown) =>
@@ -211,32 +199,43 @@ test("assignment transaction returns additive assignment summaries", async () =>
         submission: {
           findUnique: async () => ({ status: "PAID" }),
           update: async () => ({ id: "submission-1" }),
+          updateMany: async () => ({ count: 1 }),
         },
         examinerAssignment: {
+          findMany: async () => [],
           count: async () => 0,
-          create: async () => ({ id: "assignment-1", status: "ASSIGNED" }),
+          create: async ({ data }: { data: { examinerId: string } }) => ({
+            id: `assignment-${data.examinerId}`,
+            status: "ASSIGNED",
+            examiner: {
+              username: data.examinerId === "examiner-1" ? "Examiner One" : "Examiner Two",
+            },
+          }),
         },
+        user: {
+          findMany: async () => [
+            { id: "examiner-1", username: "Examiner One", email: "examiner@example.com" },
+            { id: "examiner-2", username: "Examiner Two", email: "examiner-2@example.com" },
+          ],
+        },
+        $queryRaw: async () => [
+          { id: "examiner-1", role: "EXAMINER", deletedAt: null },
+          { id: "examiner-2", role: "EXAMINER", deletedAt: null },
+        ],
       }) as never) as typeof prisma.$transaction,
   );
 
   const result = await assignExaminersToSubmission("submission-1");
 
-  assert.deepEqual(result, {
-    submissionId: "submission-1",
-    status: "SCORING",
-    assignments: [
-      {
-        id: "assignment-1",
-        status: "ASSIGNED",
-        examinerName: "Examiner One",
-      },
-    ],
-    assignedExaminers: [
-      {
-        id: "examiner-1",
-        name: "Examiner One",
-        email: "examiner@example.com",
-      },
-    ],
-  });
+  assert.equal(result.submissionId, "submission-1");
+  assert.equal(result.status, "SCORING");
+  assert.equal(result.assignments.length, 2);
+  assert.deepEqual(
+    result.assignments.map((assignment) => assignment.examinerName).sort(),
+    ["Examiner One", "Examiner Two"],
+  );
+  assert.deepEqual(
+    result.assignedExaminers.map((examiner) => examiner.name).sort(),
+    ["Examiner One", "Examiner Two"],
+  );
 });

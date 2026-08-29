@@ -84,6 +84,38 @@ _Avoid_: Merchant reference, session ID
 A Submission with at least one validated successful Payment attempt. Examiner assignment is a separate, retryable transition.
 _Avoid_: Assigned submission
 
+**Examiner**:
+A person authorized to independently score a Submission.
+_Avoid_: Jury, reviewer, marker
+
+**Eligible examiner**:
+An Examiner whose account is active and authorized when a new Examiner assignment set is committed.
+_Avoid_: Available examiner
+
+**Examiner assignment**:
+An obligation for one Examiner to independently score one Submission.
+_Avoid_: Review, grading task
+
+**Examiner assignment set**:
+Exactly two distinct Examiner assignments committed together for one Assignment-ready submission; neither Examiner has rank or priority.
+_Avoid_: Examiner pair, jury
+
+**Assignment-ready submission**:
+A completed Submission whose payment requirement is satisfied or waived and which has not received an Examiner assignment set.
+_Avoid_: Paid submission, unassigned submission
+
 **Payment reconciliation**:
 Reviewing recorded Payment attempts against provider records, including ambiguous outcomes or more than one successful attempt for the same Submission.
 _Avoid_: Payment repair, payment overwrite
+
+**Completed Examiner assignment**:
+An Examiner assignment whose required Answers have valid Scores and whose scoring submission is committed; it is no longer editable, and repeating completion is a successful no-op.
+_Avoid_: finalized review, scored assignment
+
+**Scoring finalization**:
+The authoritative domain operation that commits one Completed Examiner assignment and derives the owning Submission's scoring status from its complete Examiner assignment set.
+_Avoid_: score submission, grading completion
+
+**Score draft**:
+A mutable Score recorded for an Examiner assignment before that assignment is completed; it may be replaced while scoring remains in progress but is frozen by completion.
+_Avoid_: provisional grade, temporary result

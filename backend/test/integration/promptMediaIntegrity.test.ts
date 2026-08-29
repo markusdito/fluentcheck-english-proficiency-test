@@ -71,10 +71,25 @@ beforeEach(async () => {
   await prisma.examinerAssignment.deleteMany();
   await prisma.answer.deleteMany();
   await prisma.payment.deleteMany();
+  // Manifest evidence is immutable and shape-checked by deferred triggers;
+  // drop them for the privileged test cleanup path and restore afterwards.
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestEntry_immutable" ON "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestTask_immutable" ON "ManifestTask"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "SubmissionManifest_immutable" ON "SubmissionManifest"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestEntry_v1_shape_check" ON "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "SubmissionManifest_v1_shape_check" ON "SubmissionManifest"`);
+  await prisma.$executeRawUnsafe(`DELETE FROM "ManifestTask"`);
+  await prisma.$executeRawUnsafe(`DELETE FROM "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DELETE FROM "SubmissionManifest"`);
   await prisma.submission.deleteMany();
   await prisma.task.deleteMany();
   await prisma.question.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "SubmissionManifest_v1_shape_check" AFTER INSERT OR UPDATE ON "SubmissionManifest" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
+  await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "ManifestEntry_v1_shape_check" AFTER INSERT OR UPDATE OR DELETE ON "ManifestEntry" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "SubmissionManifest_immutable" BEFORE UPDATE OR DELETE ON "SubmissionManifest" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "ManifestEntry_immutable" BEFORE UPDATE OR DELETE ON "ManifestEntry" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "ManifestTask_immutable" BEFORE UPDATE OR DELETE ON "ManifestTask" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
 });
 
 after(async () => {
@@ -171,19 +186,48 @@ async function createRetirementFixture() {
     status: "IN_PROGRESS" | "AWAITING_PAYMENT" | "SCORING",
   ) {
     const submissionId = crypto.randomUUID();
-    return prisma.submission.create({
-      data: {
-        id: submissionId,
-        studentId: student.id,
-        status,
-        answers: {
-          create: {
-            questionId: question.id,
-            storageKey: `submissions/${submissionId}/answers/${question.id}.webm`,
-            uploadStatus: "PENDING",
-          },
+    // The manifest shape trigger is deferred to commit, so the Submission and
+    // its complete version-1 manifest must be created in one transaction. The
+    // fixture's own question supplies the PART_1 entry so the answer can bind
+    // to it, and each entry snapshots the question's prompt media metadata.
+    return prisma.$transaction(async (tx: any) => {
+      const submission = await tx.submission.create({
+        data: {
+          id: submissionId,
+          studentId: student.id,
+          status,
         },
-      },
+      });
+      const manifest = await tx.submissionManifest.create({
+        data: { submissionId, version: 1 },
+      });
+      let part1EntryId: string | null = null;
+      for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+        const entryQuestion = category === "PART_1" ? question : await tx.question.create({
+          data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+        });
+        const entry = await tx.manifestEntry.create({
+          data: {
+            manifestId: manifest.id,
+            submissionId,
+            category,
+            deliveryPosition: index + 1,
+            promptMediaStorageKey: `questions/${entryQuestion.id}/prompt.webm`,
+            promptMediaMimeType: "audio/webm",
+            promptMediaSizeBytes: 4_096,
+            sourceQuestionId: entryQuestion.id,
+          },
+        });
+        if (category === "PART_1") part1EntryId = entry.id;
+      }
+      await tx.answer.create({
+        data: {
+          submissionId,
+          manifestEntryId: part1EntryId!,
+          storageKey: `submissions/${submissionId}/answers/${question.id}.webm`,
+        },
+      });
+      return submission;
     });
   }
   const [inProgressSubmission, awaitingPaymentSubmission, submission] =
@@ -196,6 +240,7 @@ async function createRetirementFixture() {
     data: {
       submissionId: submission.id,
       examinerId: examiner.id,
+      slot: 1,
     },
   });
 
@@ -259,7 +304,7 @@ test("retiring a Question is idempotent and preserves authorized retained submis
   );
   assert.equal(
     await prisma.answer.count({
-      where: { questionId: fixture.question.id },
+      where: { submissionId: { in: fixture.retainedSubmissions.map((s: { id: string }) => s.id) } },
     }),
     3,
   );
@@ -442,17 +487,39 @@ test("reconciliation reports every Retired Question Prompt media state without m
       },
     });
     if (submissionStatus) {
-      await prisma.submission.create({
-        data: {
-          studentId: student.id,
-          status: submissionStatus,
-          answers: {
-            create: {
-              questionId,
-              storageKey: `submissions/${crypto.randomUUID()}/answers/${questionId}.webm`,
+      // The manifest shape trigger is deferred to commit, so the Submission
+      // and its complete version-1 manifest must be created in one transaction.
+      await prisma.$transaction(async (tx: any) => {
+        const submission = await tx.submission.create({
+          data: {
+            studentId: student.id,
+            status: submissionStatus,
+            answers: {
+              create: {
+                questionId,
+                storageKey: `submissions/${crypto.randomUUID()}/answers/${questionId}.webm`,
+              },
             },
           },
-        },
+        });
+        const manifest = await tx.submissionManifest.create({
+          data: { submissionId: submission.id, version: 1 },
+        });
+        for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+          const entryQuestion = await tx.question.create({
+            data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+          });
+          await tx.manifestEntry.create({
+            data: {
+              manifestId: manifest.id,
+              submissionId: submission.id,
+              category,
+              deliveryPosition: index + 1,
+              sourceQuestionId: entryQuestion.id,
+            },
+          });
+        }
+        return submission;
       });
     }
     return question;

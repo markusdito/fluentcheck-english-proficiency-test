@@ -1,4 +1,4 @@
-import { getExaminerAssignments, getExaminerAssignmentDetail, completeExaminerScoring, saveExaminerScore, startExaminerAssignment, submitExaminerScores, } from "../service/examiner.service.js";
+import { getExaminerAssignments, getExaminerAssignmentDetail, completeExaminerScoring, saveExaminerScore, startExaminerAssignment, submitExaminerScores, ScoringFinalizationError, } from "../service/examiner.service.js";
 import { ScoreValidationError } from "../utils/scoring.js";
 /**
  * GET /api/examiner/assignments
@@ -77,16 +77,32 @@ export async function startAssignment(req, res) {
     }
 }
 function scoringErrorStatus(error) {
+    if (error instanceof ScoringFinalizationError) {
+        if (error.code === "ASSIGNMENT_NOT_FOUND")
+            return 404;
+        if (error.code === "UNAUTHORIZED")
+            return 403;
+        return 409;
+    }
     const message = error instanceof Error ? error.message : "";
-    if (message === "Assignment not found")
-        return 404;
-    if (message === "Unauthorized")
-        return 403;
-    if (message === "Assignment is already completed")
-        return 400;
     if (error instanceof ScoreValidationError)
         return 400;
     return 500;
+}
+function scoringErrorCode(error) {
+    if (error instanceof ScoringFinalizationError)
+        return error.code;
+    if (error instanceof ScoreValidationError)
+        return "VALIDATION_ERROR";
+    return undefined;
+}
+function sendScoringError(res, error, fallbackMessage) {
+    const message = error instanceof Error ? error.message : fallbackMessage;
+    const code = scoringErrorCode(error);
+    res.status(scoringErrorStatus(error)).json({
+        error: message,
+        ...(code ? { code } : {}),
+    });
 }
 /** PUT /api/examiner/assignments/:id/scores/:answerId */
 export async function saveScore(req, res) {
@@ -94,7 +110,10 @@ export async function saveScore(req, res) {
         const assignmentId = req.params.id;
         const answerId = req.params.answerId;
         if (!assignmentId || !answerId) {
-            res.status(400).json({ error: "Assignment ID and answer ID are required" });
+            res.status(400).json({
+                error: "Assignment ID and answer ID are required",
+                code: "VALIDATION_ERROR",
+            });
             return;
         }
         const body = (req.body ?? {});
@@ -107,8 +126,7 @@ export async function saveScore(req, res) {
         res.status(200).json({ status: "success", message: "Question score saved" });
     }
     catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to save score";
-        res.status(scoringErrorStatus(error)).json({ error: message });
+        sendScoringError(res, error, "Failed to save score");
     }
 }
 /** POST /api/examiner/assignments/:id/complete */
@@ -116,15 +134,17 @@ export async function completeScoring(req, res) {
     try {
         const assignmentId = req.params.id;
         if (!assignmentId) {
-            res.status(400).json({ error: "Assignment ID is required" });
+            res.status(400).json({
+                error: "Assignment ID is required",
+                code: "VALIDATION_ERROR",
+            });
             return;
         }
-        await completeExaminerScoring(assignmentId, req.user.id);
-        res.status(200).json({ status: "success", message: "Scoring completed" });
+        const result = await completeExaminerScoring(assignmentId, req.user.id);
+        res.status(200).json({ status: "success", data: result });
     }
     catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to complete scoring";
-        res.status(scoringErrorStatus(error)).json({ error: message });
+        sendScoringError(res, error, "Failed to complete scoring");
     }
 }
 /**
@@ -141,17 +161,19 @@ export async function submitScores(req, res) {
             return;
         }
         if (!scores || !Array.isArray(scores) || scores.length === 0) {
-            res.status(400).json({ error: "scores array is required and must not be empty" });
+            res.status(400).json({
+                error: "scores array is required and must not be empty",
+                code: "VALIDATION_ERROR",
+            });
             return;
         }
-        await submitExaminerScores(assignmentId, examinerId, scores);
+        const result = await submitExaminerScores(assignmentId, examinerId, scores);
         res.status(200).json({
             status: "success",
-            message: "Scores submitted successfully",
+            data: result,
         });
     }
     catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to submit scores";
-        res.status(scoringErrorStatus(error)).json({ error: message });
+        sendScoringError(res, error, "Failed to submit scores");
     }
 }

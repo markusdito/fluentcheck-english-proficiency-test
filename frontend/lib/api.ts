@@ -4,6 +4,8 @@ interface ApiErrorResponse {
   error?: string;
   message?: string;
   errors?: Record<string, string[]>;
+  code?: string;
+  retryable?: boolean;
 }
 
 interface RequestOptions extends RequestInit {
@@ -13,12 +15,22 @@ interface RequestOptions extends RequestInit {
 export class ApiError extends Error {
   public statusCode: number;
   public errors?: Record<string, string[]>;
+  public code?: string;
+  public retryable?: boolean;
 
-  constructor(message: string, statusCode: number, errors?: Record<string, string[]>) {
+  constructor(
+    message: string,
+    statusCode: number,
+    errors?: Record<string, string[]>,
+    code?: string,
+    retryable?: boolean,
+  ) {
     super(message);
     this.name = "ApiError";
     this.statusCode = statusCode;
     this.errors = errors;
+    this.code = code;
+    this.retryable = retryable;
   }
 }
 
@@ -71,7 +83,9 @@ async function request<T>(
     throw new ApiError(
       body.error ?? body.message ?? "Session expired. Please log in again.",
       res.status,
-      body.errors
+      body.errors,
+      body.code,
+      body.retryable,
     );
   }
 
@@ -85,7 +99,9 @@ async function request<T>(
     throw new ApiError(
       body.error ?? body.message ?? `Request failed with status ${res.status}`,
       res.status,
-      body.errors
+      body.errors,
+      body.code,
+      body.retryable,
     );
   }
 

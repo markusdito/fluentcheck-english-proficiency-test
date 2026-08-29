@@ -8,6 +8,7 @@
     "test:unit": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
     "preflight:submission-manifest": "tsx scripts/preflightSubmissionManifest.ts",
+    "preflight:examiner-assignment": "tsx scripts/preflightExaminerAssignment.ts",
     "reconcile:prompt-media": "tsx scripts/reconcileRetiredPromptMedia.ts",
     "dev": "nodemon --watch src --exec tsx src/server.ts",
     "build": "tsc",

@@ -35,6 +35,29 @@ const SUBMISSION_STATUSES = [
 
 const LIMIT = 10;
 
+/**
+ * Approved actionable messages for the assignment failure classifications.
+ * Capacity and contention are retryable; invariant corruption requires data
+ * repair and must not be retried blindly.
+ */
+export function assignmentFailureMessage(err: unknown): string {
+  if (!(err instanceof ApiError)) return "Please try again.";
+  switch (err.code) {
+    case "INSUFFICIENT_CAPACITY":
+      return "Two eligible examiners are required. Add or reactivate another examiner, then try again.";
+    case "ASSIGNMENT_BUSY":
+      return "Assignment is busy right now. Please try again in a moment.";
+    case "INVARIANT_VIOLATION":
+      return "Existing assignment data is invalid and requires data repair. Retrying will not fix it.";
+    case "NOT_ASSIGNMENT_READY":
+      return "This submission is not ready for assignment. Only paid or waived submissions can be assigned.";
+    case "SUBMISSION_NOT_FOUND":
+      return "This submission no longer exists.";
+    default:
+      return err.message || "Please try again.";
+  }
+}
+
 const idr = new Intl.NumberFormat("id-ID", {
   style: "currency",
   currency: "IDR",
@@ -68,14 +91,17 @@ export default function AdminSubmissionsPage() {
         submissionsKey,
         (current) => patchAssignedSubmissionPage(current, result),
       );
-      const names = result.assignments.map((a) => a.examinerName).join(", ");
-      toast.success("Examiners assigned", {
+      const names = result.assignedExaminers.map((e) => e.name).join(", ");
+      const headline =
+        result.outcome === "EXISTING"
+          ? "Examiners already assigned"
+          : "Examiners assigned";
+      toast.success(headline, {
         description: `Assigned: ${names}`,
       });
     } catch (err) {
       toast.error("Assignment failed", {
-        description:
-          err instanceof ApiError ? err.message : "Please try again.",
+        description: assignmentFailureMessage(err),
       });
     } finally {
       setAssigningId(null);
@@ -90,7 +116,8 @@ export default function AdminSubmissionsPage() {
           Submissions
         </h1>
         <p className="mt-2 text-sm leading-6 text-ink-soft">
-          Review student submissions and assign examiners to paid tests.
+          Review student submissions and assign two examiners to completed
+          submissions that are paid or waived.
         </p>
       </div>
 
@@ -162,8 +189,11 @@ export default function AdminSubmissionsPage() {
             </TableHeader>
             <TableBody>
               {items.map((sub) => {
+                // Assignment-ready covers paid and waived (payment not
+                // required) submissions without an existing set.
                 const canAssign =
-                  sub.status === "PAID" && sub.assignments.length === 0;
+                  (sub.status === "PAID" || !sub.paymentRequired) &&
+                  sub.assignments.length === 0;
                 return (
                   <TableRow
                     key={sub.id}
