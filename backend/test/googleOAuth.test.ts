@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import type { Server } from "node:http";
 import { once } from "node:events";
 import { after, before, test } from "node:test";
@@ -150,8 +151,24 @@ test("OAuth starts use distinct state and S256 PKCE cookies for each auth page",
   assert.equal(login.status, 302);
   assert.equal(signup.status, 302);
   assert.notEqual(loginOptions.state, signupOptions.state);
+  assert.notEqual(loginOptions.state, loginCookies.google_oauth_verifier);
+  assert.notEqual(signupOptions.state, signupCookies.google_oauth_verifier);
   assert.equal(loginOptions.code_challenge_method, "S256");
-  assert.match(loginOptions.code_challenge, /^[A-Za-z0-9_-]+$/u);
+  assert.equal(
+    loginOptions.code_challenge,
+    crypto
+      .createHash("sha256")
+      .update(loginCookies.google_oauth_verifier)
+      .digest("base64url"),
+  );
+  assert.equal(
+    signupOptions.code_challenge,
+    crypto
+      .createHash("sha256")
+      .update(signupCookies.google_oauth_verifier)
+      .digest("base64url"),
+  );
+  assert.notEqual(loginCookies.google_oauth_verifier, signupCookies.google_oauth_verifier);
   assert.equal(loginCookies.google_oauth_return_to, "login");
   assert.match(login.headers.get("set-cookie") ?? "", /HttpOnly/);
   assert.match(login.headers.get("set-cookie") ?? "", /SameSite=Lax/);
