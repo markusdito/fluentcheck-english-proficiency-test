@@ -49,7 +49,7 @@ const registrationInputSchema = z.strictObject({
 const loginInputSchema = z.strictObject({
     email: emailSchema,
     password: loginPasswordSchema,
-    rememberMe: z.boolean({ error: "rememberMe must be a boolean" }).optional(),
+    rememberMe: z.boolean({ error: "rememberMe must be a boolean" }).default(false),
 });
 export const registrationSchema = registrationInputSchema.transform((input) => ({
     ...input,

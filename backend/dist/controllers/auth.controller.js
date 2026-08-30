@@ -1,5 +1,5 @@
 import { Prisma } from "../generated/client.js";
-import { clearAuthCookie, generateToken } from "../utils/jwt.js";
+import { clearAuthCookie, generateToken, } from "../utils/jwt.js";
 import { authenticateUser, createUser, findUserForLogin, } from "../service/auth.service.js";
 const REGISTRATION_CONFLICT_ERROR = "Unable to create account with these details";
 export async function register(req, res) {
@@ -15,7 +15,7 @@ export async function register(req, res) {
         }
         throw error;
     }
-    generateToken(user.id, res);
+    generateToken(user.id, res, "session");
     res.status(201).json({
         status: "success",
         data: {
@@ -30,7 +30,7 @@ export async function register(req, res) {
     });
 }
 export async function login(req, res) {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
     let user;
     try {
         user = await findUserForLogin(email);
@@ -45,7 +45,10 @@ export async function login(req, res) {
             error: "Invalid email or password",
         });
     }
-    generateToken(user.id, res);
+    const persistence = rememberMe === true
+        ? "remembered"
+        : "session";
+    generateToken(user.id, res, persistence);
     res.status(200).json({
         status: "success",
         data: {
