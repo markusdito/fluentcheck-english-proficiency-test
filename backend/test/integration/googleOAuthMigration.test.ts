@@ -54,11 +54,11 @@ test("Google identity migration preserves populated users and local credentials"
     const firstId = crypto.randomUUID();
     const secondId = crypto.randomUUID();
     await database.client.query(
-      `INSERT INTO "User"
-        ("id", "username", "email", "normalizedEmail", "password", "role", "createdAt", "updatedAt", "deletedAt")
-       VALUES
-        ($1, 'local_one', 'Local.One@Example.COM', 'local.one@example.com', 'hash-one', 'STUDENT', NOW(), NOW(), NULL),
-        ($2, 'local_two', 'local.two@example.com', 'local.two@example.com', 'hash-two', 'EXAMINER', NOW(), NOW(), NULL)`,
+      "INSERT INTO \"User\"\n" +
+        "  (\"id\", \"username\", \"email\", \"normalizedEmail\", \"password\", \"role\", \"createdAt\", \"updatedAt\", \"deletedAt\")\n" +
+        "VALUES\n" +
+        "  ($1, 'local_one', 'Local.One@Example.COM', 'local.one@example.com', 'hash-one', 'STUDENT', NOW(), NOW(), NULL),\n" +
+        "  ($2, 'local_two', 'local.two@example.com', 'local.two@example.com', 'hash-two', 'EXAMINER', NOW(), NOW(), NULL)",
       [firstId, secondId],
     );
 
@@ -77,12 +77,12 @@ test("Google identity migration preserves populated users and local credentials"
     await database.client.query("BEGIN");
     try {
       await database.client.query(
-        `UPDATE "User" SET "googleSubject" = 'shared-subject' WHERE "id" = $1`,
+        "UPDATE \"User\" SET \"googleSubject\" = 'shared-subject' WHERE \"id\" = $1",
         [firstId],
       );
       await assert.rejects(
         database.client.query(
-          `UPDATE "User" SET "googleSubject" = 'shared-subject' WHERE "id" = $1`,
+          "UPDATE \"User\" SET \"googleSubject\" = 'shared-subject' WHERE \"id\" = $1",
           [secondId],
         ),
         /duplicate key|User_googleSubject_key/u,
@@ -92,8 +92,8 @@ test("Google identity migration preserves populated users and local credentials"
     }
 
     const result = await database.client.query(
-      `SELECT "id", "username", "email", "normalizedEmail", "password", "role", "googleSubject"
-         FROM "User" ORDER BY "username"`,
+      "SELECT \"id\", \"username\", \"email\", \"normalizedEmail\", \"password\", \"role\", \"googleSubject\"\n" +
+        "  FROM \"User\" ORDER BY \"username\"",
     );
     assert.deepEqual(result.rows, [
       {
