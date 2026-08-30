@@ -65,12 +65,28 @@ function account(): AuthAccount {
 }
 
 function cookieHeader(response: globalThis.Response) {
+  return setCookieHeaders(response)
+    .map((value) => value.split(";", 1)[0])
+    .join("; ");
+}
+
+function setCookieHeaders(response: globalThis.Response) {
   const headers = response.headers as Headers & {
     getSetCookie?: () => string[];
   };
-  const values = headers.getSetCookie?.() ??
+  return headers.getSetCookie?.() ??
     (headers.get("set-cookie") ?? "").split(/,(?=[^;]+=)/u).filter(Boolean);
-  return values.map((value) => value.split(";", 1)[0]).join("; ");
+}
+
+function assertOAuthCookiesCleared(response: globalThis.Response) {
+  const setCookies = setCookieHeaders(response).join("\n");
+  for (const name of [
+    "google_oauth_state",
+    "google_oauth_verifier",
+    "google_oauth_return_to",
+  ]) {
+    assert.match(setCookies, new RegExp(`${name}=;`, "u"));
+  }
 }
 
 function cookieValues(response: globalThis.Response) {
@@ -198,6 +214,7 @@ test("valid callbacks exchange the saved PKCE verifier, issue a session, and red
   });
   assert.match(callback.headers.get("set-cookie") ?? "", /google_oauth_state=;/);
   assert.match(callback.headers.get("set-cookie") ?? "", /Path=\/backend-api\/auth\/google/);
+  assertOAuthCookiesCleared(callback);
 });
 
 test("same-origin proxy callbacks receive cookies scoped to the proxy path", async () => {
@@ -256,6 +273,7 @@ test("missing and mismatched callback state redirect with allowlisted errors and
     "https://fluentcheck.example.test/login?google_error=state_mismatch",
   );
   assert.match(mismatched.headers.get("set-cookie") ?? "", /google_oauth_verifier=;/);
+  assertOAuthCookiesCleared(mismatched);
 
   const missing = await fetch(`${url}/callback`, { redirect: "manual" });
   assert.equal(missing.status, 302);
@@ -263,6 +281,7 @@ test("missing and mismatched callback state redirect with allowlisted errors and
     missing.headers.get("location"),
     "https://fluentcheck.example.test/login?google_error=invalid_request",
   );
+  assertOAuthCookiesCleared(missing);
 
   const startCookies = cookieValues(start);
   const missingReturnTo = await fetch(
@@ -279,6 +298,7 @@ test("missing and mismatched callback state redirect with allowlisted errors and
     missingReturnTo.headers.get("location"),
     "https://fluentcheck.example.test/login?google_error=invalid_request",
   );
+  assertOAuthCookiesCleared(missingReturnTo);
 
   const missingCode = await fetch(
     `${url}/callback?state=${encodeURIComponent(cookieValues(start).google_oauth_state)}`,
@@ -289,6 +309,7 @@ test("missing and mismatched callback state redirect with allowlisted errors and
     missingCode.headers.get("location"),
     "https://fluentcheck.example.test/login?google_error=invalid_request",
   );
+  assertOAuthCookiesCleared(missingCode);
 });
 
 test("cancelled consent and provider failures never echo provider details", async () => {
@@ -304,6 +325,7 @@ test("cancelled consent and provider failures never echo provider details", asyn
   );
   assert.equal(cancelledCallback.headers.get("location"), "https://fluentcheck.example.test/login?google_error=cancelled");
   assert.doesNotMatch(cancelledCallback.headers.get("location") ?? "", /token-secret/u);
+  assertOAuthCookiesCleared(cancelledCallback);
 
   const failingClient = new FakeGoogleClient();
   failingClient.getToken = async () => {
@@ -320,6 +342,7 @@ test("cancelled consent and provider failures never echo provider details", asyn
   );
   assert.equal(failedCallback.headers.get("location"), "https://fluentcheck.example.test/signup?google_error=provider_error");
   assert.doesNotMatch(failedCallback.headers.get("location") ?? "", /token-secret/u);
+  assertOAuthCookiesCleared(failedCallback);
 });
 
 test("invalid ID-token claims are rejected without provider details", async () => {
@@ -354,6 +377,7 @@ test("invalid ID-token claims are rejected without provider details", async () =
       callback.headers.get("location"),
       "https://fluentcheck.example.test/signup?google_error=invalid_identity",
     );
+    assertOAuthCookiesCleared(callback);
   }
 });
 
@@ -372,4 +396,5 @@ test("untrusted returnTo values never escape the fixed auth pages", async () => 
     "https://fluentcheck.example.test/login?google_error=invalid_request",
   );
   assert.match(response.headers.get("set-cookie") ?? "", /google_oauth_state=;/);
+  assertOAuthCookiesCleared(response);
 });
