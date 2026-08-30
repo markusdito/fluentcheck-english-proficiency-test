@@ -57,12 +57,14 @@ export function CameraMicPermissionModal({
 
   const handleClose = () => {
     hasRequestedRef.current = false;
+    setPermissionGranted(false);
     stopStream();
     onClose();
   };
 
   const handleComplete = () => {
     hasRequestedRef.current = false;
+    setPermissionGranted(false);
     stopStream();
     onComplete();
   };
