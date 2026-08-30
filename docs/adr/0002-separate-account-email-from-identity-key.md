@@ -1,0 +1,3 @@
+# Separate account email from its identity key
+
+FluentCheck preserves a trimmed email address for presentation but identifies accounts through a required, unique normalized email key used consistently by local and external authentication. The identity key lowercases the trimmed address but does not collapse provider-specific aliases such as dots or `+tags`. This prevents case-variant duplicate accounts while retaining provider or user-selected casing; migration must stop for explicit resolution if existing addresses normalize to the same key, and deactivated accounts continue to reserve both their email identity and username rather than being merged or replaced.

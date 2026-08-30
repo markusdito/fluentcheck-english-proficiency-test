@@ -53,10 +53,12 @@ after(async () => {
 }, { timeout: 120_000 });
 
 async function fixture() {
+  const email = `${crypto.randomUUID()}@example.test`;
   const student = await prisma.user.create({
     data: {
-      username: `completion-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
+      username: `completion_${crypto.randomUUID().replaceAll("-", "")}`,
+      email,
+      normalizedEmail: email,
       password: "unused",
     },
   });
@@ -168,17 +170,21 @@ async function provisionVerifiedAnswers(
 test("waived completion dispatches automatic assignment and commits exactly two examiners", async () => {
   await prisma.appSettings.update({ where: { id: 1 }, data: { paymentEnabled: false } });
   try {
+    const waivedExaminerEmails = [crypto.randomUUID(), crypto.randomUUID()]
+      .map((id) => `${id}@example.test`);
     await prisma.user.createMany({
       data: [
         {
-          username: `waived-examiner-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
+          username: `waived_examiner_${crypto.randomUUID().replaceAll("-", "")}`,
+          email: waivedExaminerEmails[0],
+          normalizedEmail: waivedExaminerEmails[0],
           password: "unused",
           role: "EXAMINER",
         },
         {
-          username: `waived-examiner-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
+          username: `waived_examiner_${crypto.randomUUID().replaceAll("-", "")}`,
+          email: waivedExaminerEmails[1],
+          normalizedEmail: waivedExaminerEmails[1],
           password: "unused",
           role: "EXAMINER",
         },
@@ -231,26 +237,32 @@ test("waived completion stays successful when assignment fails and admin recover
     );
 
     // The submission remains Assignment-ready and visible to admin recovery.
+    const recoveryExaminerEmails = [crypto.randomUUID(), crypto.randomUUID()]
+      .map((id) => `${id}@example.test`);
     await prisma.user.createMany({
       data: [
         {
-          username: `recovery-examiner-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
+          username: `recovery_examiner_${crypto.randomUUID().replaceAll("-", "")}`,
+          email: recoveryExaminerEmails[0],
+          normalizedEmail: recoveryExaminerEmails[0],
           password: "unused",
           role: "EXAMINER",
         },
         {
-          username: `recovery-examiner-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
+          username: `recovery_examiner_${crypto.randomUUID().replaceAll("-", "")}`,
+          email: recoveryExaminerEmails[1],
+          normalizedEmail: recoveryExaminerEmails[1],
           password: "unused",
           role: "EXAMINER",
         },
       ],
     });
+    const adminEmail = `${crypto.randomUUID()}@example.test`;
     const admin = await prisma.user.create({
       data: {
-        username: `recovery-admin-${crypto.randomUUID()}`,
-        email: `${crypto.randomUUID()}@example.test`,
+        username: `recovery_admin_${crypto.randomUUID().replaceAll("-", "")}`,
+        email: adminEmail,
+        normalizedEmail: adminEmail,
         password: "unused",
         role: "ADMIN",
       },

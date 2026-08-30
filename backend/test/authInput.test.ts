@@ -197,3 +197,39 @@ test("rejects bodies over 64 KB and excessive form parameters before auth logic"
   assert.equal(payload.error, "Invalid request");
   assert.ok(payload.errors.rememberMe);
 });
+
+test("global parser limits preserve payment, upload, and submission route boundaries", async () => {
+  const paymentNotification = await fetch(`${baseUrl}/api/payments/ipaymu/notify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reference_id: "FC-PAY-parser-regression",
+      sid: "provider-session",
+      trx_id: "provider-transaction",
+      status: "pending",
+      status_code: "0",
+      transaction_status_code: "0",
+      sub_total: "150000",
+    }),
+  });
+  assert.notEqual(paymentNotification.status, 413);
+  assert.notDeepEqual(await paymentNotification.json(), {
+    error: "Invalid iPaymu callback body",
+  });
+
+  const uploadBoundary = await fetch(`${baseUrl}/api/uploads/presigned-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ submissionId: "submission", manifestEntryId: "entry" }),
+  });
+  assert.equal(uploadBoundary.status, 401);
+  assert.deepEqual(await uploadBoundary.json(), { error: "Not authenticated" });
+
+  const submissionMutation = await fetch(`${baseUrl}/api/submissions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  assert.equal(submissionMutation.status, 401);
+  assert.deepEqual(await submissionMutation.json(), { error: "Not authenticated" });
+});

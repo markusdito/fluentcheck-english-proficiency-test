@@ -20,6 +20,10 @@ let app: Express;
 let server: Server;
 let baseUrl: string;
 
+function uniqueUsername(prefix: string) {
+  return `${prefix.replace(/[^a-z0-9_]/giu, "_")}_${crypto.randomUUID().replaceAll("-", "")}`;
+}
+
 before(async () => {
   container = await new PostgreSqlContainer("postgres:17-alpine").start();
   process.env.DATABASE_URL = container.getConnectionUri();
@@ -54,10 +58,12 @@ after(async () => {
 }, { timeout: 120_000 });
 
 async function createStudent() {
+  const email = `${crypto.randomUUID()}@example.test`;
   return prisma.user.create({
     data: {
-      username: `student-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
+      username: uniqueUsername("student"),
+      email,
+      normalizedEmail: email,
       password: "unused",
     },
   });
@@ -164,13 +170,15 @@ test("retries once when selected source evidence changes before persistence", as
 });
 
 test("student prompt media is limited to the active submission manifest", async () => {
+  const adminEmail = `${crypto.randomUUID()}@example.test`;
   const [student, otherStudent, admin] = await Promise.all([
     createStudent(),
     createStudent(),
     prisma.user.create({
       data: {
-        username: `admin-${crypto.randomUUID()}`,
-        email: `${crypto.randomUUID()}@example.test`,
+        username: uniqueUsername("admin"),
+        email: adminEmail,
+        normalizedEmail: adminEmail,
         password: "unused",
         role: "ADMIN",
       },

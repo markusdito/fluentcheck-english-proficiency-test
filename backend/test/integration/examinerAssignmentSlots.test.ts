@@ -88,11 +88,13 @@ after(async () => {
 
 async function insertStudent(client: Client, prefix: string) {
   const studentId = randomUUID();
+  const username = `${prefix}-student`.replace(/[^a-z0-9_]/giu, "_");
+  const email = `${prefix}-student@example.test`;
   await client.query(
     `INSERT INTO "User"
-      ("id", "username", "email", "password", "role", "createdAt", "updatedAt")
-     VALUES ($1, $2, $3, 'unused', 'STUDENT', NOW(), NOW())`,
-    [studentId, `${prefix}-student`, `${prefix}-student@example.test`],
+      ("id", "username", "email", "normalizedEmail", "password", "role", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $3, 'unused', 'STUDENT', NOW(), NOW())`,
+    [studentId, username, email],
   );
   return studentId;
 }
@@ -167,11 +169,13 @@ async function insertSubmission(
 
 async function insertExaminer(client: Client, prefix: string) {
   const examinerId = randomUUID();
+  const username = `${prefix}-examiner`.replace(/[^a-z0-9_]/giu, "_");
+  const email = `${prefix}-examiner@example.test`;
   await client.query(
     `INSERT INTO "User"
-      ("id", "username", "email", "password", "role", "createdAt", "updatedAt")
-     VALUES ($1, $2, $3, 'unused', 'EXAMINER', NOW(), NOW())`,
-    [examinerId, `${prefix}-examiner`, `${prefix}-examiner@example.test`],
+      ("id", "username", "email", "normalizedEmail", "password", "role", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $3, 'unused', 'EXAMINER', NOW(), NOW())`,
+    [examinerId, username, email],
   );
   return examinerId;
 }

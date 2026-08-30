@@ -1,7 +1,7 @@
 import { Prisma } from "../generated/client.js";
 import { clearAuthCookie, generateToken } from "../utils/jwt.js";
 import { authenticateUser, createUser, findUserForLogin, } from "../service/auth.service.js";
-const REGISTRATION_CONFLICT_ERROR = "Unable to create account";
+const REGISTRATION_CONFLICT_ERROR = "Unable to create account with these details";
 export async function register(req, res) {
     const { username, email, password } = req.body;
     let user;

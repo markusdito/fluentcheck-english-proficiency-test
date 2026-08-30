@@ -13,6 +13,10 @@ let disconnectDB: (() => Promise<void>) | undefined;
 let createExaminerAssignmentSet: typeof import("../../src/service/examiner.service.js").createExaminerAssignmentSet;
 let AssignmentSetError: typeof import("../../src/service/examiner.service.js").AssignmentSetError;
 
+function uniqueUsername(prefix: string) {
+  return `${prefix.replace(/[^a-z0-9_]/giu, "_")}_${crypto.randomUUID().replaceAll("-", "")}`;
+}
+
 before(async () => {
   container = await new PostgreSqlContainer("postgres:17-alpine").start();
   process.env.DATABASE_URL = container.getConnectionUri();
@@ -56,10 +60,12 @@ beforeEach(async () => {
 });
 
 async function createExaminer(prefix: string) {
+  const email = `${crypto.randomUUID()}@example.test`;
   return prisma.user.create({
     data: {
-      username: `${prefix}-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
+      username: uniqueUsername(prefix),
+      email,
+      normalizedEmail: email,
       password: "unused",
       role: "EXAMINER",
     },
@@ -67,10 +73,12 @@ async function createExaminer(prefix: string) {
 }
 
 async function createAssignmentReadySubmission() {
+  const email = `${crypto.randomUUID()}@example.test`;
   const student = await prisma.user.create({
     data: {
-      username: `student-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
+      username: uniqueUsername("student"),
+      email,
+      normalizedEmail: email,
       password: "unused",
       role: "STUDENT",
     },

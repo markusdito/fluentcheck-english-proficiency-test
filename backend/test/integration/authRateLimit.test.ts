@@ -120,7 +120,10 @@ async function createUser(
 ) {
   return prisma.user.create({
     data: {
-      username: email.split("@")[0].replaceAll(".", "_").toLowerCase(),
+      username: email
+        .split("@")[0]
+        .replace(/[^a-z0-9_]/giu, "_")
+        .toLowerCase(),
       email,
       normalizedEmail: email.trim().toLowerCase(),
       password: await bcrypt.hash(password, rounds),

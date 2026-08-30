@@ -105,6 +105,17 @@ function cookieFor(userId: string) {
   return `jwt=${jwt.sign({ id: userId }, process.env.JWT_SECRET!)}`;
 }
 
+function userData(username: string, role: "ADMIN" | "STUDENT" | "EXAMINER") {
+  const email = `${crypto.randomUUID()}@example.test`;
+  return {
+    username: `${username.replace(/[^a-z0-9_]/giu, "_").toLowerCase().slice(0, 13)}_${crypto.randomUUID().replaceAll("-", "")}`,
+    email,
+    normalizedEmail: email,
+    password: "unused",
+    role,
+  };
+}
+
 async function request(
   method: string,
   path: string,
@@ -125,44 +136,19 @@ async function createRetirementFixture() {
   const [admin, student, examiner, otherStudent, otherExaminer] =
     await Promise.all([
       prisma.user.create({
-        data: {
-          username: `admin-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
-          password: "unused",
-          role: "ADMIN",
-        },
+        data: userData(`admin-${crypto.randomUUID()}`, "ADMIN"),
       }),
       prisma.user.create({
-        data: {
-          username: `student-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
-          password: "unused",
-          role: "STUDENT",
-        },
+        data: userData(`student-${crypto.randomUUID()}`, "STUDENT"),
       }),
       prisma.user.create({
-        data: {
-          username: `examiner-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
-          password: "unused",
-          role: "EXAMINER",
-        },
+        data: userData(`examiner-${crypto.randomUUID()}`, "EXAMINER"),
       }),
       prisma.user.create({
-        data: {
-          username: `other-student-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
-          password: "unused",
-          role: "STUDENT",
-        },
+        data: userData(`other-student-${crypto.randomUUID()}`, "STUDENT"),
       }),
       prisma.user.create({
-        data: {
-          username: `other-examiner-${crypto.randomUUID()}`,
-          email: `${crypto.randomUUID()}@example.test`,
-          password: "unused",
-          role: "EXAMINER",
-        },
+        data: userData(`other-examiner-${crypto.randomUUID()}`, "EXAMINER"),
       }),
     ]);
 
@@ -373,12 +359,7 @@ test("retiring a Question is idempotent and preserves authorized retained submis
 
 test("retirement during Prompt media inspection prevents confirmation mutation", async () => {
   const admin = await prisma.user.create({
-    data: {
-      username: `race-admin-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
-      password: "unused",
-      role: "ADMIN",
-    },
+    data: userData(`race-admin-${crypto.randomUUID()}`, "ADMIN"),
   });
   const { r2Client } = await import("../../src/config/r2.js");
   const originalStorageSend = r2Client.send;
@@ -439,20 +420,10 @@ test("retirement during Prompt media inspection prevents confirmation mutation",
 
 test("reconciliation reports every Retired Question Prompt media state without mutation", async () => {
   const operator = await prisma.user.create({
-    data: {
-      username: `operator-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
-      password: "unused",
-      role: "ADMIN",
-    },
+    data: userData(`operator-${crypto.randomUUID()}`, "ADMIN"),
   });
   const student = await prisma.user.create({
-    data: {
-      username: `reconciliation-student-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
-      password: "unused",
-      role: "STUDENT",
-    },
+    data: userData(`reconciliation-student-${crypto.randomUUID()}`, "STUDENT"),
   });
 
   async function createRetiredQuestion(

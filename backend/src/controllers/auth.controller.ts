@@ -8,7 +8,7 @@ import {
 } from "../service/auth.service.js";
 import type { LoginInput, RegistrationInput } from "../schemas/auth.schema.js";
 
-const REGISTRATION_CONFLICT_ERROR = "Unable to create account";
+const REGISTRATION_CONFLICT_ERROR = "Unable to create account with these details";
 
 export async function register(req: Request, res: Response) {
     const { username, email, password } = req.body as RegistrationInput;
