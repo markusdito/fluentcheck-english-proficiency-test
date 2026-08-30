@@ -26,6 +26,10 @@ export type RateLimitStoreFactory = (policy: RateLimitPolicy) => Store;
 export type RateLimitIdentityResolver = (request: Request) => string | undefined;
 export type RateLimitFailureReporter = (event: RateLimitStoreFailureEvent) => void;
 
+export interface RateLimitLimiterOptions {
+  readonly skipSuccessfulRequests?: boolean;
+}
+
 export interface RateLimitRuntimeOptions {
   readonly config: RateLimitConfig;
   readonly storeFactory?: RateLimitStoreFactory;
@@ -37,6 +41,7 @@ export interface RateLimitRuntime {
   createLimiter(
     policy: RateLimitPolicy,
     identityResolver?: RateLimitIdentityResolver,
+    options?: RateLimitLimiterOptions,
   ): RateLimitRequestHandler;
   shutdown(): Promise<void>;
 }
@@ -214,17 +219,25 @@ export function createRateLimitRuntime(
   const storePolicies = new Map<Store, RateLimitPolicy>();
   const limiters = new Map<
     string,
-    { handler: RateLimitRequestHandler; identityResolver?: RateLimitIdentityResolver }
+    {
+      handler: RateLimitRequestHandler;
+      identityResolver?: RateLimitIdentityResolver;
+      options?: RateLimitLimiterOptions;
+    }
   >();
 
   return {
     config: options.config,
-    createLimiter(policy, identityResolver) {
+    createLimiter(policy, identityResolver, limiterOptions) {
       const existing = limiters.get(policy.prefix);
       if (existing) {
-        if (existing.identityResolver !== identityResolver) {
+        if (
+          existing.identityResolver !== identityResolver ||
+          existing.options?.skipSuccessfulRequests !==
+            limiterOptions?.skipSuccessfulRequests
+        ) {
           throw new Error(
-            `Rate-limit policy ${policy.name} must use one identity resolver per application`,
+            `Rate-limit policy ${policy.name} must use one identity resolver and option set per application`,
           );
         }
         return existing.handler;
@@ -245,6 +258,7 @@ export function createRateLimitRuntime(
         legacyHeaders: false,
         identifier: "quota",
         passOnStoreError: policy.failureMode === "fail-open",
+        skipSuccessfulRequests: limiterOptions?.skipSuccessfulRequests ?? false,
         store: safeStore,
         logger: safeLogger(),
         handler: (_request, response) => {
@@ -257,7 +271,11 @@ export function createRateLimitRuntime(
             resolvePolicyValue(request, policy, identityResolver),
           ),
       });
-      limiters.set(policy.prefix, { handler, identityResolver });
+      limiters.set(policy.prefix, {
+        handler,
+        identityResolver,
+        options: limiterOptions,
+      });
       return handler;
     },
     async shutdown() {

@@ -89,6 +89,40 @@ Every limiter uses draft-8 `RateLimit` headers, `Retry-After`, and no legacy
 `X-RateLimit-*` headers. A blocked request receives `{ "error": "Too many
 requests" }` with status 429.
 
+## Authentication composition (#83)
+
+The authentication router consumes the shared runtime at its route boundary.
+The login and registration burst policies run before the authentication body
+parsers, so malformed JSON, oversized bodies, and schema-invalid requests can
+consume only the applicable IP burst budget. Validated requests then pass
+through their dedicated policies:
+
+This route-local parser ordering is an intentional exception to the generic
+application middleware order: the IP-only burst decision does not need a body,
+while the account/email policies do. Non-authentication routes retain the
+application-level parser ordering.
+
+- login: 120 requests per minute per IP;
+- failed login: 10 requests per 15 minutes per normalized account and 100 per
+  15 minutes per IP;
+- registration: 30 requests per minute per IP; and
+- validated registration: 120 requests per hour per IP and 5 per hour per
+  normalized email.
+
+Login failure policies skip successful responses. A successful local login also
+resets only the normalized account failure key; it does not reset the IP
+failure counter. Nonexistent, deactivated, provider-only, and wrong-password
+attempts retain the same generic authentication outcome and reach both failure
+policies after validation. Authentication controllers remain unaware of the
+limiter store and policy mechanics.
+
+The authentication phase is deterministic when `createApp` receives a fresh
+rate-limit store factory, which is the native HTTP test seam. Its supported
+first-version deployment is one Express process with `MemoryStore`; counters
+reset on restart. A production deployment using multiple processes or
+instances must use the shared-store topology from the parent rollout and must
+not silently fall back to local memory counters.
+
 Sensitive policies fail closed with a generic 503 when their store is
 unavailable. A read-only policy may explicitly use `fail-open`; the shared
 failure reporter makes that decision observable without exposing store error

@@ -129,11 +129,13 @@ export function createRateLimitRuntime(options) {
     const limiters = new Map();
     return {
         config: options.config,
-        createLimiter(policy, identityResolver) {
+        createLimiter(policy, identityResolver, limiterOptions) {
             const existing = limiters.get(policy.prefix);
             if (existing) {
-                if (existing.identityResolver !== identityResolver) {
-                    throw new Error(`Rate-limit policy ${policy.name} must use one identity resolver per application`);
+                if (existing.identityResolver !== identityResolver ||
+                    existing.options?.skipSuccessfulRequests !==
+                        limiterOptions?.skipSuccessfulRequests) {
+                    throw new Error(`Rate-limit policy ${policy.name} must use one identity resolver and option set per application`);
                 }
                 return existing.handler;
             }
@@ -152,6 +154,7 @@ export function createRateLimitRuntime(options) {
                 legacyHeaders: false,
                 identifier: "quota",
                 passOnStoreError: policy.failureMode === "fail-open",
+                skipSuccessfulRequests: limiterOptions?.skipSuccessfulRequests ?? false,
                 store: safeStore,
                 logger: safeLogger(),
                 handler: (_request, response) => {
@@ -159,7 +162,11 @@ export function createRateLimitRuntime(options) {
                 },
                 keyGenerator: (request) => deriveRateLimitKey(policy, options.config, resolvePolicyValue(request, policy, identityResolver)),
             });
-            limiters.set(policy.prefix, { handler, identityResolver });
+            limiters.set(policy.prefix, {
+                handler,
+                identityResolver,
+                options: limiterOptions,
+            });
             return handler;
         },
         async shutdown() {

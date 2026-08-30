@@ -93,6 +93,10 @@ test("validates rate-limit secrets, proxy trust, windows, and policy identity", 
     /distinct from JWT_SECRET/,
   );
   assert.throws(
+    () => createRateLimitConfig({ hmacSecret: HMAC_SECRET, jwtSecret: "" }),
+    /JWT_SECRET must be configured/,
+  );
+  assert.throws(
     () => createRateLimitConfig({ hmacSecret: HMAC_SECRET, trustProxy: "true" }),
     /none or an explicit CIDR allowlist/,
   );
@@ -154,6 +158,66 @@ test("validates rate-limit secrets, proxy trust, windows, and policy identity", 
   assert.equal(firstKey.includes("user@example.com"), false);
   assert.equal(firstKey.includes(HMAC_SECRET), false);
   assert.equal(Object.keys(RATE_LIMIT_POLICIES).length > 1, true);
+  assert.deepEqual(
+    {
+      loginBurst: RATE_LIMIT_POLICIES.loginBurst,
+      loginFailureAccount: RATE_LIMIT_POLICIES.loginFailureAccount,
+      loginFailureIp: RATE_LIMIT_POLICIES.loginFailureIp,
+      registrationBurst: RATE_LIMIT_POLICIES.registrationBurst,
+      registrationIp: RATE_LIMIT_POLICIES.registrationIp,
+      registrationEmail: RATE_LIMIT_POLICIES.registrationEmail,
+    },
+    {
+      loginBurst: {
+        name: "auth-login-burst",
+        prefix: "fc:rate-limit:auth-login-burst",
+        scope: "ip",
+        limit: 120,
+        windowMs: 60_000,
+        failureMode: "fail-closed",
+      },
+      loginFailureAccount: {
+        name: "auth-login-failure-account",
+        prefix: "fc:rate-limit:auth-login-failure-account",
+        scope: "account",
+        limit: 10,
+        windowMs: 15 * 60_000,
+        failureMode: "fail-closed",
+      },
+      loginFailureIp: {
+        name: "auth-login-failure-ip",
+        prefix: "fc:rate-limit:auth-login-failure-ip",
+        scope: "ip",
+        limit: 100,
+        windowMs: 15 * 60_000,
+        failureMode: "fail-closed",
+      },
+      registrationBurst: {
+        name: "auth-registration-burst",
+        prefix: "fc:rate-limit:auth-registration-burst",
+        scope: "ip",
+        limit: 30,
+        windowMs: 60_000,
+        failureMode: "fail-closed",
+      },
+      registrationIp: {
+        name: "auth-registration-ip",
+        prefix: "fc:rate-limit:auth-registration-ip",
+        scope: "ip",
+        limit: 120,
+        windowMs: 60 * 60_000,
+        failureMode: "fail-closed",
+      },
+      registrationEmail: {
+        name: "auth-registration-email",
+        prefix: "fc:rate-limit:auth-registration-email",
+        scope: "email",
+        limit: 5,
+        windowMs: 60 * 60_000,
+        failureMode: "fail-closed",
+      },
+    },
+  );
 });
 
 test("uses one injected store per policy across route mounts and app instances", async () => {
@@ -183,7 +247,7 @@ test("uses one injected store per policy across route mounts and app instances",
     assert.equal((await fetch(`${first.url}/one`)).status, 200);
     assert.equal((await fetch(`${first.url}/two`)).status, 429);
     assert.equal((await fetch(`${second.url}/three`)).status, 429);
-    assert.equal(factoryCalls, 2);
+    assert.equal(factoryCalls, 14);
   } finally {
     await stop(first.server);
     await stop(second.server);
@@ -347,5 +411,38 @@ test("fails closed with a generic 503 and fails open only when the policy says s
   } finally {
     await stop(closed.server);
     await stop(open.server);
+  }
+});
+
+test("applies the login burst before parsing malformed authentication bodies", async () => {
+  const app = createApp({
+    rateLimit: {
+      config: createRateLimitConfig({
+        hmacSecret: HMAC_SECRET,
+        jwtSecret: JWT_SECRET,
+        trustProxy: "none",
+      }),
+      storeFactory: memoryStoreFactory(),
+    },
+  });
+  const runtime = app.locals.rateLimit as RateLimitRuntime;
+  const { server, url } = await start(app);
+
+  try {
+    const statuses: number[] = [];
+    for (let attempt = 0; attempt < 121; attempt += 1) {
+      const response = await fetch(`${url}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{",
+      });
+      statuses.push(response.status);
+    }
+
+    assert.equal(statuses.slice(0, 120).every((status) => status === 400), true);
+    assert.equal(statuses[120], 429);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
   }
 });

@@ -6,7 +6,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { connectDB, disconnectDB } from "./config/db.js";
 import { env } from "./config/env.js";
-import authRoutes from "./routes/auth.routes.js";
+import { createAuthRouter } from "./routes/auth.routes.js";
 import questionRoutes from "./routes/question.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 import submissionRoutes from "./routes/submission.routes.js";
@@ -76,12 +76,7 @@ export function createApp(dependencies = {}) {
         maxAge: 86400,
     }));
     app.use(cookieParser());
-    app.use("/api/auth", express.json({ limit: REQUEST_BODY_LIMIT, strict: false }));
-    app.use("/api/auth", express.urlencoded({
-        extended: true,
-        limit: REQUEST_BODY_LIMIT,
-        parameterLimit: URL_ENCODED_PARAMETER_LIMIT,
-    }));
+    app.use("/api/auth", createAuthRouter(app.locals.rateLimit));
     app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
     app.use(express.urlencoded({
         extended: true,
@@ -89,7 +84,6 @@ export function createApp(dependencies = {}) {
         parameterLimit: URL_ENCODED_PARAMETER_LIMIT,
     }));
     app.use(rejectNonAuthArrayBodies);
-    app.use("/api/auth", authRoutes);
     app.use("/api/questions", questionRoutes);
     app.use("/api/uploads", uploadRoutes);
     app.use("/api/submissions", submissionRoutes);
