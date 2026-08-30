@@ -186,6 +186,47 @@ test("missing and mismatched callback state redirect with allowlisted errors and
     missing.headers.get("location"),
     "https://fluentcheck.example.test/login?google_error=invalid_request",
   );
+
+  const missingCode = await fetch(
+    `${url}/callback?state=${encodeURIComponent(cookieValues(start).google_oauth_state)}`,
+    { headers: { Cookie: cookieHeader(start) }, redirect: "manual" },
+  );
+  assert.equal(missingCode.status, 302);
+  assert.equal(
+    missingCode.headers.get("location"),
+    "https://fluentcheck.example.test/login?google_error=invalid_request",
+  );
+});
+
+test("cancelled consent and provider failures never echo provider details", async () => {
+  const cancelledClient = new FakeGoogleClient();
+  const cancelled = await createTestServer(cancelledClient);
+  servers.push(cancelled.server);
+  const cancelledStart = await fetch(`${cancelled.url}/start?returnTo=login`, {
+    redirect: "manual",
+  });
+  const cancelledCallback = await fetch(
+    `${cancelled.url}/callback?error=access_denied&error_description=${encodeURIComponent("token-secret")}`,
+    { headers: { Cookie: cookieHeader(cancelledStart) }, redirect: "manual" },
+  );
+  assert.equal(cancelledCallback.headers.get("location"), "https://fluentcheck.example.test/login?google_error=cancelled");
+  assert.doesNotMatch(cancelledCallback.headers.get("location") ?? "", /token-secret/u);
+
+  const failingClient = new FakeGoogleClient();
+  failingClient.getToken = async () => {
+    throw new Error("provider token-secret");
+  };
+  const failed = await createTestServer(failingClient);
+  servers.push(failed.server);
+  const failedStart = await fetch(`${failed.url}/start?returnTo=signup`, {
+    redirect: "manual",
+  });
+  const failedCallback = await fetch(
+    `${failed.url}/callback?code=code&state=${encodeURIComponent(cookieValues(failedStart).google_oauth_state)}`,
+    { headers: { Cookie: cookieHeader(failedStart) }, redirect: "manual" },
+  );
+  assert.equal(failedCallback.headers.get("location"), "https://fluentcheck.example.test/signup?google_error=provider_error");
+  assert.doesNotMatch(failedCallback.headers.get("location") ?? "", /token-secret/u);
 });
 
 test("invalid ID-token claims are rejected without provider details", async () => {

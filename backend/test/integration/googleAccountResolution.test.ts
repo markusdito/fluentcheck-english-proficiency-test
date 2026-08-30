@@ -143,6 +143,27 @@ test("Gmail identities safely link an existing local account and preserve its at
   assert.equal(stored?.password, password);
 });
 
+test("a matching verified Workspace hosted domain is authoritative for linking", async () => {
+  const existing = await createUser({
+    username: "workspace_candidate",
+    email: "candidate@fluentcheck.example",
+  });
+
+  const account = await resolveGoogleAccount(
+    identity({
+      email: existing.email,
+      subject: "workspace-subject",
+      hostedDomain: "fluentcheck.example",
+    }),
+  );
+
+  assert.equal(account.id, existing.id);
+  assert.equal(
+    (await prisma.user.findUnique({ where: { id: existing.id } }))?.googleSubject,
+    "workspace-subject",
+  );
+});
+
 test("non-authoritative email conflicts never auto-link", async () => {
   const existing = await createUser({
     username: "unsafe_local",
