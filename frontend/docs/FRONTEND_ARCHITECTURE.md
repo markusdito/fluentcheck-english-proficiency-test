@@ -56,6 +56,14 @@ FluentCheck is an English proficiency assessment platform where users record vid
 | Form Validation | Zod | ^4.4.3 | Pre-approved dependency |
 | Connectivity Monitor | custom (`useConnectivity`) | — | Added per architecture review |
 
+### Next.js 16.3.3 upgrade review
+
+The official Next.js 16 upgrade guidance was reviewed for this same-major
+security update. FluentCheck already uses the App Router on Next.js 16, has no
+middleware/proxy or Server Action surface, and uses only the supported
+`rewrites()` configuration shown below, so no codemod or migration rewrite was
+needed.
+
 ### Backend API rewrite boundary
 
 The browser uses `/backend-api/:path*`; `next.config.ts` rewrites that path to
