@@ -45,7 +45,7 @@ FluentCheck is an English proficiency assessment platform where users record vid
 
 | Layer | Technology | Version | Notes |
 |-------|-----------|---------|-------|
-| Framework | Next.js (App Router) | 16.2.6 | ⚠️ Breaking changes from training data — read `node_modules/next/dist/docs/` |
+| Framework | Next.js (App Router) | 16.3.3 | Patched stable release; read the versioned upgrade notes before future upgrades |
 | UI Library | React | 19.2.4 | Server Components + Client Components |
 | Language | TypeScript | 5.x | Strict mode, `bundler` module resolution |
 | Styling | Tailwind CSS | v4 | PostCSS via `@tailwindcss/postcss` |
@@ -55,6 +55,17 @@ FluentCheck is an English proficiency assessment platform where users record vid
 | State Management | React Context + local state | — | `AuthContext`, `TestContext` |
 | Form Validation | Zod | ^4.4.3 | Pre-approved dependency |
 | Connectivity Monitor | custom (`useConnectivity`) | — | Added per architecture review |
+
+### Backend API rewrite boundary
+
+The browser uses `/backend-api/:path*`; `next.config.ts` rewrites that path to
+the deployment-configured `BACKEND_URL` plus `/api/:path*`. `BACKEND_URL` must
+be an absolute HTTP(S) URL without credentials, query parameters, or a
+fragment, and is read from server deployment configuration rather than the
+request. The only wildcard is the path suffix, so a request cannot select the
+rewrite hostname. Authentication and authorization remain backend concerns;
+the rewrite does not add a cache or disclosure boundary of its own. The
+rewrite contract is covered by `next.config.test.ts`.
 
 ---
 
