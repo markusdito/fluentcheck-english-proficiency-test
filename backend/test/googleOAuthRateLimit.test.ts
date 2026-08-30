@@ -104,7 +104,10 @@ test("Google start and callback use independent central thresholds", async () =>
         ).status,
       );
     }
-    assert.equal(startStatuses.slice(0, 20).every((status) => status === 302), true);
+    assert.equal(
+      startStatuses.slice(0, 20).every((status) => status === 302),
+      true,
+    );
     assert.equal(startStatuses[20], 429);
 
     const callbackStatuses: number[] = [];
@@ -117,7 +120,10 @@ test("Google start and callback use independent central thresholds", async () =>
         ).status,
       );
     }
-    assert.equal(callbackStatuses.slice(0, 40).every((status) => status === 302), true);
+    assert.equal(
+      callbackStatuses.slice(0, 40).every((status) => status === 302),
+      true,
+    );
     assert.equal(callbackStatuses[40], 429);
     const blocked = await fetch(`${baseUrl}/api/auth/google/callback`, {
       redirect: "manual",
@@ -244,7 +250,10 @@ test("OAuth store outages fail closed with generic responses for both routes", a
   });
 
   try {
-    for (const path of ["/auth/google/start?returnTo=login", "/auth/google/callback"]) {
+    for (const path of [
+      "/auth/google/start?returnTo=login",
+      "/auth/google/callback",
+    ]) {
       const response = await fetch(`${baseUrl}/api${path}`, {
         redirect: "manual",
       });
