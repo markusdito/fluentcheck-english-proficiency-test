@@ -79,6 +79,23 @@ test("Google identity migration preserves populated users and local credentials"
     );
     await database.client.query(migration);
 
+    await database.client.query("BEGIN");
+    try {
+      await database.client.query(
+        `UPDATE "User" SET "googleSubject" = 'shared-subject' WHERE "id" = $1`,
+        [firstId],
+      );
+      await assert.rejects(
+        database.client.query(
+          `UPDATE "User" SET "googleSubject" = 'shared-subject' WHERE "id" = $1`,
+          [secondId],
+        ),
+        /duplicate key|User_googleSubject_key/u,
+      );
+    } finally {
+      await database.client.query("ROLLBACK");
+    }
+
     const result = await database.client.query(
       `SELECT "id", "username", "email", "normalizedEmail", "password", "role", "googleSubject"
          FROM "User" ORDER BY "username"`,
