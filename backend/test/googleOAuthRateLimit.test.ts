@@ -37,7 +37,7 @@ const client: GoogleOAuthClient = {
   verifyIdToken: async () => ({ getPayload: () => undefined }),
 };
 
-function googleAuth() {
+function createTestGoogleAuthHandlers() {
   return createGoogleAuthHandlers(
     {
       clientId: "123456789.apps.googleusercontent.com",
@@ -65,7 +65,7 @@ async function startOAuthApp(
     trustProxy: options.trustProxy ?? "none",
   });
   const app: Express = createApp({
-    googleAuth: googleAuth(),
+    googleAuth: createTestGoogleAuthHandlers(),
     rateLimit: {
       config,
       storeFactory: options.storeFactory ?? (() => new MemoryStore()),
@@ -90,36 +90,37 @@ async function stopOAuthApp(server: Server, runtime: RateLimitRuntime) {
   await runtime.shutdown();
 }
 
+async function requestStatuses(
+  count: number,
+  request: () => Promise<Response>,
+) {
+  const statuses: number[] = [];
+  for (let index = 0; index < count; index += 1) {
+    statuses.push((await request()).status);
+  }
+  return statuses;
+}
+
 test("Google start and callback use independent central thresholds", async () => {
   const { server, runtime, baseUrl } = await startOAuthApp();
 
   try {
-    const startStatuses: number[] = [];
-    for (let index = 0; index < 21; index += 1) {
-      startStatuses.push(
-        (
-          await fetch(`${baseUrl}/api/auth/google/start?returnTo=login`, {
-            redirect: "manual",
-          })
-        ).status,
-      );
-    }
+    const startStatuses = await requestStatuses(21, () =>
+      fetch(`${baseUrl}/api/auth/google/start?returnTo=login`, {
+        redirect: "manual",
+      }),
+    );
     assert.equal(
       startStatuses.slice(0, 20).every((status) => status === 302),
       true,
     );
     assert.equal(startStatuses[20], 429);
 
-    const callbackStatuses: number[] = [];
-    for (let index = 0; index < 41; index += 1) {
-      callbackStatuses.push(
-        (
-          await fetch(`${baseUrl}/api/auth/google/callback`, {
-            redirect: "manual",
-          })
-        ).status,
-      );
-    }
+    const callbackStatuses = await requestStatuses(41, () =>
+      fetch(`${baseUrl}/api/auth/google/callback`, {
+        redirect: "manual",
+      }),
+    );
     assert.equal(
       callbackStatuses.slice(0, 40).every((status) => status === 302),
       true,
