@@ -385,6 +385,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
+  GoogleOAuthState: 'GoogleOAuthState',
   Question: 'Question',
   Task: 'Task',
   Submission: 'Submission',
@@ -413,7 +414,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "question" | "task" | "submission" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "score" | "certificate"
+    modelProps: "user" | "googleOAuthState" | "question" | "task" | "submission" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -488,6 +489,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    GoogleOAuthState: {
+      payload: Prisma.$GoogleOAuthStatePayload<ExtArgs>
+      fields: Prisma.GoogleOAuthStateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GoogleOAuthStateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GoogleOAuthStateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>
+        }
+        findFirst: {
+          args: Prisma.GoogleOAuthStateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GoogleOAuthStateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>
+        }
+        findMany: {
+          args: Prisma.GoogleOAuthStateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>[]
+        }
+        create: {
+          args: Prisma.GoogleOAuthStateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>
+        }
+        createMany: {
+          args: Prisma.GoogleOAuthStateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.GoogleOAuthStateCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>[]
+        }
+        delete: {
+          args: Prisma.GoogleOAuthStateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>
+        }
+        update: {
+          args: Prisma.GoogleOAuthStateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>
+        }
+        deleteMany: {
+          args: Prisma.GoogleOAuthStateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GoogleOAuthStateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.GoogleOAuthStateUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>[]
+        }
+        upsert: {
+          args: Prisma.GoogleOAuthStateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GoogleOAuthStatePayload>
+        }
+        aggregate: {
+          args: Prisma.GoogleOAuthStateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGoogleOAuthState>
+        }
+        groupBy: {
+          args: Prisma.GoogleOAuthStateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GoogleOAuthStateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GoogleOAuthStateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GoogleOAuthStateCountAggregateOutputType> | number
         }
       }
     }
@@ -1508,6 +1583,17 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+export const GoogleOAuthStateScalarFieldEnum = {
+  id: 'id',
+  state: 'state',
+  returnTo: 'returnTo',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+} as const
+
+export type GoogleOAuthStateScalarFieldEnum = (typeof GoogleOAuthStateScalarFieldEnum)[keyof typeof GoogleOAuthStateScalarFieldEnum]
+
+
 export const QuestionScalarFieldEnum = {
   id: 'id',
   category: 'category',
@@ -2012,6 +2098,7 @@ export type PrismaClientOptions = ({
 }
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
+  googleOAuthState?: Prisma.GoogleOAuthStateOmit
   question?: Prisma.QuestionOmit
   task?: Prisma.TaskOmit
   submission?: Prisma.SubmissionOmit

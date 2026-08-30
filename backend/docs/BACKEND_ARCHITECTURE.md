@@ -264,9 +264,8 @@ are linked only for authoritative Gmail/Google Workspace identities. See
 
 > **Auth delivery is cookie-only.** The JWT is delivered exclusively via an httpOnly cookie named `jwt` (set by `generateToken` in `src/utils/jwt.ts`, with `httpOnly`, `secure` in production, `sameSite: "lax"`, 7-day `maxAge`). There is **no Bearer header** and **no `token` field in the response body** — the API is consumed by the browser via credentialed `fetch` (`credentials: "include"`).
 
-Google callbacks use the same cookie flags with a session-only cookie and a
-one-hour token expiry, so a Google login does not silently create a persistent
-browser session.
+Google callbacks use the same JWT expiry and cookie flags as local login, so
+Google authentication has the same application session semantics.
 
 ### JWT Design
 

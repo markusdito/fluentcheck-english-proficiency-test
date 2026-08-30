@@ -68,6 +68,7 @@ export const JsonNull = runtime.JsonNull;
 export const AnyNull = runtime.AnyNull;
 export const ModelName = {
     User: 'User',
+    GoogleOAuthState: 'GoogleOAuthState',
     Question: 'Question',
     Task: 'Task',
     Submission: 'Submission',
@@ -102,6 +103,13 @@ export const UserScalarFieldEnum = {
     createdAt: 'createdAt',
     updatedAt: 'updatedAt',
     deletedAt: 'deletedAt'
+};
+export const GoogleOAuthStateScalarFieldEnum = {
+    id: 'id',
+    state: 'state',
+    returnTo: 'returnTo',
+    expiresAt: 'expiresAt',
+    createdAt: 'createdAt'
 };
 export const QuestionScalarFieldEnum = {
     id: 'id',

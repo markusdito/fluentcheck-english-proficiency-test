@@ -14,13 +14,17 @@ application**. Add exactly these values to the client configuration:
 
 | Environment | Authorized JavaScript origin | Authorized redirect URI |
 | --- | --- | --- |
-| Local | `http://localhost:3000` | `http://localhost:5001/api/auth/google/callback` |
-| Production | `https://<frontend-host>` | `https://<api-host>/api/auth/google/callback` |
+| Local | `http://localhost:3000` | `http://localhost:3000/backend-api/auth/google/callback` |
+| Production | `https://<frontend-host>` | `https://<frontend-host>/backend-api/auth/google/callback` |
 
-The production placeholders must be replaced with the actual public hosts.
-The redirect URI is an exact match: scheme, host, port, and the
-`/api/auth/google/callback` path must agree with the backend environment. Do
-not add query parameters, credentials, or an alternate path.
+The production frontend placeholder must be replaced with the actual public
+frontend host. The callback is intentionally the public Next.js rewrite so
+the browser keeps the short-lived OAuth cookies on one host. A deployment that
+exposes the API directly may instead use its public API host and
+`/api/auth/google/callback`, with the frontend auth URL configured to that API
+origin. The redirect URI is an exact match: scheme, host, port, and public
+callback path must agree with the backend environment. Do not add query
+parameters, credentials, or an alternate path.
 
 The frontend starts OAuth at
 `/backend-api/auth/google/start?returnTo=login` or
@@ -36,7 +40,7 @@ rate-limit values. Add these Google values without committing the secret:
 ```env
 GOOGLE_CLIENT_ID=123456789.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=<server-only-client-secret>
-GOOGLE_REDIRECT_URI=http://localhost:5001/api/auth/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:3000/backend-api/auth/google/callback
 ```
 
 `FRONTEND_URL` remains the single allowed post-auth origin. For local
@@ -60,14 +64,15 @@ the database connection is opened.
    account data are preserved.
 4. Other email conflicts return `account_conflict`; they never silently link.
    Deactivated accounts return `account_inactive` and are never reactivated.
-5. Google uses the existing JWT payload and cookie security flags, but the
-   Google-issued session is session-only: one-hour JWT expiry, no persistent
-   cookie lifetime, `httpOnly`, `SameSite=Lax`, and `Secure` in production.
+5. Google uses the existing JWT payload, configured expiry, and cookie security
+   flags, preserving the same application session semantics as local login.
 
 ## Cookie and error behavior
 
 The state, PKCE verifier, and `returnTo` value are short-lived,
-`httpOnly`, `SameSite=Lax` cookies scoped to `/api/auth/google`. `returnTo`
+`httpOnly`, `SameSite=Lax` cookies scoped to the public OAuth callback path.
+With the same-origin rewrite this is `/backend-api/auth/google`; with a direct
+API origin it is `/api/auth/google`. `returnTo`
 accepts only `login` or `signup`; successful callbacks always redirect to the
 fixed `/dashboard` path. Failure redirects return to the originating fixed
 auth page with one of the allowlisted `google_error` values:
@@ -75,7 +80,10 @@ auth page with one of the allowlisted `google_error` values:
 `cancelled`, `invalid_request`, `state_mismatch`, `provider_error`,
 `invalid_identity`, `account_conflict`, or `account_inactive`.
 
-Temporary OAuth cookies are cleared after every success and failure. Provider
+The state is also recorded in PostgreSQL and atomically consumed before the
+authorization-code exchange, so a callback cannot reuse it while another
+callback is in flight. Temporary OAuth cookies are cleared after every success
+and failure. Provider
 error descriptions, authorization codes, ID tokens, client credentials, and
 raw database errors are not copied into redirects, API responses, or logs.
 

@@ -77,6 +77,16 @@ model User {
   @@index([role])
 }
 
+model GoogleOAuthState {
+  id        String   @id @default(uuid()) @db.Uuid
+  state     String   @unique
+  returnTo  String
+  expiresAt DateTime @db.Timestamptz()
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@index([expiresAt])
+}
+
 model Question {
   id                 String           @id @default(uuid()) @db.Uuid
   category           QuestionCategory

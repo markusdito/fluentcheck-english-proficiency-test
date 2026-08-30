@@ -13,7 +13,7 @@ Add a secure “Continue with Google” flow to both the sign-in and sign-up scr
 - Use a backend-owned OAuth 2.0 Authorization Code flow with PKCE.
 - Keep Google client credentials and token verification on the backend.
 - Use Google’s stable `sub` claim as the external identity key; do not use email as the primary Google identity key.
-- Reuse the application’s existing JWT cookie after Google authentication succeeds.
+- Reuse the application’s existing JWT cookie and session semantics after Google authentication succeeds.
 - Redirect successful Google authentication to `/dashboard`.
 - Redirect failures to the originating `/login` or `/signup` page with a short, allowlisted error code rather than provider details or tokens.
 - Do not add a second frontend authentication SDK or store Google tokens in browser storage.
@@ -93,6 +93,7 @@ The callback route will:
 ### 7. Security hardening
 
 - Keep OAuth state and PKCE verifier server-managed in `httpOnly` cookies.
+- Atomically consume the persisted OAuth state before exchanging a callback code.
 - Restrict redirect destinations to the known frontend origin and fixed auth/dashboard paths; do not accept arbitrary `returnTo` URLs.
 - Apply rate limits to OAuth start and callback routes.
 - Reuse the existing JWT cookie security flags and verify that production uses HTTPS and a correctly scoped cookie domain.

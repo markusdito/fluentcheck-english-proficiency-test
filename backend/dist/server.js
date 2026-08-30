@@ -12,7 +12,7 @@ import { createUploadRouter } from "./routes/upload.routes.js";
 import { createSubmissionRouter } from "./routes/submission.routes.js";
 import examinerRoutes from "./routes/examiner.routes.js";
 import { createPaymentRouter } from "./routes/payment.routes.js";
-import { createGoogleAuthHandlers } from "./service/google-auth.service.js";
+import { createGoogleAuthHandlers } from "./controllers/googleAuth.controller.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { createRateLimitConfig, RATE_LIMIT_POLICIES } from "./config/rate-limit.js";
 import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";

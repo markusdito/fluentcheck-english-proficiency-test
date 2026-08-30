@@ -8,8 +8,9 @@ import {
   createGoogleAuthHandlers,
   type GoogleOAuthClient,
   type GoogleTokenPayload,
-} from "../src/service/google-auth.service.js";
-import type { AuthAccount, GoogleIdentity } from "../src/service/google-auth.service.js";
+} from "../src/controllers/googleAuth.controller.js";
+import type { AuthAccount, GoogleIdentity } from "../src/service/googleAuth.service.js";
+import type { GoogleOAuthStateStore } from "../src/service/googleAuth.service.js";
 
 const config = {
   clientId: "123456789.apps.googleusercontent.com",
@@ -80,12 +81,31 @@ function cookieValues(response: globalThis.Response) {
   );
 }
 
-async function createTestServer(client: FakeGoogleClient, issueSession = true) {
+function memoryStateStore(): GoogleOAuthStateStore {
+  const states = new Map<string, string>();
+  return {
+    async create(state, returnTo) {
+      states.set(state, returnTo);
+    },
+    async consume(state, returnTo) {
+      if (states.get(state) !== returnTo) return false;
+      states.delete(state);
+      return true;
+    },
+  };
+}
+
+async function createTestServer(
+  client: FakeGoogleClient,
+  issueSession = true,
+  oauthConfig = config,
+) {
   const issued: string[] = [];
-  const handlers = createGoogleAuthHandlers(config, {
+  const handlers = createGoogleAuthHandlers(oauthConfig, {
     client,
     frontendUrl: "https://fluentcheck.example.test",
     resolveAccount: async (_identity: GoogleIdentity) => account(),
+    stateStore: memoryStateStore(),
     issueSession: issueSession
       ? (userId: string, response: Response) => {
           issued.push(userId);
@@ -163,6 +183,46 @@ test("valid callbacks exchange the saved PKCE verifier, issue a session, and red
   assert.match(callback.headers.get("set-cookie") ?? "", /Path=\/api\/auth\/google/);
 });
 
+test("same-origin proxy callbacks receive cookies scoped to the proxy path", async () => {
+  const client = new FakeGoogleClient();
+  const { server, url } = await createTestServer(client, true, {
+    ...config,
+    redirectUri: "http://localhost:3000/backend-api/auth/google/callback",
+  });
+  servers.push(server);
+
+  const start = await fetch(`${url}/start?returnTo=login`, { redirect: "manual" });
+  assert.equal(start.status, 302);
+  assert.match(
+    start.headers.get("set-cookie") ?? "",
+    /Path=\/backend-api\/auth\/google/u,
+  );
+});
+
+test("a saved OAuth state is consumed once before the provider exchange", async () => {
+  const client = new FakeGoogleClient();
+  const { server, url } = await createTestServer(client);
+  servers.push(server);
+
+  const start = await fetch(`${url}/start?returnTo=login`, { redirect: "manual" });
+  const cookies = cookieValues(start);
+  const callbackUrl =
+    `${url}/callback?code=authorization-code&state=${encodeURIComponent(cookies.google_oauth_state)}`;
+  const responses = await Promise.all([
+    fetch(callbackUrl, { headers: { Cookie: cookieHeader(start) }, redirect: "manual" }),
+    fetch(callbackUrl, { headers: { Cookie: cookieHeader(start) }, redirect: "manual" }),
+  ]);
+
+  assert.equal(
+    responses.filter((response) => response.headers.get("location")?.includes("/dashboard")).length,
+    1,
+  );
+  assert.equal(
+    responses.filter((response) => response.headers.get("location")?.includes("state_mismatch")).length,
+    1,
+  );
+});
+
 test("missing and mismatched callback state redirect with allowlisted errors and clear cookies", async () => {
   const client = new FakeGoogleClient();
   const { server, url } = await createTestServer(client);
@@ -184,6 +244,22 @@ test("missing and mismatched callback state redirect with allowlisted errors and
   assert.equal(missing.status, 302);
   assert.equal(
     missing.headers.get("location"),
+    "https://fluentcheck.example.test/login?google_error=invalid_request",
+  );
+
+  const startCookies = cookieValues(start);
+  const missingReturnTo = await fetch(
+    `${url}/callback?code=code&state=${encodeURIComponent(startCookies.google_oauth_state)}`,
+    {
+      headers: {
+        Cookie: `google_oauth_state=${startCookies.google_oauth_state}; google_oauth_verifier=${startCookies.google_oauth_verifier}`,
+      },
+      redirect: "manual",
+    },
+  );
+  assert.equal(missingReturnTo.status, 302);
+  assert.equal(
+    missingReturnTo.headers.get("location"),
     "https://fluentcheck.example.test/login?google_error=invalid_request",
   );
 

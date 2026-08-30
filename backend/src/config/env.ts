@@ -39,7 +39,10 @@ export interface GoogleOAuthConfigInput {
     readonly redirectUri?: string;
 }
 
-const GOOGLE_CALLBACK_PATH = "/api/auth/google/callback";
+const GOOGLE_CALLBACK_PATHS = new Set([
+    "/api/auth/google/callback",
+    "/backend-api/auth/google/callback",
+]);
 
 /**
  * Returns no configuration when Google OAuth is intentionally disabled, but
@@ -75,6 +78,9 @@ export function getGoogleOAuthConfig(
     if (/\s/u.test(clientId)) {
         throw new Error("Google OAuth client ID must not contain whitespace");
     }
+    if (!/^[0-9]+(?:-[A-Za-z0-9_-]+)?\.apps\.googleusercontent\.com$/u.test(clientId)) {
+        throw new Error("Google OAuth client ID has an invalid format");
+    }
     if (/\s/u.test(clientSecret)) {
         throw new Error("Google OAuth client secret must not contain whitespace");
     }
@@ -95,10 +101,10 @@ export function getGoogleOAuthConfig(
         parsedRedirectUri.password ||
         parsedRedirectUri.search ||
         parsedRedirectUri.hash ||
-        parsedRedirectUri.pathname !== GOOGLE_CALLBACK_PATH
+        !GOOGLE_CALLBACK_PATHS.has(parsedRedirectUri.pathname)
     ) {
         throw new Error(
-            `Google OAuth redirect URI must use the exact ${GOOGLE_CALLBACK_PATH} callback path without credentials or query parameters`,
+            "Google OAuth redirect URI must use the exact public callback path without credentials or query parameters",
         );
     }
 

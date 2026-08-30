@@ -13,7 +13,7 @@ import type { Express } from "express";
 import type {
   GoogleOAuthClient,
   GoogleTokenPayload,
-} from "../../src/service/google-auth.service.js";
+} from "../../src/controllers/googleAuth.controller.js";
 
 const execFileAsync = promisify(execFile);
 const clientId = "123456789.apps.googleusercontent.com";
@@ -88,6 +88,7 @@ before(async () => {
   process.env.NODE_ENV = "test";
   process.env.DATABASE_URL = container.getConnectionUri();
   process.env.JWT_SECRET = "google-flow-test-jwt-secret";
+  process.env.JWT_EXPIRES_IN = "1h";
   process.env.R2_ACCOUNT_ID = "google-flow-test";
   process.env.R2_ACCESS_KEY_ID = "google-flow-test";
   process.env.R2_SECRET_ACCESS_KEY = "google-flow-test";
@@ -97,7 +98,7 @@ before(async () => {
 
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
   const { createApp } = await import("../../src/server.js");
-  const { createGoogleAuthHandlers } = await import("../../src/service/google-auth.service.js");
+  const { createGoogleAuthHandlers } = await import("../../src/controllers/googleAuth.controller.js");
   const { createRateLimitConfig } = await import("../../src/config/rate-limit.js");
   const app: Express = createApp({
     googleAuth: createGoogleAuthHandlers(config, {
@@ -126,7 +127,7 @@ after(async () => {
   await container.stop();
 }, { timeout: 120_000 });
 
-test("the mounted Google flow creates a provider-only account and session-only JWT", async () => {
+test("the mounted Google flow creates a provider-only account and application JWT", async () => {
   const start = await fetch(`${baseUrl}/api/auth/google/start?returnTo=login`, {
     redirect: "manual",
   });
@@ -144,8 +145,8 @@ test("the mounted Google flow creates a provider-only account and session-only J
   assert.match(jwtCookie, /HttpOnly/);
   assert.match(jwtCookie, /SameSite=Lax/);
   assert.match(jwtCookie, /Path=\//u);
-  assert.doesNotMatch(jwtCookie, /Max-Age=/u);
-  assert.doesNotMatch(jwtCookie, /Expires=/u);
+  assert.match(jwtCookie, /Max-Age=604800/u);
+  assert.match(jwtCookie, /Expires=/u);
 
   const token = jwtCookie.slice(4).split(";", 1)[0];
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;

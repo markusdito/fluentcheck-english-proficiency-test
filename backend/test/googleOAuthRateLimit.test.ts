@@ -8,9 +8,24 @@ import { createApp } from "../src/server.js";
 import {
   createGoogleAuthHandlers,
   type GoogleOAuthClient,
-} from "../src/service/google-auth.service.js";
+} from "../src/controllers/googleAuth.controller.js";
 import { createRateLimitConfig } from "../src/config/rate-limit.js";
 import type { RateLimitRuntime } from "../src/middleware/rate-limit.middleware.js";
+import type { GoogleOAuthStateStore } from "../src/service/googleAuth.service.js";
+
+function memoryStateStore(): GoogleOAuthStateStore {
+  const states = new Map<string, string>();
+  return {
+    async create(state, returnTo) {
+      states.set(state, returnTo);
+    },
+    async consume(state, returnTo) {
+      if (states.get(state) !== returnTo) return false;
+      states.delete(state);
+      return true;
+    },
+  };
+}
 
 const client: GoogleOAuthClient = {
   generateAuthUrl: () => "https://accounts.google.test/authorize",
@@ -29,7 +44,11 @@ before(async () => {
       clientSecret: "google-client-secret",
       redirectUri: "http://localhost:5001/api/auth/google/callback",
     },
-    { client, frontendUrl: "https://fluentcheck.example.test" },
+    {
+      client,
+      frontendUrl: "https://fluentcheck.example.test",
+      stateStore: memoryStateStore(),
+    },
   );
   const app: Express = createApp({
     googleAuth,

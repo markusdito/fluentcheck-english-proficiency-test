@@ -18,6 +18,17 @@ test("Google OAuth configuration is optional outside production", () => {
   });
 });
 
+test("the same-origin callback path is accepted for the Next.js rewrite", () => {
+  const proxyConfig = getGoogleOAuthConfig({
+    ...valid,
+    redirectUri: "http://localhost:3000/backend-api/auth/google/callback",
+  });
+  assert.equal(
+    proxyConfig?.redirectUri,
+    "http://localhost:3000/backend-api/auth/google/callback",
+  );
+});
+
 test("production requires a complete HTTPS Google OAuth configuration", () => {
   assert.throws(
     () => getGoogleOAuthConfig({ nodeEnv: "production" }),
@@ -56,6 +67,14 @@ test("partial or malformed Google OAuth values fail without exposing secrets", (
       getGoogleOAuthConfig({
         ...valid,
         clientId: "client id with spaces",
+      }),
+    /client ID/,
+  );
+  assert.throws(
+    () =>
+      getGoogleOAuthConfig({
+        ...valid,
+        clientId: "not-a-google-client-id",
       }),
     /client ID/,
   );

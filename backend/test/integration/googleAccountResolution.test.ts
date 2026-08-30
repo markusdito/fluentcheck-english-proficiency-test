@@ -9,14 +9,14 @@ import {
 } from "@testcontainers/postgresql";
 import bcrypt from "bcryptjs";
 import type { PrismaClient, Role } from "../../src/generated/client.js";
-import type { GoogleIdentity } from "../../src/service/google-auth.service.js";
+import type { GoogleIdentity } from "../../src/service/googleAuth.service.js";
 
 const execFileAsync = promisify(execFile);
 let container: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 let disconnectDB: () => Promise<void>;
-let resolveGoogleAccount: typeof import("../../src/service/google-auth.service.js").resolveGoogleAccount;
-let GoogleAccountResolutionError: typeof import("../../src/service/google-auth.service.js").GoogleAccountResolutionError;
+let resolveGoogleAccount: typeof import("../../src/service/googleAuth.service.js").resolveGoogleAccount;
+let GoogleAccountResolutionError: typeof import("../../src/service/googleAuth.service.js").GoogleAccountResolutionError;
 
 async function migrateDatabase(databaseUrl: string) {
   await execFileAsync(
@@ -44,7 +44,7 @@ before(async () => {
   await migrateDatabase(process.env.DATABASE_URL);
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
   ({ resolveGoogleAccount, GoogleAccountResolutionError } = await import(
-    "../../src/service/google-auth.service.js"
+    "../../src/service/googleAuth.service.js"
   ));
 }, { timeout: 120_000 });
 

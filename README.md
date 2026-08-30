@@ -89,7 +89,7 @@ flowchart LR
     API -->|Create checkout| Payment
     Payment -->|Signed payment callback| API
     Browser -->|Authorization Code + PKCE| Google
-    Google -->|Verified callback| API
+    Google -->|Callback through frontend rewrite| API
 ```
 
 The frontend uses a same-origin `/backend-api` rewrite during local development.
@@ -175,7 +175,7 @@ JWT_EXPIRES_IN="1h"
 # Google OAuth (server-only; use the exact callback URI from the deployment guide)
 GOOGLE_CLIENT_ID="123456789.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="server-only-client-secret"
-GOOGLE_REDIRECT_URI="http://localhost:5001/api/auth/google/callback"
+GOOGLE_REDIRECT_URI="http://localhost:3000/backend-api/auth/google/callback"
 
 # Cloudflare R2
 R2_ACCOUNT_ID="your-account-id"

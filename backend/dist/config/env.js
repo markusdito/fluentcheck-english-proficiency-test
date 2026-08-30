@@ -25,7 +25,10 @@ export const env = {
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
 };
-const GOOGLE_CALLBACK_PATH = "/api/auth/google/callback";
+const GOOGLE_CALLBACK_PATHS = new Set([
+    "/api/auth/google/callback",
+    "/backend-api/auth/google/callback",
+]);
 /**
  * Returns no configuration when Google OAuth is intentionally disabled, but
  * rejects partial or unsafe configuration before production starts.
@@ -52,6 +55,9 @@ export function getGoogleOAuthConfig(input = {
     if (/\s/u.test(clientId)) {
         throw new Error("Google OAuth client ID must not contain whitespace");
     }
+    if (!/^[0-9]+(?:-[A-Za-z0-9_-]+)?\.apps\.googleusercontent\.com$/u.test(clientId)) {
+        throw new Error("Google OAuth client ID has an invalid format");
+    }
     if (/\s/u.test(clientSecret)) {
         throw new Error("Google OAuth client secret must not contain whitespace");
     }
@@ -70,8 +76,8 @@ export function getGoogleOAuthConfig(input = {
         parsedRedirectUri.password ||
         parsedRedirectUri.search ||
         parsedRedirectUri.hash ||
-        parsedRedirectUri.pathname !== GOOGLE_CALLBACK_PATH) {
-        throw new Error(`Google OAuth redirect URI must use the exact ${GOOGLE_CALLBACK_PATH} callback path without credentials or query parameters`);
+        !GOOGLE_CALLBACK_PATHS.has(parsedRedirectUri.pathname)) {
+        throw new Error("Google OAuth redirect URI must use the exact public callback path without credentials or query parameters");
     }
     return Object.freeze({ clientId, clientSecret, redirectUri });
 }

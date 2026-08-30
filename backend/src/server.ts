@@ -18,7 +18,7 @@ import { createSubmissionRouter } from "./routes/submission.routes.js";
 import examinerRoutes from "./routes/examiner.routes.js";
 import { createPaymentRouter } from "./routes/payment.routes.js";
 import type { GoogleAuthRouteHandlers } from "./routes/google-auth.routes.js";
-import { createGoogleAuthHandlers } from "./service/google-auth.service.js";
+import { createGoogleAuthHandlers } from "./controllers/googleAuth.controller.js";
 import adminRoutes from "./routes/admin.routes.js";
 import type { IpaymuTransport } from "./service/ipaymu.transport.js";
 import { createRateLimitConfig, RATE_LIMIT_POLICIES } from "./config/rate-limit.js";

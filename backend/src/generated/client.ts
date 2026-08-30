@@ -47,6 +47,11 @@ export { Prisma }
  */
 export type User = Prisma.UserModel
 /**
+ * Model GoogleOAuthState
+ *
+ */
+export type GoogleOAuthState = Prisma.GoogleOAuthStateModel
+/**
  * Model Question
  * 
  */
