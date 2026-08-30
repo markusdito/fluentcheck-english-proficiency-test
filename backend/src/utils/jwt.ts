@@ -12,6 +12,15 @@ export const authCookieOptions = {
     maxAge: 1000 * 60 * 60 * 24 * 7,
 };
 
+export function clearAuthCookie(res: Response) {
+    res.clearCookie(AUTH_COOKIE_NAME, {
+        httpOnly: authCookieOptions.httpOnly,
+        secure: authCookieOptions.secure,
+        sameSite: authCookieOptions.sameSite,
+        path: authCookieOptions.path,
+    });
+}
+
 export function generateToken(userId: string, res: Response) {
     const payload = { id: userId }
 

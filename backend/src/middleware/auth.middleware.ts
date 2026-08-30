@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
-import { AUTH_COOKIE_NAME } from "../utils/jwt.js";
+import { findCurrentAccount } from "../service/auth.service.js";
+import { AUTH_COOKIE_NAME, clearAuthCookie } from "../utils/jwt.js";
 
 interface JwtPayload {
   id: string;
@@ -9,31 +10,49 @@ interface JwtPayload {
   exp?: number;
 }
 
+export type CurrentAccount = NonNullable<
+  Awaited<ReturnType<typeof findCurrentAccount>>
+>;
+
 // Extend Express Request to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string };
+      user?: CurrentAccount;
     }
   }
 }
 
-// Reads the JWT from the httpOnly auth cookie and attaches the decoded payload
-// to req.user.
-export function verifyToken(req: Request, res: Response, next: NextFunction) {
+// Resolves the JWT subject to one current, non-deactivated account projection.
+export async function verifyToken(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies?.[AUTH_COOKIE_NAME] as string | undefined;
 
   if (!token) {
-    res.status(401).json({ error: "Not authenticated — no token provided" });
+    res.status(401).json({ error: "Not authenticated" });
     return;
   }
 
+  let userId: string;
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-    req.user = { id: decoded.id };
-    next();
+    if (!decoded || typeof decoded !== "object" || typeof decoded.id !== "string") {
+      throw new Error("Invalid authentication payload");
+    }
+    userId = decoded.id;
   } catch {
-    res.status(401).json({ error: "Invalid or expired token" });
+    clearAuthCookie(res);
+    res.status(401).json({ error: "Not authenticated" });
     return;
   }
+
+  const currentAccount = await findCurrentAccount(userId);
+
+  if (!currentAccount) {
+    clearAuthCookie(res);
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  req.user = currentAccount;
+  next();
 }

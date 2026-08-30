@@ -1,4 +1,5 @@
 export const env = {
+    NODE_ENV: process.env.NODE_ENV ?? "development",
     DATABASE_URL: process.env.DATABASE_URL,
     JWT_SECRET: process.env.JWT_SECRET,
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? "1h",
@@ -13,4 +14,11 @@ export const env = {
     IPAYMU_PAYMENT_AMOUNT: process.env.IPAYMU_PAYMENT_AMOUNT ?? "150000",
     IPAYMU_CURRENCY: process.env.IPAYMU_CURRENCY ?? "IDR",
     FRONTEND_URL: process.env.FRONTEND_URL ?? "http://localhost:3000",
+    RATE_LIMIT_HMAC_SECRET: process.env.RATE_LIMIT_HMAC_SECRET,
+    RATE_LIMIT_TRUST_PROXY: process.env.RATE_LIMIT_TRUST_PROXY,
+    RATE_LIMIT_IPV6_SUBNET: process.env.RATE_LIMIT_IPV6_SUBNET,
+    RATE_LIMIT_TOPOLOGY: process.env.RATE_LIMIT_TOPOLOGY,
+    RATE_LIMIT_STORE: process.env.RATE_LIMIT_STORE,
+    RATE_LIMIT_STORE_TIMEOUT_MS: process.env.RATE_LIMIT_STORE_TIMEOUT_MS,
+    RATE_LIMIT_SHARED_STORE_URL: process.env.RATE_LIMIT_SHARED_STORE_URL,
 };

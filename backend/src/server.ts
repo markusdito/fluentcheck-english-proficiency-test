@@ -2,7 +2,7 @@ import "dotenv/config";
 import path from "node:path";
 import type { Server } from "node:http";
 import { pathToFileURL } from "node:url";
-import express, { type ErrorRequestHandler } from "express";
+import express, { type ErrorRequestHandler, type RequestHandler } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { connectDB, disconnectDB } from "./config/db.js";
@@ -15,17 +15,83 @@ import examinerRoutes from "./routes/examiner.routes.js";
 import { createPaymentRouter } from "./routes/payment.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import type { IpaymuTransport } from "./service/ipaymu.transport.js";
+import { createRateLimitConfig } from "./config/rate-limit.js";
+import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";
+import {
+  RateLimitKeyUnavailableError,
+  RateLimitStoreUnavailableError,
+  createRateLimitRuntime,
+  type RateLimitRuntime,
+  type RateLimitRuntimeOptions,
+} from "./middleware/rate-limit.middleware.js";
+
+const REQUEST_BODY_LIMIT = "64kb";
+const URL_ENCODED_PARAMETER_LIMIT = 100;
+
+function isBodyParserError(error: unknown): error is {
+  status?: number;
+  type?: string;
+} {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as { status?: unknown; type?: unknown };
+  return typeof candidate.type === "string";
+}
+
+const rejectNonAuthArrayBodies: RequestHandler = (req, res, next) => {
+  const isAuthPath = req.path === "/api/auth" || req.path.startsWith("/api/auth/");
+  if (!isAuthPath && req.is("application/json") && Array.isArray(req.body)) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+
+  next();
+};
 
 export interface AppDependencies {
   ipaymuTransport?: IpaymuTransport;
+  rateLimit?: RateLimitRuntimeOptions;
 }
 
-const unhandledRequestError: ErrorRequestHandler = (
+export const unhandledRequestError: ErrorRequestHandler = (
   error,
   _req,
   res,
   _next,
 ) => {
+  if (isBodyParserError(error)) {
+    if (
+      error.status === 413 ||
+      error.type === "entity.too.large" ||
+      error.type === "parameters.too.many"
+    ) {
+      res.status(413).json({ error: "Request too large" });
+      return;
+    }
+
+    if (
+      error.status === 400 ||
+      error.type === "entity.parse.failed" ||
+      error.type === "request.size.invalid"
+    ) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+  }
+
+  if (
+    error instanceof RateLimitStoreUnavailableError ||
+    error instanceof RateLimitKeyUnavailableError
+  ) {
+    console.error("Rate-limit request protection unavailable", {
+      code: error.code,
+      ...(error instanceof RateLimitStoreUnavailableError
+        ? { policyName: error.policyName, failureMode: error.failureMode }
+        : {}),
+    });
+    res.status(503).json({ error: "Service temporarily unavailable" });
+    return;
+  }
+
   console.error("Unhandled request error", {
     error: error instanceof Error ? error.message : "Unknown error",
   });
@@ -34,6 +100,11 @@ const unhandledRequestError: ErrorRequestHandler = (
 
 export function createApp(dependencies: AppDependencies = {}) {
   const app = express();
+  if (dependencies.rateLimit) {
+    const rateLimitRuntime = createRateLimitRuntime(dependencies.rateLimit);
+    app.locals.rateLimit = rateLimitRuntime;
+    app.set("trust proxy", rateLimitRuntime.config.trustProxy);
+  }
 
   app.use(
     cors({
@@ -43,8 +114,27 @@ export function createApp(dependencies: AppDependencies = {}) {
     }),
   );
   app.use(cookieParser());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(
+    "/api/auth",
+    express.json({ limit: REQUEST_BODY_LIMIT, strict: false }),
+  );
+  app.use(
+    "/api/auth",
+    express.urlencoded({
+      extended: true,
+      limit: REQUEST_BODY_LIMIT,
+      parameterLimit: URL_ENCODED_PARAMETER_LIMIT,
+    }),
+  );
+  app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+  app.use(
+    express.urlencoded({
+      extended: true,
+      limit: REQUEST_BODY_LIMIT,
+      parameterLimit: URL_ENCODED_PARAMETER_LIMIT,
+    }),
+  );
+  app.use(rejectNonAuthArrayBodies);
 
   app.use("/api/auth", authRoutes);
   app.use("/api/questions", questionRoutes);
@@ -62,16 +152,30 @@ export function createApp(dependencies: AppDependencies = {}) {
   return app;
 }
 
-function closeServer(server: Server, exitCode: number) {
+function closeServer(
+  server: Server,
+  exitCode: number,
+  rateLimitRuntime?: RateLimitRuntime,
+) {
   server.close(async () => {
+    await rateLimitRuntime?.shutdown();
     await disconnectDB();
     process.exit(exitCode);
   });
 }
 
 async function startServer() {
+  const rateLimitConfig = createRateLimitConfig();
+  const rateLimitStoreFactory =
+    createConfiguredRateLimitStoreFactory(rateLimitConfig);
   await connectDB();
-  const app = createApp();
+  const app = createApp({
+    rateLimit: {
+      config: rateLimitConfig,
+      storeFactory: rateLimitStoreFactory,
+    },
+  });
+  const rateLimitRuntime = app.locals.rateLimit as RateLimitRuntime;
   const port = process.env.PORT || 5001;
   const server = app.listen(port, () => {
     console.log(`Server started on port: ${port}`);
@@ -79,17 +183,17 @@ async function startServer() {
 
   process.on("unhandledRejection", (error) => {
     console.error("Unhandled Rejection: ", error);
-    closeServer(server, 1);
+    closeServer(server, 1, rateLimitRuntime);
   });
 
   process.on("uncaughtException", (error) => {
     console.error("Uncaught Exception: ", error);
-    closeServer(server, 1);
+    closeServer(server, 1, rateLimitRuntime);
   });
 
   process.on("SIGTERM", () => {
     console.log("SIGTERM received, shutting down gracefully");
-    closeServer(server, 0);
+    closeServer(server, 0, rateLimitRuntime);
   });
 }
 
