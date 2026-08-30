@@ -30,6 +30,7 @@ export type GoogleOAuthStateMinAggregateOutputType = {
   returnTo: string | null
   expiresAt: Date | null
   createdAt: Date | null
+  updatedAt: Date | null
 }
 
 export type GoogleOAuthStateMaxAggregateOutputType = {
@@ -38,6 +39,7 @@ export type GoogleOAuthStateMaxAggregateOutputType = {
   returnTo: string | null
   expiresAt: Date | null
   createdAt: Date | null
+  updatedAt: Date | null
 }
 
 export type GoogleOAuthStateCountAggregateOutputType = {
@@ -46,6 +48,7 @@ export type GoogleOAuthStateCountAggregateOutputType = {
   returnTo: number
   expiresAt: number
   createdAt: number
+  updatedAt: number
   _all: number
 }
 
@@ -56,6 +59,7 @@ export type GoogleOAuthStateMinAggregateInputType = {
   returnTo?: true
   expiresAt?: true
   createdAt?: true
+  updatedAt?: true
 }
 
 export type GoogleOAuthStateMaxAggregateInputType = {
@@ -64,6 +68,7 @@ export type GoogleOAuthStateMaxAggregateInputType = {
   returnTo?: true
   expiresAt?: true
   createdAt?: true
+  updatedAt?: true
 }
 
 export type GoogleOAuthStateCountAggregateInputType = {
@@ -72,6 +77,7 @@ export type GoogleOAuthStateCountAggregateInputType = {
   returnTo?: true
   expiresAt?: true
   createdAt?: true
+  updatedAt?: true
   _all?: true
 }
 
@@ -153,6 +159,7 @@ export type GoogleOAuthStateGroupByOutputType = {
   returnTo: string
   expiresAt: Date
   createdAt: Date
+  updatedAt: Date
   _count: GoogleOAuthStateCountAggregateOutputType | null
   _min: GoogleOAuthStateMinAggregateOutputType | null
   _max: GoogleOAuthStateMaxAggregateOutputType | null
@@ -182,6 +189,7 @@ export type GoogleOAuthStateWhereInput = {
   returnTo?: Prisma.StringFilter<"GoogleOAuthState"> | string
   expiresAt?: Prisma.DateTimeFilter<"GoogleOAuthState"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"GoogleOAuthState"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"GoogleOAuthState"> | Date | string
 }
 
 export type GoogleOAuthStateOrderByWithRelationInput = {
@@ -190,6 +198,7 @@ export type GoogleOAuthStateOrderByWithRelationInput = {
   returnTo?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
 }
 
 export type GoogleOAuthStateWhereUniqueInput = Prisma.AtLeast<{
@@ -201,6 +210,7 @@ export type GoogleOAuthStateWhereUniqueInput = Prisma.AtLeast<{
   returnTo?: Prisma.StringFilter<"GoogleOAuthState"> | string
   expiresAt?: Prisma.DateTimeFilter<"GoogleOAuthState"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"GoogleOAuthState"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"GoogleOAuthState"> | Date | string
 }, "id" | "state">
 
 export type GoogleOAuthStateOrderByWithAggregationInput = {
@@ -209,6 +219,7 @@ export type GoogleOAuthStateOrderByWithAggregationInput = {
   returnTo?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
   _count?: Prisma.GoogleOAuthStateCountOrderByAggregateInput
   _max?: Prisma.GoogleOAuthStateMaxOrderByAggregateInput
   _min?: Prisma.GoogleOAuthStateMinOrderByAggregateInput
@@ -223,6 +234,7 @@ export type GoogleOAuthStateScalarWhereWithAggregatesInput = {
   returnTo?: Prisma.StringWithAggregatesFilter<"GoogleOAuthState"> | string
   expiresAt?: Prisma.DateTimeWithAggregatesFilter<"GoogleOAuthState"> | Date | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"GoogleOAuthState"> | Date | string
+  updatedAt?: Prisma.DateTimeWithAggregatesFilter<"GoogleOAuthState"> | Date | string
 }
 
 export type GoogleOAuthStateCreateInput = {
@@ -231,6 +243,7 @@ export type GoogleOAuthStateCreateInput = {
   returnTo: string
   expiresAt: Date | string
   createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type GoogleOAuthStateUncheckedCreateInput = {
@@ -239,6 +252,7 @@ export type GoogleOAuthStateUncheckedCreateInput = {
   returnTo: string
   expiresAt: Date | string
   createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type GoogleOAuthStateUpdateInput = {
@@ -247,6 +261,7 @@ export type GoogleOAuthStateUpdateInput = {
   returnTo?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type GoogleOAuthStateUncheckedUpdateInput = {
@@ -255,6 +270,7 @@ export type GoogleOAuthStateUncheckedUpdateInput = {
   returnTo?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type GoogleOAuthStateCreateManyInput = {
@@ -263,6 +279,7 @@ export type GoogleOAuthStateCreateManyInput = {
   returnTo: string
   expiresAt: Date | string
   createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type GoogleOAuthStateUpdateManyMutationInput = {
@@ -271,6 +288,7 @@ export type GoogleOAuthStateUpdateManyMutationInput = {
   returnTo?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type GoogleOAuthStateUncheckedUpdateManyInput = {
@@ -279,6 +297,7 @@ export type GoogleOAuthStateUncheckedUpdateManyInput = {
   returnTo?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type GoogleOAuthStateCountOrderByAggregateInput = {
@@ -287,6 +306,7 @@ export type GoogleOAuthStateCountOrderByAggregateInput = {
   returnTo?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
 }
 
 export type GoogleOAuthStateMaxOrderByAggregateInput = {
@@ -295,6 +315,7 @@ export type GoogleOAuthStateMaxOrderByAggregateInput = {
   returnTo?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
 }
 
 export type GoogleOAuthStateMinOrderByAggregateInput = {
@@ -303,6 +324,7 @@ export type GoogleOAuthStateMinOrderByAggregateInput = {
   returnTo?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
 }
 
 
@@ -313,6 +335,7 @@ export type GoogleOAuthStateSelect<ExtArgs extends runtime.Types.Extensions.Inte
   returnTo?: boolean
   expiresAt?: boolean
   createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["googleOAuthState"]>
 
 export type GoogleOAuthStateSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -321,6 +344,7 @@ export type GoogleOAuthStateSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   returnTo?: boolean
   expiresAt?: boolean
   createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["googleOAuthState"]>
 
 export type GoogleOAuthStateSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -329,6 +353,7 @@ export type GoogleOAuthStateSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   returnTo?: boolean
   expiresAt?: boolean
   createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["googleOAuthState"]>
 
 export type GoogleOAuthStateSelectScalar = {
@@ -337,9 +362,10 @@ export type GoogleOAuthStateSelectScalar = {
   returnTo?: boolean
   expiresAt?: boolean
   createdAt?: boolean
+  updatedAt?: boolean
 }
 
-export type GoogleOAuthStateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "state" | "returnTo" | "expiresAt" | "createdAt", ExtArgs["result"]["googleOAuthState"]>
+export type GoogleOAuthStateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "state" | "returnTo" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["googleOAuthState"]>
 
 export type $GoogleOAuthStatePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "GoogleOAuthState"
@@ -350,6 +376,7 @@ export type $GoogleOAuthStatePayload<ExtArgs extends runtime.Types.Extensions.In
     returnTo: string
     expiresAt: Date
     createdAt: Date
+    updatedAt: Date
   }, ExtArgs["result"]["googleOAuthState"]>
   composites: {}
 }
@@ -778,6 +805,7 @@ export interface GoogleOAuthStateFieldRefs {
   readonly returnTo: Prisma.FieldRef<"GoogleOAuthState", 'String'>
   readonly expiresAt: Prisma.FieldRef<"GoogleOAuthState", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"GoogleOAuthState", 'DateTime'>
+  readonly updatedAt: Prisma.FieldRef<"GoogleOAuthState", 'DateTime'>
 }
 
 

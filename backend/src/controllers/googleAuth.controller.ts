@@ -3,39 +3,26 @@ import { OAuth2Client } from "google-auth-library";
 import type { Request, RequestHandler, Response } from "express";
 import { env, type GoogleOAuthConfig } from "../config/env.js";
 import { generateToken } from "../utils/jwt.js";
-import { normalizeEmail } from "../schemas/auth.schema.js";
 import {
   GoogleAccountResolutionError,
   databaseGoogleOAuthStateStore,
+  googleIdentityFromTokenPayload,
   resolveGoogleAccount,
   type AuthAccount,
   type GoogleIdentity,
   type GoogleOAuthStateStore,
   type GoogleOAuthReturnTo,
+  type GoogleTokenPayload,
 } from "../service/googleAuth.service.js";
 
+export type { GoogleTokenPayload } from "../service/googleAuth.service.js";
+
 const OAUTH_COOKIE_MAX_AGE_MS = 10 * 60 * 1_000;
-const GOOGLE_ISSUERS = new Set([
-  "https://accounts.google.com",
-  "accounts.google.com",
-]);
 const OAUTH_COOKIE_NAMES = {
   state: "google_oauth_state",
   verifier: "google_oauth_verifier",
   returnTo: "google_oauth_return_to",
 } as const;
-
-export interface GoogleTokenPayload {
-  readonly iss?: string;
-  readonly aud?: string | string[];
-  readonly azp?: string;
-  readonly sub?: string;
-  readonly email?: string;
-  readonly email_verified?: boolean;
-  readonly name?: string;
-  readonly hd?: string;
-  readonly exp?: number;
-}
 
 export interface GoogleAuthUrlOptions {
   readonly access_type: "online";
@@ -166,53 +153,6 @@ function redirectFailure(
 ) {
   clearOAuthCookies(response, cookiePath);
   response.redirect(frontendRedirect(frontendUrl, returnTo, error));
-}
-
-function validAudience(
-  audience: string | string[] | undefined,
-  authorizedParty: string | undefined,
-  clientId: string,
-) {
-  if (Array.isArray(audience)) {
-    return audience.includes(clientId) && authorizedParty === clientId;
-  }
-  return audience === clientId &&
-    (authorizedParty === undefined || authorizedParty === clientId);
-}
-
-function identityFromPayload(
-  payload: GoogleTokenPayload | undefined,
-  clientId: string,
-  now: () => number,
-): GoogleIdentity {
-  const nowSeconds = Math.floor(now() / 1_000);
-  const expiration = payload?.exp;
-  const normalizedEmail =
-    typeof payload?.email === "string" ? normalizeEmail(payload.email) : "";
-  if (
-    !payload ||
-    !validAudience(payload.aud, payload.azp, clientId) ||
-    !payload.iss ||
-    !GOOGLE_ISSUERS.has(payload.iss) ||
-    typeof expiration !== "number" ||
-    !Number.isSafeInteger(expiration) ||
-    expiration <= nowSeconds ||
-    typeof payload.sub !== "string" ||
-    payload.sub.trim().length === 0 ||
-    typeof payload.email !== "string" ||
-    !/^([^\s@]+)@([^\s@]+)\.[^\s@]+$/u.test(normalizedEmail) ||
-    payload.email_verified !== true
-  ) {
-    throw new GoogleAccountResolutionError("invalid_identity");
-  }
-
-  return {
-    subject: payload.sub,
-    email: payload.email,
-    emailVerified: true,
-    ...(typeof payload.name === "string" ? { name: payload.name } : {}),
-    ...(typeof payload.hd === "string" ? { hostedDomain: payload.hd } : {}),
-  };
 }
 
 function mapFailureCode(error: unknown): GoogleErrorCode {
@@ -367,7 +307,7 @@ export function createGoogleAuthHandlers(
         return;
       }
 
-      const identity = identityFromPayload(payload, config.clientId, now);
+      const identity = googleIdentityFromTokenPayload(payload, config.clientId, now);
       const account = await resolveAccount(identity);
       await issueSession(account.id, response);
       clearOAuthCookies(response, cookiePath);

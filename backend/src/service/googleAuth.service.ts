@@ -18,6 +18,22 @@ const ACCOUNT_STATE_SELECT = {
 
 const MAX_USERNAME_LENGTH = 50;
 const MAX_ACCOUNT_RESOLUTION_ATTEMPTS = 4;
+const GOOGLE_ISSUERS = new Set([
+  "https://accounts.google.com",
+  "accounts.google.com",
+]);
+
+export interface GoogleTokenPayload {
+  readonly iss?: string;
+  readonly aud?: string | string[];
+  readonly azp?: string;
+  readonly sub?: string;
+  readonly email?: string;
+  readonly email_verified?: boolean;
+  readonly name?: string;
+  readonly hd?: string;
+  readonly exp?: number;
+}
 
 export interface GoogleIdentity {
   readonly subject: string;
@@ -39,6 +55,53 @@ export class GoogleAccountResolutionError extends Error {
     super(code);
     this.name = "GoogleAccountResolutionError";
   }
+}
+
+function validAudience(
+  audience: string | string[] | undefined,
+  authorizedParty: string | undefined,
+  clientId: string,
+) {
+  if (Array.isArray(audience)) {
+    return audience.includes(clientId) && authorizedParty === clientId;
+  }
+  return audience === clientId &&
+    (authorizedParty === undefined || authorizedParty === clientId);
+}
+
+export function googleIdentityFromTokenPayload(
+  payload: GoogleTokenPayload | undefined,
+  clientId: string,
+  now: () => number,
+): GoogleIdentity {
+  const nowSeconds = Math.floor(now() / 1_000);
+  const expiration = payload?.exp;
+  const normalizedEmail =
+    typeof payload?.email === "string" ? normalizeEmail(payload.email) : "";
+  if (
+    !payload ||
+    !validAudience(payload.aud, payload.azp, clientId) ||
+    !payload.iss ||
+    !GOOGLE_ISSUERS.has(payload.iss) ||
+    typeof expiration !== "number" ||
+    !Number.isSafeInteger(expiration) ||
+    expiration <= nowSeconds ||
+    typeof payload.sub !== "string" ||
+    payload.sub.trim().length === 0 ||
+    typeof payload.email !== "string" ||
+    !/^([^\s@]+)@([^\s@]+)\.[^\s@]+$/u.test(normalizedEmail) ||
+    payload.email_verified !== true
+  ) {
+    throw new GoogleAccountResolutionError("invalid_identity");
+  }
+
+  return {
+    subject: payload.sub,
+    email: payload.email,
+    emailVerified: true,
+    ...(typeof payload.name === "string" ? { name: payload.name } : {}),
+    ...(typeof payload.hd === "string" ? { hostedDomain: payload.hd } : {}),
+  };
 }
 
 export type GoogleOAuthReturnTo = "login" | "signup";

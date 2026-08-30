@@ -26,9 +26,6 @@ after(async () => {
 async function createPreGoogleDatabase() {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
-  const schema = `google_migration_${crypto.randomUUID().replaceAll("-", "")}`;
-  await client.query(`CREATE SCHEMA "${schema}"`);
-  await client.query(`SET search_path TO "${schema}", public`);
 
   const migrationsPath = path.join(process.cwd(), "prisma", "migrations");
   const migrationNames = (await readdir(migrationsPath, { withFileTypes: true }))
@@ -45,9 +42,7 @@ async function createPreGoogleDatabase() {
 
   return {
     client,
-    schema,
     async close() {
-      await client.query(`DROP SCHEMA "${schema}" CASCADE`);
       await client.end();
     },
   };
