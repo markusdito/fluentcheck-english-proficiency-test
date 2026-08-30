@@ -240,10 +240,19 @@ async function resolveInTransaction(
     if (byEmail.deletedAt) {
       throw new GoogleAccountResolutionError("account_inactive");
     }
-    if (
-      byEmail.googleSubject ||
-      !isAuthoritativeEmail(identity, normalizedEmail)
-    ) {
+    if (byEmail.googleSubject) {
+      if (byEmail.googleSubject !== subject) {
+        throw new GoogleAccountResolutionError("account_conflict");
+      }
+      return {
+        id: byEmail.id,
+        username: byEmail.username,
+        email: byEmail.email,
+        role: byEmail.role,
+        createdAt: byEmail.createdAt,
+      };
+    }
+    if (!isAuthoritativeEmail(identity, normalizedEmail)) {
       throw new GoogleAccountResolutionError("account_conflict");
     }
 
