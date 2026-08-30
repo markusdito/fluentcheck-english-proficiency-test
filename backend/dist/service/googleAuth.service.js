@@ -15,6 +15,10 @@ const ACCOUNT_STATE_SELECT = {
 };
 const MAX_USERNAME_LENGTH = 50;
 const MAX_ACCOUNT_RESOLUTION_ATTEMPTS = 4;
+const GOOGLE_ISSUERS = new Set([
+    "https://accounts.google.com",
+    "accounts.google.com",
+]);
 export class GoogleAccountResolutionError extends Error {
     code;
     constructor(code) {
@@ -22,6 +26,39 @@ export class GoogleAccountResolutionError extends Error {
         this.code = code;
         this.name = "GoogleAccountResolutionError";
     }
+}
+function validAudience(audience, authorizedParty, clientId) {
+    if (Array.isArray(audience)) {
+        return audience.includes(clientId) && authorizedParty === clientId;
+    }
+    return audience === clientId &&
+        (authorizedParty === undefined || authorizedParty === clientId);
+}
+export function googleIdentityFromTokenPayload(payload, clientId, now) {
+    const nowSeconds = Math.floor(now() / 1_000);
+    const expiration = payload?.exp;
+    const normalizedEmail = typeof payload?.email === "string" ? normalizeEmail(payload.email) : "";
+    if (!payload ||
+        !validAudience(payload.aud, payload.azp, clientId) ||
+        !payload.iss ||
+        !GOOGLE_ISSUERS.has(payload.iss) ||
+        typeof expiration !== "number" ||
+        !Number.isSafeInteger(expiration) ||
+        expiration <= nowSeconds ||
+        typeof payload.sub !== "string" ||
+        payload.sub.trim().length === 0 ||
+        typeof payload.email !== "string" ||
+        !/^([^\s@]+)@([^\s@]+)\.[^\s@]+$/u.test(normalizedEmail) ||
+        payload.email_verified !== true) {
+        throw new GoogleAccountResolutionError("invalid_identity");
+    }
+    return {
+        subject: payload.sub,
+        email: payload.email,
+        emailVerified: true,
+        ...(typeof payload.name === "string" ? { name: payload.name } : {}),
+        ...(typeof payload.hd === "string" ? { hostedDomain: payload.hd } : {}),
+    };
 }
 export const databaseGoogleOAuthStateStore = {
     async create(state, returnTo, expiresAt) {

@@ -2,13 +2,8 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import { env } from "../config/env.js";
 import { generateToken } from "../utils/jwt.js";
-import { normalizeEmail } from "../schemas/auth.schema.js";
-import { GoogleAccountResolutionError, databaseGoogleOAuthStateStore, resolveGoogleAccount, } from "../service/googleAuth.service.js";
+import { GoogleAccountResolutionError, databaseGoogleOAuthStateStore, googleIdentityFromTokenPayload, resolveGoogleAccount, } from "../service/googleAuth.service.js";
 const OAUTH_COOKIE_MAX_AGE_MS = 10 * 60 * 1_000;
-const GOOGLE_ISSUERS = new Set([
-    "https://accounts.google.com",
-    "accounts.google.com",
-]);
 const OAUTH_COOKIE_NAMES = {
     state: "google_oauth_state",
     verifier: "google_oauth_verifier",
@@ -79,39 +74,6 @@ function redirectFailure(response, frontendUrl, cookiePath, returnTo, error) {
     clearOAuthCookies(response, cookiePath);
     response.redirect(frontendRedirect(frontendUrl, returnTo, error));
 }
-function validAudience(audience, authorizedParty, clientId) {
-    if (Array.isArray(audience)) {
-        return audience.includes(clientId) && authorizedParty === clientId;
-    }
-    return audience === clientId &&
-        (authorizedParty === undefined || authorizedParty === clientId);
-}
-function identityFromPayload(payload, clientId, now) {
-    const nowSeconds = Math.floor(now() / 1_000);
-    const expiration = payload?.exp;
-    const normalizedEmail = typeof payload?.email === "string" ? normalizeEmail(payload.email) : "";
-    if (!payload ||
-        !validAudience(payload.aud, payload.azp, clientId) ||
-        !payload.iss ||
-        !GOOGLE_ISSUERS.has(payload.iss) ||
-        typeof expiration !== "number" ||
-        !Number.isSafeInteger(expiration) ||
-        expiration <= nowSeconds ||
-        typeof payload.sub !== "string" ||
-        payload.sub.trim().length === 0 ||
-        typeof payload.email !== "string" ||
-        !/^([^\s@]+)@([^\s@]+)\.[^\s@]+$/u.test(normalizedEmail) ||
-        payload.email_verified !== true) {
-        throw new GoogleAccountResolutionError("invalid_identity");
-    }
-    return {
-        subject: payload.sub,
-        email: payload.email,
-        emailVerified: true,
-        ...(typeof payload.name === "string" ? { name: payload.name } : {}),
-        ...(typeof payload.hd === "string" ? { hostedDomain: payload.hd } : {}),
-    };
-}
 function mapFailureCode(error) {
     if (error instanceof GoogleAccountResolutionError)
         return error.code;
@@ -170,16 +132,11 @@ export function createGoogleAuthHandlers(config, dependencies = {}) {
                 fail("invalid_request");
                 return;
             }
-            const providerError = queryValue(request, "error");
-            if (providerError) {
-                fail(providerError === "access_denied" ? "cancelled" : "provider_error");
-                return;
-            }
             const code = queryValue(request, "code");
             const state = queryValue(request, "state");
             const savedState = request.cookies?.[OAUTH_COOKIE_NAMES.state];
             const verifier = request.cookies?.[OAUTH_COOKIE_NAMES.verifier];
-            if (!code || !state || !savedState || !verifier) {
+            if (!state || !savedState || !verifier) {
                 fail("invalid_request");
                 return;
             }
@@ -200,6 +157,15 @@ export function createGoogleAuthHandlers(config, dependencies = {}) {
             }
             if (!consumed) {
                 fail("state_mismatch");
+                return;
+            }
+            const providerError = queryValue(request, "error");
+            if (providerError) {
+                fail(providerError === "access_denied" ? "cancelled" : "provider_error");
+                return;
+            }
+            if (!code) {
+                fail("invalid_request");
                 return;
             }
             let tokens;
@@ -230,7 +196,7 @@ export function createGoogleAuthHandlers(config, dependencies = {}) {
                 fail("invalid_identity");
                 return;
             }
-            const identity = identityFromPayload(payload, config.clientId, now);
+            const identity = googleIdentityFromTokenPayload(payload, config.clientId, now);
             const account = await resolveAccount(identity);
             await issueSession(account.id, response);
             clearOAuthCookies(response, cookiePath);
