@@ -37,6 +37,22 @@ export async function authenticateUser(
     return await bcrypt.compare(password, storedPasswordHash || DUMMY_PASSWORD_HASH);
 }
 
+export async function findCurrentAccount(userId: string) {
+    return prisma.user.findFirst({
+        where: {
+            id: userId,
+            deletedAt: null,
+        },
+        select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+            createdAt: true,
+        },
+    });
+}
+
 /**
  * Temporary expand-phase fallback: new rows are found by normalizedEmail,
  * while legacy rows with a null key remain readable by their display email.

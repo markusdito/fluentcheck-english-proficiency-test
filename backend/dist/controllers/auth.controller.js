@@ -1,6 +1,5 @@
 import { Prisma } from "../generated/client.js";
-import { prisma } from "../config/db.js";
-import { AUTH_COOKIE_NAME, authCookieOptions, generateToken } from "../utils/jwt.js";
+import { clearAuthCookie, generateToken } from "../utils/jwt.js";
 import { authenticateUser, createUser, findUserForLogin, } from "../service/auth.service.js";
 const REGISTRATION_CONFLICT_ERROR = "Unable to create account";
 export async function register(req, res) {
@@ -62,12 +61,7 @@ export async function login(req, res) {
 }
 //removing cookie with JWT token
 export async function logout(req, res) {
-    res.clearCookie(AUTH_COOKIE_NAME, {
-        httpOnly: authCookieOptions.httpOnly,
-        secure: authCookieOptions.secure,
-        sameSite: authCookieOptions.sameSite,
-        path: authCookieOptions.path,
-    });
+    clearAuthCookie(res);
     res.status(200).json({
         status: "success",
         message: "Logout successfully"
@@ -75,27 +69,10 @@ export async function logout(req, res) {
 }
 // GET /api/auth/me — returns the current authenticated user
 export async function getMe(req, res) {
-    // The JWT middleware should have attached user info to req
-    // req.user is set by the verifyToken middleware
-    const userId = req.user?.id;
-    if (!userId) {
+    const user = req.user;
+    if (!user) {
         return res.status(401).json({
             error: "Not authenticated"
-        });
-    }
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-            createdAt: true,
-        }
-    });
-    if (!user) {
-        return res.status(404).json({
-            error: "User not found"
         });
     }
     res.status(200).json({
