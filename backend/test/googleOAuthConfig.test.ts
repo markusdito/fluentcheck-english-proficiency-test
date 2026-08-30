@@ -7,6 +7,7 @@ const valid = {
   clientId: "123456789.apps.googleusercontent.com",
   clientSecret: "google-client-secret",
   redirectUri: "http://localhost:3000/backend-api/auth/google/callback",
+  frontendUrl: "http://localhost:3000",
 };
 
 test("Google OAuth configuration is optional outside production", () => {
