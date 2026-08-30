@@ -196,6 +196,28 @@ test("rejects a local store factory for distributed topology", () => {
   );
 });
 
+test("rejects a store without an explicit shared-store marker", () => {
+  const unmarkedStore = {
+    increment: async () => ({
+      totalHits: 1,
+      resetTime: new Date(Date.now() + 60_000),
+    }),
+    decrement: async () => {},
+    resetKey: async () => {},
+  } satisfies Store;
+
+  assert.throws(
+    () =>
+      createApp({
+        rateLimit: {
+          config: sharedConfig(),
+          storeFactory: () => unmarkedStore,
+        },
+      }),
+    /must explicitly set localKeys=false for distributed topology/,
+  );
+});
+
 function createLimitedApp(
   configuredPolicy: ReturnType<typeof policy>,
   storeFactory: (policy: ReturnType<typeof policy>) => Store,

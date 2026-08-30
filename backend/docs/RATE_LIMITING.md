@@ -37,8 +37,8 @@ store from the same factory; route policies do not know which store is in use.
   native tests as well as an intentionally one-process deployment.
 - `multi-process` or `multi-instance`: `RATE_LIMIT_STORE=shared` and an
   injected shared-store factory are required. The application never silently
-  falls back to `MemoryStore`; a factory that returns a store with
-  `localKeys=true` is rejected during application construction.
+  falls back to `MemoryStore`; a factory must explicitly return a store with
+  `localKeys=false` and is rejected during application construction otherwise.
 
 The production entry point creates the shared factory from
 `RATE_LIMIT_SHARED_STORE_URL`. The URL must use `redis://` or `rediss://` and

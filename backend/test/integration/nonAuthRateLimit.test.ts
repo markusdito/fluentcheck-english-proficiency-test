@@ -13,7 +13,9 @@ import jwt from "jsonwebtoken";
 import { MemoryStore, type Store } from "express-rate-limit";
 import type { Express } from "express";
 import type { PrismaClient } from "../../src/generated/client.js";
+import type { RateLimitPolicy } from "../../src/config/rate-limit.js";
 import type { RateLimitRuntime } from "../../src/middleware/rate-limit.middleware.js";
+import type { GoogleAuthRouteHandlers } from "../../src/routes/google-auth.routes.js";
 
 const execFileAsync = promisify(execFile);
 const HMAC_SECRET = "non-auth-rate-limit-test-secret-0123456789";
@@ -63,8 +65,9 @@ after(async () => {
 }, { timeout: 120_000 });
 
 async function startRateLimitedApp(
-  storeFactory: () => Store = () => new MemoryStore(),
+  storeFactory: (policy: RateLimitPolicy) => Store = () => new MemoryStore(),
   trustProxy = "none",
+  googleAuth?: GoogleAuthRouteHandlers,
 ) {
   const app: Express = createApplication({
     rateLimit: {
@@ -75,6 +78,7 @@ async function startRateLimitedApp(
       }),
       storeFactory,
     },
+    googleAuth,
   });
   const runtime = app.locals.rateLimit as RateLimitRuntime;
   const server = app.listen(0);
@@ -106,6 +110,35 @@ async function createUser(role: "STUDENT" | "ADMIN" = "STUDENT") {
       role,
     },
   });
+}
+
+function trackingStoreFactory(
+  policyHits: Map<string, number>,
+  keysByPolicy: Map<string, Set<string>>,
+) {
+  return (configuredPolicy: RateLimitPolicy): Store => {
+    const keyHits = new Map<string, number>();
+    return {
+      localKeys: false,
+      increment: async (key) => {
+        const totalHits = (keyHits.get(key) ?? 0) + 1;
+        keyHits.set(key, totalHits);
+        policyHits.set(
+          configuredPolicy.name,
+          (policyHits.get(configuredPolicy.name) ?? 0) + 1,
+        );
+        const keys = keysByPolicy.get(configuredPolicy.name) ?? new Set<string>();
+        keys.add(key);
+        keysByPolicy.set(configuredPolicy.name, keys);
+        return {
+          totalHits,
+          resetTime: new Date(Date.now() + configuredPolicy.windowMs),
+        };
+      },
+      decrement: async () => {},
+      resetKey: async () => {},
+    };
+  };
 }
 
 function cookie(userId: string) {
@@ -224,6 +257,90 @@ test("protects payment checkout, Answer, question-audio, and Submission mutation
       true,
     );
     assert.equal(completionStatuses[10], 429);
+  } finally {
+    await stopRateLimitedApp(server, runtime);
+  }
+});
+
+test("mounted route boundaries use dedicated policies without charging the baseline", async () => {
+  const student = await createUser();
+  const otherStudent = await createUser();
+  const admin = await createUser("ADMIN");
+  const policyHits = new Map<string, number>();
+  const keysByPolicy = new Map<string, Set<string>>();
+  const googleAuth: GoogleAuthRouteHandlers = {
+    start: (_req, res) => res.status(204).end(),
+    callback: (_req, res) => res.status(204).end(),
+  };
+  const { server, runtime, url } = await startRateLimitedApp(
+    trackingStoreFactory(policyHits, keysByPolicy),
+    "none",
+    googleAuth,
+  );
+
+  try {
+    await fetch(`${url}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{",
+    });
+    await fetch(`${url}/api/auth/google/start`);
+    await fetch(`${url}/api/auth/google/callback`);
+    await fetch(`${url}/api/payments/ipaymu/notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    await fetch(`${url}/api/payments/submissions/${crypto.randomUUID()}/pay`, {
+      method: "POST",
+      headers: { Cookie: cookie(student.id) },
+    });
+    await fetch(`${url}/api/payments/submissions/${crypto.randomUUID()}/pay`, {
+      method: "POST",
+      headers: { Cookie: cookie(otherStudent.id) },
+    });
+    await fetch(`${url}/api/uploads/presigned-url`, {
+      method: "POST",
+      headers: {
+        Cookie: cookie(student.id),
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    await fetch(`${url}/api/questions/audio/presigned-url`, {
+      method: "POST",
+      headers: {
+        Cookie: cookie(admin.id),
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    await fetch(`${url}/api/submissions`, {
+      method: "POST",
+      headers: { Cookie: cookie(student.id) },
+    });
+    await fetch(`${url}/api/submissions/${crypto.randomUUID()}/complete`, {
+      method: "POST",
+      headers: { Cookie: cookie(student.id) },
+    });
+
+    assert.equal(policyHits.get("general-api") ?? 0, 0);
+    assert.equal(policyHits.get("auth-login-burst"), 1);
+    assert.equal(policyHits.get("oauth-google-start"), 1);
+    assert.equal(policyHits.get("oauth-google-callback"), 1);
+    assert.equal(policyHits.get("payment-ipaymu-callback"), 1);
+    assert.equal(policyHits.get("submission-payment-account"), 2);
+    assert.equal(policyHits.get("submission-payment-ip"), 2);
+    assert.equal(policyHits.get("answer-storage-account"), 1);
+    assert.equal(policyHits.get("answer-storage-ip"), 1);
+    assert.equal(policyHits.get("question-audio-storage-account"), 1);
+    assert.equal(policyHits.get("question-audio-storage-ip"), 1);
+    assert.equal(policyHits.get("submission-creation-account"), 1);
+    assert.equal(policyHits.get("submission-creation-ip"), 1);
+    assert.equal(policyHits.get("submission-completion-account"), 1);
+    assert.equal(policyHits.get("submission-completion-ip"), 1);
+    assert.equal(keysByPolicy.get("submission-payment-account")?.size, 2);
+    assert.equal(keysByPolicy.get("submission-payment-ip")?.size, 1);
   } finally {
     await stopRateLimitedApp(server, runtime);
   }
