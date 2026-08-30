@@ -411,56 +411,65 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
   const student = await createUser();
   const otherStudent = await createUser();
   const admin = await createUser("ADMIN");
+  const otherAdmin = await createUser("ADMIN");
   const googleAuth: GoogleAuthRouteHandlers = {
     start: (_req, res) => res.status(204).end(),
     callback: (_req, res) => res.status(204).end(),
   };
+  const primaryIp = "198.51.100.10";
+  const alternateIp = "198.51.100.11";
 
   for (const targetScope of ["account", "ip"] as const) {
     const { factory, stores, policyHits } = nearLimitStoreFactory(targetScope);
     const { server, runtime, url } = await startRateLimitedApp(
       factory,
-      "none",
+      "127.0.0.1/32",
       googleAuth,
     );
 
-    const payment = (userId: string) =>
+    const payment = (userId: string, ip = primaryIp) =>
       fetch(`${url}/api/payments/submissions/${crypto.randomUUID()}/pay`, {
         method: "POST",
-        headers: { Cookie: cookie(userId) },
+        headers: { Cookie: cookie(userId), "X-Forwarded-For": ip },
       });
-    const answerUpload = () =>
+    const answerUpload = (userId: string, ip = primaryIp) =>
       fetch(`${url}/api/uploads/presigned-url`, {
         method: "POST",
         headers: {
-          Cookie: cookie(student.id),
+          Cookie: cookie(userId),
+          "X-Forwarded-For": ip,
           "Content-Type": "application/json",
         },
         body: "{}",
       });
-    const questionAudio = () =>
+    const questionAudio = (userId: string, ip = primaryIp) =>
       fetch(`${url}/api/questions/audio/presigned-url`, {
         method: "POST",
         headers: {
-          Cookie: cookie(admin.id),
+          Cookie: cookie(userId),
+          "X-Forwarded-For": ip,
           "Content-Type": "application/json",
         },
         body: "{}",
       });
-    const createSubmission = () =>
+    const createSubmission = (userId: string, ip = primaryIp) =>
       fetch(`${url}/api/submissions`, {
         method: "POST",
-        headers: { Cookie: cookie(student.id) },
+        headers: { Cookie: cookie(userId), "X-Forwarded-For": ip },
       });
-    const completeSubmission = () =>
+    const completeSubmission = (userId: string, ip = primaryIp) =>
       fetch(`${url}/api/submissions/${crypto.randomUUID()}/complete`, {
         method: "POST",
-        headers: { Cookie: cookie(student.id) },
+        headers: { Cookie: cookie(userId), "X-Forwarded-For": ip },
       });
 
     try {
-      const baseline = await fetch(`${url}/api/not-found`);
-      const baselineRepeat = await fetch(`${url}/api/not-found`);
+      const baseline = await fetch(`${url}/api/not-found`, {
+        headers: { "X-Forwarded-For": primaryIp },
+      });
+      const baselineRepeat = await fetch(`${url}/api/not-found`, {
+        headers: { "X-Forwarded-For": primaryIp },
+      });
       assert.notEqual(baseline.status, 429);
       if (targetScope === "ip") {
         assert.equal(baselineRepeat.status, 429);
@@ -473,27 +482,41 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         `${targetScope} payment`,
         () => payment(student.id),
         stores,
-        targetScope === "account" ? () => payment(otherStudent.id) : undefined,
+        targetScope === "account"
+          ? () => payment(otherStudent.id)
+          : () => payment(student.id, alternateIp),
       );
       await assertActualThreshold(
         `${targetScope} Answer upload`,
-        answerUpload,
+        () => answerUpload(student.id),
         stores,
+        targetScope === "account"
+          ? () => answerUpload(otherStudent.id)
+          : () => answerUpload(student.id, alternateIp),
       );
       await assertActualThreshold(
         `${targetScope} question audio`,
-        questionAudio,
+        () => questionAudio(admin.id),
         stores,
+        targetScope === "account"
+          ? () => questionAudio(otherAdmin.id)
+          : () => questionAudio(admin.id, alternateIp),
       );
       await assertActualThreshold(
         `${targetScope} Submission creation`,
-        createSubmission,
+        () => createSubmission(student.id),
         stores,
+        targetScope === "account"
+          ? () => createSubmission(otherStudent.id)
+          : () => createSubmission(student.id, alternateIp),
       );
       await assertActualThreshold(
         `${targetScope} Submission completion`,
-        completeSubmission,
+        () => completeSubmission(student.id),
         stores,
+        targetScope === "account"
+          ? () => completeSubmission(otherStudent.id)
+          : () => completeSubmission(student.id, alternateIp),
       );
 
       if (targetScope === "ip") {
@@ -502,40 +525,90 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
           () =>
             fetch(`${url}/api/auth/login`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "X-Forwarded-For": primaryIp,
+              },
               body: "{",
             }),
           stores,
+          () =>
+            fetch(`${url}/api/auth/login`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Forwarded-For": alternateIp,
+              },
+              body: "{",
+            }),
         );
         await assertActualThreshold(
           "IP registration burst",
           () =>
             fetch(`${url}/api/auth/register`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "X-Forwarded-For": primaryIp,
+              },
               body: "{",
             }),
           stores,
+          () =>
+            fetch(`${url}/api/auth/register`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Forwarded-For": alternateIp,
+              },
+              body: "{",
+            }),
         );
         await assertActualThreshold(
           "IP Google start",
-          () => fetch(`${url}/api/auth/google/start`),
+          () =>
+            fetch(`${url}/api/auth/google/start`, {
+              headers: { "X-Forwarded-For": primaryIp },
+            }),
           stores,
+          () =>
+            fetch(`${url}/api/auth/google/start`, {
+              headers: { "X-Forwarded-For": alternateIp },
+            }),
         );
         await assertActualThreshold(
           "IP Google callback",
-          () => fetch(`${url}/api/auth/google/callback`),
+          () =>
+            fetch(`${url}/api/auth/google/callback`, {
+              headers: { "X-Forwarded-For": primaryIp },
+            }),
           stores,
+          () =>
+            fetch(`${url}/api/auth/google/callback`, {
+              headers: { "X-Forwarded-For": alternateIp },
+            }),
         );
         await assertActualThreshold(
           "IP iPaymu callback",
           () =>
             fetch(`${url}/api/payments/ipaymu/notify`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "X-Forwarded-For": primaryIp,
+              },
               body: "{}",
             }),
           stores,
+          () =>
+            fetch(`${url}/api/payments/ipaymu/notify`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Forwarded-For": alternateIp,
+              },
+              body: "{}",
+            }),
         );
       }
 
