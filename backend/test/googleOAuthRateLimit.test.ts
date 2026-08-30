@@ -139,29 +139,66 @@ test("Google start and callback use independent central thresholds", async () =>
   }
 });
 
+test("Google OAuth policies preserve the central ten-minute contract", () => {
+  assert.deepEqual(
+    {
+      start: {
+        limit: RATE_LIMIT_POLICIES.googleStart.limit,
+        windowMs: RATE_LIMIT_POLICIES.googleStart.windowMs,
+      },
+      callback: {
+        limit: RATE_LIMIT_POLICIES.googleCallback.limit,
+        windowMs: RATE_LIMIT_POLICIES.googleCallback.windowMs,
+      },
+    },
+    {
+      start: { limit: 20, windowMs: 10 * 60 * 1_000 },
+      callback: { limit: 40, windowMs: 10 * 60 * 1_000 },
+    },
+  );
+  assert.notEqual(
+    RATE_LIMIT_POLICIES.googleStart.prefix,
+    RATE_LIMIT_POLICIES.googleCallback.prefix,
+  );
+});
+
 test("OAuth limits normalize IPv4 and IPv6 addresses from a trusted proxy", async () => {
   const { server, runtime, baseUrl } = await startOAuthApp({
     trustProxy: "127.0.0.1/32",
   });
 
   try {
-    const requestStart = (ip: string) =>
-      fetch(`${baseUrl}/api/auth/google/start?returnTo=login`, {
+    const requestRoute = (path: string, ip: string) =>
+      fetch(`${baseUrl}/api/auth/google/${path}`, {
         headers: { "X-Forwarded-For": ip },
         redirect: "manual",
       });
 
-    for (let index = 0; index < 20; index += 1) {
-      assert.equal((await requestStart("198.51.100.10")).status, 302);
-    }
-    assert.equal((await requestStart("198.51.100.10")).status, 429);
-    assert.equal((await requestStart("198.51.100.11")).status, 302);
+    const routeCases = [
+      { path: "start?returnTo=login", limit: 20 },
+      { path: "callback", limit: 40 },
+    ];
+    for (const { path, limit } of routeCases) {
+      const sameIpv4 = await requestStatuses(limit, () =>
+        requestRoute(path, "198.51.100.10"),
+      );
+      assert.equal(sameIpv4.every((status) => status === 302), true);
+      assert.equal((await requestRoute(path, "198.51.100.10")).status, 429);
+      assert.equal((await requestRoute(path, "198.51.100.11")).status, 302);
 
-    for (let index = 0; index < 20; index += 1) {
-      assert.equal((await requestStart("2001:db8:1234:5600::1")).status, 302);
+      const sameIpv6 = await requestStatuses(limit, () =>
+        requestRoute(path, "2001:db8:1234:5600::1"),
+      );
+      assert.equal(sameIpv6.every((status) => status === 302), true);
+      assert.equal(
+        (await requestRoute(path, "2001:db8:1234:56ff::2")).status,
+        429,
+      );
+      assert.equal(
+        (await requestRoute(path, "2001:db8:1234:5700::1")).status,
+        302,
+      );
     }
-    assert.equal((await requestStart("2001:db8:1234:56ff::2")).status, 429);
-    assert.equal((await requestStart("2001:db8:1234:5700::1")).status, 302);
   } finally {
     await stopOAuthApp(server, runtime);
   }
@@ -171,25 +208,27 @@ test("OAuth limits ignore spoofed forwarding headers without explicit proxy trus
   const { server, runtime, baseUrl } = await startOAuthApp();
 
   try {
-    for (let index = 0; index < 20; index += 1) {
-      const response = await fetch(
-        `${baseUrl}/api/auth/google/start?returnTo=login`,
+    for (const { path, limit } of [
+      { path: "start?returnTo=login", limit: 20 },
+      { path: "callback", limit: 40 },
+    ]) {
+      const statuses = await requestStatuses(limit, () =>
+        fetch(`${baseUrl}/api/auth/google/${path}`, {
+          headers: { "X-Forwarded-For": "198.51.100.10" },
+          redirect: "manual",
+        }),
+      );
+      assert.equal(statuses.every((status) => status === 302), true);
+
+      const spoofedDifferentIp = await fetch(
+        `${baseUrl}/api/auth/google/${path}`,
         {
-          headers: { "X-Forwarded-For": `198.51.100.${index + 1}` },
+          headers: { "X-Forwarded-For": "203.0.113.99" },
           redirect: "manual",
         },
       );
-      assert.equal(response.status, 302);
+      assert.equal(spoofedDifferentIp.status, 429);
     }
-
-    const spoofedDifferentIp = await fetch(
-      `${baseUrl}/api/auth/google/start?returnTo=login`,
-      {
-        headers: { "X-Forwarded-For": "203.0.113.99" },
-        redirect: "manual",
-      },
-    );
-    assert.equal(spoofedDifferentIp.status, 429);
   } finally {
     await stopOAuthApp(server, runtime);
   }
