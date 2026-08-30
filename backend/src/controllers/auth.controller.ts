@@ -1,6 +1,10 @@
 import type { Request, Response } from "express";
 import { Prisma } from "../generated/client.js";
-import { clearAuthCookie, generateToken } from "../utils/jwt.js";
+import {
+    clearAuthCookie,
+    generateToken,
+    type SessionPersistence,
+} from "../utils/jwt.js";
 import {
     authenticateUser,
     createUser,
@@ -26,7 +30,7 @@ export async function register(req: Request, res: Response) {
         throw error;
     }
 
-    generateToken(user.id, res);
+    generateToken(user.id, res, "session");
 
     res.status(201).json({
         status: "success",
@@ -43,7 +47,7 @@ export async function register(req: Request, res: Response) {
 }
 
 export async function login(req: Request, res: Response) {
-    const { email, password } = req.body as LoginInput;
+    const { email, password, rememberMe } = req.body as LoginInput;
     let user: Awaited<ReturnType<typeof findUserForLogin>>;
     try {
         user = await findUserForLogin(email);
@@ -60,7 +64,10 @@ export async function login(req: Request, res: Response) {
         });
     }
 
-    generateToken(user.id, res);
+    const persistence: SessionPersistence = rememberMe === true
+        ? "remembered"
+        : "session";
+    generateToken(user.id, res, persistence);
 
     res.status(200).json({
         status: "success",

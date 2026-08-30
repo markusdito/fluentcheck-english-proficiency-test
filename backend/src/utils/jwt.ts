@@ -4,13 +4,25 @@ import { env } from "../config/env.js"
 
 export const AUTH_COOKIE_NAME = "jwt";
 
+export type SessionPersistence = "session" | "remembered";
+
 export const authCookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: env.NODE_ENV === "production",
     sameSite: "lax" as const,
     path: "/",
-    maxAge: 1000 * 60 * 60 * 24 * 7,
 };
+
+export function getAuthCookieOptions(persistence: SessionPersistence) {
+    if (persistence === "remembered") {
+        return {
+            ...authCookieOptions,
+            maxAge: env.REMEMBERED_SESSION_SECONDS * 1000,
+        };
+    }
+
+    return authCookieOptions;
+}
 
 export function clearAuthCookie(res: Response) {
     res.clearCookie(AUTH_COOKIE_NAME, {
@@ -24,14 +36,18 @@ export function clearAuthCookie(res: Response) {
 export function generateToken(
     userId: string,
     res: Response,
-) {
+    persistence: SessionPersistence,
+): string {
     const payload = { id: userId }
+    const expiresIn = persistence === "remembered"
+        ? env.REMEMBERED_SESSION_SECONDS
+        : env.JWT_EXPIRES_IN as SignOptions['expiresIn'];
 
     const token = jwt.sign(payload, env.JWT_SECRET, {
-        expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
+        expiresIn,
     })
 
-    res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions)
+    res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(persistence))
 
     return token;
 }
