@@ -37,6 +37,11 @@ const client: GoogleOAuthClient = {
   verifyIdToken: async () => ({ getPayload: () => undefined }),
 };
 
+const OAUTH_ROUTE_CASES = [
+  { path: "start?returnTo=login", limit: 20 },
+  { path: "callback", limit: 40 },
+] as const;
+
 function createTestGoogleAuthHandlers() {
   return createGoogleAuthHandlers(
     {
@@ -174,11 +179,7 @@ test("OAuth limits normalize IPv4 and IPv6 addresses from a trusted proxy", asyn
         redirect: "manual",
       });
 
-    const routeCases = [
-      { path: "start?returnTo=login", limit: 20 },
-      { path: "callback", limit: 40 },
-    ];
-    for (const { path, limit } of routeCases) {
+    for (const { path, limit } of OAUTH_ROUTE_CASES) {
       const sameIpv4 = await requestStatuses(limit, () =>
         requestRoute(path, "198.51.100.10"),
       );
@@ -208,10 +209,7 @@ test("OAuth limits ignore spoofed forwarding headers without explicit proxy trus
   const { server, runtime, baseUrl } = await startOAuthApp();
 
   try {
-    for (const { path, limit } of [
-      { path: "start?returnTo=login", limit: 20 },
-      { path: "callback", limit: 40 },
-    ]) {
+    for (const { path, limit } of OAUTH_ROUTE_CASES) {
       const statuses = await requestStatuses(limit, () =>
         fetch(`${baseUrl}/api/auth/google/${path}`, {
           headers: { "X-Forwarded-For": "198.51.100.10" },
