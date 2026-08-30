@@ -182,12 +182,34 @@ async function resetRateLimitStores(stores: Map<string, Store>) {
   );
 }
 
+function assertPolicyOwnership(
+  label: string,
+  beforePolicyHits: Map<string, number>,
+  policyHits: Map<string, number>,
+  expectedPolicyNames: readonly string[],
+) {
+  const observedPolicyNames = [...policyHits.keys()].filter(
+    (policyName) =>
+      (policyHits.get(policyName) ?? 0) -
+        (beforePolicyHits.get(policyName) ?? 0) >
+      0,
+  );
+  assert.deepEqual(
+    observedPolicyNames.sort(),
+    [...expectedPolicyNames].sort(),
+    `${label} policy ownership`,
+  );
+}
+
 async function assertActualThreshold(
   label: string,
   request: () => Promise<Response>,
   stores: Map<string, Store>,
   independentRequest?: () => Promise<Response>,
+  policyHits?: Map<string, number>,
+  expectedPolicyNames: readonly string[] = [],
 ) {
+  const beforePolicyHits = policyHits ? new Map(policyHits) : undefined;
   const accepted = await request();
   assert.notEqual(accepted.status, 429, `${label} threshold request`);
   const blocked = await request();
@@ -200,6 +222,14 @@ async function assertActualThreshold(
   const reset = await request();
   assert.notEqual(reset.status, 429, `${label} reset request`);
   await resetRateLimitStores(stores);
+  if (policyHits && beforePolicyHits) {
+    assertPolicyOwnership(
+      label,
+      beforePolicyHits,
+      policyHits,
+      expectedPolicyNames,
+    );
+  }
 }
 
 function cookie(userId: string) {
@@ -484,6 +514,7 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       });
 
     try {
+      const beforeBaselinePolicyHits = new Map(policyHits);
       const baseline = await fetch(`${url}/api/not-found`, {
         headers: { "X-Forwarded-For": primaryIp },
       });
@@ -496,6 +527,12 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       } else {
         assert.notEqual(baselineRepeat.status, 429);
       }
+      assertPolicyOwnership(
+        `${targetScope} baseline`,
+        beforeBaselinePolicyHits,
+        policyHits,
+        ["general-api"],
+      );
 
       await resetRateLimitStores(stores);
       await assertActualThreshold(
@@ -505,6 +542,8 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         targetScope === "account"
           ? () => payment(otherStudent.id)
           : () => payment(student.id, alternateIp),
+        policyHits,
+        ["submission-payment-account", "submission-payment-ip"],
       );
       await assertActualThreshold(
         `${targetScope} Answer upload`,
@@ -513,6 +552,8 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         targetScope === "account"
           ? () => answerUpload(otherStudent.id)
           : () => answerUpload(student.id, alternateIp),
+        policyHits,
+        ["answer-storage-account", "answer-storage-ip"],
       );
       await assertActualThreshold(
         `${targetScope} Answer confirmation`,
@@ -521,6 +562,8 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         targetScope === "account"
           ? () => answerConfirmation(otherStudent.id)
           : () => answerConfirmation(student.id, alternateIp),
+        policyHits,
+        ["answer-storage-account", "answer-storage-ip"],
       );
       await assertActualThreshold(
         `${targetScope} question audio`,
@@ -529,6 +572,11 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         targetScope === "account"
           ? () => questionAudio(otherAdmin.id)
           : () => questionAudio(admin.id, alternateIp),
+        policyHits,
+        [
+          "question-audio-storage-account",
+          "question-audio-storage-ip",
+        ],
       );
       await assertActualThreshold(
         `${targetScope} question audio confirmation`,
@@ -537,6 +585,11 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         targetScope === "account"
           ? () => questionAudioConfirmation(otherAdmin.id)
           : () => questionAudioConfirmation(admin.id, alternateIp),
+        policyHits,
+        [
+          "question-audio-storage-account",
+          "question-audio-storage-ip",
+        ],
       );
       await assertActualThreshold(
         `${targetScope} Submission creation`,
@@ -545,6 +598,8 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         targetScope === "account"
           ? () => createSubmission(otherStudent.id)
           : () => createSubmission(student.id, alternateIp),
+        policyHits,
+        ["submission-creation-account", "submission-creation-ip"],
       );
       await assertActualThreshold(
         `${targetScope} Submission completion`,
@@ -553,6 +608,8 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         targetScope === "account"
           ? () => completeSubmission(otherStudent.id)
           : () => completeSubmission(student.id, alternateIp),
+        policyHits,
+        ["submission-completion-account", "submission-completion-ip"],
       );
 
       if (targetScope === "ip") {

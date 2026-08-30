@@ -119,6 +119,7 @@ async function postMalformedJson(baseUrl: string, path: string, headers = {}) {
 
 function nearLimitStoreFactory(targetPolicyName: string) {
   const stores = new Map<string, Store>();
+  const policyHits = new Map<string, number>();
   const factory = (configuredPolicy: RateLimitPolicy): Store => {
     const keyHits = new Map<string, number>();
     const store: Store = {
@@ -130,6 +131,10 @@ function nearLimitStoreFactory(targetPolicyName: string) {
             : 0;
         const totalHits = (keyHits.get(key) ?? initialHits) + 1;
         keyHits.set(key, totalHits);
+        policyHits.set(
+          configuredPolicy.name,
+          (policyHits.get(configuredPolicy.name) ?? 0) + 1,
+        );
         return {
           totalHits,
           resetTime: new Date(Date.now() + configuredPolicy.windowMs),
@@ -145,7 +150,7 @@ function nearLimitStoreFactory(targetPolicyName: string) {
     return store;
   };
 
-  return { factory, stores };
+  return { factory, stores, policyHits };
 }
 
 async function resetAuthRateLimitStores(stores: Map<string, Store>) {
@@ -154,12 +159,34 @@ async function resetAuthRateLimitStores(stores: Map<string, Store>) {
   );
 }
 
+function assertAuthPolicyOwnership(
+  label: string,
+  beforePolicyHits: Map<string, number>,
+  policyHits: Map<string, number>,
+  expectedPolicyNames: readonly string[],
+) {
+  const observedPolicyNames = [...policyHits.keys()].filter(
+    (policyName) =>
+      (policyHits.get(policyName) ?? 0) -
+        (beforePolicyHits.get(policyName) ?? 0) >
+      0,
+  );
+  assert.deepEqual(
+    observedPolicyNames.sort(),
+    [...expectedPolicyNames].sort(),
+    `${label} policy ownership`,
+  );
+}
+
 async function assertAuthThreshold(
   label: string,
   request: () => Promise<Response>,
   stores: Map<string, Store>,
   independentRequest: () => Promise<Response>,
+  policyHits?: Map<string, number>,
+  expectedPolicyNames: readonly string[] = [],
 ) {
+  const beforePolicyHits = policyHits ? new Map(policyHits) : undefined;
   const accepted = await request();
   assert.notEqual(accepted.status, 429, `${label} threshold request`);
   const blocked = await request();
@@ -170,6 +197,14 @@ async function assertAuthThreshold(
   const reset = await request();
   assert.notEqual(reset.status, 429, `${label} reset request`);
   await resetAuthRateLimitStores(stores);
+  if (policyHits && beforePolicyHits) {
+    assertAuthPolicyOwnership(
+      label,
+      beforePolicyHits,
+      policyHits,
+      expectedPolicyNames,
+    );
+  }
 }
 
 async function createUser(
@@ -229,7 +264,8 @@ test("real authentication policies enforce account, email, and IP boundaries", a
   ];
 
   for (const targetPolicyName of policyNames) {
-    const { factory, stores } = nearLimitStoreFactory(targetPolicyName);
+    const { factory, stores, policyHits } =
+      nearLimitStoreFactory(targetPolicyName);
     const { server, runtime, url } = await startRateLimitedApp(
       factory,
       "127.0.0.1/32",
@@ -249,6 +285,8 @@ test("real authentication policies enforce account, email, and IP boundaries", a
             postMalformedJson(url, "/auth/login", {
               "X-Forwarded-For": alternateIp,
             }),
+          policyHits,
+          ["auth-login-burst"],
         );
       } else if (targetPolicyName === "auth-registration-burst") {
         await assertAuthThreshold(
@@ -262,6 +300,8 @@ test("real authentication policies enforce account, email, and IP boundaries", a
             postMalformedJson(url, "/auth/register", {
               "X-Forwarded-For": alternateIp,
             }),
+          policyHits,
+          ["auth-registration-burst"],
         );
       } else if (targetPolicyName === "auth-login-failure-account") {
         await assertAuthThreshold(
@@ -281,6 +321,12 @@ test("real authentication policies enforce account, email, and IP boundaries", a
               { email: otherAccount.email, password: "wrong-password" },
               { "X-Forwarded-For": primaryIp },
             ),
+          policyHits,
+          [
+            "auth-login-burst",
+            "auth-login-failure-account",
+            "auth-login-failure-ip",
+          ],
         );
       } else if (targetPolicyName === "auth-login-failure-ip") {
         await assertAuthThreshold(
@@ -300,6 +346,12 @@ test("real authentication policies enforce account, email, and IP boundaries", a
               { email: accountUser.email, password: "wrong-password" },
               { "X-Forwarded-For": alternateIp },
             ),
+          policyHits,
+          [
+            "auth-login-burst",
+            "auth-login-failure-account",
+            "auth-login-failure-ip",
+          ],
         );
       } else if (targetPolicyName === "auth-registration-ip") {
         await assertAuthThreshold(
@@ -327,6 +379,12 @@ test("real authentication policies enforce account, email, and IP boundaries", a
               },
               { "X-Forwarded-For": alternateIp },
             ),
+          policyHits,
+          [
+            "auth-registration-burst",
+            "auth-registration-ip",
+            "auth-registration-email",
+          ],
         );
       } else {
         await assertAuthThreshold(
@@ -354,6 +412,12 @@ test("real authentication policies enforce account, email, and IP boundaries", a
               },
               { "X-Forwarded-For": primaryIp },
             ),
+          policyHits,
+          [
+            "auth-registration-burst",
+            "auth-registration-ip",
+            "auth-registration-email",
+          ],
         );
       }
     } finally {
