@@ -34,6 +34,9 @@ to 6.0. Completed examiner scores are aggregated into the candidate's result.
 - **Role-aware workflows** — candidates, examiners, and administrators share one
   application while JWT authentication and server-side authorization enforce
   their separate capabilities.
+- **Backend-owned Google authentication** — Google Authorization Code + PKCE
+  uses verified stable identities, safe account linking, and the same hardened
+  JWT session boundary as local authentication.
 - **Explicit assessment lifecycle** — submissions move through recording,
   payment, examiner review, and scored-result states, with transactional updates
   around assignment and grading operations.
@@ -77,6 +80,7 @@ flowchart LR
     Database[(PostgreSQL)]
     Storage[(Cloudflare R2)]
     Payment[iPaymu]
+    Google[Google OAuth]
 
     Browser -->|JSON through Next.js rewrite| API
     API -->|Prisma| Database
@@ -84,6 +88,8 @@ flowchart LR
     Browser -->|Direct video and audio upload| Storage
     API -->|Create checkout| Payment
     Payment -->|Signed payment callback| API
+    Browser -->|Authorization Code + PKCE| Google
+    Google -->|Verified callback| API
 ```
 
 The frontend uses a same-origin `/backend-api` rewrite during local development.
@@ -124,8 +130,9 @@ with Prisma providing typed access to PostgreSQL.
 ```
 
 For more detail, see the
-[frontend architecture](frontend/docs/FRONTEND_ARCHITECTURE.md) and
-[backend architecture](backend/docs/BACKEND_ARCHITECTURE.md) documents.
+[frontend architecture](frontend/docs/FRONTEND_ARCHITECTURE.md),
+[backend architecture](backend/docs/BACKEND_ARCHITECTURE.md), and
+[Google OAuth deployment](backend/docs/GOOGLE_AUTH.md) documents.
 
 ## Running Locally
 
@@ -164,6 +171,11 @@ FRONTEND_URL="http://localhost:3000"
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 JWT_SECRET="replace-with-a-long-random-secret"
 JWT_EXPIRES_IN="1h"
+
+# Google OAuth (server-only; use the exact callback URI from the deployment guide)
+GOOGLE_CLIENT_ID="123456789.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="server-only-client-secret"
+GOOGLE_REDIRECT_URI="http://localhost:5001/api/auth/google/callback"
 
 # Cloudflare R2
 R2_ACCOUNT_ID="your-account-id"

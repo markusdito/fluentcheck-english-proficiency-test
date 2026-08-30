@@ -136,8 +136,10 @@ erDiagram
     User {
         string id PK
         string username UK
-        string email UK
-        string password
+        string email
+        string normalizedEmail UK
+        string password nullable
+        string googleSubject UK nullable
         enum role
         datetime deletedAt
     }
@@ -245,11 +247,26 @@ erDiagram
 ```
 POST /api/auth/register → hash password → create User → sign JWT → set httpOnly cookie
 POST /api/auth/login    → verify password → sign JWT → set httpOnly cookie
+GET  /api/auth/google/start?returnTo=login|signup → state + PKCE → Google
+GET  /api/auth/google/callback → verify ID token → resolve account → sign JWT
 GET  /api/auth/me       → verifyToken middleware → fetch user by ID → return user (no password)
 POST /api/auth/logout   → clear httpOnly cookie
 ```
 
+Google authentication is a backend-owned Authorization Code + PKCE flow. The
+frontend uses the same-origin `/backend-api` rewrite; the API keeps state,
+the PKCE verifier, and the allowlisted auth-page choice in short-lived
+httpOnly cookies, then redirects successful callbacks to the fixed
+`/dashboard` path. The verified Google `sub` claim is the external identity
+key. New accounts are students with a nullable password; existing accounts
+are linked only for authoritative Gmail/Google Workspace identities. See
+[GOOGLE_AUTH.md](GOOGLE_AUTH.md) for the deployment contract and error codes.
+
 > **Auth delivery is cookie-only.** The JWT is delivered exclusively via an httpOnly cookie named `jwt` (set by `generateToken` in `src/utils/jwt.ts`, with `httpOnly`, `secure` in production, `sameSite: "lax"`, 7-day `maxAge`). There is **no Bearer header** and **no `token` field in the response body** — the API is consumed by the browser via credentialed `fetch` (`credentials: "include"`).
+
+Google callbacks use the same cookie flags with a session-only cookie and a
+one-hour token expiry, so a Google login does not silently create a persistent
+browser session.
 
 ### JWT Design
 
@@ -296,6 +313,8 @@ router.get("/admin/users", verifyToken, requireRole("ADMIN"), listUsers);
 |--------|------|------|-------------|
 | POST | `/register` | Public | Create account (default: STUDENT) |
 | POST | `/login` | Public | Authenticate, return JWT |
+| GET | `/google/start?returnTo=login\|signup` | Public | Begin Google OAuth with state and PKCE |
+| GET | `/google/callback` | Public | Verify Google identity and issue the application session |
 | GET | `/me` | Required | Get current user |
 | PUT | `/profile` | Required | Update profile |
 | PUT | `/password` | Required | Change password |
@@ -605,7 +624,7 @@ The route-boundary contract is:
 ### Network & Infrastructure
 
 - [x] Route-specific rate limiting on auth, payment, upload, question-audio, and submission mutation endpoints (tracked by #83, #109, #111, and #112)
-- [ ] Google OAuth route limiter adapter awaits the provider handlers from #56/#58 (tracked by #113)
+- [x] Google OAuth route limiter adapter composes the provider handlers from #56/#58 (tracked by #113)
 - [x] Payment webhook HMAC signature verification
 - [x] CORS origin restriction
 - [x] Global error handler catches unhandled exceptions (never leak stack traces)
