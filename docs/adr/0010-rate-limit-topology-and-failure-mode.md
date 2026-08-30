@@ -35,7 +35,7 @@ Rate limiting is a route-boundary concern with named, independently keyed polici
 | Submission creation | 5 per hour per active user and 20 per hour per IP |
 | Submission completion | 10 per 15 minutes per active user and 30 per 15 minutes per IP |
 
-Logout, abandon, ordinary reads, admin, and examiner routes use only the general baseline in the initial phase. The iPaymu callback threshold is configurable and operationally tunable because provider retry timing is not specified numerically by the provider documentation.
+Logout, abandon, ordinary reads, admin, and examiner routes use only the general baseline in the initial phase. The iPaymu callback threshold is fixed at 300 requests per five minutes in the current policy matrix; changing it requires a reviewed policy change because provider retry timing is not specified numerically by the provider documentation.
 
 ## Consequences
 
