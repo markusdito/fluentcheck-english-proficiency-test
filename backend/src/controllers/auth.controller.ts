@@ -1,28 +1,32 @@
-import { Request, Response } from "express";
-import { prisma } from"../config/db.js"
+import type { Request, Response } from "express";
+import { prisma } from "../config/db.js";
 import { AUTH_COOKIE_NAME, authCookieOptions, generateToken } from "../utils/jwt.js";
-import { authenticateUser, createUser } from "../service/auth.service.js"
+import {
+    authenticateUser,
+    createUser,
+    findUserForLogin,
+} from "../service/auth.service.js";
+import type { LoginInput, RegistrationInput } from "../schemas/auth.schema.js";
 
 export async function register(req: Request, res: Response) {
-    const { username, email, password } = req.body
+    const { username, email, password } = req.body as RegistrationInput;
 
-    //check if user exist
-    const userExist = await prisma.user.findUnique({
-        where: {
-            email: email
-        }
+    // The expand phase keeps the existing precheck behavior. Database-backed
+    // uniqueness/error mapping is finalized by the dependent registration
+    // ticket after normalized identity backfill and constraints are ready.
+    const userExists = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
     });
-
-    if (userExist) {
+    if (userExists) {
         return res.status(400).json({
-            error: "User already exists with this email"
-        })
+            error: "User already exists with this email",
+        });
     }
 
-    //Create User
-    const user = await createUser(username, email, password)
+    const user = await createUser(username, email, password);
 
-    generateToken(user.id, res)
+    generateToken(user.id, res);
 
     res.status(201).json({
         status: "success",
@@ -32,41 +36,33 @@ export async function register(req: Request, res: Response) {
                 name: user.username,
                 email: user.email,
                 role: user.role,
-                createdAt: user.createdAt
+                createdAt: user.createdAt,
             },
         }
-    })
+    });
 }
 
 export async function login(req: Request, res: Response) {
-    const { email, password } = req.body
-
-    //check if user email exist in the table
-    const user = await prisma.user.findUnique({
-        where: {
-            email: email
-        }
-    })
+    const { email, password } = req.body as LoginInput;
+    const user = await findUserForLogin(email);
 
     if (!user) {
         return res.status(401).json({
-            error: "Invalid email or password"
-        })
+            error: "Invalid email or password",
+        });
     }
 
-    //verify pw
-    const isPasswordValid = await authenticateUser(password, user.password)
+    const isPasswordValid = await authenticateUser(password, user.password);
 
     if (!isPasswordValid) {
         return res.status(401).json({
-            error: "Invalid email or password"
-        })
+            error: "Invalid email or password",
+        });
     }
 
-    //generate JWT
-    generateToken(user.id, res)
+    generateToken(user.id, res);
 
-    res.status(201).json({
+    res.status(200).json({
         status: "success",
         data: {
             user: {
@@ -74,10 +70,10 @@ export async function login(req: Request, res: Response) {
                 name: user.username,
                 email: user.email,
                 createdAt: user.createdAt,
-                role: user.role
+                role: user.role,
             },
         }
-    })
+    });
 }
 
 //removing cookie with JWT token

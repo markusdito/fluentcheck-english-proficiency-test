@@ -16,7 +16,37 @@ import adminRoutes from "./routes/admin.routes.js";
 import { createRateLimitConfig } from "./config/rate-limit.js";
 import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";
 import { RateLimitKeyUnavailableError, RateLimitStoreUnavailableError, createRateLimitRuntime, } from "./middleware/rate-limit.middleware.js";
+const REQUEST_BODY_LIMIT = "64kb";
+const URL_ENCODED_PARAMETER_LIMIT = 100;
+function isBodyParserError(error) {
+    if (typeof error !== "object" || error === null)
+        return false;
+    const candidate = error;
+    return typeof candidate.type === "string";
+}
+const rejectNonAuthArrayBodies = (req, res, next) => {
+    const isAuthPath = req.path === "/api/auth" || req.path.startsWith("/api/auth/");
+    if (!isAuthPath && req.is("application/json") && Array.isArray(req.body)) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+    }
+    next();
+};
 export const unhandledRequestError = (error, _req, res, _next) => {
+    if (isBodyParserError(error)) {
+        if (error.status === 413 ||
+            error.type === "entity.too.large" ||
+            error.type === "parameters.too.many") {
+            res.status(413).json({ error: "Request too large" });
+            return;
+        }
+        if (error.status === 400 ||
+            error.type === "entity.parse.failed" ||
+            error.type === "request.size.invalid") {
+            res.status(400).json({ error: "Invalid request" });
+            return;
+        }
+    }
     if (error instanceof RateLimitStoreUnavailableError ||
         error instanceof RateLimitKeyUnavailableError) {
         console.error("Rate-limit request protection unavailable", {
@@ -46,8 +76,19 @@ export function createApp(dependencies = {}) {
         maxAge: 86400,
     }));
     app.use(cookieParser());
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true }));
+    app.use("/api/auth", express.json({ limit: REQUEST_BODY_LIMIT, strict: false }));
+    app.use("/api/auth", express.urlencoded({
+        extended: true,
+        limit: REQUEST_BODY_LIMIT,
+        parameterLimit: URL_ENCODED_PARAMETER_LIMIT,
+    }));
+    app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+    app.use(express.urlencoded({
+        extended: true,
+        limit: REQUEST_BODY_LIMIT,
+        parameterLimit: URL_ENCODED_PARAMETER_LIMIT,
+    }));
+    app.use(rejectNonAuthArrayBodies);
     app.use("/api/auth", authRoutes);
     app.use("/api/questions", questionRoutes);
     app.use("/api/uploads", uploadRoutes);
