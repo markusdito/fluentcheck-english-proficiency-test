@@ -101,12 +101,18 @@ does not require real Google credentials:
 
 ```bash
 cd backend
+npx prisma migrate deploy --schema prisma/schema.prisma
 npx prisma validate --schema prisma/schema.prisma
 npx prisma generate --schema prisma/schema.prisma
 npm run build
 npx tsx --test test/googleOAuth.test.ts test/googleOAuthRateLimit.test.ts
 npx tsx --test test/integration/googleAccountResolution.test.ts test/integration/googleAuthFlow.test.ts
 ```
+
+Run `prisma migrate deploy` against the target database before starting a
+release. The identity and OAuth-state tables are required by the runtime; a
+database that has not received the migrations will fail authentication with a
+missing-column or missing-table error.
 
 For a configured environment, manually verify both `/login` and `/signup`:
 
