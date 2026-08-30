@@ -1,6 +1,6 @@
 # Remembered authentication persistence
 
-**Status:** Proposed
+**Status:** Accepted
 
 > Ticket #73 proposed ADR-0002, but the repository already contains two
 > ADR-0002 records. This decision uses the next available ADR number so that
@@ -70,6 +70,6 @@ remaining token exposure. A future refresh-token design must preserve explicit
 consent and revisit rotation, revocation, device management, and operational
 storage as a separate decision.
 
-This record is future-facing until the runtime implementation is delivered;
-it does not by itself change current authentication behavior or production
-configuration.
+The runtime implementation is delivered in the centralized JWT utility and
+the local authentication and Google OAuth controllers. Deployments may set
+`REMEMBERED_SESSION_SECONDS`; the safe default remains seven days.

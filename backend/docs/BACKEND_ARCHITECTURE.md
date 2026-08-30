@@ -29,7 +29,7 @@ rejection, and the final error handler.
 | Area | Current source |
 | --- | --- |
 | Server composition and middleware | backend/src/server.ts |
-| Authentication and session cookie | backend/src/routes/auth.routes.ts, backend/src/controllers/auth.controller.ts, backend/src/service/auth.service.ts |
+| Authentication and persistence modes | backend/src/routes/auth.routes.ts, backend/src/controllers/auth.controller.ts, backend/src/service/auth.service.ts, backend/src/utils/jwt.ts |
 | Google OAuth | backend/src/routes/google-auth.routes.ts, backend/src/controllers/googleAuth.controller.ts, backend/src/service/googleAuth.service.ts |
 | Questions and prompt audio | backend/src/routes/question.routes.ts, backend/src/controllers/question.controller.ts, backend/src/service/question.service.ts |
 | Direct answer upload | backend/src/routes/upload.routes.ts, backend/src/controllers/upload.controller.ts, backend/src/service/upload.service.ts |
@@ -101,13 +101,13 @@ the middleware currently enforced at the route boundary.
 | GET | / | Public | Returns the API identity object. |
 
 <!-- route: POST /api/auth/register | source=backend/src/routes/auth.routes.ts -->
-| POST | /api/auth/register | Public, auth validation, registration rate limits | Creates a local account and sets the session cookie. |
+| POST | /api/auth/register | Public, auth validation, registration rate limits | Creates a local account and sets a session-only auth cookie. |
 
 <!-- route: POST /api/auth/login | source=backend/src/routes/auth.routes.ts -->
-| POST | /api/auth/login | Public, auth validation, login rate limits | Authenticates a local account and sets the session cookie. |
+| POST | /api/auth/login | Public, auth validation, login rate limits | Authenticates a local account and sets a session or remembered auth cookie according to `rememberMe`. |
 
 <!-- route: POST /api/auth/logout | source=backend/src/routes/auth.routes.ts -->
-| POST | /api/auth/logout | Public | Clears the session cookie. |
+| POST | /api/auth/logout | Public | Clears the auth cookie. |
 
 <!-- route: GET /api/auth/me | source=backend/src/routes/auth.routes.ts -->
 | GET | /api/auth/me | Authenticated | Returns the current active account. |
@@ -335,8 +335,18 @@ SCORING after one completed assignment and becomes SCORED after both.
 Local authentication normalizes the email key by trimming and lowercasing it,
 keeps the display email separately, and uses bcryptjs password verification.
 The JWT is stored only in an httpOnly cookie named jwt. The server reads no
-Bearer header. Invalid or deactivated sessions are cleared and rejected;
-current-account lookup requires deletedAt to be null.
+Bearer header. Local login accepts an optional boolean `rememberMe`; omitted or
+false selects `session`, which uses the configured `JWT_EXPIRES_IN` value
+(one hour by default) and a browser-session cookie with no `Max-Age` or
+`Expires`. True selects `remembered`, which uses
+`REMEMBERED_SESSION_SECONDS` (604800 seconds by default) for both the JWT and
+the persistent cookie. Registration and Google OAuth explicitly select
+session-only persistence. Both modes retain the jwt cookie name, httpOnly and
+production secure flags, `SameSite=Lax`, root path, and logout clearing
+behavior.
+
+Invalid or deactivated sessions are cleared and rejected; current-account
+lookup requires deletedAt to be null.
 
 Role middleware protects administrator and examiner routers. Student-owned
 routes verify the account-to-record relationship in their services.
@@ -383,6 +393,7 @@ Focused tests that protect the main contracts include:
 | Exactly-two assignment slots and retry | backend/test/integration/examinerAssignmentSet.test.ts, backend/test/integration/examinerAssignmentSlots.test.ts, backend/test/integration/adminAssignmentRecovery.test.ts |
 | Scoring lifecycle and replay | backend/test/integration/examinerScoringCompletion.test.ts, backend/test/scoring.test.ts |
 | Auth identity and active account | backend/test/integration/authCurrentAccount.test.ts, backend/test/integration/authRateLimit.test.ts |
+| Login persistence modes | backend/test/integration/rememberMe.test.ts, frontend/components/auth/AuthForms.test.tsx |
 | Rate-limit behavior | backend/test/integration/nonAuthRateLimit.test.ts, backend/test/rateLimitStore.test.ts |
 
 When a route or lifecycle source changes, update this document and run
