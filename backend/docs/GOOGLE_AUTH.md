@@ -41,6 +41,16 @@ GOOGLE_CLIENT_SECRET=<server-only-client-secret>
 GOOGLE_REDIRECT_URI=http://localhost:3000/backend-api/auth/google/callback
 ```
 
+The rate-limit HMAC secret is required even when Google OAuth is disabled. Make
+one dedicated local value and paste it into `RATE_LIMIT_HMAC_SECRET`:
+
+```bash
+openssl rand -hex 32
+```
+
+Do not reuse `JWT_SECRET`. The backend rejects a missing, short, or reused
+rate-limit secret before it connects to the database.
+
 `FRONTEND_URL` remains the single allowed post-auth origin. For local
 development it is normally `http://localhost:3000`; production must use the
 HTTPS frontend origin. Google configuration is optional outside production,

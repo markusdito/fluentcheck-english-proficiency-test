@@ -172,6 +172,12 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 JWT_SECRET="replace-with-a-long-random-secret"
 JWT_EXPIRES_IN="1h"
 
+# Rate-limit privacy and deployment topology
+RATE_LIMIT_HMAC_SECRET="paste-the-output-of-openssl-rand-hex-32"
+RATE_LIMIT_TRUST_PROXY="none"
+RATE_LIMIT_TOPOLOGY="single-process"
+RATE_LIMIT_STORE="memory"
+
 # Google OAuth (server-only; use the exact callback URI from the deployment guide)
 GOOGLE_CLIENT_ID="123456789.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="server-only-client-secret"
@@ -191,6 +197,10 @@ IPAYMU_NOTIFY_URL="https://your-public-api.example.com/api/payments/ipaymu/notif
 IPAYMU_PAYMENT_AMOUNT="150000"
 IPAYMU_CURRENCY="IDR"
 ```
+
+Generate `RATE_LIMIT_HMAC_SECRET` with `openssl rand -hex 32`. It must be a
+dedicated value of at least 32 bytes and must not reuse `JWT_SECRET`; the
+backend refuses to start when it is missing, too short, or reused.
 
 The iPaymu values are only needed when payment is enabled. Its notification URL
 must be publicly reachable so iPaymu can deliver payment status callbacks.
