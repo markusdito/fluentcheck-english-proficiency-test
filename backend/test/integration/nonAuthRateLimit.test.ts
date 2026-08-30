@@ -141,6 +141,67 @@ function trackingStoreFactory(
   };
 }
 
+function nearLimitStoreFactory(targetScope: "account" | "ip") {
+  const stores = new Map<string, Store>();
+  const policyHits = new Map<string, number>();
+
+  const factory = (configuredPolicy: RateLimitPolicy): Store => {
+    const keyHits = new Map<string, number>();
+    const startsNearLimit = configuredPolicy.scope === targetScope;
+    const store: Store = {
+      localKeys: false,
+      increment: async (key) => {
+        const initialHits = startsNearLimit ? configuredPolicy.limit - 1 : 0;
+        const totalHits = (keyHits.get(key) ?? initialHits) + 1;
+        keyHits.set(key, totalHits);
+        policyHits.set(
+          configuredPolicy.name,
+          (policyHits.get(configuredPolicy.name) ?? 0) + 1,
+        );
+        return {
+          totalHits,
+          resetTime: new Date(Date.now() + configuredPolicy.windowMs),
+        };
+      },
+      decrement: async () => {},
+      resetKey: async () => {},
+      resetAll: async () => {
+        keyHits.clear();
+      },
+    };
+    stores.set(configuredPolicy.name, store);
+    return store;
+  };
+
+  return { factory, stores, policyHits };
+}
+
+async function resetRateLimitStores(stores: Map<string, Store>) {
+  await Promise.all(
+    [...stores.values()].map((store) => store.resetAll?.()),
+  );
+}
+
+async function assertActualThreshold(
+  label: string,
+  request: () => Promise<Response>,
+  stores: Map<string, Store>,
+  independentRequest?: () => Promise<Response>,
+) {
+  const accepted = await request();
+  assert.notEqual(accepted.status, 429, `${label} threshold request`);
+  const blocked = await request();
+  assert.equal(blocked.status, 429, `${label} over-limit request`);
+  if (independentRequest) {
+    const independent = await independentRequest();
+    assert.notEqual(independent.status, 429, `${label} independent identity`);
+  }
+  await resetRateLimitStores(stores);
+  const reset = await request();
+  assert.notEqual(reset.status, 429, `${label} reset request`);
+  await resetRateLimitStores(stores);
+}
+
 function cookie(userId: string) {
   return `jwt=${jwt.sign({ id: userId }, JWT_SECRET)}`;
 }
@@ -343,6 +404,145 @@ test("mounted route boundaries use dedicated policies without charging the basel
     assert.equal(keysByPolicy.get("submission-payment-ip")?.size, 1);
   } finally {
     await stopRateLimitedApp(server, runtime);
+  }
+});
+
+test("real mounted routes enforce paired thresholds, identity boundaries, and reset", async () => {
+  const student = await createUser();
+  const otherStudent = await createUser();
+  const admin = await createUser("ADMIN");
+  const googleAuth: GoogleAuthRouteHandlers = {
+    start: (_req, res) => res.status(204).end(),
+    callback: (_req, res) => res.status(204).end(),
+  };
+
+  for (const targetScope of ["account", "ip"] as const) {
+    const { factory, stores, policyHits } = nearLimitStoreFactory(targetScope);
+    const { server, runtime, url } = await startRateLimitedApp(
+      factory,
+      "none",
+      googleAuth,
+    );
+
+    const payment = (userId: string) =>
+      fetch(`${url}/api/payments/submissions/${crypto.randomUUID()}/pay`, {
+        method: "POST",
+        headers: { Cookie: cookie(userId) },
+      });
+    const answerUpload = () =>
+      fetch(`${url}/api/uploads/presigned-url`, {
+        method: "POST",
+        headers: {
+          Cookie: cookie(student.id),
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+    const questionAudio = () =>
+      fetch(`${url}/api/questions/audio/presigned-url`, {
+        method: "POST",
+        headers: {
+          Cookie: cookie(admin.id),
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+    const createSubmission = () =>
+      fetch(`${url}/api/submissions`, {
+        method: "POST",
+        headers: { Cookie: cookie(student.id) },
+      });
+    const completeSubmission = () =>
+      fetch(`${url}/api/submissions/${crypto.randomUUID()}/complete`, {
+        method: "POST",
+        headers: { Cookie: cookie(student.id) },
+      });
+
+    try {
+      const baseline = await fetch(`${url}/api/not-found`);
+      const baselineRepeat = await fetch(`${url}/api/not-found`);
+      assert.notEqual(baseline.status, 429);
+      if (targetScope === "ip") {
+        assert.equal(baselineRepeat.status, 429);
+      } else {
+        assert.notEqual(baselineRepeat.status, 429);
+      }
+
+      await resetRateLimitStores(stores);
+      await assertActualThreshold(
+        `${targetScope} payment`,
+        () => payment(student.id),
+        stores,
+        targetScope === "account" ? () => payment(otherStudent.id) : undefined,
+      );
+      await assertActualThreshold(
+        `${targetScope} Answer upload`,
+        answerUpload,
+        stores,
+      );
+      await assertActualThreshold(
+        `${targetScope} question audio`,
+        questionAudio,
+        stores,
+      );
+      await assertActualThreshold(
+        `${targetScope} Submission creation`,
+        createSubmission,
+        stores,
+      );
+      await assertActualThreshold(
+        `${targetScope} Submission completion`,
+        completeSubmission,
+        stores,
+      );
+
+      if (targetScope === "ip") {
+        await assertActualThreshold(
+          "IP authentication burst",
+          () =>
+            fetch(`${url}/api/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: "{",
+            }),
+          stores,
+        );
+        await assertActualThreshold(
+          "IP registration burst",
+          () =>
+            fetch(`${url}/api/auth/register`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: "{",
+            }),
+          stores,
+        );
+        await assertActualThreshold(
+          "IP Google start",
+          () => fetch(`${url}/api/auth/google/start`),
+          stores,
+        );
+        await assertActualThreshold(
+          "IP Google callback",
+          () => fetch(`${url}/api/auth/google/callback`),
+          stores,
+        );
+        await assertActualThreshold(
+          "IP iPaymu callback",
+          () =>
+            fetch(`${url}/api/payments/ipaymu/notify`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: "{}",
+            }),
+          stores,
+        );
+      }
+
+      assert.equal(policyHits.get("general-api"), 2);
+    } finally {
+      await stopRateLimitedApp(server, runtime);
+    }
   }
 });
 

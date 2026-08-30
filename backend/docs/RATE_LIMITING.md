@@ -179,6 +179,10 @@ from #56/#58 supplies those handlers.
 `test/rateLimit.test.ts` also exercises the `/api` baseline, iPaymu callback,
 mounted and unmounted OAuth paths, active-account/IP policy pairing, proxy
 normalization, and generic failure responses through native HTTP requests.
+`test/integration/nonAuthRateLimit.test.ts` drives the real payment, Answer,
+question-audio, and Submission mounts through both account- and IP-targeted
+thresholds, over-limit responses, reset behavior, independent account keys,
+and the baseline non-consumption boundary.
 `test/rateLimitRollout.test.ts` is the final policy-contract gate: it asserts
 all 20 accepted policies against independent literal definitions and exercises
 each policy at its exact threshold, over-limit response, reset boundary, and
