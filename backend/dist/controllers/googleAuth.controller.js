@@ -79,17 +79,19 @@ function redirectFailure(response, frontendUrl, cookiePath, returnTo, error) {
     clearOAuthCookies(response, cookiePath);
     response.redirect(frontendRedirect(frontendUrl, returnTo, error));
 }
-function validAudience(audience, clientId) {
-    return Array.isArray(audience)
-        ? audience.includes(clientId)
-        : audience === clientId;
+function validAudience(audience, authorizedParty, clientId) {
+    if (Array.isArray(audience)) {
+        return audience.includes(clientId) && authorizedParty === clientId;
+    }
+    return audience === clientId &&
+        (authorizedParty === undefined || authorizedParty === clientId);
 }
 function identityFromPayload(payload, clientId, now) {
     const nowSeconds = Math.floor(now() / 1_000);
     const expiration = payload?.exp;
     const normalizedEmail = typeof payload?.email === "string" ? normalizeEmail(payload.email) : "";
     if (!payload ||
-        !validAudience(payload.aud, clientId) ||
+        !validAudience(payload.aud, payload.azp, clientId) ||
         !payload.iss ||
         !GOOGLE_ISSUERS.has(payload.iss) ||
         typeof expiration !== "number" ||

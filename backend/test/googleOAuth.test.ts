@@ -15,7 +15,7 @@ import type { GoogleOAuthStateStore } from "../src/service/googleAuth.service.js
 const config = {
   clientId: "123456789.apps.googleusercontent.com",
   clientSecret: "google-client-secret",
-  redirectUri: "http://localhost:5001/api/auth/google/callback",
+  redirectUri: "http://localhost:3000/backend-api/auth/google/callback",
 };
 
 class FakeGoogleClient implements GoogleOAuthClient {
@@ -155,7 +155,7 @@ test("OAuth starts use distinct state and S256 PKCE cookies for each auth page",
   assert.equal(loginCookies.google_oauth_return_to, "login");
   assert.match(login.headers.get("set-cookie") ?? "", /HttpOnly/);
   assert.match(login.headers.get("set-cookie") ?? "", /SameSite=Lax/);
-  assert.match(login.headers.get("set-cookie") ?? "", /Path=\/api\/auth\/google/);
+  assert.match(login.headers.get("set-cookie") ?? "", /Path=\/backend-api\/auth\/google/);
   assert.equal(signupCookies.google_oauth_return_to, "signup");
 });
 
@@ -180,7 +180,7 @@ test("valid callbacks exchange the saved PKCE verifier, issue a session, and red
     redirect_uri: config.redirectUri,
   });
   assert.match(callback.headers.get("set-cookie") ?? "", /google_oauth_state=;/);
-  assert.match(callback.headers.get("set-cookie") ?? "", /Path=\/api\/auth\/google/);
+  assert.match(callback.headers.get("set-cookie") ?? "", /Path=\/backend-api\/auth\/google/);
 });
 
 test("same-origin proxy callbacks receive cookies scoped to the proxy path", async () => {
@@ -308,6 +308,12 @@ test("cancelled consent and provider failures never echo provider details", asyn
 test("invalid ID-token claims are rejected without provider details", async () => {
   const invalidPayloads: GoogleTokenPayload[] = [
     { ...new FakeGoogleClient().payload, aud: "wrong-client" },
+    {
+      ...new FakeGoogleClient().payload,
+      aud: [config.clientId, "another-client"],
+      azp: "another-client",
+    },
+    { ...new FakeGoogleClient().payload, aud: [config.clientId, "another-client"] },
     { ...new FakeGoogleClient().payload, iss: "https://evil.example" },
     { ...new FakeGoogleClient().payload, exp: Math.floor(Date.now() / 1000) - 1 },
     { ...new FakeGoogleClient().payload, sub: undefined },

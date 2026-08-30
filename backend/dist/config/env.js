@@ -25,10 +25,7 @@ export const env = {
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
 };
-const GOOGLE_CALLBACK_PATHS = new Set([
-    "/api/auth/google/callback",
-    "/backend-api/auth/google/callback",
-]);
+const GOOGLE_CALLBACK_PATH = "/backend-api/auth/google/callback";
 /**
  * Returns no configuration when Google OAuth is intentionally disabled, but
  * rejects partial or unsafe configuration before production starts.
@@ -76,8 +73,18 @@ export function getGoogleOAuthConfig(input = {
         parsedRedirectUri.password ||
         parsedRedirectUri.search ||
         parsedRedirectUri.hash ||
-        !GOOGLE_CALLBACK_PATHS.has(parsedRedirectUri.pathname)) {
-        throw new Error("Google OAuth redirect URI must use the exact public callback path without credentials or query parameters");
+        parsedRedirectUri.pathname !== GOOGLE_CALLBACK_PATH) {
+        throw new Error(`Google OAuth redirect URI must use the exact ${GOOGLE_CALLBACK_PATH} callback path without credentials or query parameters`);
+    }
+    let parsedFrontendUrl;
+    try {
+        parsedFrontendUrl = new URL(input.frontendUrl ?? env.FRONTEND_URL);
+    }
+    catch {
+        throw new Error("FRONTEND_URL must be an absolute URL");
+    }
+    if (parsedRedirectUri.origin !== parsedFrontendUrl.origin) {
+        throw new Error("Google OAuth redirect URI must use the FRONTEND_URL origin for the same-origin callback");
     }
     return Object.freeze({ clientId, clientSecret, redirectUri });
 }

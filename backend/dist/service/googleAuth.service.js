@@ -25,8 +25,13 @@ export class GoogleAccountResolutionError extends Error {
 }
 export const databaseGoogleOAuthStateStore = {
     async create(state, returnTo, expiresAt) {
-        await prisma.googleOAuthState.create({
-            data: { state, returnTo, expiresAt },
+        await prisma.$transaction(async (transaction) => {
+            await transaction.googleOAuthState.deleteMany({
+                where: { expiresAt: { lte: new Date() } },
+            });
+            await transaction.googleOAuthState.create({
+                data: { state, returnTo, expiresAt },
+            });
         });
     },
     async consume(state, returnTo, now) {

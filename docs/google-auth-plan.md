@@ -137,13 +137,13 @@ The callback route will:
 
 ## Configuration checklist
 
-Before deploying, configure the same redirect URI in both the backend environment and Google Cloud Console. For local development, use the project’s actual backend origin and callback path, for example:
+Before deploying, configure the same redirect URI in both the backend environment and Google Cloud Console. For local development, use the frontend origin and rewrite callback path, for example:
 
 ```text
-http://localhost:5001/api/auth/google/callback
+http://localhost:3000/backend-api/auth/google/callback
 ```
 
-For production, use the HTTPS API callback URL and add the production frontend origin to the OAuth client’s authorized origins. Keep `GOOGLE_CLIENT_SECRET` server-only.
+For production, use the HTTPS frontend rewrite callback URL and add the same frontend origin to the OAuth client’s authorized origins. Keep `GOOGLE_CLIENT_SECRET` server-only.
 
 ## References
 

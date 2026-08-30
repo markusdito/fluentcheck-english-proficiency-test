@@ -19,12 +19,10 @@ application**. Add exactly these values to the client configuration:
 
 The production frontend placeholder must be replaced with the actual public
 frontend host. The callback is intentionally the public Next.js rewrite so
-the browser keeps the short-lived OAuth cookies on one host. A deployment that
-exposes the API directly may instead use its public API host and
-`/api/auth/google/callback`, with the frontend auth URL configured to that API
-origin. The redirect URI is an exact match: scheme, host, port, and public
-callback path must agree with the backend environment. Do not add query
-parameters, credentials, or an alternate path.
+the browser keeps the short-lived OAuth cookies and JWT on one host. The
+redirect URI is an exact match: scheme, host, port, and public callback path
+must agree with `FRONTEND_URL`. Do not add query parameters, credentials, or
+an alternate path.
 
 The frontend starts OAuth at
 `/backend-api/auth/google/start?returnTo=login` or
@@ -71,8 +69,7 @@ the database connection is opened.
 
 The state, PKCE verifier, and `returnTo` value are short-lived,
 `httpOnly`, `SameSite=Lax` cookies scoped to the public OAuth callback path.
-With the same-origin rewrite this is `/backend-api/auth/google`; with a direct
-API origin it is `/api/auth/google`. `returnTo`
+With the same-origin rewrite this is `/backend-api/auth/google`. `returnTo`
 accepts only `login` or `signup`; successful callbacks always redirect to the
 fixed `/dashboard` path. Failure redirects return to the originating fixed
 auth page with one of the allowlisted `google_error` values:

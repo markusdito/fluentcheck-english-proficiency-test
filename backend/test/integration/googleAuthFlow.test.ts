@@ -20,7 +20,7 @@ const clientId = "123456789.apps.googleusercontent.com";
 const config = {
   clientId,
   clientSecret: "google-client-secret",
-  redirectUri: "http://localhost:5001/api/auth/google/callback",
+  redirectUri: "http://localhost:3000/backend-api/auth/google/callback",
 };
 
 class FakeGoogleClient implements GoogleOAuthClient {

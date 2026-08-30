@@ -28,6 +28,7 @@ const OAUTH_COOKIE_NAMES = {
 export interface GoogleTokenPayload {
   readonly iss?: string;
   readonly aud?: string | string[];
+  readonly azp?: string;
   readonly sub?: string;
   readonly email?: string;
   readonly email_verified?: boolean;
@@ -167,10 +168,16 @@ function redirectFailure(
   response.redirect(frontendRedirect(frontendUrl, returnTo, error));
 }
 
-function validAudience(audience: string | string[] | undefined, clientId: string) {
-  return Array.isArray(audience)
-    ? audience.includes(clientId)
-    : audience === clientId;
+function validAudience(
+  audience: string | string[] | undefined,
+  authorizedParty: string | undefined,
+  clientId: string,
+) {
+  if (Array.isArray(audience)) {
+    return audience.includes(clientId) && authorizedParty === clientId;
+  }
+  return audience === clientId &&
+    (authorizedParty === undefined || authorizedParty === clientId);
 }
 
 function identityFromPayload(
@@ -184,7 +191,7 @@ function identityFromPayload(
     typeof payload?.email === "string" ? normalizeEmail(payload.email) : "";
   if (
     !payload ||
-    !validAudience(payload.aud, clientId) ||
+    !validAudience(payload.aud, payload.azp, clientId) ||
     !payload.iss ||
     !GOOGLE_ISSUERS.has(payload.iss) ||
     typeof expiration !== "number" ||

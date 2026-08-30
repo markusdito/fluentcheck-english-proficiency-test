@@ -6,7 +6,7 @@ const valid = {
   nodeEnv: "development",
   clientId: "123456789.apps.googleusercontent.com",
   clientSecret: "google-client-secret",
-  redirectUri: "http://localhost:5001/api/auth/google/callback",
+  redirectUri: "http://localhost:3000/backend-api/auth/google/callback",
 };
 
 test("Google OAuth configuration is optional outside production", () => {
@@ -43,7 +43,7 @@ test("production requires a complete HTTPS Google OAuth configuration", () => {
       getGoogleOAuthConfig({
         ...valid,
         nodeEnv: "production",
-        redirectUri: "https://api.example.com/oauth/callback",
+        redirectUri: "https://api.example.com/api/auth/google/callback",
       }),
     /callback path/,
   );

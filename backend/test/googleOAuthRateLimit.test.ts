@@ -42,7 +42,7 @@ before(async () => {
     {
       clientId: "123456789.apps.googleusercontent.com",
       clientSecret: "google-client-secret",
-      redirectUri: "http://localhost:5001/api/auth/google/callback",
+      redirectUri: "http://localhost:3000/backend-api/auth/google/callback",
     },
     {
       client,

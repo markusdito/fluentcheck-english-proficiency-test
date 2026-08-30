@@ -58,8 +58,13 @@ export interface GoogleOAuthStateStore {
 
 export const databaseGoogleOAuthStateStore: GoogleOAuthStateStore = {
   async create(state, returnTo, expiresAt) {
-    await prisma.googleOAuthState.create({
-      data: { state, returnTo, expiresAt },
+    await prisma.$transaction(async (transaction) => {
+      await transaction.googleOAuthState.deleteMany({
+        where: { expiresAt: { lte: new Date() } },
+      });
+      await transaction.googleOAuthState.create({
+        data: { state, returnTo, expiresAt },
+      });
     });
   },
 
