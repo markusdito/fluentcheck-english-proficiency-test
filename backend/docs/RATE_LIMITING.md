@@ -128,6 +128,41 @@ unavailable. A read-only policy may explicitly use `fail-open`; the shared
 failure reporter makes that decision observable without exposing store error
 details.
 
+## Non-authentication composition (#109, #111, #112, #113)
+
+The non-authentication routers are created with the same runtime passed to the
+application factory. The general `generalApi` limiter is mounted at `/api`
+before body parsing and route handling, but explicitly skips every route with
+a dedicated policy. Route-specific limiters are then composed at the operation
+boundary, so dedicated requests consume only their applicable counters and
+controllers and services remain unaware of policy mechanics. Unmatched API
+routes and routes without a dedicated policy use the general baseline.
+
+- iPaymu callbacks: 300 per 5 minutes per normalized IP;
+- submission payment: 10 per hour per active account and 30 per hour per
+  normalized IP;
+- Answer presign and confirmation: 30 per 10 minutes per active account and
+  60 per 10 minutes per normalized IP;
+- question-audio presign and confirmation: 60 per hour per active account and
+  120 per hour per normalized IP;
+- submission creation: 5 per hour per active account and 20 per hour per
+  normalized IP; and
+- submission completion: 10 per 15 minutes per active account and 30 per 15
+  minutes per normalized IP.
+
+Authenticated policies are mounted after `verifyToken`, which resolves one
+current active account before `activeAccountIdentity` derives the account key.
+The IP half of each pair remains an independent policy and counter. Direct
+object-storage uploads, ordinary reads, idempotent submission initialization,
+and existing payment callback processing are otherwise unchanged.
+
+Google OAuth has a provider-neutral route adapter in
+`src/routes/google-auth.routes.ts`. It applies the 20-per-10-minute start and
+40-per-10-minute callback IP policies to handlers supplied by the OAuth
+implementation. The adapter does not add provider, PKCE, cookie, redirect, or
+account-linking behavior; the routes are mounted when the OAuth implementation
+from #56/#58 supplies those handlers.
+
 ## Verification
 
 `test/rateLimitStore.test.ts` verifies the public store and application seams:
@@ -139,3 +174,7 @@ details.
 - missing shared-store configuration is rejected instead of falling back;
 - a store outage or black-hole timeout returns the stable generic 503 contract
   without exposing client error details.
+
+`test/rateLimit.test.ts` also exercises the `/api` baseline, iPaymu callback,
+OAuth start/callback independence, active-account/IP policy pairing, proxy
+normalization, and generic failure responses through native HTTP requests.

@@ -10,6 +10,10 @@ import {
   type RateLimitRuntime,
 } from "../middleware/rate-limit.middleware.js";
 import { RATE_LIMIT_POLICIES } from "../config/rate-limit.js";
+import {
+  createGoogleAuthRouter,
+  type GoogleAuthRouteHandlers,
+} from "./google-auth.routes.js";
 
 const REQUEST_BODY_LIMIT = "64kb";
 const URL_ENCODED_PARAMETER_LIMIT = 100;
@@ -53,7 +57,10 @@ function resetAccountFailuresAfterSuccessfulLogin(
   };
 }
 
-export function createAuthRouter(runtime?: RateLimitRuntime) {
+export function createAuthRouter(
+  runtime?: RateLimitRuntime,
+  googleAuthHandlers?: GoogleAuthRouteHandlers,
+) {
   const router = Router();
   const loginBurstLimiter = runtime?.createLimiter(RATE_LIMIT_POLICIES.loginBurst);
   const loginFailureAccountLimiter = runtime?.createLimiter(
@@ -100,6 +107,12 @@ export function createAuthRouter(runtime?: RateLimitRuntime) {
   );
   router.post("/logout", logout);
   router.get("/me", verifyToken, getMe);
+  if (googleAuthHandlers) {
+    if (!runtime) {
+      throw new Error("Google OAuth routes require a rate-limit runtime");
+    }
+    router.use("/google", createGoogleAuthRouter(runtime, googleAuthHandlers));
+  }
 
   return router;
 }

@@ -97,7 +97,7 @@ backend/
 │   │   ├── auth.middleware.ts
 │   │   ├── role.middleware.ts
 │   │   ├── upload.middleware.ts  # Multer config (500MB limit, MIME validation)
-│   │   └── rate-limit.middleware.ts  # Rate limiting (added per architecture review)
+│   │   └── rate-limit.middleware.ts  # Central route-boundary middleware (#63)
 │   ├── utils/
 │   │   └── jwt.ts             # Token generation & verification
 │   └── generated/             # Prisma client (auto-generated — never edit manually)
@@ -589,9 +589,23 @@ export function verifyWebhookSignature(req: Request, res: Response, next: NextFu
 - [x] File upload MIME type validated (video only)
 - [x] Prisma queries use parameterized inputs (automatic — no raw SQL)
 
+### Rate-limit topology (#63)
+
+Rate limiting is implemented in phases. #83 owns the authentication policies with the built-in MemoryStore for one Express process. #109 owns the general API baseline and payment operations. #111 owns Answer and question-audio mutations, #112 owns Submission mutations, and #113 owns the OAuth limiter adapter once the provider handlers from #56/#58 land. #110 owns the shared external store and the production multi-instance gate; #114 verifies the complete rollout and topology. Until that verification is complete, a deployment with more than one process or instance must not claim distributed rate-limit enforcement.
+
+The route-boundary contract is:
+
+- derive privacy-preserving keys from normalized IP, active account ID, or normalized email values;
+- run the general API baseline only for routes without a dedicated policy, so dedicated requests do not consume two budgets;
+- use a dedicated HMAC secret of at least 32 bytes, never the JWT secret;
+- accept only `none` or an explicit CIDR allowlist for proxy trust;
+- return generic 429 JSON with `Retry-After` and draft-8 `RateLimit` headers, without legacy `X-RateLimit-*` headers;
+- fail closed for sensitive operations when the limiter store is unavailable, with any read-only fail-open behavior explicitly configured and observable.
+
 ### Network & Infrastructure
 
-- [x] Rate limiting on auth and upload endpoints (see `rate-limit.middleware.ts`)
+- [x] Route-specific rate limiting on auth, payment, upload, question-audio, and submission mutation endpoints (tracked by #83, #109, #111, and #112)
+- [ ] Google OAuth route limiter adapter awaits the provider handlers from #56/#58 (tracked by #113)
 - [x] Payment webhook HMAC signature verification
 - [x] CORS origin restriction
 - [x] Global error handler catches unhandled exceptions (never leak stack traces)
@@ -651,6 +665,9 @@ export function verifyWebhookSignature(req: Request, res: Response, next: NextFu
 
 // 429
 { "error": "Too many requests" }
+
+// 503
+{ "error": "Service temporarily unavailable" }
 
 // 500
 { "error": "Internal server error" }

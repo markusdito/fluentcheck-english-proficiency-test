@@ -7,7 +7,7 @@ import rateLimit, {
   type RateLimitRequestHandler,
   type Store,
 } from "express-rate-limit";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import {
   type RateLimitConfig,
   type RateLimitFailureMode,
@@ -25,9 +25,37 @@ export interface RateLimitStoreFailureEvent {
 export type RateLimitStoreFactory = (policy: RateLimitPolicy) => Store;
 export type RateLimitIdentityResolver = (request: Request) => string | undefined;
 export type RateLimitFailureReporter = (event: RateLimitStoreFailureEvent) => void;
+export type RateLimitRequestSkipper = (
+  request: Request,
+  response: Response,
+) => boolean | Promise<boolean>;
+
+export const activeAccountIdentity: RateLimitIdentityResolver = (request) =>
+  request.user?.id;
+
+export function createIpRateLimiters(
+  runtime: RateLimitRuntime | undefined,
+  policy: RateLimitPolicy,
+): RateLimitRequestHandler[] {
+  return runtime ? [runtime.createLimiter(policy)] : [];
+}
+
+export function createAccountAndIpRateLimiters(
+  runtime: RateLimitRuntime | undefined,
+  accountPolicy: RateLimitPolicy,
+  ipPolicy: RateLimitPolicy,
+): RateLimitRequestHandler[] {
+  return runtime
+    ? [
+        runtime.createLimiter(accountPolicy, activeAccountIdentity),
+        runtime.createLimiter(ipPolicy),
+      ]
+    : [];
+}
 
 export interface RateLimitLimiterOptions {
   readonly skipSuccessfulRequests?: boolean;
+  readonly skip?: RateLimitRequestSkipper;
 }
 
 export interface RateLimitRuntimeOptions {
@@ -234,7 +262,8 @@ export function createRateLimitRuntime(
         if (
           existing.identityResolver !== identityResolver ||
           existing.options?.skipSuccessfulRequests !==
-            limiterOptions?.skipSuccessfulRequests
+            limiterOptions?.skipSuccessfulRequests ||
+          existing.options?.skip !== limiterOptions?.skip
         ) {
           throw new Error(
             `Rate-limit policy ${policy.name} must use one identity resolver and option set per application`,
@@ -259,6 +288,7 @@ export function createRateLimitRuntime(
         identifier: "quota",
         passOnStoreError: policy.failureMode === "fail-open",
         skipSuccessfulRequests: limiterOptions?.skipSuccessfulRequests ?? false,
+        skip: limiterOptions?.skip,
         store: safeStore,
         logger: safeLogger(),
         handler: (_request, response) => {

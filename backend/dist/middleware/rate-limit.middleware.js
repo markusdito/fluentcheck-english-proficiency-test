@@ -2,6 +2,18 @@ import net from "node:net";
 import { createHash, createHmac } from "node:crypto";
 import rateLimit, { ipKeyGenerator, MemoryStore, } from "express-rate-limit";
 import { RATE_LIMIT_POLICY_REGISTRY, } from "../config/rate-limit.js";
+export const activeAccountIdentity = (request) => request.user?.id;
+export function createIpRateLimiters(runtime, policy) {
+    return runtime ? [runtime.createLimiter(policy)] : [];
+}
+export function createAccountAndIpRateLimiters(runtime, accountPolicy, ipPolicy) {
+    return runtime
+        ? [
+            runtime.createLimiter(accountPolicy, activeAccountIdentity),
+            runtime.createLimiter(ipPolicy),
+        ]
+        : [];
+}
 export class RateLimitStoreUnavailableError extends Error {
     policyName;
     failureMode;
@@ -134,7 +146,8 @@ export function createRateLimitRuntime(options) {
             if (existing) {
                 if (existing.identityResolver !== identityResolver ||
                     existing.options?.skipSuccessfulRequests !==
-                        limiterOptions?.skipSuccessfulRequests) {
+                        limiterOptions?.skipSuccessfulRequests ||
+                    existing.options?.skip !== limiterOptions?.skip) {
                     throw new Error(`Rate-limit policy ${policy.name} must use one identity resolver and option set per application`);
                 }
                 return existing.handler;
@@ -155,6 +168,7 @@ export function createRateLimitRuntime(options) {
                 identifier: "quota",
                 passOnStoreError: policy.failureMode === "fail-open",
                 skipSuccessfulRequests: limiterOptions?.skipSuccessfulRequests ?? false,
+                skip: limiterOptions?.skip,
                 store: safeStore,
                 logger: safeLogger(),
                 handler: (_request, response) => {
