@@ -275,6 +275,13 @@ export function createRateLimitRuntime(
       let store = stores.get(policy.prefix);
       if (!store) {
         store = storeFactory(policy);
+        if (requiresSharedStore && store.localKeys) {
+          throw new Error(
+            options.config.topology !== "single-process"
+              ? "A local rate-limit store is not allowed for multi-process or multi-instance topology"
+              : "A local rate-limit store is not allowed when RATE_LIMIT_STORE=shared",
+          );
+        }
         stores.set(policy.prefix, store);
         uniqueStores.add(store);
         storePolicies.set(store, policy);
