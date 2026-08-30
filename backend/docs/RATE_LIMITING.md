@@ -37,7 +37,8 @@ store from the same factory; route policies do not know which store is in use.
   native tests as well as an intentionally one-process deployment.
 - `multi-process` or `multi-instance`: `RATE_LIMIT_STORE=shared` and an
   injected shared-store factory are required. The application never silently
-  falls back to `MemoryStore`.
+  falls back to `MemoryStore`; a factory that returns a store with
+  `localKeys=true` is rejected during application construction.
 
 The production entry point creates the shared factory from
 `RATE_LIMIT_SHARED_STORE_URL`. The URL must use `redis://` or `rediss://` and
@@ -117,11 +118,11 @@ policies after validation. Authentication controllers remain unaware of the
 limiter store and policy mechanics.
 
 The authentication phase is deterministic when `createApp` receives a fresh
-rate-limit store factory, which is the native HTTP test seam. Its supported
-first-version deployment is one Express process with `MemoryStore`; counters
-reset on restart. A production deployment using multiple processes or
-instances must use the shared-store topology from the parent rollout and must
-not silently fall back to local memory counters.
+rate-limit store factory, which is the native HTTP test seam. `MemoryStore`
+remains supported for one-process deployments and deterministic native tests;
+its counters reset on restart. A production deployment using multiple
+processes or instances must use the shared-store topology from the parent
+rollout and must not silently fall back to local memory counters.
 
 Sensitive policies fail closed with a generic 503 when their store is
 unavailable. A read-only policy may explicitly use `fail-open`; the shared
@@ -178,9 +179,25 @@ from #56/#58 supplies those handlers.
 `test/rateLimit.test.ts` also exercises the `/api` baseline, iPaymu callback,
 mounted and unmounted OAuth paths, active-account/IP policy pairing, proxy
 normalization, and generic failure responses through native HTTP requests.
+`test/rateLimitRollout.test.ts` is the final policy-contract gate: it asserts
+all 20 accepted policies against independent literal definitions and exercises
+each policy at its exact threshold, over-limit response, reset boundary, and
+alternate identity/IP boundary through native HTTP.
 `test/googleOAuthRateLimit.test.ts` covers the mounted Google start and
 callback thresholds, independent counters, trusted IPv4/IPv6 proxy keys,
 spoofed forwarding headers, reset behavior, response headers, and fail-closed
 store failures. `test/googleOAuth.test.ts` asserts the PKCE parameters, while
 `test/integration/googleAuthFlow.test.ts` verifies that a valid state callback
 still creates the application session and clears the temporary OAuth cookies.
+
+The frontend budget contract is covered by
+`frontend/lib/rate-limit-flow.test.ts` and
+`frontend/hooks/useSubmissionStatusPolling.test.tsx`: authentication,
+Submission initialization, Answer presign/direct upload/confirmation, payment,
+status polling, and completion each issue only their intended request, and a
+429 or 503 is surfaced without an automatic retry. Polling stops after five
+status-only attempts or immediately after a confirmed state transition.
+
+The complete rollout gate is satisfied only after the backend build and test
+suite, the frontend test suite, the shared-store tests, and all required child
+issues #83, #109, #110, #111, #112, and #113 are complete.

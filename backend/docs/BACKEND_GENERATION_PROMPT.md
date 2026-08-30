@@ -763,7 +763,7 @@ export function generateStorageKey(
 7. **Examiner**: Assignment creation, score submission, work queue
 8. **Results**: Score aggregation, result detail, certificate generation
 9. **Admin**: User management, examiner assignment, dashboard stats
-10. **Polish**: Error handling refinements, logging, rate limiting, API documentation
+10. **Security and polish**: Verified route-boundary rate limiting, error handling refinements, logging, API documentation
 
 ---
 

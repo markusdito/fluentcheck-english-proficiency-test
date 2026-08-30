@@ -177,6 +177,9 @@ RATE_LIMIT_HMAC_SECRET="paste-the-output-of-openssl-rand-hex-32"
 RATE_LIMIT_TRUST_PROXY="none"
 RATE_LIMIT_TOPOLOGY="single-process"
 RATE_LIMIT_STORE="memory"
+RATE_LIMIT_STORE_TIMEOUT_MS="1000"
+# Required when RATE_LIMIT_STORE="shared".
+RATE_LIMIT_SHARED_STORE_URL=""
 
 # Google OAuth (server-only; use the exact callback URI from the deployment guide)
 GOOGLE_CLIENT_ID="123456789.apps.googleusercontent.com"
@@ -201,6 +204,11 @@ IPAYMU_CURRENCY="IDR"
 Generate `RATE_LIMIT_HMAC_SECRET` with `openssl rand -hex 32`. It must be a
 dedicated value of at least 32 bytes and must not reuse `JWT_SECRET`; the
 backend refuses to start when it is missing, too short, or reused.
+
+Use `single-process` with `memory` only when one Express process is serving the
+API. Multi-process and multi-instance deployments must use `shared` with a
+`redis://` or `rediss://` `RATE_LIMIT_SHARED_STORE_URL`; the backend rejects a
+missing URL or a local store instead of claiming distributed enforcement.
 
 The iPaymu values are only needed when payment is enabled. Its notification URL
 must be publicly reachable so iPaymu can deliver payment status callbacks.
