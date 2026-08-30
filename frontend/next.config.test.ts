@@ -1,5 +1,25 @@
-import { describe, expect, it } from "vitest";
-import nextConfig, { resolveBackendUrl } from "./next.config";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+let nextConfig!: typeof import("./next.config").default;
+let resolveBackendUrl!: typeof import("./next.config").resolveBackendUrl;
+
+beforeAll(async () => {
+  const previousBackendUrl = process.env.BACKEND_URL;
+  delete process.env.BACKEND_URL;
+  vi.resetModules();
+
+  try {
+    const config = await import("./next.config");
+    nextConfig = config.default;
+    resolveBackendUrl = config.resolveBackendUrl;
+  } finally {
+    if (previousBackendUrl === undefined) {
+      delete process.env.BACKEND_URL;
+    } else {
+      process.env.BACKEND_URL = previousBackendUrl;
+    }
+  }
+});
 
 describe("Next.js backend rewrite configuration", () => {
   it("rejects non-HTTP backend destinations before building rewrites", () => {
