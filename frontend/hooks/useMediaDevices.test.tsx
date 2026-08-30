@@ -40,6 +40,39 @@ function createAudioContextMock() {
   return { context, source, analyser };
 }
 
+function installAudioContextMocks(
+  ...audioContextMocks: ReturnType<typeof createAudioContextMock>[]
+) {
+  const contexts = [...audioContextMocks];
+  const audioContexts = vi.fn<() => AudioContext>(function () {
+    const next = contexts.shift();
+    if (!next) throw new Error("Unexpected AudioContext construction");
+    return next.context as unknown as AudioContext;
+  });
+  vi.stubGlobal("AudioContext", audioContexts);
+  return audioContexts;
+}
+
+function installAnimationFrameMocks() {
+  let nextAnimationFrameId = 1;
+  const requestAnimationFrame = vi
+    .fn<(callback: FrameRequestCallback) => number>()
+    .mockImplementation(() => nextAnimationFrameId++);
+  const cancelAnimationFrame = vi.fn<(handle: number) => void>();
+  vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
+  vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+  return { requestAnimationFrame, cancelAnimationFrame };
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
 describe("useMediaDevices", () => {
   let enumerateDevices: ReturnType<typeof vi.fn<MediaDevices["enumerateDevices"]>>;
   let getUserMedia: ReturnType<typeof vi.fn<MediaDevices["getUserMedia"]>>;
@@ -128,21 +161,8 @@ describe("useMediaDevices", () => {
 
     const firstAudio = createAudioContextMock();
     const secondAudio = createAudioContextMock();
-    const audioContextMocks = [firstAudio, secondAudio];
-    const audioContexts = vi.fn<() => AudioContext>(function () {
-      const next = audioContextMocks.shift();
-      if (!next) throw new Error("Unexpected AudioContext construction");
-      return next.context as unknown as AudioContext;
-    });
-    vi.stubGlobal("AudioContext", audioContexts);
-
-    let nextAnimationFrameId = 1;
-    const requestAnimationFrame = vi
-      .fn<(callback: FrameRequestCallback) => number>()
-      .mockImplementation(() => nextAnimationFrameId++);
-    const cancelAnimationFrame = vi.fn<(handle: number) => void>();
-    vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
-    vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+    installAudioContextMocks(firstAudio, secondAudio);
+    const { cancelAnimationFrame } = installAnimationFrameMocks();
 
     const { result } = renderHook(() => useMediaDevices());
 
@@ -161,6 +181,35 @@ describe("useMediaDevices", () => {
     expect(firstAudio.context.close).toHaveBeenCalledOnce();
     expect(secondTrack.stop).not.toHaveBeenCalled();
     expect(result.current.stream).toBe(secondStream);
+  });
+
+  it("deduplicates concurrent permission requests", async () => {
+    const stream = {
+      getTracks: () => [{ stop: vi.fn() }],
+    } as unknown as MediaStream;
+    const permissionRequest = createDeferred<MediaStream>();
+    getUserMedia.mockReturnValue(permissionRequest.promise);
+    installAudioContextMocks(createAudioContextMock());
+    installAnimationFrameMocks();
+
+    const { result } = renderHook(() => useMediaDevices());
+    let firstRequest!: Promise<boolean>;
+    let secondRequest!: Promise<boolean>;
+
+    act(() => {
+      firstRequest = result.current.requestPermissions();
+      secondRequest = result.current.requestPermissions();
+    });
+
+    expect(firstRequest).toBe(secondRequest);
+    expect(getUserMedia).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      permissionRequest.resolve(stream);
+      await firstRequest;
+    });
+
+    expect(result.current.stream).toBe(stream);
   });
 
   it("cancels deferred device enumeration when unmounted", () => {
