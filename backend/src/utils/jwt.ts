@@ -13,15 +13,25 @@ export const authCookieOptions = {
     path: "/",
 };
 
-export function getAuthCookieOptions(persistence: SessionPersistence) {
-    if (persistence === "remembered") {
-        return {
+const AUTH_PERSISTENCE_POLICIES: Record<SessionPersistence, {
+    expiresIn: SignOptions['expiresIn'];
+    cookieOptions: typeof authCookieOptions & { maxAge?: number };
+}> = {
+    session: {
+        expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
+        cookieOptions: authCookieOptions,
+    },
+    remembered: {
+        expiresIn: env.REMEMBERED_SESSION_SECONDS,
+        cookieOptions: {
             ...authCookieOptions,
             maxAge: env.REMEMBERED_SESSION_SECONDS * 1000,
-        };
-    }
+        },
+    },
+};
 
-    return authCookieOptions;
+export function getAuthCookieOptions(persistence: SessionPersistence) {
+    return AUTH_PERSISTENCE_POLICIES[persistence].cookieOptions;
 }
 
 export function clearAuthCookie(res: Response) {
@@ -39,12 +49,9 @@ export function generateToken(
     persistence: SessionPersistence,
 ): string {
     const payload = { id: userId }
-    const expiresIn = persistence === "remembered"
-        ? env.REMEMBERED_SESSION_SECONDS
-        : env.JWT_EXPIRES_IN as SignOptions['expiresIn'];
 
     const token = jwt.sign(payload, env.JWT_SECRET, {
-        expiresIn,
+        expiresIn: AUTH_PERSISTENCE_POLICIES[persistence].expiresIn,
     })
 
     res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(persistence))
