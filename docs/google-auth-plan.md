@@ -1,7 +1,8 @@
 # Google Authentication Plan
 
-Status: Implemented — the runtime contract is implemented in `backend/` and
-the deployment details are maintained in
+Status: Implemented in code; tracker and configured-provider browser
+verification remain pending. The runtime contract is implemented in `backend/`
+and the deployment details are maintained in
 [`backend/docs/GOOGLE_AUTH.md`](../backend/docs/GOOGLE_AUTH.md).
 
 ## Objective
