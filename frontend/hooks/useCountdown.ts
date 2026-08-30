@@ -20,12 +20,7 @@ export function useCountdown(
   const [isRunning, setIsRunning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const onCompleteRef = useRef(onComplete);
   const hasCompletedRef = useRef(false);
-
-  useEffect(() => {
-    onCompleteRef.current = onComplete;
-  }, [onComplete]);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -56,9 +51,9 @@ export function useCountdown(
     if (seconds === 0 && !isRunning && !hasCompletedRef.current) {
       hasCompletedRef.current = true;
       setIsComplete(true);
-      onCompleteRef.current?.();
+      onComplete?.();
     }
-  }, [seconds, isRunning]);
+  }, [seconds, isRunning, onComplete]);
 
   const pause = useCallback(() => {
     clearTimer();
