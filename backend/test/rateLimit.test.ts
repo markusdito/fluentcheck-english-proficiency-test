@@ -657,6 +657,49 @@ test("fails closed with a generic 503 and fails open only when the policy says s
   }
 });
 
+test("the mounted read-only baseline fails open with an observable safe event", async () => {
+  const rawFailure = `${HMAC_SECRET} 203.0.113.10 user@example.com`;
+  const events: unknown[] = [];
+  const app = createApp({
+    rateLimit: {
+      config: createRateLimitConfig({
+        hmacSecret: HMAC_SECRET,
+        jwtSecret: JWT_SECRET,
+        trustProxy: "none",
+      }),
+      storeFactory: () =>
+        ({
+          localKeys: false,
+          increment: async () => {
+            throw new Error(rawFailure);
+          },
+          decrement: async () => {},
+          resetKey: async () => {},
+        }) as Store,
+      onStoreFailure: (event) => events.push(event),
+    },
+  });
+  const runtime = app.locals.rateLimit as RateLimitRuntime;
+  const { server, url } = await start(app);
+
+  try {
+    const response = await fetch(`${url}/api/not-found`);
+    assert.equal(response.status, 404);
+    assert.deepEqual(events, [
+      {
+        policyName: "general-api",
+        failureMode: "fail-open",
+        operation: "increment",
+      },
+    ]);
+    assert.equal(JSON.stringify(events).includes(rawFailure), false);
+    assert.equal(JSON.stringify(events).includes(HMAC_SECRET), false);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
+  }
+});
+
 test("applies the login burst before parsing malformed authentication bodies", async () => {
   const app = createApp({
     rateLimit: {

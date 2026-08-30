@@ -668,6 +668,8 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
             fetch(`${url}/api/auth/google/start`, {
               headers: { "X-Forwarded-For": alternateIp },
             }),
+          policyHits,
+          ["oauth-google-start"],
         );
         await assertActualThreshold(
           "IP Google callback",
@@ -680,6 +682,8 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
             fetch(`${url}/api/auth/google/callback`, {
               headers: { "X-Forwarded-For": alternateIp },
             }),
+          policyHits,
+          ["oauth-google-callback"],
         );
         await assertActualThreshold(
           "IP iPaymu callback",
@@ -702,6 +706,8 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
               },
               body: "{}",
             }),
+          policyHits,
+          ["payment-ipaymu-callback"],
         );
       }
 
