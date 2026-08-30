@@ -120,6 +120,24 @@ test("Google start and callback use independent central thresholds", async () =>
       true,
     );
     assert.equal(startStatuses[20], 429);
+    const startBlocked = await fetch(
+      `${baseUrl}/api/auth/google/start?returnTo=login`,
+      { redirect: "manual" },
+    );
+    assert.equal(startBlocked.status, 429);
+    assert.deepEqual(await startBlocked.json(), { error: "Too many requests" });
+    assert.match(startBlocked.headers.get("retry-after") ?? "", /^\d+$/u);
+    assert.match(
+      startBlocked.headers.get("ratelimit") ?? "",
+      /^"quota"; r=0; t=\d+$/u,
+    );
+    for (const header of [
+      "x-ratelimit-limit",
+      "x-ratelimit-remaining",
+      "x-ratelimit-reset",
+    ]) {
+      assert.equal(startBlocked.headers.has(header), false);
+    }
 
     const callbackStatuses = await requestStatuses(41, () =>
       fetch(`${baseUrl}/api/auth/google/callback`, {
@@ -137,8 +155,17 @@ test("Google start and callback use independent central thresholds", async () =>
     assert.equal(blocked.status, 429);
     assert.deepEqual(await blocked.json(), { error: "Too many requests" });
     assert.match(blocked.headers.get("retry-after") ?? "", /^\d+$/u);
-    assert.match(blocked.headers.get("ratelimit") ?? "", /quota/u);
-    assert.equal(blocked.headers.has("x-ratelimit-limit"), false);
+    assert.match(
+      blocked.headers.get("ratelimit") ?? "",
+      /^"quota"; r=0; t=\d+$/u,
+    );
+    for (const header of [
+      "x-ratelimit-limit",
+      "x-ratelimit-remaining",
+      "x-ratelimit-reset",
+    ]) {
+      assert.equal(blocked.headers.has(header), false);
+    }
   } finally {
     await stopOAuthApp(server, runtime);
   }
@@ -232,7 +259,45 @@ test("OAuth limits ignore spoofed forwarding headers without explicit proxy trus
   }
 });
 
-test("resetting the central OAuth start store key allows the route again", async () => {
+test("trusted proxy boundaries ignore spoofed earlier forwarding hops", async () => {
+  const { server, runtime, baseUrl } = await startOAuthApp({
+    trustProxy: "127.0.0.1/32,203.0.113.8/32",
+  });
+
+  try {
+    const requestCallback = (ipChain: string) =>
+      fetch(`${baseUrl}/api/auth/google/callback`, {
+        headers: { "X-Forwarded-For": ipChain },
+        redirect: "manual",
+      });
+
+    for (let index = 0; index < 40; index += 1) {
+      assert.equal(
+        (await requestCallback("198.51.100.10, 203.0.113.8")).status,
+        302,
+      );
+    }
+    assert.equal(
+      (await requestCallback("198.51.100.11, 203.0.113.8")).status,
+      302,
+    );
+
+    for (let index = 0; index < 40; index += 1) {
+      assert.equal(
+        (await requestCallback("198.51.100.20, 203.0.113.99")).status,
+        302,
+      );
+    }
+    assert.equal(
+      (await requestCallback("198.51.100.21, 203.0.113.99")).status,
+      429,
+    );
+  } finally {
+    await stopOAuthApp(server, runtime);
+  }
+});
+
+test("resetting either central OAuth store key allows its route again", async () => {
   const stores = new Map<string, Store>();
   const { server, runtime, baseUrl } = await startOAuthApp({
     storeFactory: (policy) => {
@@ -265,6 +330,26 @@ test("resetting the central OAuth start store key allows the route again", async
       { redirect: "manual" },
     );
     assert.equal(reset.status, 302);
+
+    const callbackStatuses = await requestStatuses(40, () =>
+      fetch(`${baseUrl}/api/auth/google/callback`, { redirect: "manual" }),
+    );
+    assert.equal(callbackStatuses.every((status) => status === 302), true);
+    const callbackBlocked = await fetch(
+      `${baseUrl}/api/auth/google/callback`,
+      { redirect: "manual" },
+    );
+    assert.equal(callbackBlocked.status, 429);
+
+    const callbackStore = stores.get(RATE_LIMIT_POLICIES.googleCallback.name);
+    assert.ok(callbackStore?.resetAll);
+    await callbackStore.resetAll();
+
+    const callbackReset = await fetch(
+      `${baseUrl}/api/auth/google/callback`,
+      { redirect: "manual" },
+    );
+    assert.equal(callbackReset.status, 302);
   } finally {
     await stopOAuthApp(server, runtime);
   }

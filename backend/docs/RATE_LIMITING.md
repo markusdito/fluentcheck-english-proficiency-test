@@ -181,6 +181,6 @@ normalization, and generic failure responses through native HTTP requests.
 `test/googleOAuthRateLimit.test.ts` covers the mounted Google start and
 callback thresholds, independent counters, trusted IPv4/IPv6 proxy keys,
 spoofed forwarding headers, reset behavior, response headers, and fail-closed
-store failures. `test/integration/googleAuthFlow.test.ts` verifies that a valid
-PKCE/state callback still creates the application session and clears the
-temporary OAuth cookies.
+store failures. `test/googleOAuth.test.ts` asserts the PKCE parameters, while
+`test/integration/googleAuthFlow.test.ts` verifies that a valid state callback
+still creates the application session and clears the temporary OAuth cookies.
