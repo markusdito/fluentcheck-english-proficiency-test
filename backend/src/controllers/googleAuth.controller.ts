@@ -294,17 +294,11 @@ export function createGoogleAuthHandlers(
         return;
       }
 
-      const providerError = queryValue(request, "error");
-      if (providerError) {
-        fail(providerError === "access_denied" ? "cancelled" : "provider_error");
-        return;
-      }
-
       const code = queryValue(request, "code");
       const state = queryValue(request, "state");
       const savedState = request.cookies?.[OAUTH_COOKIE_NAMES.state];
       const verifier = request.cookies?.[OAUTH_COOKIE_NAMES.verifier];
-      if (!code || !state || !savedState || !verifier) {
+      if (!state || !savedState || !verifier) {
         fail("invalid_request");
         return;
       }
@@ -332,6 +326,16 @@ export function createGoogleAuthHandlers(
       }
       if (!consumed) {
         fail("state_mismatch");
+        return;
+      }
+
+      const providerError = queryValue(request, "error");
+      if (providerError) {
+        fail(providerError === "access_denied" ? "cancelled" : "provider_error");
+        return;
+      }
+      if (!code) {
+        fail("invalid_request");
         return;
       }
 

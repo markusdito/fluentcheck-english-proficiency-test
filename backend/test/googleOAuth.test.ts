@@ -320,12 +320,31 @@ test("cancelled consent and provider failures never echo provider details", asyn
     redirect: "manual",
   });
   const cancelledCallback = await fetch(
-    `${cancelled.url}/callback?error=access_denied&error_description=${encodeURIComponent("token-secret")}`,
+    `${cancelled.url}/callback?error=access_denied&error_description=${encodeURIComponent("token-secret")}&state=${encodeURIComponent(cookieValues(cancelledStart).google_oauth_state)}`,
     { headers: { Cookie: cookieHeader(cancelledStart) }, redirect: "manual" },
   );
   assert.equal(cancelledCallback.headers.get("location"), "https://fluentcheck.example.test/login?google_error=cancelled");
   assert.doesNotMatch(cancelledCallback.headers.get("location") ?? "", /token-secret/u);
   assertOAuthCookiesCleared(cancelledCallback);
+
+  const cancelledReplay = await fetch(
+    `${cancelled.url}/callback?code=code&state=${encodeURIComponent(cookieValues(cancelledStart).google_oauth_state)}`,
+    { headers: { Cookie: cookieHeader(cancelledStart) }, redirect: "manual" },
+  );
+  assert.equal(
+    cancelledReplay.headers.get("location"),
+    "https://fluentcheck.example.test/login?google_error=state_mismatch",
+  );
+
+  const missingStateCancellation = await fetch(
+    `${cancelled.url}/callback?error=access_denied`,
+    { headers: { Cookie: cookieHeader(cancelledStart) }, redirect: "manual" },
+  );
+  assert.equal(
+    missingStateCancellation.headers.get("location"),
+    "https://fluentcheck.example.test/login?google_error=invalid_request",
+  );
+  assertOAuthCookiesCleared(missingStateCancellation);
 
   const failingClient = new FakeGoogleClient();
   failingClient.getToken = async () => {
@@ -336,8 +355,9 @@ test("cancelled consent and provider failures never echo provider details", asyn
   const failedStart = await fetch(`${failed.url}/start?returnTo=signup`, {
     redirect: "manual",
   });
+  const failedState = cookieValues(failedStart).google_oauth_state;
   const failedCallback = await fetch(
-    `${failed.url}/callback?code=code&state=${encodeURIComponent(cookieValues(failedStart).google_oauth_state)}`,
+    `${failed.url}/callback?code=code&state=${encodeURIComponent(failedState)}`,
     { headers: { Cookie: cookieHeader(failedStart) }, redirect: "manual" },
   );
   assert.equal(failedCallback.headers.get("location"), "https://fluentcheck.example.test/signup?google_error=provider_error");
