@@ -4,7 +4,7 @@ import { once } from "node:events";
 import net from "node:net";
 import { test } from "node:test";
 import type { Express } from "express";
-import type { Store } from "express-rate-limit";
+import { MemoryStore, type Store } from "express-rate-limit";
 import { createApp, unhandledRequestError } from "../src/server.js";
 import {
   createRateLimitConfig,
@@ -182,6 +182,41 @@ async function stop(server: Server, runtime: RateLimitRuntime): Promise<void> {
   await once(server, "close");
   await runtime.shutdown();
 }
+
+test("rejects a local store factory for distributed topology", () => {
+  assert.throws(
+    () =>
+      createApp({
+        rateLimit: {
+          config: sharedConfig(),
+          storeFactory: () => new MemoryStore(),
+        },
+      }),
+    /local rate-limit store is not allowed for multi-process or multi-instance topology/,
+  );
+});
+
+test("rejects a store without an explicit shared-store marker", () => {
+  const unmarkedStore = {
+    increment: async () => ({
+      totalHits: 1,
+      resetTime: new Date(Date.now() + 60_000),
+    }),
+    decrement: async () => {},
+    resetKey: async () => {},
+  } satisfies Store;
+
+  assert.throws(
+    () =>
+      createApp({
+        rateLimit: {
+          config: sharedConfig(),
+          storeFactory: () => unmarkedStore,
+        },
+      }),
+    /must explicitly set localKeys=false for distributed topology/,
+  );
+});
 
 function createLimitedApp(
   configuredPolicy: ReturnType<typeof policy>,

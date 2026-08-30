@@ -609,7 +609,13 @@ export function verifyWebhookSignature(req: Request, res: Response, next: NextFu
 
 ### Rate-limit topology (#63)
 
-Rate limiting is implemented in phases. #83 owns the authentication policies with the built-in MemoryStore for one Express process. #109 owns the general API baseline and payment operations. #111 owns Answer and question-audio mutations, #112 owns Submission mutations, and #113 owns the OAuth limiter adapter once the provider handlers from #56/#58 land. #110 owns the shared external store and the production multi-instance gate; #114 verifies the complete rollout and topology. Until that verification is complete, a deployment with more than one process or instance must not claim distributed rate-limit enforcement.
+Rate limiting is implemented as one centralized route-boundary contract. #83
+owns authentication policies, #109 owns the general API baseline and payment
+operations, #111 owns Answer and question-audio mutations, #112 owns
+Submission mutations, and #113 owns the OAuth limiter adapter. #110 owns the
+shared external store and production multi-instance gate. The complete
+rollout and topology were verified by #114; a deployment with more than one
+process or instance is valid only when it uses the shared-store configuration.
 
 The route-boundary contract is:
 
@@ -733,7 +739,7 @@ The route-boundary contract is:
 7. **Examiner** — Assignment creation, score submission, work queue
 8. **Results** — Score aggregation, result detail, certificate generation
 9. **Admin** — User management, examiner assignment, dashboard stats
-10. **Polish** — Rate limiting, error handling refinements, logging, API documentation
+10. **Security and polish** — Verified rate limiting, error handling refinements, logging, API documentation
 
 ---
 
