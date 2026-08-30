@@ -41,19 +41,26 @@ export function CameraMicPermissionModal({
 
   // Attempt permissions on mount if modal is open
   useEffect(() => {
-    if (open && !hasRequestedRef.current) {
-      hasRequestedRef.current = true;
-      let cancelled = false;
-      requestPermissions().then((granted) => {
-        if (!cancelled) {
-          setPermissionGranted(granted);
-        }
-      });
-      return () => {
-        cancelled = true;
-      };
+    if (!open) {
+      hasRequestedRef.current = false;
+      stopStream();
+      return;
     }
-  }, [open, requestPermissions]);
+
+    if (hasRequestedRef.current) return;
+
+    hasRequestedRef.current = true;
+    let cancelled = false;
+    requestPermissions().then((granted) => {
+      if (!cancelled) {
+        setPermissionGranted(granted);
+      }
+    });
+    return () => {
+      cancelled = true;
+      hasRequestedRef.current = false;
+    };
+  }, [open, requestPermissions, stopStream]);
 
   const handleClose = () => {
     hasRequestedRef.current = false;
