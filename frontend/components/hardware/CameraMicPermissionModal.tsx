@@ -30,7 +30,7 @@ export function CameraMicPermissionModal({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
-  const [hasRequested, setHasRequested] = useState(false);
+  const hasRequestedRef = useRef(false);
 
   // Attach stream to video element
   useEffect(() => {
@@ -41,22 +41,31 @@ export function CameraMicPermissionModal({
 
   // Attempt permissions on mount if modal is open
   useEffect(() => {
-    if (open && !hasRequested) {
-      setHasRequested(true);
+    if (open && !hasRequestedRef.current) {
+      hasRequestedRef.current = true;
+      let cancelled = false;
       requestPermissions().then((granted) => {
-        setPermissionGranted(granted);
+        if (!cancelled) {
+          setPermissionGranted(granted);
+        }
       });
+      return () => {
+        cancelled = true;
+      };
     }
-  }, [open, hasRequested, requestPermissions]);
+  }, [open, requestPermissions]);
 
-  // Reset state when modal reopens
-  useEffect(() => {
-    if (!open) {
-      setHasRequested(false);
-      setPermissionGranted(false);
-      stopStream();
-    }
-  }, [open, stopStream]);
+  const handleClose = () => {
+    hasRequestedRef.current = false;
+    stopStream();
+    onClose();
+  };
+
+  const handleComplete = () => {
+    hasRequestedRef.current = false;
+    stopStream();
+    onComplete();
+  };
 
   const handleRetry = () => {
     requestPermissions().then((granted) => {
@@ -65,6 +74,7 @@ export function CameraMicPermissionModal({
   };
 
   const allChecksPassed =
+    open &&
     permissionGranted &&
     videoDevices.length > 0 &&
     audioDevices.length > 0;
@@ -75,7 +85,7 @@ export function CameraMicPermissionModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
       role="dialog"
       aria-modal="true"
@@ -167,7 +177,7 @@ export function CameraMicPermissionModal({
           <div className="border border-rule bg-rule/30 px-4 py-3">
             <div className="flex items-center gap-3">
               <span className="shrink-0">
-                {permissionGranted ? (
+                {open && permissionGranted ? (
                   micLevel > 5 ? (
                     <svg className="h-5 w-5 text-verified" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
@@ -190,14 +200,14 @@ export function CameraMicPermissionModal({
                   <p
                     className={cn(
                       "truncate text-xs",
-                      !permissionGranted
+                      !(open && permissionGranted)
                         ? "text-ink-soft"
                         : micLevel > 5
                           ? "text-verified"
                           : "text-amber-500",
                     )}
                   >
-                    {!permissionGranted
+                    {!(open && permissionGranted)
                       ? "Permissions not yet granted"
                       : micLevel > 5
                         ? "Microphone is picking up sound"
@@ -242,12 +252,12 @@ export function CameraMicPermissionModal({
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3">
-          <Button variant="ghost" onClick={onClose} disabled={isLoading}>
+          <Button variant="ghost" onClick={handleClose} disabled={isLoading}>
             Skip for now
           </Button>
           <Button
             variant="default"
-            onClick={onComplete}
+            onClick={handleComplete}
             disabled={!allChecksPassed || isLoading}
             loading={isLoading}
           >

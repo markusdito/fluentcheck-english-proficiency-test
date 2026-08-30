@@ -162,7 +162,10 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
   /** Enumerate devices on mount in case permissions already granted */
   useEffect(() => {
-    enumerateDevices();
+    const timeoutId = window.setTimeout(() => {
+      void enumerateDevices();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [enumerateDevices]);
 
   /** Listen for device changes */
