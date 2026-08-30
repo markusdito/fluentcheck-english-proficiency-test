@@ -442,8 +442,28 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         },
         body: "{}",
       });
+    const answerConfirmation = (userId: string, ip = primaryIp) =>
+      fetch(`${url}/api/uploads/confirm`, {
+        method: "POST",
+        headers: {
+          Cookie: cookie(userId),
+          "X-Forwarded-For": ip,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
     const questionAudio = (userId: string, ip = primaryIp) =>
       fetch(`${url}/api/questions/audio/presigned-url`, {
+        method: "POST",
+        headers: {
+          Cookie: cookie(userId),
+          "X-Forwarded-For": ip,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+    const questionAudioConfirmation = (userId: string, ip = primaryIp) =>
+      fetch(`${url}/api/questions/audio/confirm`, {
         method: "POST",
         headers: {
           Cookie: cookie(userId),
@@ -495,12 +515,28 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
           : () => answerUpload(student.id, alternateIp),
       );
       await assertActualThreshold(
+        `${targetScope} Answer confirmation`,
+        () => answerConfirmation(student.id),
+        stores,
+        targetScope === "account"
+          ? () => answerConfirmation(otherStudent.id)
+          : () => answerConfirmation(student.id, alternateIp),
+      );
+      await assertActualThreshold(
         `${targetScope} question audio`,
         () => questionAudio(admin.id),
         stores,
         targetScope === "account"
           ? () => questionAudio(otherAdmin.id)
           : () => questionAudio(admin.id, alternateIp),
+      );
+      await assertActualThreshold(
+        `${targetScope} question audio confirmation`,
+        () => questionAudioConfirmation(admin.id),
+        stores,
+        targetScope === "account"
+          ? () => questionAudioConfirmation(otherAdmin.id)
+          : () => questionAudioConfirmation(admin.id, alternateIp),
       );
       await assertActualThreshold(
         `${targetScope} Submission creation`,

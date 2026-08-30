@@ -10,7 +10,8 @@ import {
 } from "@testcontainers/postgresql";
 import bcrypt from "bcryptjs";
 import type { Express } from "express";
-import { MemoryStore } from "express-rate-limit";
+import { MemoryStore, type Store } from "express-rate-limit";
+import type { RateLimitPolicy } from "../../src/config/rate-limit.js";
 import type { PrismaClient } from "../../src/generated/client.js";
 import type { RateLimitRuntime } from "../../src/middleware/rate-limit.middleware.js";
 
@@ -63,7 +64,10 @@ after(async () => {
   await container.stop();
 }, { timeout: 120_000 });
 
-async function startRateLimitedApp(trustProxy = "none") {
+async function startRateLimitedApp(
+  storeFactory: (policy: RateLimitPolicy) => Store = () => new MemoryStore(),
+  trustProxy = "none",
+) {
   const app: Express = createApplication({
     rateLimit: {
       config: createRateLimitConfig({
@@ -71,7 +75,7 @@ async function startRateLimitedApp(trustProxy = "none") {
         jwtSecret: JWT_SECRET,
         trustProxy,
       }),
-      storeFactory: () => new MemoryStore(),
+      storeFactory,
     },
   });
   const runtime = app.locals.rateLimit as RateLimitRuntime;
@@ -113,6 +117,61 @@ async function postMalformedJson(baseUrl: string, path: string, headers = {}) {
   });
 }
 
+function nearLimitStoreFactory(targetPolicyName: string) {
+  const stores = new Map<string, Store>();
+  const factory = (configuredPolicy: RateLimitPolicy): Store => {
+    const keyHits = new Map<string, number>();
+    const store: Store = {
+      localKeys: false,
+      increment: async (key) => {
+        const initialHits =
+          configuredPolicy.name === targetPolicyName
+            ? configuredPolicy.limit - 1
+            : 0;
+        const totalHits = (keyHits.get(key) ?? initialHits) + 1;
+        keyHits.set(key, totalHits);
+        return {
+          totalHits,
+          resetTime: new Date(Date.now() + configuredPolicy.windowMs),
+        };
+      },
+      decrement: async () => {},
+      resetKey: async () => {},
+      resetAll: async () => {
+        keyHits.clear();
+      },
+    };
+    stores.set(configuredPolicy.name, store);
+    return store;
+  };
+
+  return { factory, stores };
+}
+
+async function resetAuthRateLimitStores(stores: Map<string, Store>) {
+  await Promise.all(
+    [...stores.values()].map((store) => store.resetAll?.()),
+  );
+}
+
+async function assertAuthThreshold(
+  label: string,
+  request: () => Promise<Response>,
+  stores: Map<string, Store>,
+  independentRequest: () => Promise<Response>,
+) {
+  const accepted = await request();
+  assert.notEqual(accepted.status, 429, `${label} threshold request`);
+  const blocked = await request();
+  assert.equal(blocked.status, 429, `${label} over-limit request`);
+  const independent = await independentRequest();
+  assert.notEqual(independent.status, 429, `${label} independent identity`);
+  await resetAuthRateLimitStores(stores);
+  const reset = await request();
+  assert.notEqual(reset.status, 429, `${label} reset request`);
+  await resetAuthRateLimitStores(stores);
+}
+
 async function createUser(
   email: string,
   password = "correct-password",
@@ -152,6 +211,154 @@ test("login and registration bursts run before body parsing and remain independe
     assert.equal(registrationStatuses[30], 429);
   } finally {
     await stopRateLimitedApp(server, runtime);
+  }
+});
+
+test("real authentication policies enforce account, email, and IP boundaries", async () => {
+  const accountUser = await createUser("auth-boundary@example.com");
+  const otherAccount = await createUser("auth-other-boundary@example.com");
+  const primaryIp = "198.51.100.10";
+  const alternateIp = "198.51.100.11";
+  const policyNames = [
+    "auth-login-burst",
+    "auth-registration-burst",
+    "auth-login-failure-account",
+    "auth-login-failure-ip",
+    "auth-registration-ip",
+    "auth-registration-email",
+  ];
+
+  for (const targetPolicyName of policyNames) {
+    const { factory, stores } = nearLimitStoreFactory(targetPolicyName);
+    const { server, runtime, url } = await startRateLimitedApp(
+      factory,
+      "127.0.0.1/32",
+    );
+
+    try {
+      assert.equal(stores.has(targetPolicyName), true);
+      if (targetPolicyName === "auth-login-burst") {
+        await assertAuthThreshold(
+          targetPolicyName,
+          () =>
+            postMalformedJson(url, "/auth/login", {
+              "X-Forwarded-For": primaryIp,
+            }),
+          stores,
+          () =>
+            postMalformedJson(url, "/auth/login", {
+              "X-Forwarded-For": alternateIp,
+            }),
+        );
+      } else if (targetPolicyName === "auth-registration-burst") {
+        await assertAuthThreshold(
+          targetPolicyName,
+          () =>
+            postMalformedJson(url, "/auth/register", {
+              "X-Forwarded-For": primaryIp,
+            }),
+          stores,
+          () =>
+            postMalformedJson(url, "/auth/register", {
+              "X-Forwarded-For": alternateIp,
+            }),
+        );
+      } else if (targetPolicyName === "auth-login-failure-account") {
+        await assertAuthThreshold(
+          targetPolicyName,
+          () =>
+            postJson(
+              url,
+              "/auth/login",
+              { email: accountUser.email, password: "wrong-password" },
+              { "X-Forwarded-For": primaryIp },
+            ),
+          stores,
+          () =>
+            postJson(
+              url,
+              "/auth/login",
+              { email: otherAccount.email, password: "wrong-password" },
+              { "X-Forwarded-For": primaryIp },
+            ),
+        );
+      } else if (targetPolicyName === "auth-login-failure-ip") {
+        await assertAuthThreshold(
+          targetPolicyName,
+          () =>
+            postJson(
+              url,
+              "/auth/login",
+              { email: accountUser.email, password: "wrong-password" },
+              { "X-Forwarded-For": primaryIp },
+            ),
+          stores,
+          () =>
+            postJson(
+              url,
+              "/auth/login",
+              { email: accountUser.email, password: "wrong-password" },
+              { "X-Forwarded-For": alternateIp },
+            ),
+        );
+      } else if (targetPolicyName === "auth-registration-ip") {
+        await assertAuthThreshold(
+          targetPolicyName,
+          () =>
+            postJson(
+              url,
+              "/auth/register",
+              {
+                username: "auth_registration_ip_primary",
+                email: "auth-registration-ip@example.com",
+                password: "password-123",
+              },
+              { "X-Forwarded-For": primaryIp },
+            ),
+          stores,
+          () =>
+            postJson(
+              url,
+              "/auth/register",
+              {
+                username: "auth_registration_ip_alternate",
+                email: "auth-registration-ip-alternate@example.com",
+                password: "password-123",
+              },
+              { "X-Forwarded-For": alternateIp },
+            ),
+        );
+      } else {
+        await assertAuthThreshold(
+          targetPolicyName,
+          () =>
+            postJson(
+              url,
+              "/auth/register",
+              {
+                username: "auth_registration_email_primary",
+                email: "auth-registration-email@example.com",
+                password: "password-123",
+              },
+              { "X-Forwarded-For": primaryIp },
+            ),
+          stores,
+          () =>
+            postJson(
+              url,
+              "/auth/register",
+              {
+                username: "auth_registration_email_alternate",
+                email: "auth-registration-email-alternate@example.com",
+                password: "password-123",
+              },
+              { "X-Forwarded-For": primaryIp },
+            ),
+        );
+      }
+    } finally {
+      await stopRateLimitedApp(server, runtime);
+    }
   }
 });
 
@@ -340,6 +547,7 @@ test("successful login does not reset the exact 100-failure IP boundary", async 
 
 test("trusted proxy IPs participate in authentication keys with IPv6 subnet grouping", async () => {
   const { server, runtime, url } = await startRateLimitedApp(
+    undefined,
     "127.0.0.1/32,::ffff:127.0.0.1/128",
   );
   try {
