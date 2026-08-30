@@ -18,6 +18,10 @@ Registration and Google OAuth do not currently provide an explicit persistence
 choice. They therefore need a safe session-only default until a future flow
 deliberately obtains that consent.
 
+The terms used here describe general authentication technology rather than a
+FluentCheck-specific domain concept, so the root domain glossary intentionally
+remains unchanged.
+
 ## Decision
 
 Authentication persistence is represented inside the authentication module as
