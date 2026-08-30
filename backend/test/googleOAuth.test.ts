@@ -1,0 +1,235 @@
+import assert from "node:assert/strict";
+import type { Server } from "node:http";
+import { once } from "node:events";
+import { after, before, test } from "node:test";
+import express, { type Response } from "express";
+import cookieParser from "cookie-parser";
+import {
+  createGoogleAuthHandlers,
+  type GoogleOAuthClient,
+  type GoogleTokenPayload,
+} from "../src/service/google-auth.service.js";
+import type { AuthAccount, GoogleIdentity } from "../src/service/google-auth.service.js";
+
+const config = {
+  clientId: "123456789.apps.googleusercontent.com",
+  clientSecret: "google-client-secret",
+  redirectUri: "http://localhost:5001/api/auth/google/callback",
+};
+
+class FakeGoogleClient implements GoogleOAuthClient {
+  authOptions?: Parameters<GoogleOAuthClient["generateAuthUrl"]>[0];
+  tokenOptions?: Parameters<GoogleOAuthClient["getToken"]>[0];
+  payload: GoogleTokenPayload = {
+    aud: config.clientId,
+    email: "jane@gmail.com",
+    email_verified: true,
+    exp: Math.floor(Date.now() / 1000) + 300,
+    iss: "https://accounts.google.com",
+    name: "Jane Doe",
+    sub: "google-subject",
+  };
+
+  generateAuthUrl(
+    options: Parameters<GoogleOAuthClient["generateAuthUrl"]>[0],
+  ) {
+    this.authOptions = options;
+    const url = new URL("https://accounts.google.test/authorize");
+    for (const [key, value] of Object.entries(options)) {
+      if (Array.isArray(value)) url.searchParams.set(key, value.join(" "));
+      else url.searchParams.set(key, String(value));
+    }
+    return url.toString();
+  }
+
+  async getToken(options: Parameters<GoogleOAuthClient["getToken"]>[0]) {
+    this.tokenOptions = options;
+    return { tokens: { id_token: "id-token" } };
+  }
+
+  async verifyIdToken() {
+    return { getPayload: () => this.payload };
+  }
+}
+
+function account(): AuthAccount {
+  return {
+    id: "00000000-0000-4000-8000-000000000001",
+    username: "jane_doe",
+    email: "jane@gmail.com",
+    role: "STUDENT",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+}
+
+function cookieHeader(response: globalThis.Response) {
+  const headers = response.headers as Headers & {
+    getSetCookie?: () => string[];
+  };
+  const values = headers.getSetCookie?.() ??
+    (headers.get("set-cookie") ?? "").split(/,(?=[^;]+=)/u).filter(Boolean);
+  return values.map((value) => value.split(";", 1)[0]).join("; ");
+}
+
+function cookieValues(response: globalThis.Response) {
+  return Object.fromEntries(
+    cookieHeader(response)
+      .split(/;\s*/u)
+      .filter(Boolean)
+      .map((entry) => entry.split("=", 2)),
+  );
+}
+
+async function createTestServer(client: FakeGoogleClient, issueSession = true) {
+  const issued: string[] = [];
+  const handlers = createGoogleAuthHandlers(config, {
+    client,
+    frontendUrl: "https://fluentcheck.example.test",
+    resolveAccount: async (_identity: GoogleIdentity) => account(),
+    issueSession: issueSession
+      ? (userId: string, response: Response) => {
+          issued.push(userId);
+          response.cookie("jwt", "session-token");
+        }
+      : undefined,
+  });
+  const app = express();
+  app.use(cookieParser());
+  app.get("/start", handlers.start);
+  app.get("/callback", handlers.callback);
+  const server = app.listen(0);
+  await once(server, "listening");
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  return { server, url: `http://127.0.0.1:${address.port}`, issued };
+}
+
+let servers: Server[] = [];
+
+after(async () => {
+  await Promise.all(
+    servers.map(async (server) => {
+      server.close();
+      await once(server, "close");
+    }),
+  );
+});
+
+test("OAuth starts use distinct state and S256 PKCE cookies for each auth page", async () => {
+  const client = new FakeGoogleClient();
+  const { server, url } = await createTestServer(client);
+  servers.push(server);
+
+  const login = await fetch(`${url}/start?returnTo=login`, { redirect: "manual" });
+  const loginCookies = cookieValues(login);
+  const loginOptions = client.authOptions!;
+  const signup = await fetch(`${url}/start?returnTo=signup`, { redirect: "manual" });
+  const signupCookies = cookieValues(signup);
+  const signupOptions = client.authOptions!;
+
+  assert.equal(login.status, 302);
+  assert.equal(signup.status, 302);
+  assert.notEqual(loginOptions.state, signupOptions.state);
+  assert.equal(loginOptions.code_challenge_method, "S256");
+  assert.match(loginOptions.code_challenge, /^[A-Za-z0-9_-]+$/u);
+  assert.equal(loginCookies.google_oauth_return_to, "login");
+  assert.match(login.headers.get("set-cookie") ?? "", /HttpOnly/);
+  assert.match(login.headers.get("set-cookie") ?? "", /SameSite=Lax/);
+  assert.match(login.headers.get("set-cookie") ?? "", /Path=\/api\/auth\/google/);
+  assert.equal(signupCookies.google_oauth_return_to, "signup");
+});
+
+test("valid callbacks exchange the saved PKCE verifier, issue a session, and redirect safely", async () => {
+  const client = new FakeGoogleClient();
+  const { server, url, issued } = await createTestServer(client);
+  servers.push(server);
+
+  const start = await fetch(`${url}/start?returnTo=signup`, { redirect: "manual" });
+  const cookies = cookieValues(start);
+  const callback = await fetch(
+    `${url}/callback?code=authorization-code&state=${encodeURIComponent(cookies.google_oauth_state)}`,
+    { headers: { Cookie: cookieHeader(start) }, redirect: "manual" },
+  );
+
+  assert.equal(callback.status, 302);
+  assert.equal(callback.headers.get("location"), "https://fluentcheck.example.test/dashboard");
+  assert.deepEqual(issued, [account().id]);
+  assert.deepEqual(client.tokenOptions, {
+    code: "authorization-code",
+    codeVerifier: cookies.google_oauth_verifier,
+    redirect_uri: config.redirectUri,
+  });
+  assert.match(callback.headers.get("set-cookie") ?? "", /google_oauth_state=;/);
+  assert.match(callback.headers.get("set-cookie") ?? "", /Path=\/api\/auth\/google/);
+});
+
+test("missing and mismatched callback state redirect with allowlisted errors and clear cookies", async () => {
+  const client = new FakeGoogleClient();
+  const { server, url } = await createTestServer(client);
+  servers.push(server);
+
+  const start = await fetch(`${url}/start?returnTo=login`, { redirect: "manual" });
+  const mismatched = await fetch(`${url}/callback?code=code&state=wrong`, {
+    headers: { Cookie: cookieHeader(start) },
+    redirect: "manual",
+  });
+  assert.equal(mismatched.status, 302);
+  assert.equal(
+    mismatched.headers.get("location"),
+    "https://fluentcheck.example.test/login?google_error=state_mismatch",
+  );
+  assert.match(mismatched.headers.get("set-cookie") ?? "", /google_oauth_verifier=;/);
+
+  const missing = await fetch(`${url}/callback`, { redirect: "manual" });
+  assert.equal(missing.status, 302);
+  assert.equal(
+    missing.headers.get("location"),
+    "https://fluentcheck.example.test/login?google_error=invalid_request",
+  );
+});
+
+test("invalid ID-token claims are rejected without provider details", async () => {
+  const invalidPayloads: GoogleTokenPayload[] = [
+    { ...new FakeGoogleClient().payload, aud: "wrong-client" },
+    { ...new FakeGoogleClient().payload, iss: "https://evil.example" },
+    { ...new FakeGoogleClient().payload, exp: Math.floor(Date.now() / 1000) - 1 },
+    { ...new FakeGoogleClient().payload, sub: undefined },
+    { ...new FakeGoogleClient().payload, email: undefined },
+    { ...new FakeGoogleClient().payload, email_verified: false },
+  ];
+
+  for (const payload of invalidPayloads) {
+    const client = new FakeGoogleClient();
+    client.payload = payload;
+    const { server, url } = await createTestServer(client);
+    servers.push(server);
+    const start = await fetch(`${url}/start?returnTo=signup`, { redirect: "manual" });
+    const cookies = cookieValues(start);
+    const callback = await fetch(
+      `${url}/callback?code=code&state=${encodeURIComponent(cookies.google_oauth_state)}`,
+      { headers: { Cookie: cookieHeader(start) }, redirect: "manual" },
+    );
+    assert.equal(callback.status, 302);
+    assert.equal(
+      callback.headers.get("location"),
+      "https://fluentcheck.example.test/signup?google_error=invalid_identity",
+    );
+  }
+});
+
+test("untrusted returnTo values never escape the fixed auth pages", async () => {
+  const client = new FakeGoogleClient();
+  const { server, url } = await createTestServer(client);
+  servers.push(server);
+
+  const response = await fetch(
+    `${url}/start?returnTo=${encodeURIComponent("https://evil.example")}`,
+    { redirect: "manual" },
+  );
+  assert.equal(response.status, 302);
+  assert.equal(
+    response.headers.get("location"),
+    "https://fluentcheck.example.test/login?google_error=invalid_request",
+  );
+  assert.match(response.headers.get("set-cookie") ?? "", /google_oauth_state=;/);
+});

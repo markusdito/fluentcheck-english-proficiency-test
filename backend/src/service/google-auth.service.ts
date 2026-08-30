@@ -1,5 +1,10 @@
+import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
+import { OAuth2Client } from "google-auth-library";
+import type { Request, RequestHandler, Response } from "express";
 import { Prisma, type PrismaClient } from "../generated/client.js";
 import { prisma } from "../config/db.js";
+import { env, type GoogleOAuthConfig } from "../config/env.js";
+import { generateToken } from "../utils/jwt.js";
 import { normalizeEmail } from "../schemas/auth.schema.js";
 
 const ACCOUNT_SELECT = {
@@ -18,6 +23,18 @@ const ACCOUNT_STATE_SELECT = {
 
 const MAX_USERNAME_LENGTH = 50;
 const MAX_ACCOUNT_RESOLUTION_ATTEMPTS = 4;
+const OAUTH_COOKIE_PATH = "/api/auth/google";
+const OAUTH_COOKIE_MAX_AGE_MS = 10 * 60 * 1_000;
+const GOOGLE_ISSUERS = new Set([
+  "https://accounts.google.com",
+  "accounts.google.com",
+]);
+
+const OAUTH_COOKIE_NAMES = {
+  state: "google_oauth_state",
+  verifier: "google_oauth_verifier",
+  returnTo: "google_oauth_return_to",
+} as const;
 
 export interface GoogleIdentity {
   readonly subject: string;
@@ -39,6 +56,65 @@ export class GoogleAccountResolutionError extends Error {
     super(code);
     this.name = "GoogleAccountResolutionError";
   }
+}
+
+export interface GoogleTokenPayload {
+  readonly iss?: string;
+  readonly aud?: string | string[];
+  readonly sub?: string;
+  readonly email?: string;
+  readonly email_verified?: boolean;
+  readonly name?: string;
+  readonly hd?: string;
+  readonly exp?: number;
+}
+
+export interface GoogleAuthUrlOptions {
+  readonly access_type: "online";
+  readonly scope: readonly string[];
+  readonly state: string;
+  readonly redirect_uri: string;
+  readonly code_challenge: string;
+  readonly code_challenge_method: "S256";
+}
+
+export interface GoogleTokenExchangeOptions {
+  readonly code: string;
+  readonly codeVerifier: string;
+  readonly redirect_uri: string;
+}
+
+export interface GoogleOAuthClient {
+  generateAuthUrl(options: GoogleAuthUrlOptions): string;
+  getToken(options: GoogleTokenExchangeOptions): Promise<{
+    readonly tokens: { readonly id_token?: string | null };
+  }>;
+  verifyIdToken(options: {
+    readonly idToken: string;
+    readonly audience: string;
+  }): Promise<{ getPayload(): GoogleTokenPayload | undefined }>;
+}
+
+export type GoogleErrorCode =
+  | "invalid_request"
+  | "state_mismatch"
+  | "cancelled"
+  | "provider_error"
+  | "invalid_identity"
+  | "account_conflict"
+  | "account_inactive";
+
+export interface GoogleAuthHandlerDependencies {
+  readonly client?: GoogleOAuthClient;
+  readonly frontendUrl?: string;
+  readonly resolveAccount?: (identity: GoogleIdentity) => Promise<AuthAccount>;
+  readonly issueSession?: (userId: string, response: Response) => unknown;
+  readonly now?: () => number;
+}
+
+export interface GoogleAuthHandlers {
+  readonly start: RequestHandler;
+  readonly callback: RequestHandler;
 }
 
 class GoogleAccountResolutionRetry extends Error {
@@ -201,4 +277,250 @@ export async function resolveGoogleAccount(
     }
   }
   throw new GoogleAccountResolutionError("account_conflict");
+}
+
+function randomBase64Url(bytes: number) {
+  return randomBytes(bytes).toString("base64url");
+}
+
+function codeChallenge(verifier: string) {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
+
+function returnToValue(value: unknown): "login" | "signup" | undefined {
+  return value === "login" || value === "signup" ? value : undefined;
+}
+
+function queryValue(request: Request, key: string) {
+  const value = request.query[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function oauthCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: OAUTH_COOKIE_PATH,
+    maxAge: OAUTH_COOKIE_MAX_AGE_MS,
+  };
+}
+
+function clearOAuthCookies(response: Response) {
+  const options = oauthCookieOptions();
+  for (const name of Object.values(OAUTH_COOKIE_NAMES)) {
+    response.clearCookie(name, {
+      httpOnly: options.httpOnly,
+      secure: options.secure,
+      sameSite: options.sameSite,
+      path: options.path,
+    });
+  }
+}
+
+function frontendRedirect(
+  frontendUrl: string,
+  page: "login" | "signup" | "dashboard",
+  error?: GoogleErrorCode,
+) {
+  let url: URL;
+  try {
+    url = new URL(frontendUrl);
+  } catch {
+    throw new Error("FRONTEND_URL must be an absolute URL");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("FRONTEND_URL must use HTTP or HTTPS");
+  }
+  if (url.username || url.password) {
+    throw new Error("FRONTEND_URL must not contain credentials");
+  }
+  if (env.NODE_ENV === "production" && url.protocol !== "https:") {
+    throw new Error("FRONTEND_URL must use HTTPS in production");
+  }
+  url.pathname = `/${page}`;
+  url.search = "";
+  url.hash = "";
+  if (error) url.searchParams.set("google_error", error);
+  return url.toString();
+}
+
+function redirectFailure(
+  response: Response,
+  frontendUrl: string,
+  returnTo: "login" | "signup",
+  error: GoogleErrorCode,
+) {
+  clearOAuthCookies(response);
+  response.redirect(frontendRedirect(frontendUrl, returnTo, error));
+}
+
+function validAudience(audience: string | string[] | undefined, clientId: string) {
+  return Array.isArray(audience)
+    ? audience.includes(clientId)
+    : audience === clientId;
+}
+
+function identityFromPayload(
+  payload: GoogleTokenPayload | undefined,
+  clientId: string,
+  now: () => number,
+): GoogleIdentity {
+  const nowSeconds = Math.floor(now() / 1_000);
+  const expiration = payload?.exp;
+  const normalizedEmail =
+    typeof payload?.email === "string" ? normalizeEmail(payload.email) : "";
+  if (
+    !payload ||
+    !validAudience(payload.aud, clientId) ||
+    !payload.iss ||
+    !GOOGLE_ISSUERS.has(payload.iss) ||
+    typeof expiration !== "number" ||
+    !Number.isSafeInteger(expiration) ||
+    expiration <= nowSeconds ||
+    typeof payload.sub !== "string" ||
+    payload.sub.trim().length === 0 ||
+    typeof payload.email !== "string" ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(normalizedEmail) ||
+    payload.email_verified !== true
+  ) {
+    throw new GoogleAccountResolutionError("invalid_identity");
+  }
+
+  return {
+    subject: payload.sub,
+    email: payload.email,
+    emailVerified: true,
+    ...(typeof payload.name === "string" ? { name: payload.name } : {}),
+    ...(typeof payload.hd === "string" ? { hostedDomain: payload.hd } : {}),
+  };
+}
+
+function mapFailureCode(error: unknown): GoogleErrorCode {
+  if (error instanceof GoogleAccountResolutionError) return error.code;
+  return "provider_error";
+}
+
+/**
+ * Creates the provider-owned handlers while keeping the account resolver and
+ * token issuer injectable for native HTTP tests without Google credentials.
+ */
+export function createGoogleAuthHandlers(
+  config: GoogleOAuthConfig,
+  dependencies: GoogleAuthHandlerDependencies = {},
+): GoogleAuthHandlers {
+  const client =
+    dependencies.client ??
+    (new OAuth2Client(
+      config.clientId,
+      config.clientSecret,
+      config.redirectUri,
+    ) as unknown as GoogleOAuthClient);
+  const frontendUrl = dependencies.frontendUrl ?? env.FRONTEND_URL;
+  frontendRedirect(frontendUrl, "login");
+  const resolveAccount = dependencies.resolveAccount ?? resolveGoogleAccount;
+  const issueSession =
+    dependencies.issueSession ??
+    ((userId: string, response: Response) =>
+      generateToken(userId, response, "session"));
+  const now = dependencies.now ?? (() => Date.now());
+
+  const start: RequestHandler = (request, response) => {
+    const returnTo = returnToValue(queryValue(request, "returnTo"));
+    if (!returnTo) {
+      redirectFailure(response, frontendUrl, "login", "invalid_request");
+      return;
+    }
+
+    const state = randomBase64Url(32);
+    const verifier = randomBase64Url(32);
+    response.cookie(OAUTH_COOKIE_NAMES.state, state, oauthCookieOptions());
+    response.cookie(OAUTH_COOKIE_NAMES.verifier, verifier, oauthCookieOptions());
+    response.cookie(OAUTH_COOKIE_NAMES.returnTo, returnTo, oauthCookieOptions());
+
+    try {
+      const authorizationUrl = client.generateAuthUrl({
+        access_type: "online",
+        scope: ["openid", "email", "profile"],
+        state,
+        redirect_uri: config.redirectUri,
+        code_challenge: codeChallenge(verifier),
+        code_challenge_method: "S256",
+      });
+      response.redirect(authorizationUrl);
+    } catch {
+      redirectFailure(response, frontendUrl, returnTo, "provider_error");
+    }
+  };
+
+  const callback: RequestHandler = async (request, response) => {
+    const returnTo = returnToValue(request.cookies?.[OAUTH_COOKIE_NAMES.returnTo]) ?? "login";
+    const fail = (error: GoogleErrorCode) =>
+      redirectFailure(response, frontendUrl, returnTo, error);
+
+    try {
+      const providerError = queryValue(request, "error");
+      if (providerError) {
+        fail(providerError === "access_denied" ? "cancelled" : "provider_error");
+        return;
+      }
+
+      const code = queryValue(request, "code");
+      const state = queryValue(request, "state");
+      const savedState = request.cookies?.[OAUTH_COOKIE_NAMES.state];
+      const verifier = request.cookies?.[OAUTH_COOKIE_NAMES.verifier];
+      if (!code || !state || !savedState || !verifier) {
+        fail("invalid_request");
+        return;
+      }
+
+      const expected = Buffer.from(savedState, "utf8");
+      const received = Buffer.from(state, "utf8");
+      if (
+        expected.length !== received.length ||
+        !timingSafeEqual(expected, received)
+      ) {
+        fail("state_mismatch");
+        return;
+      }
+
+      let tokens: { readonly id_token?: string | null };
+      try {
+        ({ tokens } = await client.getToken({
+          code,
+          codeVerifier: verifier,
+          redirect_uri: config.redirectUri,
+        }));
+      } catch {
+        fail("provider_error");
+        return;
+      }
+      if (!tokens.id_token) {
+        fail("invalid_identity");
+        return;
+      }
+
+      let payload: GoogleTokenPayload | undefined;
+      try {
+        const ticket = await client.verifyIdToken({
+          idToken: tokens.id_token,
+          audience: config.clientId,
+        });
+        payload = ticket.getPayload();
+      } catch {
+        fail("invalid_identity");
+        return;
+      }
+
+      const identity = identityFromPayload(payload, config.clientId, now);
+      const account = await resolveAccount(identity);
+      issueSession(account.id, response);
+      clearOAuthCookies(response);
+      response.redirect(frontendRedirect(frontendUrl, "dashboard"));
+    } catch (error) {
+      fail(mapFailureCode(error));
+    }
+  };
+
+  return { start, callback };
 }

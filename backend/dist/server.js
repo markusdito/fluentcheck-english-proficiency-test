@@ -5,13 +5,14 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { connectDB, disconnectDB } from "./config/db.js";
-import { env } from "./config/env.js";
+import { env, getGoogleOAuthConfig } from "./config/env.js";
 import { createAuthRouter } from "./routes/auth.routes.js";
 import { createQuestionRouter } from "./routes/question.routes.js";
 import { createUploadRouter } from "./routes/upload.routes.js";
 import { createSubmissionRouter } from "./routes/submission.routes.js";
 import examinerRoutes from "./routes/examiner.routes.js";
 import { createPaymentRouter } from "./routes/payment.routes.js";
+import { createGoogleAuthHandlers } from "./service/google-auth.service.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { createRateLimitConfig, RATE_LIMIT_POLICIES } from "./config/rate-limit.js";
 import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";
@@ -131,8 +132,12 @@ function closeServer(server, exitCode, rateLimitRuntime) {
 async function startServer() {
     const rateLimitConfig = createRateLimitConfig();
     const rateLimitStoreFactory = createConfiguredRateLimitStoreFactory(rateLimitConfig);
+    const googleOAuthConfig = getGoogleOAuthConfig();
     await connectDB();
     const app = createApp({
+        googleAuth: googleOAuthConfig
+            ? createGoogleAuthHandlers(googleOAuthConfig)
+            : undefined,
         rateLimit: {
             config: rateLimitConfig,
             storeFactory: rateLimitStoreFactory,

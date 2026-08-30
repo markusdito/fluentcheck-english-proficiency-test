@@ -12,6 +12,15 @@ export const authCookieOptions = {
     maxAge: 1000 * 60 * 60 * 24 * 7,
 };
 
+export type AuthSessionPersistence = "session" | "persistent";
+
+const sessionCookieOptions = {
+    httpOnly: authCookieOptions.httpOnly,
+    secure: authCookieOptions.secure,
+    sameSite: authCookieOptions.sameSite,
+    path: authCookieOptions.path,
+} as const;
+
 export function clearAuthCookie(res: Response) {
     res.clearCookie(AUTH_COOKIE_NAME, {
         httpOnly: authCookieOptions.httpOnly,
@@ -21,14 +30,24 @@ export function clearAuthCookie(res: Response) {
     });
 }
 
-export function generateToken(userId: string, res: Response) {
+export function generateToken(
+    userId: string,
+    res: Response,
+    persistence: AuthSessionPersistence = "persistent",
+) {
     const payload = { id: userId }
 
     const token = jwt.sign(payload, env.JWT_SECRET, {
-        expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
+        expiresIn: persistence === "session"
+            ? "1h"
+            : env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
     })
 
-    res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions)
+    res.cookie(
+        AUTH_COOKIE_NAME,
+        token,
+        persistence === "session" ? sessionCookieOptions : authCookieOptions,
+    )
 
     return token;
 }
