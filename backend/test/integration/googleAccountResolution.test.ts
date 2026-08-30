@@ -143,6 +143,37 @@ test("Gmail identities safely link an existing local account and preserve its at
   assert.equal(stored?.password, password);
 });
 
+test("concurrent authoritative callbacks link one existing local account", async () => {
+  const existing = await createUser({
+    username: "concurrent_local",
+    email: "concurrent@gmail.com",
+    password: "local-hash",
+    role: "EXAMINER",
+  });
+
+  const accounts = await Promise.all(
+    Array.from({ length: 5 }, () =>
+      resolveGoogleAccount(
+        identity({
+          subject: "concurrent-link-subject",
+          email: "CONCURRENT@gmail.com",
+          name: "Concurrent Link",
+        }),
+      ),
+    ),
+  );
+
+  assert.equal(new Set(accounts.map((account) => account.id)).size, 1);
+  assert.equal(accounts[0]?.id, existing.id);
+  assert.equal(
+    await prisma.user.count({ where: { googleSubject: "concurrent-link-subject" } }),
+    1,
+  );
+  const stored = await prisma.user.findUnique({ where: { id: existing.id } });
+  assert.equal(stored?.password, "local-hash");
+  assert.equal(stored?.role, "EXAMINER");
+});
+
 test("a matching verified Workspace hosted domain is authoritative for linking", async () => {
   const existing = await createUser({
     username: "workspace_candidate",
