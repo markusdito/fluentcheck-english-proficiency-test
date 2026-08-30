@@ -316,6 +316,10 @@ export async function createExaminerAssignmentSet(
             data: { status: "SCORING" },
           });
           if (claim.count !== 1) {
+            const committed = await readExistingAssignmentSet(tx, submissionId);
+            if (committed) {
+              return { ...committed, outcome: "EXISTING" as const };
+            }
             throw new AssignmentSetError(
               "NOT_ASSIGNMENT_READY",
               "Submission is not Assignment-ready",
