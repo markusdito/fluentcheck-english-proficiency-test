@@ -296,15 +296,20 @@ test("returns generic draft-8 headers and independently limits named policies", 
   }
 });
 
-test("mounts the general API baseline before route handling", async () => {
+test("mounts the general API baseline with exact reset and trusted-IP boundaries", async () => {
+  const stores = new Map<string, Store>();
   const app = createApp({
     rateLimit: {
       config: createRateLimitConfig({
         hmacSecret: HMAC_SECRET,
         jwtSecret: JWT_SECRET,
-        trustProxy: "none",
+        trustProxy: "127.0.0.1/32",
       }),
-      storeFactory: memoryStoreFactory(),
+      storeFactory: (configuredPolicy) => {
+        const store = new MemoryStore();
+        stores.set(configuredPolicy.name, store);
+        return store;
+      },
     },
   });
   const runtime = app.locals.rateLimit as RateLimitRuntime;
@@ -313,11 +318,28 @@ test("mounts the general API baseline before route handling", async () => {
   try {
     const statuses: number[] = [];
     for (let attempt = 0; attempt < 301; attempt += 1) {
-      statuses.push((await fetch(`${url}/api/not-found`)).status);
+      statuses.push(
+        (
+          await fetch(`${url}/api/not-found`, {
+            headers: { "X-Forwarded-For": "198.51.100.10" },
+          })
+        ).status,
+      );
     }
 
     assert.equal(statuses.slice(0, 300).every((status) => status === 404), true);
     assert.equal(statuses[300], 429);
+
+    const alternateTrustedIp = await fetch(`${url}/api/not-found`, {
+      headers: { "X-Forwarded-For": "198.51.100.11" },
+    });
+    assert.equal(alternateTrustedIp.status, 404);
+
+    await stores.get("general-api")?.resetAll?.();
+    const reset = await fetch(`${url}/api/not-found`, {
+      headers: { "X-Forwarded-For": "198.51.100.10" },
+    });
+    assert.equal(reset.status, 404);
   } finally {
     await stop(server);
     await runtime.shutdown();

@@ -24,6 +24,7 @@ let prisma: PrismaClient;
 let disconnectDB: () => Promise<void>;
 let createApplication: typeof import("../../src/server.js").createApp;
 let createRateLimitConfig: typeof import("../../src/config/rate-limit.js").createRateLimitConfig;
+let rateLimitPolicies: typeof import("../../src/config/rate-limit.js").RATE_LIMIT_POLICIES;
 
 async function migrateDatabase(databaseUrl: string) {
   await execFileAsync(
@@ -51,7 +52,8 @@ before(async () => {
   await migrateDatabase(process.env.DATABASE_URL);
 
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
-  ({ createRateLimitConfig } = await import("../../src/config/rate-limit.js"));
+  ({ createRateLimitConfig, RATE_LIMIT_POLICIES: rateLimitPolicies } =
+    await import("../../src/config/rate-limit.js"));
   ({ createApp: createApplication } = await import("../../src/server.js"));
 }, { timeout: 120_000 });
 
@@ -117,7 +119,7 @@ async function postMalformedJson(baseUrl: string, path: string, headers = {}) {
   });
 }
 
-function nearLimitStoreFactory(targetPolicyName: string) {
+function exactPolicyStoreFactory(targetPolicyName: string) {
   const stores = new Map<string, Store>();
   const policyHits = new Map<string, number>();
   const factory = (configuredPolicy: RateLimitPolicy): Store => {
@@ -125,11 +127,10 @@ function nearLimitStoreFactory(targetPolicyName: string) {
     const store: Store = {
       localKeys: false,
       increment: async (key) => {
-        const initialHits =
-          configuredPolicy.name === targetPolicyName
-            ? configuredPolicy.limit - 1
-            : 0;
-        const totalHits = (keyHits.get(key) ?? initialHits) + 1;
+        const isTargetPolicy = configuredPolicy.name === targetPolicyName;
+        const totalHits = isTargetPolicy
+          ? (keyHits.get(key) ?? 0) + 1
+          : 1;
         keyHits.set(key, totalHits);
         policyHits.set(
           configuredPolicy.name,
@@ -159,6 +160,14 @@ async function resetAuthRateLimitStores(stores: Map<string, Store>) {
   );
 }
 
+function policyLimit(policyName: string) {
+  const policy = Object.values(rateLimitPolicies).find(
+    (candidate) => candidate.name === policyName,
+  );
+  assert.ok(policy, `missing rate-limit policy ${policyName}`);
+  return policy.limit;
+}
+
 function assertAuthPolicyOwnership(
   label: string,
   beforePolicyHits: Map<string, number>,
@@ -180,21 +189,28 @@ function assertAuthPolicyOwnership(
 
 async function assertAuthThreshold(
   label: string,
-  request: () => Promise<Response>,
+  request: (attempt: number) => Promise<Response>,
   stores: Map<string, Store>,
   independentRequest: () => Promise<Response>,
   policyHits?: Map<string, number>,
   expectedPolicyNames: readonly string[] = [],
 ) {
+  const limit = policyLimit(label);
   const beforePolicyHits = policyHits ? new Map(policyHits) : undefined;
-  const accepted = await request();
-  assert.notEqual(accepted.status, 429, `${label} threshold request`);
-  const blocked = await request();
+  for (let attempt = 0; attempt < limit; attempt += 1) {
+    const accepted = await request(attempt);
+    assert.notEqual(
+      accepted.status,
+      429,
+      `${label} request ${attempt + 1}/${limit}`,
+    );
+  }
+  const blocked = await request(limit);
   assert.equal(blocked.status, 429, `${label} over-limit request`);
   const independent = await independentRequest();
   assert.notEqual(independent.status, 429, `${label} independent identity`);
   await resetAuthRateLimitStores(stores);
-  const reset = await request();
+  const reset = await request(0);
   assert.notEqual(reset.status, 429, `${label} reset request`);
   await resetAuthRateLimitStores(stores);
   if (policyHits && beforePolicyHits) {
@@ -265,7 +281,7 @@ test("real authentication policies enforce account, email, and IP boundaries", a
 
   for (const targetPolicyName of policyNames) {
     const { factory, stores, policyHits } =
-      nearLimitStoreFactory(targetPolicyName);
+      exactPolicyStoreFactory(targetPolicyName);
     const { server, runtime, url } = await startRateLimitedApp(
       factory,
       "127.0.0.1/32",
@@ -356,13 +372,13 @@ test("real authentication policies enforce account, email, and IP boundaries", a
       } else if (targetPolicyName === "auth-registration-ip") {
         await assertAuthThreshold(
           targetPolicyName,
-          () =>
+          (attempt) =>
             postJson(
               url,
               "/auth/register",
               {
-                username: "auth_registration_ip_primary",
-                email: "auth-registration-ip@example.com",
+                username: `auth_registration_ip_${attempt}`,
+                email: `auth-registration-ip-${attempt}@example.com`,
                 password: "password-123",
               },
               { "X-Forwarded-For": primaryIp },

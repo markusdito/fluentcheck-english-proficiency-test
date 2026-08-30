@@ -28,6 +28,7 @@ let prisma: PrismaClient;
 let disconnectDB: () => Promise<void>;
 let createApplication: typeof import("../../src/server.js").createApp;
 let createRateLimitConfig: typeof import("../../src/config/rate-limit.js").createRateLimitConfig;
+let rateLimitPolicies: typeof import("../../src/config/rate-limit.js").RATE_LIMIT_POLICIES;
 
 async function migrateDatabase(databaseUrl: string) {
   await execFileAsync(
@@ -56,7 +57,8 @@ before(async () => {
 
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
   ({ createApp: createApplication } = await import("../../src/server.js"));
-  ({ createRateLimitConfig } = await import("../../src/config/rate-limit.js"));
+  ({ createRateLimitConfig, RATE_LIMIT_POLICIES: rateLimitPolicies } =
+    await import("../../src/config/rate-limit.js"));
 }, { timeout: 120_000 });
 
 after(async () => {
@@ -141,18 +143,16 @@ function trackingStoreFactory(
   };
 }
 
-function nearLimitStoreFactory(targetScope: "account" | "ip") {
-  const stores = new Map<string, Store>();
-  const policyHits = new Map<string, number>();
-
-  const factory = (configuredPolicy: RateLimitPolicy): Store => {
+function exactStoreFactory(
+  policyHits: Map<string, number>,
+  stores: Map<string, Store>,
+) {
+  return (configuredPolicy: RateLimitPolicy): Store => {
     const keyHits = new Map<string, number>();
-    const startsNearLimit = configuredPolicy.scope === targetScope;
     const store: Store = {
       localKeys: false,
       increment: async (key) => {
-        const initialHits = startsNearLimit ? configuredPolicy.limit - 1 : 0;
-        const totalHits = (keyHits.get(key) ?? initialHits) + 1;
+        const totalHits = (keyHits.get(key) ?? 0) + 1;
         keyHits.set(key, totalHits);
         policyHits.set(
           configuredPolicy.name,
@@ -172,8 +172,6 @@ function nearLimitStoreFactory(targetScope: "account" | "ip") {
     stores.set(configuredPolicy.name, store);
     return store;
   };
-
-  return { factory, stores, policyHits };
 }
 
 async function resetRateLimitStores(stores: Map<string, Store>) {
@@ -203,23 +201,30 @@ function assertPolicyOwnership(
 
 async function assertActualThreshold(
   label: string,
-  request: () => Promise<Response>,
+  request: (attempt: number) => Promise<Response>,
+  limit: number,
   stores: Map<string, Store>,
   independentRequest?: () => Promise<Response>,
   policyHits?: Map<string, number>,
   expectedPolicyNames: readonly string[] = [],
 ) {
   const beforePolicyHits = policyHits ? new Map(policyHits) : undefined;
-  const accepted = await request();
-  assert.notEqual(accepted.status, 429, `${label} threshold request`);
-  const blocked = await request();
+  for (let attempt = 0; attempt < limit; attempt += 1) {
+    const accepted = await request(attempt);
+    assert.notEqual(
+      accepted.status,
+      429,
+      `${label} request ${attempt + 1}/${limit}`,
+    );
+  }
+  const blocked = await request(limit);
   assert.equal(blocked.status, 429, `${label} over-limit request`);
   if (independentRequest) {
     const independent = await independentRequest();
     assert.notEqual(independent.status, 429, `${label} independent identity`);
   }
   await resetRateLimitStores(stores);
-  const reset = await request();
+  const reset = await request(0);
   assert.notEqual(reset.status, 429, `${label} reset request`);
   await resetRateLimitStores(stores);
   if (policyHits && beforePolicyHits) {
@@ -442,6 +447,12 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
   const otherStudent = await createUser();
   const admin = await createUser("ADMIN");
   const otherAdmin = await createUser("ADMIN");
+  const ipStudents = await Promise.all(
+    Array.from({ length: 120 }, () => createUser()),
+  );
+  const ipAdmins = await Promise.all(
+    Array.from({ length: 120 }, () => createUser("ADMIN")),
+  );
   const googleAuth: GoogleAuthRouteHandlers = {
     start: (_req, res) => res.status(204).end(),
     callback: (_req, res) => res.status(204).end(),
@@ -450,12 +461,22 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
   const alternateIp = "198.51.100.11";
 
   for (const targetScope of ["account", "ip"] as const) {
-    const { factory, stores, policyHits } = nearLimitStoreFactory(targetScope);
+    const policyHits = new Map<string, number>();
+    const stores = new Map<string, Store>();
     const { server, runtime, url } = await startRateLimitedApp(
-      factory,
+      exactStoreFactory(policyHits, stores),
       "127.0.0.1/32",
       googleAuth,
     );
+
+    const studentForAttempt = (attempt: number) =>
+      targetScope === "account"
+        ? student.id
+        : ipStudents[attempt % ipStudents.length]!.id;
+    const adminForAttempt = (attempt: number) =>
+      targetScope === "account"
+        ? admin.id
+        : ipAdmins[attempt % ipAdmins.length]!.id;
 
     const payment = (userId: string, ip = primaryIp) =>
       fetch(`${url}/api/payments/submissions/${crypto.randomUUID()}/pay`, {
@@ -522,11 +543,7 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         headers: { "X-Forwarded-For": primaryIp },
       });
       assert.notEqual(baseline.status, 429);
-      if (targetScope === "ip") {
-        assert.equal(baselineRepeat.status, 429);
-      } else {
-        assert.notEqual(baselineRepeat.status, 429);
-      }
+      assert.notEqual(baselineRepeat.status, 429);
       assertPolicyOwnership(
         `${targetScope} baseline`,
         beforeBaselinePolicyHits,
@@ -537,7 +554,10 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       await resetRateLimitStores(stores);
       await assertActualThreshold(
         `${targetScope} payment`,
-        () => payment(student.id),
+        (attempt) => payment(studentForAttempt(attempt)),
+        targetScope === "account"
+          ? rateLimitPolicies.submissionPaymentAccount.limit
+          : rateLimitPolicies.submissionPaymentIp.limit,
         stores,
         targetScope === "account"
           ? () => payment(otherStudent.id)
@@ -547,7 +567,10 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       );
       await assertActualThreshold(
         `${targetScope} Answer upload`,
-        () => answerUpload(student.id),
+        (attempt) => answerUpload(studentForAttempt(attempt)),
+        targetScope === "account"
+          ? rateLimitPolicies.answerStorageAccount.limit
+          : rateLimitPolicies.answerStorageIp.limit,
         stores,
         targetScope === "account"
           ? () => answerUpload(otherStudent.id)
@@ -557,7 +580,10 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       );
       await assertActualThreshold(
         `${targetScope} Answer confirmation`,
-        () => answerConfirmation(student.id),
+        (attempt) => answerConfirmation(studentForAttempt(attempt)),
+        targetScope === "account"
+          ? rateLimitPolicies.answerStorageAccount.limit
+          : rateLimitPolicies.answerStorageIp.limit,
         stores,
         targetScope === "account"
           ? () => answerConfirmation(otherStudent.id)
@@ -567,7 +593,10 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       );
       await assertActualThreshold(
         `${targetScope} question audio`,
-        () => questionAudio(admin.id),
+        (attempt) => questionAudio(adminForAttempt(attempt)),
+        targetScope === "account"
+          ? rateLimitPolicies.questionAudioStorageAccount.limit
+          : rateLimitPolicies.questionAudioStorageIp.limit,
         stores,
         targetScope === "account"
           ? () => questionAudio(otherAdmin.id)
@@ -580,7 +609,10 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       );
       await assertActualThreshold(
         `${targetScope} question audio confirmation`,
-        () => questionAudioConfirmation(admin.id),
+        (attempt) => questionAudioConfirmation(adminForAttempt(attempt)),
+        targetScope === "account"
+          ? rateLimitPolicies.questionAudioStorageAccount.limit
+          : rateLimitPolicies.questionAudioStorageIp.limit,
         stores,
         targetScope === "account"
           ? () => questionAudioConfirmation(otherAdmin.id)
@@ -593,7 +625,10 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       );
       await assertActualThreshold(
         `${targetScope} Submission creation`,
-        () => createSubmission(student.id),
+        (attempt) => createSubmission(studentForAttempt(attempt)),
+        targetScope === "account"
+          ? rateLimitPolicies.submissionCreationAccount.limit
+          : rateLimitPolicies.submissionCreationIp.limit,
         stores,
         targetScope === "account"
           ? () => createSubmission(otherStudent.id)
@@ -603,7 +638,10 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       );
       await assertActualThreshold(
         `${targetScope} Submission completion`,
-        () => completeSubmission(student.id),
+        (attempt) => completeSubmission(studentForAttempt(attempt)),
+        targetScope === "account"
+          ? rateLimitPolicies.submissionCompletionAccount.limit
+          : rateLimitPolicies.submissionCompletionIp.limit,
         stores,
         targetScope === "account"
           ? () => completeSubmission(otherStudent.id)
@@ -615,7 +653,7 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
       if (targetScope === "ip") {
         await assertActualThreshold(
           "IP authentication burst",
-          () =>
+          (_attempt) =>
             fetch(`${url}/api/auth/login`, {
               method: "POST",
               headers: {
@@ -624,6 +662,7 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
               },
               body: "{",
             }),
+          rateLimitPolicies.loginBurst.limit,
           stores,
           () =>
             fetch(`${url}/api/auth/login`, {
@@ -637,7 +676,7 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         );
         await assertActualThreshold(
           "IP registration burst",
-          () =>
+          (_attempt) =>
             fetch(`${url}/api/auth/register`, {
               method: "POST",
               headers: {
@@ -646,6 +685,7 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
               },
               body: "{",
             }),
+          rateLimitPolicies.registrationBurst.limit,
           stores,
           () =>
             fetch(`${url}/api/auth/register`, {
@@ -659,10 +699,11 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         );
         await assertActualThreshold(
           "IP Google start",
-          () =>
+          (_attempt) =>
             fetch(`${url}/api/auth/google/start`, {
               headers: { "X-Forwarded-For": primaryIp },
             }),
+          rateLimitPolicies.googleStart.limit,
           stores,
           () =>
             fetch(`${url}/api/auth/google/start`, {
@@ -673,10 +714,11 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         );
         await assertActualThreshold(
           "IP Google callback",
-          () =>
+          (_attempt) =>
             fetch(`${url}/api/auth/google/callback`, {
               headers: { "X-Forwarded-For": primaryIp },
             }),
+          rateLimitPolicies.googleCallback.limit,
           stores,
           () =>
             fetch(`${url}/api/auth/google/callback`, {
@@ -687,7 +729,7 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
         );
         await assertActualThreshold(
           "IP iPaymu callback",
-          () =>
+          (_attempt) =>
             fetch(`${url}/api/payments/ipaymu/notify`, {
               method: "POST",
               headers: {
@@ -696,6 +738,7 @@ test("real mounted routes enforce paired thresholds, identity boundaries, and re
               },
               body: "{}",
             }),
+          rateLimitPolicies.ipaymuCallback.limit,
           stores,
           () =>
             fetch(`${url}/api/payments/ipaymu/notify`, {
