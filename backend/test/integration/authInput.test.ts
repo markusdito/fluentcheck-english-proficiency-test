@@ -22,6 +22,15 @@ let server: Server;
 let baseUrl: string;
 let createApplication: typeof import("../../src/server.js").createApp;
 
+function assertAuthenticationCookieSet(response: Response) {
+  const setCookie = response.headers.get("set-cookie");
+  assert.match(setCookie ?? "", /^jwt=[^;]+;/);
+  assert.match(setCookie ?? "", /Path=\//);
+  assert.match(setCookie ?? "", /HttpOnly/);
+  assert.match(setCookie ?? "", /SameSite=Lax/);
+  assert.match(setCookie ?? "", /Max-Age=604800/);
+}
+
 async function migrateDatabase(databaseUrl: string) {
   await execFileAsync(
     "npx",
@@ -86,69 +95,15 @@ test("registration dual-writes trimmed display email and normalized identity", a
   assert.equal(response.status, 201);
   const payload = await response.json();
   assert.equal(payload.data.user.email, "Jane.Doe+tag@Example.COM");
-  assert.ok(response.headers.get("set-cookie")?.startsWith("jwt="));
+  assertAuthenticationCookieSet(response);
 
   const user = await prisma.user.findUnique({
-    where: { email: "Jane.Doe+tag@Example.COM" },
+    where: { normalizedEmail: "jane.doe+tag@example.com" },
   });
   assert.ok(user);
   assert.equal(user.username, "jane_doe9");
   assert.equal(user.email, "Jane.Doe+tag@Example.COM");
   assert.equal(user.normalizedEmail, "jane.doe+tag@example.com");
-});
-
-test("legacy accounts remain readable through the explicit null-key fallback", async () => {
-  const password = "legacy-password";
-  const user = await prisma.user.create({
-    data: {
-      username: "legacy_user",
-      email: "  Legacy.User@Example.COM  ",
-      normalizedEmail: null,
-      password: await bcrypt.hash(password, 10),
-    },
-  });
-
-  const response = await request("/auth/login", {
-    email: "legacy.user@example.com",
-    password,
-  });
-
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).data.user.id, user.id);
-  assert.ok(response.headers.get("set-cookie")?.startsWith("jwt="));
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { normalizedEmail: "legacy.user@example.com" },
-  });
-});
-
-test("normalized identities take precedence over colliding legacy rows", async () => {
-  const normalizedUser = await prisma.user.create({
-    data: {
-      username: "normalized_collision",
-      email: "collision@example.com",
-      normalizedEmail: "collision@example.com",
-      password: await bcrypt.hash("normalized-password", 10),
-    },
-  });
-  const legacyUser = await prisma.user.create({
-    data: {
-      username: "legacy_collision",
-      email: "Collision@Example.COM",
-      normalizedEmail: null,
-      password: await bcrypt.hash("legacy-password", 10),
-    },
-  });
-
-  const response = await request("/auth/login", {
-    email: "COLLISION@example.com",
-    password: "normalized-password",
-  });
-
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).data.user.id, normalizedUser.id);
-  assert.notEqual(normalizedUser.id, legacyUser.id);
 });
 
 test("registration maps normalized-email conflicts to a generic 409 without a cookie", async () => {
@@ -165,7 +120,9 @@ test("registration maps normalized-email conflicts to a generic 409 without a co
     password: "password-123",
   });
   assert.equal(duplicate.status, 409);
-  assert.deepEqual(await duplicate.json(), { error: "Unable to create account" });
+  assert.deepEqual(await duplicate.json(), {
+    error: "Unable to create account with these details",
+  });
   assert.equal(duplicate.headers.get("set-cookie"), null);
   assert.equal(await prisma.user.count(), 1);
 });
@@ -184,7 +141,9 @@ test("registration maps username conflicts to the same generic 409", async () =>
     password: "password-123",
   });
   assert.equal(duplicate.status, 409);
-  assert.deepEqual(await duplicate.json(), { error: "Unable to create account" });
+  assert.deepEqual(await duplicate.json(), {
+    error: "Unable to create account with these details",
+  });
   assert.equal(duplicate.headers.get("set-cookie"), null);
   assert.equal(await prisma.user.count(), 1);
 });
@@ -240,17 +199,6 @@ test("deactivated accounts retain email identity and username registration confl
   });
   assert.ok(account.deletedAt);
 
-  const legacyAccount = await prisma.user.create({
-    data: {
-      username: "legacy_reserved_user",
-      email: "Legacy.Reserved@Example.COM",
-      normalizedEmail: null,
-      password: await bcrypt.hash("password-123", 10),
-      deletedAt: new Date(),
-    },
-  });
-  assert.ok(legacyAccount.deletedAt);
-
   const emailConflict = await request("/auth/register", {
     username: "replacement_user",
     email: "reserved@example.com",
@@ -261,14 +209,9 @@ test("deactivated accounts retain email identity and username registration confl
     email: "replacement@example.com",
     password: "password-123",
   });
-  const legacyEmailConflict = await request("/auth/register", {
-    username: "legacy_replacement_user",
-    email: " legacy.reserved@example.com ",
-    password: "password-123",
-  });
   const legacyUsernameAccount = await prisma.user.create({
     data: {
-      username: "Legacy_Reserved",
+      username: "legacy_reserved",
       email: "legacy-username@example.com",
       normalizedEmail: "legacy-username@example.com",
       password: await bcrypt.hash("password-123", 10),
@@ -283,17 +226,14 @@ test("deactivated accounts retain email identity and username registration confl
   });
   assert.equal(emailConflict.status, 409);
   assert.equal(usernameConflict.status, 409);
-  assert.equal(legacyEmailConflict.status, 409);
   assert.equal(legacyUsernameConflict.status, 409);
   const genericConflict = await emailConflict.json();
   assert.deepEqual(genericConflict, await usernameConflict.json());
-  assert.deepEqual(genericConflict, await legacyEmailConflict.json());
   assert.deepEqual(genericConflict, await legacyUsernameConflict.json());
   assert.equal(emailConflict.headers.get("set-cookie"), null);
   assert.equal(usernameConflict.headers.get("set-cookie"), null);
-  assert.equal(legacyEmailConflict.headers.get("set-cookie"), null);
   assert.equal(legacyUsernameConflict.headers.get("set-cookie"), null);
-  assert.equal(await prisma.user.count(), 3);
+  assert.equal(await prisma.user.count(), 2);
 });
 
 test("login uses normalized identity and keeps all invalid credential outcomes generic", async () => {
@@ -331,7 +271,7 @@ test("login uses normalized identity and keeps all invalid credential outcomes g
   });
   assert.equal(successful.status, 200);
   assert.equal((await successful.json()).data.user.id, active.id);
-  assert.ok(successful.headers.get("set-cookie")?.startsWith("jwt="));
+  assertAuthenticationCookieSet(successful);
 
   const originalCompare = bcrypt.compare;
   let comparisonCount = 0;
@@ -393,7 +333,6 @@ test("login compares password input exactly as submitted", async () => {
 test("authentication database failures use the generic 500 contract", async () => {
   const originalCompare = bcrypt.compare;
   const originalFindFirst = prisma.user.findFirst;
-  const originalQueryRaw = prisma.$queryRaw;
   let comparisonCount = 0;
   const comparedHashes: string[] = [];
   const dummyPasswordHash =
@@ -415,24 +354,34 @@ test("authentication database failures use the generic 500 contract", async () =
       password: "password-123",
     }));
 
-    (prisma.user as { findFirst: typeof originalFindFirst }).findFirst =
-      originalFindFirst;
-    (prisma as { $queryRaw: typeof originalQueryRaw }).$queryRaw = async () => {
-      throw new Error("simulated legacy lookup failure");
-    };
-    responses.push(await request("/auth/login", {
-      email: "legacy-database-failure@example.com",
-      password: "password-123",
-    }));
   } finally {
     bcrypt.compare = originalCompare;
     (prisma.user as { findFirst: typeof originalFindFirst }).findFirst = originalFindFirst;
-    (prisma as { $queryRaw: typeof originalQueryRaw }).$queryRaw = originalQueryRaw;
   }
-  assert.equal(comparisonCount, 2);
-  assert.deepEqual(comparedHashes, [dummyPasswordHash, dummyPasswordHash]);
+  assert.equal(comparisonCount, 1);
+  assert.deepEqual(comparedHashes, [dummyPasswordHash]);
   for (const response of responses) {
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), { error: "Internal server error" });
+  }
+});
+
+test("registration database failures use the generic 500 contract without a cookie", async () => {
+  const originalCreate = prisma.user.create.bind(prisma.user);
+  prisma.user.create = (async () => {
+    throw new Error("simulated registration database failure");
+  }) as typeof prisma.user.create;
+
+  try {
+    const response = await request("/auth/register", {
+      username: "database_failure_registration",
+      email: "database-failure-registration@example.com",
+      password: "password-123",
+    });
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: "Internal server error" });
+    assert.equal(response.headers.get("set-cookie"), null);
+  } finally {
+    prisma.user.create = originalCreate;
   }
 });

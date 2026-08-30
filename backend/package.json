@@ -9,6 +9,7 @@
     "test:integration": "tsx --test test/integration/*.test.ts",
     "preflight:submission-manifest": "tsx scripts/preflightSubmissionManifest.ts",
     "preflight:examiner-assignment": "tsx scripts/preflightExaminerAssignment.ts",
+    "preflight:account-identity": "tsx scripts/preflightAccountIdentity.ts",
     "reconcile:prompt-media": "tsx scripts/reconcileRetiredPromptMedia.ts",
     "dev": "nodemon --watch src --exec tsx src/server.ts",
     "build": "tsc",
@@ -30,6 +31,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
+    "google-auth-library": "10.9.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.21.0",
     "zod": "4.4.3"

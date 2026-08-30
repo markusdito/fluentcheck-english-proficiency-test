@@ -10,6 +10,9 @@ interface JwtPayload {
   exp?: number;
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+
 export type CurrentAccount = NonNullable<
   Awaited<ReturnType<typeof findCurrentAccount>>
 >;
@@ -35,7 +38,12 @@ export async function verifyToken(req: Request, res: Response, next: NextFunctio
   let userId: string;
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-    if (!decoded || typeof decoded !== "object" || typeof decoded.id !== "string") {
+    if (
+      !decoded ||
+      typeof decoded !== "object" ||
+      typeof decoded.id !== "string" ||
+      !UUID_PATTERN.test(decoded.id)
+    ) {
       throw new Error("Invalid authentication payload");
     }
     userId = decoded.id;

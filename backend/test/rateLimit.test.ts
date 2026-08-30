@@ -6,6 +6,7 @@ import express from "express";
 import type { Express } from "express";
 import { MemoryStore, type Store } from "express-rate-limit";
 import { createApp, unhandledRequestError } from "../src/server.js";
+import { createPaymentRouter } from "../src/routes/payment.routes.js";
 import {
   createRateLimitConfig,
   createRateLimitPolicyRegistry,
@@ -14,6 +15,7 @@ import {
 } from "../src/config/rate-limit.js";
 import {
   type RateLimitRuntime,
+  createAccountAndIpRateLimiters,
   createRateLimitRuntime,
   deriveRateLimitKey,
 } from "../src/middleware/rate-limit.middleware.js";
@@ -93,6 +95,10 @@ test("validates rate-limit secrets, proxy trust, windows, and policy identity", 
     /distinct from JWT_SECRET/,
   );
   assert.throws(
+    () => createRateLimitConfig({ hmacSecret: HMAC_SECRET, jwtSecret: "" }),
+    /JWT_SECRET must be configured/,
+  );
+  assert.throws(
     () => createRateLimitConfig({ hmacSecret: HMAC_SECRET, trustProxy: "true" }),
     /none or an explicit CIDR allowlist/,
   );
@@ -154,6 +160,66 @@ test("validates rate-limit secrets, proxy trust, windows, and policy identity", 
   assert.equal(firstKey.includes("user@example.com"), false);
   assert.equal(firstKey.includes(HMAC_SECRET), false);
   assert.equal(Object.keys(RATE_LIMIT_POLICIES).length > 1, true);
+  assert.deepEqual(
+    {
+      loginBurst: RATE_LIMIT_POLICIES.loginBurst,
+      loginFailureAccount: RATE_LIMIT_POLICIES.loginFailureAccount,
+      loginFailureIp: RATE_LIMIT_POLICIES.loginFailureIp,
+      registrationBurst: RATE_LIMIT_POLICIES.registrationBurst,
+      registrationIp: RATE_LIMIT_POLICIES.registrationIp,
+      registrationEmail: RATE_LIMIT_POLICIES.registrationEmail,
+    },
+    {
+      loginBurst: {
+        name: "auth-login-burst",
+        prefix: "fc:rate-limit:auth-login-burst",
+        scope: "ip",
+        limit: 120,
+        windowMs: 60_000,
+        failureMode: "fail-closed",
+      },
+      loginFailureAccount: {
+        name: "auth-login-failure-account",
+        prefix: "fc:rate-limit:auth-login-failure-account",
+        scope: "account",
+        limit: 10,
+        windowMs: 15 * 60_000,
+        failureMode: "fail-closed",
+      },
+      loginFailureIp: {
+        name: "auth-login-failure-ip",
+        prefix: "fc:rate-limit:auth-login-failure-ip",
+        scope: "ip",
+        limit: 100,
+        windowMs: 15 * 60_000,
+        failureMode: "fail-closed",
+      },
+      registrationBurst: {
+        name: "auth-registration-burst",
+        prefix: "fc:rate-limit:auth-registration-burst",
+        scope: "ip",
+        limit: 30,
+        windowMs: 60_000,
+        failureMode: "fail-closed",
+      },
+      registrationIp: {
+        name: "auth-registration-ip",
+        prefix: "fc:rate-limit:auth-registration-ip",
+        scope: "ip",
+        limit: 120,
+        windowMs: 60 * 60_000,
+        failureMode: "fail-closed",
+      },
+      registrationEmail: {
+        name: "auth-registration-email",
+        prefix: "fc:rate-limit:auth-registration-email",
+        scope: "email",
+        limit: 5,
+        windowMs: 60 * 60_000,
+        failureMode: "fail-closed",
+      },
+    },
+  );
 });
 
 test("uses one injected store per policy across route mounts and app instances", async () => {
@@ -183,7 +249,7 @@ test("uses one injected store per policy across route mounts and app instances",
     assert.equal((await fetch(`${first.url}/one`)).status, 200);
     assert.equal((await fetch(`${first.url}/two`)).status, 429);
     assert.equal((await fetch(`${second.url}/three`)).status, 429);
-    assert.equal(factoryCalls, 2);
+    assert.equal(factoryCalls, 38);
   } finally {
     await stop(first.server);
     await stop(second.server);
@@ -227,6 +293,247 @@ test("returns generic draft-8 headers and independently limits named policies", 
     assert.equal(independent.status, 200);
   } finally {
     await stop(server);
+  }
+});
+
+test("mounts the general API baseline before route handling", async () => {
+  const app = createApp({
+    rateLimit: {
+      config: createRateLimitConfig({
+        hmacSecret: HMAC_SECRET,
+        jwtSecret: JWT_SECRET,
+        trustProxy: "none",
+      }),
+      storeFactory: memoryStoreFactory(),
+    },
+  });
+  const runtime = app.locals.rateLimit as RateLimitRuntime;
+  const { server, url } = await start(app);
+
+  try {
+    const statuses: number[] = [];
+    for (let attempt = 0; attempt < 301; attempt += 1) {
+      statuses.push((await fetch(`${url}/api/not-found`)).status);
+    }
+
+    assert.equal(statuses.slice(0, 300).every((status) => status === 404), true);
+    assert.equal(statuses[300], 429);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
+  }
+});
+
+test("does not charge dedicated routes to the general API baseline", async () => {
+  const increments = new Map<string, number>();
+  const app = createApp({
+    rateLimit: {
+      config: createRateLimitConfig({
+        hmacSecret: HMAC_SECRET,
+        jwtSecret: JWT_SECRET,
+        trustProxy: "none",
+      }),
+      storeFactory: (configuredPolicy) =>
+        ({
+          localKeys: false,
+          increment: async () => {
+            const count = (increments.get(configuredPolicy.name) ?? 0) + 1;
+            increments.set(configuredPolicy.name, count);
+            return {
+              totalHits: count,
+              resetTime: new Date(Date.now() + configuredPolicy.windowMs),
+            };
+          },
+          decrement: async () => {},
+          resetKey: async () => {},
+        }) as Store,
+    },
+  });
+  const runtime = app.locals.rateLimit as RateLimitRuntime;
+  const { server, url } = await start(app);
+
+  try {
+    const response = await fetch(`${url}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{",
+    });
+    assert.equal(response.status, 400);
+    assert.equal(increments.get("general-api") ?? 0, 0);
+    assert.equal(increments.get("auth-login-burst"), 1);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
+  }
+});
+
+test("keeps unmounted Google OAuth paths on the general API baseline", async () => {
+  const increments = new Map<string, number>();
+  const app = createApp({
+    rateLimit: {
+      config: createRateLimitConfig({
+        hmacSecret: HMAC_SECRET,
+        jwtSecret: JWT_SECRET,
+        trustProxy: "none",
+      }),
+      storeFactory: (configuredPolicy) =>
+        ({
+          localKeys: false,
+          increment: async () => {
+            const count = (increments.get(configuredPolicy.name) ?? 0) + 1;
+            increments.set(configuredPolicy.name, count);
+            return {
+              totalHits: count,
+              resetTime: new Date(Date.now() + configuredPolicy.windowMs),
+            };
+          },
+          decrement: async () => {},
+          resetKey: async () => {},
+        }) as Store,
+    },
+  });
+  const runtime = app.locals.rateLimit as RateLimitRuntime;
+  const { server, url } = await start(app);
+
+  try {
+    const response = await fetch(`${url}/api/auth/google/start`);
+    assert.equal(response.status, 404);
+    assert.equal(increments.get("general-api"), 1);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
+  }
+});
+
+test("limits the iPaymu callback independently at its route boundary", async () => {
+  const app = express();
+  const runtime = createRateLimitRuntime({
+    config: createRateLimitConfig({
+      hmacSecret: HMAC_SECRET,
+      jwtSecret: JWT_SECRET,
+      trustProxy: "none",
+    }),
+    storeFactory: memoryStoreFactory(),
+  });
+  app.use(express.json());
+  app.use("/api/payments", createPaymentRouter(undefined, runtime));
+  app.use(unhandledRequestError);
+  const { server, url } = await start(app);
+
+  try {
+    const statuses: number[] = [];
+    for (let attempt = 0; attempt < 301; attempt += 1) {
+      const response = await fetch(`${url}/api/payments/ipaymu/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      statuses.push(response.status);
+    }
+
+    assert.equal(statuses.slice(0, 300).every((status) => status === 400), true);
+    assert.equal(statuses[300], 429);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
+  }
+});
+
+test("keeps Google OAuth start and callback budgets independent", async () => {
+  const app = createApp({
+    rateLimit: {
+      config: createRateLimitConfig({
+        hmacSecret: HMAC_SECRET,
+        jwtSecret: JWT_SECRET,
+        trustProxy: "none",
+      }),
+      storeFactory: memoryStoreFactory(),
+    },
+    googleAuth: {
+      start: (_req, res) => res.status(302).end(),
+      callback: (_req, res) => res.status(302).end(),
+    },
+  });
+  const runtime = app.locals.rateLimit as RateLimitRuntime;
+  const { server, url } = await start(app);
+
+  try {
+    const startStatuses: number[] = [];
+    for (let attempt = 0; attempt < 21; attempt += 1) {
+      startStatuses.push((await fetch(`${url}/api/auth/google/start`)).status);
+    }
+    assert.equal(startStatuses.slice(0, 20).every((status) => status === 302), true);
+    assert.equal(startStatuses[20], 429);
+
+    const callbackStatuses: number[] = [];
+    for (let attempt = 0; attempt < 41; attempt += 1) {
+      callbackStatuses.push((await fetch(`${url}/api/auth/google/callback`)).status);
+    }
+    assert.equal(callbackStatuses.slice(0, 40).every((status) => status === 302), true);
+    assert.equal(callbackStatuses[40], 429);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
+  }
+});
+
+test("derives account and IP limits after the active account boundary", async () => {
+  const app = express();
+  const runtime = createRateLimitRuntime({
+    config: createRateLimitConfig({
+      hmacSecret: HMAC_SECRET,
+      jwtSecret: JWT_SECRET,
+      trustProxy: "127.0.0.1/32",
+    }),
+    storeFactory: memoryStoreFactory(),
+  });
+  const accountPolicy = policy({
+    name: "account-boundary",
+    prefix: "fc:test:account-boundary",
+    scope: "account",
+    limit: 2,
+  });
+  const ipPolicy = policy({
+    name: "ip-boundary",
+    prefix: "fc:test:ip-boundary",
+    limit: 3,
+  });
+
+  app.use((req, _res, next) => {
+    req.user = {
+      id: req.header("X-Test-User") ?? "user-a",
+      username: "test-user",
+      email: "test@example.test",
+      role: "STUDENT",
+      createdAt: new Date(),
+    };
+    next();
+  });
+  app.get(
+    "/resource",
+    ...createAccountAndIpRateLimiters(runtime, accountPolicy, ipPolicy),
+    (_req, res) => res.json({ ok: true }),
+  );
+  app.use(unhandledRequestError);
+  const { server, url } = await start(app);
+
+  try {
+    const request = (user: string) =>
+      fetch(`${url}/resource`, {
+        headers: {
+          "X-Test-User": user,
+          "X-Forwarded-For": "198.51.100.10",
+        },
+      });
+
+    assert.equal((await request("user-a")).status, 200);
+    assert.equal((await request("user-a")).status, 200);
+    assert.equal((await request("user-a")).status, 429);
+    assert.equal((await request("user-b")).status, 200);
+    assert.equal((await request("user-b")).status, 429);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
   }
 });
 
@@ -347,5 +654,38 @@ test("fails closed with a generic 503 and fails open only when the policy says s
   } finally {
     await stop(closed.server);
     await stop(open.server);
+  }
+});
+
+test("applies the login burst before parsing malformed authentication bodies", async () => {
+  const app = createApp({
+    rateLimit: {
+      config: createRateLimitConfig({
+        hmacSecret: HMAC_SECRET,
+        jwtSecret: JWT_SECRET,
+        trustProxy: "none",
+      }),
+      storeFactory: memoryStoreFactory(),
+    },
+  });
+  const runtime = app.locals.rateLimit as RateLimitRuntime;
+  const { server, url } = await start(app);
+
+  try {
+    const statuses: number[] = [];
+    for (let attempt = 0; attempt < 121; attempt += 1) {
+      const response = await fetch(`${url}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{",
+      });
+      statuses.push(response.status);
+    }
+
+    assert.equal(statuses.slice(0, 120).every((status) => status === 400), true);
+    assert.equal(statuses[120], 429);
+  } finally {
+    await stop(server);
+    await runtime.shutdown();
   }
 });

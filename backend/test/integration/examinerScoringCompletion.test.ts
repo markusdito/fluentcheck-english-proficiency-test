@@ -24,6 +24,10 @@ let createApp: typeof import("../../src/server.js").createApp;
 let server: Server;
 let baseUrl: string;
 
+function uniqueUsername(prefix: string) {
+  return `${prefix.replace(/[^a-z0-9_]/giu, "_")}_${crypto.randomUUID().replaceAll("-", "")}`;
+}
+
 before(async () => {
   container = await new PostgreSqlContainer("postgres:17-alpine").start();
   process.env.DATABASE_URL = container.getConnectionUri();
@@ -81,10 +85,12 @@ beforeEach(async () => {
 });
 
 async function createExaminer(prefix: string) {
+  const email = `${crypto.randomUUID()}@example.test`;
   return prisma.user.create({
     data: {
-      username: `${prefix}-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
+      username: uniqueUsername(prefix),
+      email,
+      normalizedEmail: email,
       password: TEST_PASSWORD_HASH,
       role: "EXAMINER",
     },
@@ -92,10 +98,12 @@ async function createExaminer(prefix: string) {
 }
 
 async function createScoringSubmission(status: SubmissionStatus = "SCORING") {
+  const email = `${crypto.randomUUID()}@example.test`;
   const student = await prisma.user.create({
     data: {
-      username: `student-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
+      username: uniqueUsername("student"),
+      email,
+      normalizedEmail: email,
       password: TEST_PASSWORD_HASH,
       role: "STUDENT",
     },

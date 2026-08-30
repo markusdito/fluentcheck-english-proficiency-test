@@ -90,11 +90,13 @@ after(async () => {
 
 async function createManifestSources(client: Client, prefix: string) {
   const studentId = randomUUID();
+  const username = `manifest_${studentId.replaceAll("-", "")}`;
+  const email = `${prefix}-student@example.test`;
   await client.query(
     `INSERT INTO "User"
-      ("id", "username", "email", "password", "role", "createdAt", "updatedAt")
-     VALUES ($1, $2, $3, 'unused', 'STUDENT', NOW(), NOW())`,
-    [studentId, `${prefix}-student`, `${prefix}-student@example.test`],
+      ("id", "username", "email", "normalizedEmail", "password", "role", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $3, 'unused', 'STUDENT', NOW(), NOW())`,
+    [studentId, username, email],
   );
 
   const questions = [];
@@ -757,11 +759,12 @@ test("the cutover rejects new manifest-less Submissions while allowing atomic ma
     for (const name of await migrationNames()) await applyMigration(client, name);
 
     const studentId = randomUUID();
+    const username = `cutover_${studentId.replaceAll("-", "")}`;
     await client.query(
       `INSERT INTO "User"
-        ("id", "username", "email", "password", "role", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, 'unused', 'STUDENT', NOW(), NOW())`,
-      [studentId, `cutover-${studentId}`, `${studentId}@example.test`],
+        ("id", "username", "email", "normalizedEmail", "password", "role", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $3, 'unused', 'STUDENT', NOW(), NOW())`,
+      [studentId, username, `${studentId}@example.test`],
     );
 
     const manifestlessSubmissionId = randomUUID();

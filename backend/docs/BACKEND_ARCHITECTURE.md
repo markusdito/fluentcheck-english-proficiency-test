@@ -97,7 +97,7 @@ backend/
 │   │   ├── auth.middleware.ts
 │   │   ├── role.middleware.ts
 │   │   ├── upload.middleware.ts  # Multer config (500MB limit, MIME validation)
-│   │   └── rate-limit.middleware.ts  # Rate limiting (added per architecture review)
+│   │   └── rate-limit.middleware.ts  # Central route-boundary middleware (#63)
 │   ├── utils/
 │   │   └── jwt.ts             # Token generation & verification
 │   └── generated/             # Prisma client (auto-generated — never edit manually)
@@ -136,8 +136,10 @@ erDiagram
     User {
         string id PK
         string username UK
-        string email UK
-        string password
+        string email
+        string normalizedEmail UK
+        string password nullable
+        string googleSubject UK nullable
         enum role
         datetime deletedAt
     }
@@ -245,11 +247,25 @@ erDiagram
 ```
 POST /api/auth/register → hash password → create User → sign JWT → set httpOnly cookie
 POST /api/auth/login    → verify password → sign JWT → set httpOnly cookie
+GET  /api/auth/google/start?returnTo=login|signup → state + PKCE → Google
+GET  /api/auth/google/callback → verify ID token → resolve account → sign JWT
 GET  /api/auth/me       → verifyToken middleware → fetch user by ID → return user (no password)
 POST /api/auth/logout   → clear httpOnly cookie
 ```
 
+Google authentication is a backend-owned Authorization Code + PKCE flow. The
+frontend uses the same-origin `/backend-api` rewrite; the API keeps state,
+the PKCE verifier, and the allowlisted auth-page choice in short-lived
+httpOnly cookies, then redirects successful callbacks to the fixed
+`/dashboard` path. The verified Google `sub` claim is the external identity
+key. New accounts are students with a nullable password; existing accounts
+are linked only for authoritative Gmail/Google Workspace identities. See
+[GOOGLE_AUTH.md](GOOGLE_AUTH.md) for the deployment contract and error codes.
+
 > **Auth delivery is cookie-only.** The JWT is delivered exclusively via an httpOnly cookie named `jwt` (set by `generateToken` in `src/utils/jwt.ts`, with `httpOnly`, `secure` in production, `sameSite: "lax"`, 7-day `maxAge`). There is **no Bearer header** and **no `token` field in the response body** — the API is consumed by the browser via credentialed `fetch` (`credentials: "include"`).
+
+Google callbacks use the same JWT expiry and cookie flags as local login, so
+Google authentication has the same application session semantics.
 
 ### JWT Design
 
@@ -296,6 +312,8 @@ router.get("/admin/users", verifyToken, requireRole("ADMIN"), listUsers);
 |--------|------|------|-------------|
 | POST | `/register` | Public | Create account (default: STUDENT) |
 | POST | `/login` | Public | Authenticate, return JWT |
+| GET | `/google/start?returnTo=login\|signup` | Public | Begin Google OAuth with state and PKCE |
+| GET | `/google/callback` | Public | Verify Google identity and issue the application session |
 | GET | `/me` | Required | Get current user |
 | PUT | `/profile` | Required | Update profile |
 | PUT | `/password` | Required | Change password |
@@ -589,9 +607,23 @@ export function verifyWebhookSignature(req: Request, res: Response, next: NextFu
 - [x] File upload MIME type validated (video only)
 - [x] Prisma queries use parameterized inputs (automatic — no raw SQL)
 
+### Rate-limit topology (#63)
+
+Rate limiting is implemented in phases. #83 owns the authentication policies with the built-in MemoryStore for one Express process. #109 owns the general API baseline and payment operations. #111 owns Answer and question-audio mutations, #112 owns Submission mutations, and #113 owns the OAuth limiter adapter once the provider handlers from #56/#58 land. #110 owns the shared external store and the production multi-instance gate; #114 verifies the complete rollout and topology. Until that verification is complete, a deployment with more than one process or instance must not claim distributed rate-limit enforcement.
+
+The route-boundary contract is:
+
+- derive privacy-preserving keys from normalized IP, active account ID, or normalized email values;
+- run the general API baseline only for routes without a dedicated policy, so dedicated requests do not consume two budgets;
+- use a dedicated HMAC secret of at least 32 bytes, never the JWT secret;
+- accept only `none` or an explicit CIDR allowlist for proxy trust;
+- return generic 429 JSON with `Retry-After` and draft-8 `RateLimit` headers, without legacy `X-RateLimit-*` headers;
+- fail closed for sensitive operations when the limiter store is unavailable, with any read-only fail-open behavior explicitly configured and observable.
+
 ### Network & Infrastructure
 
-- [x] Rate limiting on auth and upload endpoints (see `rate-limit.middleware.ts`)
+- [x] Route-specific rate limiting on auth, payment, upload, question-audio, and submission mutation endpoints (tracked by #83, #109, #111, and #112)
+- [x] Google OAuth route limiter adapter composes the provider handlers from #56/#58 (tracked by #113)
 - [x] Payment webhook HMAC signature verification
 - [x] CORS origin restriction
 - [x] Global error handler catches unhandled exceptions (never leak stack traces)
@@ -651,6 +683,9 @@ export function verifyWebhookSignature(req: Request, res: Response, next: NextFu
 
 // 429
 { "error": "Too many requests" }
+
+// 503
+{ "error": "Service temporarily unavailable" }
 
 // 500
 { "error": "Internal server error" }

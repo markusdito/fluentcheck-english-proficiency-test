@@ -34,6 +34,9 @@ to 6.0. Completed examiner scores are aggregated into the candidate's result.
 - **Role-aware workflows** — candidates, examiners, and administrators share one
   application while JWT authentication and server-side authorization enforce
   their separate capabilities.
+- **Backend-owned Google authentication** — Google Authorization Code + PKCE
+  uses verified stable identities, safe account linking, and the same hardened
+  JWT session boundary as local authentication.
 - **Explicit assessment lifecycle** — submissions move through recording,
   payment, examiner review, and scored-result states, with transactional updates
   around assignment and grading operations.
@@ -77,6 +80,7 @@ flowchart LR
     Database[(PostgreSQL)]
     Storage[(Cloudflare R2)]
     Payment[iPaymu]
+    Google[Google OAuth]
 
     Browser -->|JSON through Next.js rewrite| API
     API -->|Prisma| Database
@@ -84,6 +88,8 @@ flowchart LR
     Browser -->|Direct video and audio upload| Storage
     API -->|Create checkout| Payment
     Payment -->|Signed payment callback| API
+    Browser -->|Authorization Code + PKCE| Google
+    Google -->|Callback through frontend rewrite| API
 ```
 
 The frontend uses a same-origin `/backend-api` rewrite during local development.
@@ -124,8 +130,9 @@ with Prisma providing typed access to PostgreSQL.
 ```
 
 For more detail, see the
-[frontend architecture](frontend/docs/FRONTEND_ARCHITECTURE.md) and
-[backend architecture](backend/docs/BACKEND_ARCHITECTURE.md) documents.
+[frontend architecture](frontend/docs/FRONTEND_ARCHITECTURE.md),
+[backend architecture](backend/docs/BACKEND_ARCHITECTURE.md), and
+[Google OAuth deployment](backend/docs/GOOGLE_AUTH.md) documents.
 
 ## Running Locally
 
@@ -165,6 +172,17 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 JWT_SECRET="replace-with-a-long-random-secret"
 JWT_EXPIRES_IN="1h"
 
+# Rate-limit privacy and deployment topology
+RATE_LIMIT_HMAC_SECRET="paste-the-output-of-openssl-rand-hex-32"
+RATE_LIMIT_TRUST_PROXY="none"
+RATE_LIMIT_TOPOLOGY="single-process"
+RATE_LIMIT_STORE="memory"
+
+# Google OAuth (server-only; use the exact callback URI from the deployment guide)
+GOOGLE_CLIENT_ID="123456789.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="server-only-client-secret"
+GOOGLE_REDIRECT_URI="http://localhost:3000/backend-api/auth/google/callback"
+
 # Cloudflare R2
 R2_ACCOUNT_ID="your-account-id"
 R2_ACCESS_KEY_ID="your-access-key-id"
@@ -179,6 +197,10 @@ IPAYMU_NOTIFY_URL="https://your-public-api.example.com/api/payments/ipaymu/notif
 IPAYMU_PAYMENT_AMOUNT="150000"
 IPAYMU_CURRENCY="IDR"
 ```
+
+Generate `RATE_LIMIT_HMAC_SECRET` with `openssl rand -hex 32`. It must be a
+dedicated value of at least 32 bytes and must not reuse `JWT_SECRET`; the
+backend refuses to start when it is missing, too short, or reused.
 
 The iPaymu values are only needed when payment is enabled. Its notification URL
 must be publicly reachable so iPaymu can deliver payment status callbacks.

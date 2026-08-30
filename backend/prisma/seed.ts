@@ -30,6 +30,7 @@ async function main() {
       data: {
         username: "admin",
         email: "admin@fluentcheck.com",
+        normalizedEmail: "admin@fluentcheck.com",
         password: "$2a$10$placeholder", // placeholder — not a real hash, for seed only
         role: "ADMIN",
       },
@@ -53,6 +54,7 @@ async function main() {
       await prisma.user.create({
         data: {
           ...ex,
+          normalizedEmail: ex.email,
           password: "$2a$10$placeholder",
           role: "EXAMINER",
         },

@@ -187,6 +187,15 @@ test("missing, invalid, and deactivated authentication share one stable response
   }
 });
 
+test("a validly signed token with a malformed account id is rejected as authentication failure", async () => {
+  const malformedToken = jwt.sign({ id: "not-a-uuid" }, process.env.JWT_SECRET!);
+  const response = await request("GET", "/auth/me", `jwt=${malformedToken}`);
+
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: "Not authenticated" });
+  assertAuthenticationCookieCleared(response);
+});
+
 test("deactivation after token issuance denies /me and a role-protected route", async () => {
   const admin = await createUser("deactivated_admin", "ADMIN");
   const cookie = cookieFor(admin.id);

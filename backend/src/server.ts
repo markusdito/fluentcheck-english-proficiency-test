@@ -2,20 +2,26 @@ import "dotenv/config";
 import path from "node:path";
 import type { Server } from "node:http";
 import { pathToFileURL } from "node:url";
-import express, { type ErrorRequestHandler, type RequestHandler } from "express";
+import express, {
+  type ErrorRequestHandler,
+  type Request,
+  type RequestHandler,
+} from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { connectDB, disconnectDB } from "./config/db.js";
-import { env } from "./config/env.js";
-import authRoutes from "./routes/auth.routes.js";
-import questionRoutes from "./routes/question.routes.js";
-import uploadRoutes from "./routes/upload.routes.js";
-import submissionRoutes from "./routes/submission.routes.js";
+import { env, getGoogleOAuthConfig } from "./config/env.js";
+import { createAuthRouter } from "./routes/auth.routes.js";
+import { createQuestionRouter } from "./routes/question.routes.js";
+import { createUploadRouter } from "./routes/upload.routes.js";
+import { createSubmissionRouter } from "./routes/submission.routes.js";
 import examinerRoutes from "./routes/examiner.routes.js";
 import { createPaymentRouter } from "./routes/payment.routes.js";
+import type { GoogleAuthRouteHandlers } from "./routes/google-auth.routes.js";
+import { createGoogleAuthHandlers } from "./controllers/googleAuth.controller.js";
 import adminRoutes from "./routes/admin.routes.js";
 import type { IpaymuTransport } from "./service/ipaymu.transport.js";
-import { createRateLimitConfig } from "./config/rate-limit.js";
+import { createRateLimitConfig, RATE_LIMIT_POLICIES } from "./config/rate-limit.js";
 import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";
 import {
   RateLimitKeyUnavailableError,
@@ -27,6 +33,34 @@ import {
 
 const REQUEST_BODY_LIMIT = "64kb";
 const URL_ENCODED_PARAMETER_LIMIT = 100;
+
+function isDedicatedRateLimitedRoute(
+  request: Request,
+  googleAuthMounted: boolean,
+): boolean {
+  const path = request.originalUrl.split("?", 1)[0].replace(/\/+$/u, "");
+  if (request.method === "GET") {
+    return (
+      googleAuthMounted &&
+      (path === "/api/auth/google/start" ||
+        path === "/api/auth/google/callback")
+    );
+  }
+  if (request.method !== "POST") return false;
+
+  return (
+    path === "/api/auth/login" ||
+    path === "/api/auth/register" ||
+    path === "/api/payments/ipaymu/notify" ||
+    /^\/api\/payments\/submissions\/[^/]+\/pay$/u.test(path) ||
+    path === "/api/uploads/presigned-url" ||
+    path === "/api/uploads/confirm" ||
+    path === "/api/questions/audio/presigned-url" ||
+    path === "/api/questions/audio/confirm" ||
+    path === "/api/submissions" ||
+    /^\/api\/submissions\/[^/]+\/complete$/u.test(path)
+  );
+}
 
 function isBodyParserError(error: unknown): error is {
   status?: number;
@@ -49,6 +83,7 @@ const rejectNonAuthArrayBodies: RequestHandler = (req, res, next) => {
 
 export interface AppDependencies {
   ipaymuTransport?: IpaymuTransport;
+  googleAuth?: GoogleAuthRouteHandlers;
   rateLimit?: RateLimitRuntimeOptions;
 }
 
@@ -114,17 +149,18 @@ export function createApp(dependencies: AppDependencies = {}) {
     }),
   );
   app.use(cookieParser());
-  app.use(
-    "/api/auth",
-    express.json({ limit: REQUEST_BODY_LIMIT, strict: false }),
+  const generalRateLimit = app.locals.rateLimit?.createLimiter(
+    RATE_LIMIT_POLICIES.generalApi,
+    undefined,
+    {
+      skip: (request) =>
+        isDedicatedRateLimitedRoute(request, dependencies.googleAuth !== undefined),
+    },
   );
+  if (generalRateLimit) app.use("/api", generalRateLimit);
   app.use(
     "/api/auth",
-    express.urlencoded({
-      extended: true,
-      limit: REQUEST_BODY_LIMIT,
-      parameterLimit: URL_ENCODED_PARAMETER_LIMIT,
-    }),
+    createAuthRouter(app.locals.rateLimit, dependencies.googleAuth),
   );
   app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
   app.use(
@@ -136,12 +172,14 @@ export function createApp(dependencies: AppDependencies = {}) {
   );
   app.use(rejectNonAuthArrayBodies);
 
-  app.use("/api/auth", authRoutes);
-  app.use("/api/questions", questionRoutes);
-  app.use("/api/uploads", uploadRoutes);
-  app.use("/api/submissions", submissionRoutes);
+  app.use("/api/questions", createQuestionRouter(app.locals.rateLimit));
+  app.use("/api/uploads", createUploadRouter(app.locals.rateLimit));
+  app.use("/api/submissions", createSubmissionRouter(app.locals.rateLimit));
   app.use("/api/examiner", examinerRoutes);
-  app.use("/api/payments", createPaymentRouter(dependencies.ipaymuTransport));
+  app.use(
+    "/api/payments",
+    createPaymentRouter(dependencies.ipaymuTransport, app.locals.rateLimit),
+  );
   app.use("/api/admin", adminRoutes);
 
   app.get("/", (_req, res) => {
@@ -168,8 +206,12 @@ async function startServer() {
   const rateLimitConfig = createRateLimitConfig();
   const rateLimitStoreFactory =
     createConfiguredRateLimitStoreFactory(rateLimitConfig);
+  const googleOAuthConfig = getGoogleOAuthConfig();
   await connectDB();
   const app = createApp({
+    googleAuth: googleOAuthConfig
+      ? createGoogleAuthHandlers(googleOAuthConfig)
+      : undefined,
     rateLimit: {
       config: rateLimitConfig,
       storeFactory: rateLimitStoreFactory,

@@ -27,6 +27,10 @@ let server: Server;
 let baseUrl: string;
 let ipaymuTransport: IpaymuTransport;
 
+function uniqueUsername(prefix: string) {
+  return `${prefix.replace(/[^a-z0-9_]/giu, "_")}_${crypto.randomUUID().replaceAll("-", "")}`;
+}
+
 function successfulCheckoutTransport(): IpaymuTransport {
   return async (url, init) => {
     checkoutRequests.push({ url, init });
@@ -229,11 +233,23 @@ after(async () => {
   if (container) await container.stop();
 }, { timeout: 120_000 });
 
+function userData(username: string, email: string, role: "ADMIN" | "STUDENT" | "EXAMINER") {
+  return {
+    username: username.replace(/[^a-z0-9_]/giu, "_").toLowerCase(),
+    email,
+    normalizedEmail: email.trim().toLowerCase(),
+    password: "not-used-by-payment-tests",
+    role,
+  };
+}
+
 async function createAwaitingPaymentSubmission() {
+  const email = `${crypto.randomUUID()}@example.test`;
   const student = await prisma.user.create({
     data: {
-      username: `student-${crypto.randomUUID()}`,
-      email: `${crypto.randomUUID()}@example.test`,
+      username: uniqueUsername("student"),
+      email,
+      normalizedEmail: email,
       password: "not-used-by-payment-tests",
       role: "STUDENT",
     },
@@ -705,18 +721,8 @@ test("successful callbacks reject mismatched reconciliation fields", async () =>
 test("concurrent callback replay pays and dispatches assignment once", async () => {
   await prisma.user.createMany({
     data: [
-      {
-        username: "examiner-one",
-        email: "examiner-one@example.test",
-        password: "not-used-by-payment-tests",
-        role: "EXAMINER",
-      },
-      {
-        username: "examiner-two",
-        email: "examiner-two@example.test",
-        password: "not-used-by-payment-tests",
-        role: "EXAMINER",
-      },
+      userData("examiner-one", "examiner-one@example.test", "EXAMINER"),
+      userData("examiner-two", "examiner-two@example.test", "EXAMINER"),
     ],
   });
   const { payment, submission } = await createPaymentAttempt();
@@ -744,18 +750,8 @@ test("concurrent callback replay pays and dispatches assignment once", async () 
 test("sequential callback replay is acknowledged without a second transition", async () => {
   await prisma.user.createMany({
     data: [
-      {
-        username: "sequential-examiner",
-        email: "sequential-examiner@example.test",
-        password: "not-used-by-payment-tests",
-        role: "EXAMINER",
-      },
-      {
-        username: "sequential-examiner-two",
-        email: "sequential-examiner-two@example.test",
-        password: "not-used-by-payment-tests",
-        role: "EXAMINER",
-      },
+      userData("sequential-examiner", "sequential-examiner@example.test", "EXAMINER"),
+      userData("sequential-examiner-two", "sequential-examiner-two@example.test", "EXAMINER"),
     ],
   });
   const { payment, submission } = await createPaymentAttempt();
@@ -810,18 +806,8 @@ test("success remains terminal while a delayed success can upgrade failure", asy
 test("different successful attempts are recorded while assignment dispatches once", async () => {
   await prisma.user.createMany({
     data: [
-      {
-        username: "examiner-one",
-        email: "examiner-one@example.test",
-        password: "not-used-by-payment-tests",
-        role: "EXAMINER",
-      },
-      {
-        username: "examiner-two",
-        email: "examiner-two@example.test",
-        password: "not-used-by-payment-tests",
-        role: "EXAMINER",
-      },
+      userData("examiner-one", "examiner-one@example.test", "EXAMINER"),
+      userData("examiner-two", "examiner-two@example.test", "EXAMINER"),
     ],
   });
   const context = await createAwaitingPaymentSubmission();
@@ -1019,27 +1005,12 @@ test("assignment failure remains replay-safe and recoverable through admin", asy
 
   await prisma.user.createMany({
     data: [
-      {
-        username: "recovery-examiner",
-        email: "recovery-examiner@example.test",
-        password: "not-used-by-payment-tests",
-        role: "EXAMINER",
-      },
-      {
-        username: "recovery-examiner-two",
-        email: "recovery-examiner-two@example.test",
-        password: "not-used-by-payment-tests",
-        role: "EXAMINER",
-      },
+      userData("recovery-examiner", "recovery-examiner@example.test", "EXAMINER"),
+      userData("recovery-examiner-two", "recovery-examiner-two@example.test", "EXAMINER"),
     ],
   });
   const admin = await prisma.user.create({
-    data: {
-      username: "recovery-admin",
-      email: "recovery-admin@example.test",
-      password: "not-used-by-payment-tests",
-      role: "ADMIN",
-    },
+    data: userData("recovery-admin", "recovery-admin@example.test", "ADMIN"),
   });
   const adminToken = jwt.sign({ id: admin.id }, process.env.JWT_SECRET!);
   const recoveryResponse = await fetch(
@@ -1072,12 +1043,7 @@ test("assignment failure remains replay-safe and recoverable through admin", asy
 test("admin Payment history exposes typed and legacy reconciliation identifiers", async () => {
   const { submission } = await createAwaitingPaymentSubmission();
   const admin = await prisma.user.create({
-    data: {
-      username: "payment-admin",
-      email: "payment-admin@example.test",
-      password: "not-used-by-payment-tests",
-      role: "ADMIN",
-    },
+    data: userData("payment-admin", "payment-admin@example.test", "ADMIN"),
   });
   const typedPayment = await prisma.payment.create({
     data: {

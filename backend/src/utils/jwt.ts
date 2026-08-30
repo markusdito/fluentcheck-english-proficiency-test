@@ -21,7 +21,10 @@ export function clearAuthCookie(res: Response) {
     });
 }
 
-export function generateToken(userId: string, res: Response) {
+export function generateToken(
+    userId: string,
+    res: Response,
+) {
     const payload = { id: userId }
 
     const token = jwt.sign(payload, env.JWT_SECRET, {

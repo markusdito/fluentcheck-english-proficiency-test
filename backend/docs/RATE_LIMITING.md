@@ -89,10 +89,79 @@ Every limiter uses draft-8 `RateLimit` headers, `Retry-After`, and no legacy
 `X-RateLimit-*` headers. A blocked request receives `{ "error": "Too many
 requests" }` with status 429.
 
+## Authentication composition (#83)
+
+The authentication router consumes the shared runtime at its route boundary.
+The login and registration burst policies run before the authentication body
+parsers, so malformed JSON, oversized bodies, and schema-invalid requests can
+consume only the applicable IP burst budget. Validated requests then pass
+through their dedicated policies:
+
+This route-local parser ordering is an intentional exception to the generic
+application middleware order: the IP-only burst decision does not need a body,
+while the account/email policies do. Non-authentication routes retain the
+application-level parser ordering.
+
+- login: 120 requests per minute per IP;
+- failed login: 10 requests per 15 minutes per normalized account and 100 per
+  15 minutes per IP;
+- registration: 30 requests per minute per IP; and
+- validated registration: 120 requests per hour per IP and 5 per hour per
+  normalized email.
+
+Login failure policies skip successful responses. A successful local login also
+resets only the normalized account failure key; it does not reset the IP
+failure counter. Nonexistent, deactivated, provider-only, and wrong-password
+attempts retain the same generic authentication outcome and reach both failure
+policies after validation. Authentication controllers remain unaware of the
+limiter store and policy mechanics.
+
+The authentication phase is deterministic when `createApp` receives a fresh
+rate-limit store factory, which is the native HTTP test seam. Its supported
+first-version deployment is one Express process with `MemoryStore`; counters
+reset on restart. A production deployment using multiple processes or
+instances must use the shared-store topology from the parent rollout and must
+not silently fall back to local memory counters.
+
 Sensitive policies fail closed with a generic 503 when their store is
 unavailable. A read-only policy may explicitly use `fail-open`; the shared
 failure reporter makes that decision observable without exposing store error
 details.
+
+## Non-authentication composition (#109, #111, #112, #113)
+
+The non-authentication routers are created with the same runtime passed to the
+application factory. The general `generalApi` limiter is mounted at `/api`
+before body parsing and route handling, but explicitly skips every route with
+a dedicated policy. Route-specific limiters are then composed at the operation
+boundary, so dedicated requests consume only their applicable counters and
+controllers and services remain unaware of policy mechanics. Unmatched API
+routes and routes without a dedicated policy use the general baseline.
+
+- iPaymu callbacks: 300 per 5 minutes per normalized IP;
+- submission payment: 10 per hour per active account and 30 per hour per
+  normalized IP;
+- Answer presign and confirmation: 30 per 10 minutes per active account and
+  60 per 10 minutes per normalized IP;
+- question-audio presign and confirmation: 60 per hour per active account and
+  120 per hour per normalized IP;
+- submission creation: 5 per hour per active account and 20 per hour per
+  normalized IP; and
+- submission completion: 10 per 15 minutes per active account and 30 per 15
+  minutes per normalized IP.
+
+Authenticated policies are mounted after `verifyToken`, which resolves one
+current active account before `activeAccountIdentity` derives the account key.
+The IP half of each pair remains an independent policy and counter. Direct
+object-storage uploads, ordinary reads, idempotent submission initialization,
+and existing payment callback processing are otherwise unchanged.
+
+Google OAuth has a provider-neutral route adapter in
+`src/routes/google-auth.routes.ts`. It applies the 20-per-10-minute start and
+40-per-10-minute callback IP policies to handlers supplied by the OAuth
+implementation. The adapter does not add provider, PKCE, cookie, redirect, or
+account-linking behavior; the routes are mounted when the OAuth implementation
+from #56/#58 supplies those handlers.
 
 ## Verification
 
@@ -105,3 +174,7 @@ details.
 - missing shared-store configuration is rejected instead of falling back;
 - a store outage or black-hole timeout returns the stable generic 503 contract
   without exposing client error details.
+
+`test/rateLimit.test.ts` also exercises the `/api` baseline, iPaymu callback,
+OAuth start/callback independence, active-account/IP policy pairing, proxy
+normalization, and generic failure responses through native HTTP requests.

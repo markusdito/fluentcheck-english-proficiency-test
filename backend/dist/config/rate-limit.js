@@ -103,7 +103,10 @@ export function createRateLimitConfig(input = {}) {
         throw new Error("RATE_LIMIT_HMAC_SECRET must be at least 32 bytes");
     }
     const jwtSecret = input.jwtSecret ?? env.JWT_SECRET;
-    if (jwtSecret && hmacSecret === jwtSecret) {
+    if (!jwtSecret) {
+        throw new Error("JWT_SECRET must be configured");
+    }
+    if (hmacSecret === jwtSecret) {
         throw new Error("RATE_LIMIT_HMAC_SECRET must be distinct from JWT_SECRET");
     }
     const nodeEnv = input.nodeEnv ?? env.NODE_ENV;

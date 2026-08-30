@@ -9,6 +9,7 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/User.js'
+export type * from './models/GoogleOAuthState.js'
 export type * from './models/Question.js'
 export type * from './models/Task.js'
 export type * from './models/Submission.js'
