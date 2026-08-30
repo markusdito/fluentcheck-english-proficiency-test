@@ -32,7 +32,7 @@ describe("CameraMicPermissionModal", () => {
     vi.restoreAllMocks();
   });
 
-  it("lets a candidate retry denied permissions and continue after both devices are found", async () => {
+  it("lets a student retry denied permissions and continue after both devices are found", async () => {
     const user = userEvent.setup();
     const getUserMedia = vi
       .fn()
