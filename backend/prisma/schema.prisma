@@ -63,6 +63,7 @@ model User {
   email     String
   normalizedEmail String @unique
   password  String? // nullable for provider-only accounts; local passwords are bcrypt hashes
+  googleSubject String? @unique // Google's stable subject; null for local-only accounts
   role      Role      @default(STUDENT)
   createdAt DateTime  @default(now()) @db.Timestamptz()
   updatedAt DateTime  @updatedAt @db.Timestamptz()
