@@ -10,7 +10,6 @@ BEGIN
      AND EXISTS (
        SELECT 1
        FROM "User"
-       WHERE "normalizedEmail" IS NULL
          AND LOWER(BTRIM("email")) = NEW."normalizedEmail"
      ) THEN
     RAISE EXCEPTION USING
