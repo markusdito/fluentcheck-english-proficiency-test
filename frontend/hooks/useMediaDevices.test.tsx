@@ -135,6 +135,9 @@ describe("useMediaDevices", () => {
     const tracks = [{ stop: vi.fn() }, { stop: vi.fn() }];
     const stream = { getTracks: () => tracks } as unknown as MediaStream;
     getUserMedia.mockResolvedValue(stream);
+    const audio = createAudioContextMock();
+    installAudioContextMocks(audio);
+    const { cancelAnimationFrame } = installAnimationFrameMocks();
 
     const { result, unmount } = renderHook(() => useMediaDevices());
     await act(async () => {
@@ -146,6 +149,10 @@ describe("useMediaDevices", () => {
     expect(removeEventListener).toHaveBeenCalledWith("devicechange", expect.any(Function));
     expect(tracks[0].stop).toHaveBeenCalledOnce();
     expect(tracks[1].stop).toHaveBeenCalledOnce();
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
+    expect(audio.source.disconnect).toHaveBeenCalledOnce();
+    expect(audio.analyser.disconnect).toHaveBeenCalledOnce();
+    expect(audio.context.close).toHaveBeenCalledOnce();
   });
 
   it("cleans the previous resource set before replacing it", async () => {
@@ -210,6 +217,58 @@ describe("useMediaDevices", () => {
     });
 
     expect(result.current.stream).toBe(stream);
+  });
+
+  it("rolls back the stream when audio monitor setup fails", async () => {
+    const track = { stop: vi.fn() };
+    const stream = {
+      getTracks: () => [track],
+    } as unknown as MediaStream;
+    getUserMedia.mockResolvedValue(stream);
+
+    const audio = createAudioContextMock();
+    audio.context.createAnalyser.mockImplementation(() => {
+      throw new Error("audio graph unavailable");
+    });
+    installAudioContextMocks(audio);
+
+    const { result } = renderHook(() => useMediaDevices());
+
+    await act(async () => {
+      expect(await result.current.requestPermissions()).toBe(false);
+    });
+
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(audio.source.disconnect).toHaveBeenCalledOnce();
+    expect(audio.analyser.disconnect).not.toHaveBeenCalled();
+    expect(audio.context.close).toHaveBeenCalledOnce();
+    expect(result.current.stream).toBeNull();
+    expect(result.current.videoError).toBe(
+      "An unexpected error occurred while accessing media devices.",
+    );
+  });
+
+  it("stops a stream that resolves after the hook unmounts", async () => {
+    const permissionRequest = createDeferred<MediaStream>();
+    getUserMedia.mockReturnValue(permissionRequest.promise);
+
+    const { result, unmount } = renderHook(() => useMediaDevices());
+    let request!: Promise<boolean>;
+    act(() => {
+      request = result.current.requestPermissions();
+    });
+    unmount();
+
+    const track = { stop: vi.fn() };
+    const stream = {
+      getTracks: () => [track],
+    } as unknown as MediaStream;
+    await act(async () => {
+      permissionRequest.resolve(stream);
+      await request;
+    });
+
+    expect(track.stop).toHaveBeenCalledOnce();
   });
 
   it("cancels deferred device enumeration when unmounted", () => {
