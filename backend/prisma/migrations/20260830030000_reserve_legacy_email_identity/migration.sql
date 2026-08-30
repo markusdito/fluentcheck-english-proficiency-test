@@ -10,6 +10,8 @@ BEGIN
      AND EXISTS (
        SELECT 1
        FROM "User"
+       WHERE "id" <> NEW."id"
+         AND "normalizedEmail" IS NULL
          AND LOWER(BTRIM("email")) = NEW."normalizedEmail"
      ) THEN
     RAISE EXCEPTION USING
