@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaDevices } from "./useMediaDevices";
 
 type MediaDevicesMock = Pick<
@@ -18,6 +18,28 @@ function createDevice(deviceId: string, kind: MediaDeviceKind, label: string): M
   return { deviceId, groupId: "", kind, label, toJSON: () => ({}) };
 }
 
+function createAudioContextMock() {
+  const source = {
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+  };
+  const analyser = {
+    fftSize: 0,
+    smoothingTimeConstant: 0,
+    frequencyBinCount: 1,
+    getByteTimeDomainData: vi.fn((data: Uint8Array) => data.fill(128)),
+    disconnect: vi.fn(),
+  };
+  const context = {
+    createMediaStreamSource: vi.fn(() => source),
+    createAnalyser: vi.fn(() => analyser),
+    close: vi.fn().mockResolvedValue(undefined),
+    state: "running",
+  };
+
+  return { context, source, analyser };
+}
+
 describe("useMediaDevices", () => {
   let enumerateDevices: ReturnType<typeof vi.fn<MediaDevices["enumerateDevices"]>>;
   let getUserMedia: ReturnType<typeof vi.fn<MediaDevices["getUserMedia"]>>;
@@ -30,6 +52,10 @@ describe("useMediaDevices", () => {
     addEventListener = vi.fn<MediaDevices["addEventListener"]>();
     removeEventListener = vi.fn<MediaDevices["removeEventListener"]>();
     setMediaDevices({ enumerateDevices, getUserMedia, addEventListener, removeEventListener });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("enumerates available camera and microphone devices on mount", async () => {
@@ -87,6 +113,54 @@ describe("useMediaDevices", () => {
     expect(removeEventListener).toHaveBeenCalledWith("devicechange", expect.any(Function));
     expect(tracks[0].stop).toHaveBeenCalledOnce();
     expect(tracks[1].stop).toHaveBeenCalledOnce();
+  });
+
+  it("cleans the previous resource set before replacing it", async () => {
+    const firstTrack = { stop: vi.fn() };
+    const secondTrack = { stop: vi.fn() };
+    const firstStream = {
+      getTracks: () => [firstTrack],
+    } as unknown as MediaStream;
+    const secondStream = {
+      getTracks: () => [secondTrack],
+    } as unknown as MediaStream;
+    getUserMedia.mockResolvedValueOnce(firstStream).mockResolvedValueOnce(secondStream);
+
+    const firstAudio = createAudioContextMock();
+    const secondAudio = createAudioContextMock();
+    const audioContextMocks = [firstAudio, secondAudio];
+    const audioContexts = vi.fn<() => AudioContext>(function () {
+      const next = audioContextMocks.shift();
+      if (!next) throw new Error("Unexpected AudioContext construction");
+      return next.context as unknown as AudioContext;
+    });
+    vi.stubGlobal("AudioContext", audioContexts);
+
+    let nextAnimationFrameId = 1;
+    const requestAnimationFrame = vi
+      .fn<(callback: FrameRequestCallback) => number>()
+      .mockImplementation(() => nextAnimationFrameId++);
+    const cancelAnimationFrame = vi.fn<(handle: number) => void>();
+    vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
+    vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+
+    const { result } = renderHook(() => useMediaDevices());
+
+    await act(async () => {
+      await result.current.requestPermissions();
+    });
+
+    await act(async () => {
+      await result.current.requestPermissions();
+    });
+
+    expect(firstTrack.stop).toHaveBeenCalledOnce();
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
+    expect(firstAudio.source.disconnect).toHaveBeenCalledOnce();
+    expect(firstAudio.analyser.disconnect).toHaveBeenCalledOnce();
+    expect(firstAudio.context.close).toHaveBeenCalledOnce();
+    expect(secondTrack.stop).not.toHaveBeenCalled();
+    expect(result.current.stream).toBe(secondStream);
   });
 
   it("cancels deferred device enumeration when unmounted", () => {

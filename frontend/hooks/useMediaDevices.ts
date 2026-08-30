@@ -21,6 +21,11 @@ interface UseMediaDevicesReturn {
   stopStream: () => void;
 }
 
+function closeAudioContext(audioContext: AudioContext | null) {
+  if (!audioContext) return;
+  void Promise.resolve(audioContext.close()).catch(() => undefined);
+}
+
 export function useMediaDevices(): UseMediaDevicesReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
@@ -31,8 +36,11 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   const [isMicActive, setIsMicActive] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
+  const monitorTokenRef = useRef<object | null>(null);
 
   /** Enumerate all media devices */
   const enumerateDevices = useCallback(async () => {
@@ -55,20 +63,30 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
   /** Start mic level monitoring via AnalyserNode */
   const startMicMonitor = useCallback((mediaStream: MediaStream) => {
-    try {
-      const audioCtx = new AudioContext();
-      const source = audioCtx.createMediaStreamSource(mediaStream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.8; // Smooth out jitter, behave like browser meter
-      source.connect(analyser);
-      analyserRef.current = analyser;
+    const monitorToken = {};
+    let audioContext: AudioContext | null = null;
+    let source: MediaStreamAudioSourceNode | null = null;
+    let analyser: AnalyserNode | null = null;
 
-      const bufferLength = analyser.frequencyBinCount;
+    try {
+      audioContext = new AudioContext();
+      source = audioContext.createMediaStreamSource(mediaStream);
+      const createdAnalyser = audioContext.createAnalyser();
+      analyser = createdAnalyser;
+      createdAnalyser.fftSize = 1024;
+      createdAnalyser.smoothingTimeConstant = 0.8; // Smooth out jitter, behave like browser meter
+      source.connect(createdAnalyser);
+      audioContextRef.current = audioContext;
+      sourceRef.current = source;
+      analyserRef.current = createdAnalyser;
+      monitorTokenRef.current = monitorToken;
+
+      const bufferLength = createdAnalyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
       const tick = () => {
-        analyser.getByteTimeDomainData(dataArray);
+        if (monitorTokenRef.current !== monitorToken) return;
+        createdAnalyser.getByteTimeDomainData(dataArray);
         // Time-domain: values range 0-255, where 128 = silence.
         // Compute RMS deviation from 128 to get actual audio amplitude.
         let sumSquares = 0;
@@ -90,23 +108,46 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       };
       tick();
     } catch {
-      // AudioContext may not be available
+      source?.disconnect();
+      analyser?.disconnect();
+      closeAudioContext(audioContext);
     }
   }, []);
 
-  /** Stop mic monitoring */
+  /** Stop mic monitoring and release every resource it owns. */
   const stopMicMonitor = useCallback(() => {
-    if (animationRef.current) {
+    monitorTokenRef.current = null;
+    if (animationRef.current !== null) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
+    sourceRef.current?.disconnect();
+    sourceRef.current = null;
+    analyserRef.current?.disconnect();
     analyserRef.current = null;
+    const audioContext = audioContextRef.current;
+    audioContextRef.current = null;
+    closeAudioContext(audioContext);
     setIsMicActive(false);
     setMicLevel(0);
   }, []);
 
+  const cleanupMediaResources = useCallback(
+    (resetState = true) => {
+      stopMicMonitor();
+      const currentStream = streamRef.current;
+      if (currentStream) {
+        currentStream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        if (resetState) setStream(null);
+      }
+    },
+    [stopMicMonitor],
+  );
+
   /** Request camera + mic permissions */
   const requestPermissions = useCallback(async (): Promise<boolean> => {
+    cleanupMediaResources();
     setIsLoading(true);
     setVideoError(null);
     setAudioError(null);
@@ -147,18 +188,12 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
       return false;
     }
-  }, [enumerateDevices, startMicMonitor]);
+  }, [cleanupMediaResources, enumerateDevices, startMicMonitor]);
 
   /** Stop all tracks and clean up — uses ref to avoid recreating on stream state change */
   const stopStream = useCallback(() => {
-    const currentStream = streamRef.current;
-    if (currentStream) {
-      currentStream.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      setStream(null);
-    }
-    stopMicMonitor();
-  }, [stopMicMonitor]);
+    cleanupMediaResources();
+  }, [cleanupMediaResources]);
 
   /** Enumerate devices on mount in case permissions already granted */
   useEffect(() => {
@@ -182,14 +217,9 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   /** Cleanup on unmount — uses ref to avoid recreating on stream state change */
   useEffect(() => {
     return () => {
-      stopMicMonitor();
-      const currentStream = streamRef.current;
-      if (currentStream) {
-        currentStream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
+      cleanupMediaResources(false);
     };
-  }, [stopMicMonitor]);
+  }, [cleanupMediaResources]);
 
   return {
     stream,
