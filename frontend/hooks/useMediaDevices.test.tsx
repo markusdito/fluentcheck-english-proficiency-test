@@ -271,6 +271,49 @@ describe("useMediaDevices", () => {
     expect(track.stop).toHaveBeenCalledOnce();
   });
 
+  it("does not let a superseded request take ownership from a newer request", async () => {
+    const firstRequest = createDeferred<MediaStream>();
+    const secondRequest = createDeferred<MediaStream>();
+    getUserMedia
+      .mockReturnValueOnce(firstRequest.promise)
+      .mockReturnValueOnce(secondRequest.promise);
+    installAudioContextMocks(createAudioContextMock());
+    installAnimationFrameMocks();
+
+    const { result } = renderHook(() => useMediaDevices());
+    let firstPermission!: Promise<boolean>;
+    act(() => {
+      firstPermission = result.current.requestPermissions();
+      result.current.stopStream();
+    });
+
+    let secondPermission!: Promise<boolean>;
+    act(() => {
+      secondPermission = result.current.requestPermissions();
+    });
+
+    const firstTrack = { stop: vi.fn() };
+    const firstStream = {
+      getTracks: () => [firstTrack],
+    } as unknown as MediaStream;
+    await act(async () => {
+      firstRequest.resolve(firstStream);
+      await firstPermission;
+    });
+
+    expect(firstTrack.stop).toHaveBeenCalledOnce();
+
+    const secondStream = {
+      getTracks: () => [{ stop: vi.fn() }],
+    } as unknown as MediaStream;
+    await act(async () => {
+      secondRequest.resolve(secondStream);
+      await secondPermission;
+    });
+
+    expect(result.current.stream).toBe(secondStream);
+  });
+
   it("cancels deferred device enumeration when unmounted", () => {
     vi.useFakeTimers();
 

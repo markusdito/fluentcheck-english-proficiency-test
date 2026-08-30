@@ -54,6 +54,15 @@ function stopMediaStream(stream: MediaStream | null) {
   }
 }
 
+function cancelAnimationFrameSafely(handle: number | null) {
+  if (handle === null) return;
+  try {
+    cancelAnimationFrame(handle);
+  } catch {
+    // A browser may reject a handle that was already canceled.
+  }
+}
+
 export function useMediaDevices(): UseMediaDevicesReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
@@ -72,6 +81,13 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
   const inFlightRequestRef = useRef<Promise<boolean> | null>(null);
+  const stoppedStreamsRef = useRef(new WeakSet<MediaStream>());
+
+  const stopOwnedStream = useCallback((mediaStream: MediaStream | null) => {
+    if (!mediaStream || stoppedStreamsRef.current.has(mediaStream)) return;
+    stoppedStreamsRef.current.add(mediaStream);
+    stopMediaStream(mediaStream);
+  }, []);
 
   /** Enumerate all media devices */
   const enumerateDevices = useCallback(async () => {
@@ -143,11 +159,8 @@ export function useMediaDevices(): UseMediaDevicesReturn {
         monitorTokenRef.current = null;
       }
       if (animationRef.current !== null) {
-        try {
-          cancelAnimationFrame(animationRef.current);
-        } finally {
-          animationRef.current = null;
-        }
+        cancelAnimationFrameSafely(animationRef.current);
+        animationRef.current = null;
       }
       if (sourceRef.current === source) {
         sourceRef.current = null;
@@ -169,11 +182,8 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   const stopMicMonitor = useCallback((resetState = true) => {
     monitorTokenRef.current = null;
     if (animationRef.current !== null) {
-      try {
-        cancelAnimationFrame(animationRef.current);
-      } finally {
-        animationRef.current = null;
-      }
+      cancelAnimationFrameSafely(animationRef.current);
+      animationRef.current = null;
     }
     disconnectAudioNode(sourceRef.current);
     sourceRef.current = null;
@@ -193,7 +203,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       stopMicMonitor(resetState);
       const currentStream = streamRef.current;
       if (currentStream) {
-        stopMediaStream(currentStream);
+        stopOwnedStream(currentStream);
         streamRef.current = null;
       }
       if (resetState) {
@@ -201,7 +211,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
         setIsLoading(false);
       }
     },
-    [stopMicMonitor],
+    [stopMicMonitor, stopOwnedStream],
   );
 
   /** Request camera + mic permissions */
@@ -229,7 +239,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
         });
 
         if (!isCurrentRequest()) {
-          stopMediaStream(mediaStream);
+          stopOwnedStream(mediaStream);
           return false;
         }
 
@@ -256,7 +266,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
           if (streamRef.current === mediaStream) {
             cleanupMediaResources(false);
           } else {
-            stopMediaStream(mediaStream);
+            stopOwnedStream(mediaStream);
           }
           return false;
         }
@@ -300,7 +310,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       },
     );
     return request;
-  }, [cleanupMediaResources, enumerateDevices, startMicMonitor]);
+  }, [cleanupMediaResources, enumerateDevices, startMicMonitor, stopOwnedStream]);
 
   /** Stop all tracks and clean up — uses ref to avoid recreating on stream state change */
   const stopStream = useCallback(() => {
