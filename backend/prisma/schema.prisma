@@ -61,8 +61,8 @@ model User {
   id        String    @id @default(uuid()) @db.Uuid
   username  String    @unique
   email     String    @unique
-  normalizedEmail String?
-  password  String // bcrypt hash — name kept for compatibility with existing auth code
+  normalizedEmail String? @unique
+  password  String? // nullable for provider-only accounts; local passwords are bcrypt hashes
   role      Role      @default(STUDENT)
   createdAt DateTime  @default(now()) @db.Timestamptz()
   updatedAt DateTime  @updatedAt @db.Timestamptz()

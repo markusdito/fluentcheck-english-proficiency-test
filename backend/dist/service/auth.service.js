@@ -1,6 +1,9 @@
 import { prisma } from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { normalizeEmail } from "../schemas/auth.schema.js";
+// A valid precomputed hash keeps credential work structurally uniform when no
+// active local account or password is available for the requested identity.
+const DUMMY_PASSWORD_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 export async function createUser(username, email, password) {
     const displayEmail = email.trim();
     const canonicalUsername = username.trim().toLowerCase();
@@ -21,8 +24,8 @@ export async function createUser(username, email, password) {
         },
     });
 }
-export async function authenticateUser(password, dbPw) {
-    return bcrypt.compare(password, dbPw);
+export async function authenticateUser(password, storedPasswordHash) {
+    return await bcrypt.compare(password, storedPasswordHash || DUMMY_PASSWORD_HASH);
 }
 /**
  * Temporary expand-phase fallback: new rows are found by normalizedEmail,
@@ -34,6 +37,7 @@ export async function findUserForLogin(email) {
     const normalizedUser = await prisma.user.findFirst({
         where: {
             normalizedEmail,
+            deletedAt: null,
         },
     });
     if (normalizedUser)
@@ -44,6 +48,7 @@ export async function findUserForLogin(email) {
         SELECT "id", "username", "email", "normalizedEmail", "password", "role", "createdAt", "updatedAt", "deletedAt"
         FROM "User"
         WHERE "normalizedEmail" IS NULL
+          AND "deletedAt" IS NULL
           AND LOWER(BTRIM("email")) = ${normalizedEmail}
         ORDER BY "createdAt" ASC, "id" ASC
         LIMIT 1

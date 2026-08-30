@@ -1,21 +1,21 @@
+import { Prisma } from "../generated/client.js";
 import { prisma } from "../config/db.js";
 import { AUTH_COOKIE_NAME, authCookieOptions, generateToken } from "../utils/jwt.js";
 import { authenticateUser, createUser, findUserForLogin, } from "../service/auth.service.js";
+const REGISTRATION_CONFLICT_ERROR = "Unable to create account";
 export async function register(req, res) {
     const { username, email, password } = req.body;
-    // The expand phase keeps the existing precheck behavior. Database-backed
-    // uniqueness/error mapping is finalized by the dependent registration
-    // ticket after normalized identity backfill and constraints are ready.
-    const userExists = await prisma.user.findUnique({
-        where: { email },
-        select: { id: true },
-    });
-    if (userExists) {
-        return res.status(400).json({
-            error: "User already exists with this email",
-        });
+    let user;
+    try {
+        user = await createUser(username, email, password);
     }
-    const user = await createUser(username, email, password);
+    catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002") {
+            return res.status(409).json({ error: REGISTRATION_CONFLICT_ERROR });
+        }
+        throw error;
+    }
     generateToken(user.id, res);
     res.status(201).json({
         status: "success",
@@ -32,14 +32,16 @@ export async function register(req, res) {
 }
 export async function login(req, res) {
     const { email, password } = req.body;
-    const user = await findUserForLogin(email);
-    if (!user) {
-        return res.status(401).json({
-            error: "Invalid email or password",
-        });
+    let user;
+    try {
+        user = await findUserForLogin(email);
     }
-    const isPasswordValid = await authenticateUser(password, user.password);
-    if (!isPasswordValid) {
+    catch (error) {
+        await authenticateUser(password, undefined);
+        throw error;
+    }
+    const isPasswordValid = await authenticateUser(password, user?.password);
+    if (!user || !isPasswordValid) {
         return res.status(401).json({
             error: "Invalid email or password",
         });
