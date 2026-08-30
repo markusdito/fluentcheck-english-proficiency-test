@@ -9,6 +9,8 @@ import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
+import { GoogleAuthError } from "@/components/auth/GoogleAuthError";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { SessionUser } from "@/types/auth";
@@ -112,6 +114,7 @@ export function SignupForm() {
   return (
     <form onSubmit={handleSubmit} noValidate aria-label="Sign up form">
       {/* Server / general error */}
+      <GoogleAuthError />
       {error && (
         <Alert variant="destructive" className="mb-6 items-start">
           <CircleAlertIcon />
@@ -119,7 +122,9 @@ export function SignupForm() {
         </Alert>
       )}
 
-      <div className="space-y-4">
+      <GoogleAuthButton returnTo="signup" />
+
+      <div className="mt-8 space-y-4">
         {/* Username */}
         <FormField
           id="name"
