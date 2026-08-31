@@ -298,6 +298,7 @@ model ExaminerAssignment {
 
 model ExaminerAssignmentReassignment {
   id                 String             @id @default(uuid()) @db.Uuid
+  transitionId       String             @db.Uuid
   assignmentId       String             @db.Uuid
   assignment         ExaminerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
   previousExaminerId String             @db.Uuid
@@ -310,6 +311,7 @@ model ExaminerAssignmentReassignment {
   createdAt          DateTime           @default(now()) @db.Timestamptz()
 
   @@index([assignmentId, createdAt])
+  @@index([previousExaminerId, reason, createdAt, transitionId])
   @@index([previousExaminerId])
   @@index([newExaminerId])
   @@index([actingAdminId])

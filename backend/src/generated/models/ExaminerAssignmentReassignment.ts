@@ -26,6 +26,7 @@ export type AggregateExaminerAssignmentReassignment = {
 
 export type ExaminerAssignmentReassignmentMinAggregateOutputType = {
   id: string | null
+  transitionId: string | null
   assignmentId: string | null
   previousExaminerId: string | null
   newExaminerId: string | null
@@ -36,6 +37,7 @@ export type ExaminerAssignmentReassignmentMinAggregateOutputType = {
 
 export type ExaminerAssignmentReassignmentMaxAggregateOutputType = {
   id: string | null
+  transitionId: string | null
   assignmentId: string | null
   previousExaminerId: string | null
   newExaminerId: string | null
@@ -46,6 +48,7 @@ export type ExaminerAssignmentReassignmentMaxAggregateOutputType = {
 
 export type ExaminerAssignmentReassignmentCountAggregateOutputType = {
   id: number
+  transitionId: number
   assignmentId: number
   previousExaminerId: number
   newExaminerId: number
@@ -58,6 +61,7 @@ export type ExaminerAssignmentReassignmentCountAggregateOutputType = {
 
 export type ExaminerAssignmentReassignmentMinAggregateInputType = {
   id?: true
+  transitionId?: true
   assignmentId?: true
   previousExaminerId?: true
   newExaminerId?: true
@@ -68,6 +72,7 @@ export type ExaminerAssignmentReassignmentMinAggregateInputType = {
 
 export type ExaminerAssignmentReassignmentMaxAggregateInputType = {
   id?: true
+  transitionId?: true
   assignmentId?: true
   previousExaminerId?: true
   newExaminerId?: true
@@ -78,6 +83,7 @@ export type ExaminerAssignmentReassignmentMaxAggregateInputType = {
 
 export type ExaminerAssignmentReassignmentCountAggregateInputType = {
   id?: true
+  transitionId?: true
   assignmentId?: true
   previousExaminerId?: true
   newExaminerId?: true
@@ -161,6 +167,7 @@ export type ExaminerAssignmentReassignmentGroupByArgs<ExtArgs extends runtime.Ty
 
 export type ExaminerAssignmentReassignmentGroupByOutputType = {
   id: string
+  transitionId: string
   assignmentId: string
   previousExaminerId: string
   newExaminerId: string
@@ -192,6 +199,7 @@ export type ExaminerAssignmentReassignmentWhereInput = {
   OR?: Prisma.ExaminerAssignmentReassignmentWhereInput[]
   NOT?: Prisma.ExaminerAssignmentReassignmentWhereInput | Prisma.ExaminerAssignmentReassignmentWhereInput[]
   id?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
+  transitionId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   assignmentId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   previousExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   newExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
@@ -206,6 +214,7 @@ export type ExaminerAssignmentReassignmentWhereInput = {
 
 export type ExaminerAssignmentReassignmentOrderByWithRelationInput = {
   id?: Prisma.SortOrder
+  transitionId?: Prisma.SortOrder
   assignmentId?: Prisma.SortOrder
   previousExaminerId?: Prisma.SortOrder
   newExaminerId?: Prisma.SortOrder
@@ -223,6 +232,7 @@ export type ExaminerAssignmentReassignmentWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.ExaminerAssignmentReassignmentWhereInput | Prisma.ExaminerAssignmentReassignmentWhereInput[]
   OR?: Prisma.ExaminerAssignmentReassignmentWhereInput[]
   NOT?: Prisma.ExaminerAssignmentReassignmentWhereInput | Prisma.ExaminerAssignmentReassignmentWhereInput[]
+  transitionId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   assignmentId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   previousExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   newExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
@@ -237,6 +247,7 @@ export type ExaminerAssignmentReassignmentWhereUniqueInput = Prisma.AtLeast<{
 
 export type ExaminerAssignmentReassignmentOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
+  transitionId?: Prisma.SortOrder
   assignmentId?: Prisma.SortOrder
   previousExaminerId?: Prisma.SortOrder
   newExaminerId?: Prisma.SortOrder
@@ -253,6 +264,7 @@ export type ExaminerAssignmentReassignmentScalarWhereWithAggregatesInput = {
   OR?: Prisma.ExaminerAssignmentReassignmentScalarWhereWithAggregatesInput[]
   NOT?: Prisma.ExaminerAssignmentReassignmentScalarWhereWithAggregatesInput | Prisma.ExaminerAssignmentReassignmentScalarWhereWithAggregatesInput[]
   id?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string
+  transitionId?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string
   assignmentId?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string
   previousExaminerId?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string
   newExaminerId?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string
@@ -263,6 +275,7 @@ export type ExaminerAssignmentReassignmentScalarWhereWithAggregatesInput = {
 
 export type ExaminerAssignmentReassignmentCreateInput = {
   id?: string
+  transitionId: string
   reason: string
   createdAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutReassignmentHistoryInput
@@ -273,6 +286,7 @@ export type ExaminerAssignmentReassignmentCreateInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedCreateInput = {
   id?: string
+  transitionId: string
   assignmentId: string
   previousExaminerId: string
   newExaminerId: string
@@ -283,6 +297,7 @@ export type ExaminerAssignmentReassignmentUncheckedCreateInput = {
 
 export type ExaminerAssignmentReassignmentUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutReassignmentHistoryNestedInput
@@ -293,6 +308,7 @@ export type ExaminerAssignmentReassignmentUpdateInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -303,6 +319,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateInput = {
 
 export type ExaminerAssignmentReassignmentCreateManyInput = {
   id?: string
+  transitionId: string
   assignmentId: string
   previousExaminerId: string
   newExaminerId: string
@@ -313,12 +330,14 @@ export type ExaminerAssignmentReassignmentCreateManyInput = {
 
 export type ExaminerAssignmentReassignmentUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -339,6 +358,7 @@ export type ExaminerAssignmentReassignmentOrderByRelationAggregateInput = {
 
 export type ExaminerAssignmentReassignmentCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  transitionId?: Prisma.SortOrder
   assignmentId?: Prisma.SortOrder
   previousExaminerId?: Prisma.SortOrder
   newExaminerId?: Prisma.SortOrder
@@ -349,6 +369,7 @@ export type ExaminerAssignmentReassignmentCountOrderByAggregateInput = {
 
 export type ExaminerAssignmentReassignmentMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  transitionId?: Prisma.SortOrder
   assignmentId?: Prisma.SortOrder
   previousExaminerId?: Prisma.SortOrder
   newExaminerId?: Prisma.SortOrder
@@ -359,6 +380,7 @@ export type ExaminerAssignmentReassignmentMaxOrderByAggregateInput = {
 
 export type ExaminerAssignmentReassignmentMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  transitionId?: Prisma.SortOrder
   assignmentId?: Prisma.SortOrder
   previousExaminerId?: Prisma.SortOrder
   newExaminerId?: Prisma.SortOrder
@@ -537,6 +559,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutAssignmentNe
 
 export type ExaminerAssignmentReassignmentCreateWithoutPreviousExaminerInput = {
   id?: string
+  transitionId: string
   reason: string
   createdAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutReassignmentHistoryInput
@@ -546,6 +569,7 @@ export type ExaminerAssignmentReassignmentCreateWithoutPreviousExaminerInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedCreateWithoutPreviousExaminerInput = {
   id?: string
+  transitionId: string
   assignmentId: string
   newExaminerId: string
   actingAdminId: string
@@ -565,6 +589,7 @@ export type ExaminerAssignmentReassignmentCreateManyPreviousExaminerInputEnvelop
 
 export type ExaminerAssignmentReassignmentCreateWithoutNewExaminerInput = {
   id?: string
+  transitionId: string
   reason: string
   createdAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutReassignmentHistoryInput
@@ -574,6 +599,7 @@ export type ExaminerAssignmentReassignmentCreateWithoutNewExaminerInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedCreateWithoutNewExaminerInput = {
   id?: string
+  transitionId: string
   assignmentId: string
   previousExaminerId: string
   actingAdminId: string
@@ -593,6 +619,7 @@ export type ExaminerAssignmentReassignmentCreateManyNewExaminerInputEnvelope = {
 
 export type ExaminerAssignmentReassignmentCreateWithoutActingAdminInput = {
   id?: string
+  transitionId: string
   reason: string
   createdAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutReassignmentHistoryInput
@@ -602,6 +629,7 @@ export type ExaminerAssignmentReassignmentCreateWithoutActingAdminInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedCreateWithoutActingAdminInput = {
   id?: string
+  transitionId: string
   assignmentId: string
   previousExaminerId: string
   newExaminerId: string
@@ -640,6 +668,7 @@ export type ExaminerAssignmentReassignmentScalarWhereInput = {
   OR?: Prisma.ExaminerAssignmentReassignmentScalarWhereInput[]
   NOT?: Prisma.ExaminerAssignmentReassignmentScalarWhereInput | Prisma.ExaminerAssignmentReassignmentScalarWhereInput[]
   id?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
+  transitionId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   assignmentId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   previousExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   newExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
@@ -682,6 +711,7 @@ export type ExaminerAssignmentReassignmentUpdateManyWithWhereWithoutActingAdminI
 
 export type ExaminerAssignmentReassignmentCreateWithoutAssignmentInput = {
   id?: string
+  transitionId: string
   reason: string
   createdAt?: Date | string
   previousExaminer: Prisma.UserCreateNestedOneWithoutReassignmentsFromInput
@@ -691,6 +721,7 @@ export type ExaminerAssignmentReassignmentCreateWithoutAssignmentInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedCreateWithoutAssignmentInput = {
   id?: string
+  transitionId: string
   previousExaminerId: string
   newExaminerId: string
   actingAdminId: string
@@ -726,6 +757,7 @@ export type ExaminerAssignmentReassignmentUpdateManyWithWhereWithoutAssignmentIn
 
 export type ExaminerAssignmentReassignmentCreateManyPreviousExaminerInput = {
   id?: string
+  transitionId: string
   assignmentId: string
   newExaminerId: string
   actingAdminId: string
@@ -735,6 +767,7 @@ export type ExaminerAssignmentReassignmentCreateManyPreviousExaminerInput = {
 
 export type ExaminerAssignmentReassignmentCreateManyNewExaminerInput = {
   id?: string
+  transitionId: string
   assignmentId: string
   previousExaminerId: string
   actingAdminId: string
@@ -744,6 +777,7 @@ export type ExaminerAssignmentReassignmentCreateManyNewExaminerInput = {
 
 export type ExaminerAssignmentReassignmentCreateManyActingAdminInput = {
   id?: string
+  transitionId: string
   assignmentId: string
   previousExaminerId: string
   newExaminerId: string
@@ -753,6 +787,7 @@ export type ExaminerAssignmentReassignmentCreateManyActingAdminInput = {
 
 export type ExaminerAssignmentReassignmentUpdateWithoutPreviousExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutReassignmentHistoryNestedInput
@@ -762,6 +797,7 @@ export type ExaminerAssignmentReassignmentUpdateWithoutPreviousExaminerInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutPreviousExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -771,6 +807,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutPreviousExaminer
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutPreviousExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -780,6 +817,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutPreviousExam
 
 export type ExaminerAssignmentReassignmentUpdateWithoutNewExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutReassignmentHistoryNestedInput
@@ -789,6 +827,7 @@ export type ExaminerAssignmentReassignmentUpdateWithoutNewExaminerInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutNewExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -798,6 +837,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutNewExaminerInput
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutNewExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -807,6 +847,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutNewExaminerI
 
 export type ExaminerAssignmentReassignmentUpdateWithoutActingAdminInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutReassignmentHistoryNestedInput
@@ -816,6 +857,7 @@ export type ExaminerAssignmentReassignmentUpdateWithoutActingAdminInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutActingAdminInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -825,6 +867,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutActingAdminInput
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutActingAdminInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -834,6 +877,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutActingAdminI
 
 export type ExaminerAssignmentReassignmentCreateManyAssignmentInput = {
   id?: string
+  transitionId: string
   previousExaminerId: string
   newExaminerId: string
   actingAdminId: string
@@ -843,6 +887,7 @@ export type ExaminerAssignmentReassignmentCreateManyAssignmentInput = {
 
 export type ExaminerAssignmentReassignmentUpdateWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   previousExaminer?: Prisma.UserUpdateOneRequiredWithoutReassignmentsFromNestedInput
@@ -852,6 +897,7 @@ export type ExaminerAssignmentReassignmentUpdateWithoutAssignmentInput = {
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -861,6 +907,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutAssignmentInput 
 
 export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -872,6 +919,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutAssignmentIn
 
 export type ExaminerAssignmentReassignmentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  transitionId?: boolean
   assignmentId?: boolean
   previousExaminerId?: boolean
   newExaminerId?: boolean
@@ -886,6 +934,7 @@ export type ExaminerAssignmentReassignmentSelect<ExtArgs extends runtime.Types.E
 
 export type ExaminerAssignmentReassignmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  transitionId?: boolean
   assignmentId?: boolean
   previousExaminerId?: boolean
   newExaminerId?: boolean
@@ -900,6 +949,7 @@ export type ExaminerAssignmentReassignmentSelectCreateManyAndReturn<ExtArgs exte
 
 export type ExaminerAssignmentReassignmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  transitionId?: boolean
   assignmentId?: boolean
   previousExaminerId?: boolean
   newExaminerId?: boolean
@@ -914,6 +964,7 @@ export type ExaminerAssignmentReassignmentSelectUpdateManyAndReturn<ExtArgs exte
 
 export type ExaminerAssignmentReassignmentSelectScalar = {
   id?: boolean
+  transitionId?: boolean
   assignmentId?: boolean
   previousExaminerId?: boolean
   newExaminerId?: boolean
@@ -922,7 +973,7 @@ export type ExaminerAssignmentReassignmentSelectScalar = {
   createdAt?: boolean
 }
 
-export type ExaminerAssignmentReassignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "assignmentId" | "previousExaminerId" | "newExaminerId" | "actingAdminId" | "reason" | "createdAt", ExtArgs["result"]["examinerAssignmentReassignment"]>
+export type ExaminerAssignmentReassignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "transitionId" | "assignmentId" | "previousExaminerId" | "newExaminerId" | "actingAdminId" | "reason" | "createdAt", ExtArgs["result"]["examinerAssignmentReassignment"]>
 export type ExaminerAssignmentReassignmentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
   previousExaminer?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -952,6 +1003,7 @@ export type $ExaminerAssignmentReassignmentPayload<ExtArgs extends runtime.Types
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
+    transitionId: string
     assignmentId: string
     previousExaminerId: string
     newExaminerId: string
@@ -1386,6 +1438,7 @@ export interface Prisma__ExaminerAssignmentReassignmentClient<T, Null = never, E
  */
 export interface ExaminerAssignmentReassignmentFieldRefs {
   readonly id: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>
+  readonly transitionId: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>
   readonly assignmentId: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>
   readonly previousExaminerId: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>
   readonly newExaminerId: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>

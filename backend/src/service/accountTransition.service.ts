@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Prisma } from "../generated/client.js";
 import { Role } from "../generated/enums.js";
 import { prisma } from "../config/db.js";
@@ -111,6 +112,7 @@ interface LockedUser {
 
 interface ReassignmentHistoryRow {
   id: string;
+  transitionId: string;
   assignmentId: string;
   previousExaminerId: string;
   newExaminerId: string;
@@ -393,9 +395,10 @@ async function readReplayHistory(
 
   const history = await tx.examinerAssignmentReassignment.findMany({
     where: { previousExaminerId: targetUserId, reason },
-    orderBy: [{ createdAt: "desc" }, { assignmentId: "asc" }],
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
       id: true,
+      transitionId: true,
       assignmentId: true,
       previousExaminerId: true,
       newExaminerId: true,
@@ -404,23 +407,40 @@ async function readReplayHistory(
       createdAt: true,
     },
   });
+  const latestTransitionId = history[0]?.transitionId;
+  const latestHistory = latestTransitionId
+    ? history.filter((entry) => entry.transitionId === latestTransitionId)
+    : [];
   const historicalAssignmentIds = new Set(
-    history.map((entry) => entry.assignmentId),
+    latestHistory.map((entry) => entry.assignmentId),
   );
-  if (historicalAssignmentIds.size > 0) {
-    const suppliedAssignmentIds = new Set(assignmentIds);
-    if (
-      historicalAssignmentIds.size !== suppliedAssignmentIds.size ||
-      [...historicalAssignmentIds].some(
-        (assignmentId) => !suppliedAssignmentIds.has(assignmentId),
-      )
-    ) {
-      throw new AccountTransitionError(
-        "INVALID_REASSIGNMENT",
-        "Every reassignment from the account's completed transitions must be included",
-        { assignmentIds: [...historicalAssignmentIds].sort() },
-      );
-    }
+  const suppliedAssignmentIds = new Set(assignmentIds);
+  const hasExactAssignmentSet =
+    historicalAssignmentIds.size === suppliedAssignmentIds.size &&
+    [...historicalAssignmentIds].every((assignmentId) => suppliedAssignmentIds.has(assignmentId));
+
+  if (!hasExactAssignmentSet && historicalAssignmentIds.size > 0) {
+    const transitionIds = [...new Set(history.map((entry) => entry.transitionId))];
+    const matchesOlderTransition = transitionIds
+      .filter((transitionId) => transitionId !== latestTransitionId)
+      .some((transitionId) => {
+        const batchIds = new Set(
+          history
+            .filter((entry) => entry.transitionId === transitionId)
+            .map((entry) => entry.assignmentId),
+        );
+        return (
+          batchIds.size === suppliedAssignmentIds.size &&
+          [...batchIds].every((assignmentId) => suppliedAssignmentIds.has(assignmentId))
+        );
+      });
+    if (matchesOlderTransition) return null;
+
+    throw new AccountTransitionError(
+      "INVALID_REASSIGNMENT",
+      "Every reassignment from the latest completed transition must be included",
+      { assignmentIds: [...historicalAssignmentIds].sort() },
+    );
   }
 
   const assignments = await tx.examinerAssignment.findMany({
@@ -439,7 +459,7 @@ async function readReplayHistory(
   if (assignments.length !== assignmentIds.length) return null;
 
   const latestHistoryByAssignment = new Map<string, ReassignmentHistoryRow>();
-  for (const entry of history) {
+  for (const entry of latestHistory) {
     if (!latestHistoryByAssignment.has(entry.assignmentId)) {
       latestHistoryByAssignment.set(entry.assignmentId, entry);
     }
@@ -472,6 +492,7 @@ async function transitionInsideTransaction(
   requestedRole: Role | undefined,
   deactivate: boolean,
   reassignmentMap: Record<string, string>,
+  transitionId: string,
 ): Promise<AccountTransitionResult> {
   await tx.$executeRaw`
     SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
@@ -523,6 +544,7 @@ async function transitionInsideTransaction(
       throw new AccountTransitionError(
         "REASSIGNMENT_CONFLICT",
         "The requested reassignment is not the committed account state",
+        { assignmentIds: Object.keys(reassignmentMap).sort() },
       );
     }
     return userResult("ALREADY_APPLIED", target, replay);
@@ -542,6 +564,7 @@ async function transitionInsideTransaction(
     throw new AccountTransitionError(
       "REASSIGNMENT_CONFLICT",
       "The requested reassignment is not the committed account state",
+      { assignmentIds: Object.keys(reassignmentMap).sort() },
     );
   }
 
@@ -677,6 +700,7 @@ async function transitionInsideTransaction(
       });
       await tx.examinerAssignmentReassignment.create({
         data: {
+          transitionId,
           assignmentId: assignment.id,
           previousExaminerId: targetUserId,
           newExaminerId: replacementId,
@@ -739,6 +763,7 @@ export async function transitionAccountRole(
 
   const reassignmentMap = parseReassignmentMap(options.reassignmentMap);
   const database = options.database ?? prisma;
+  const transitionId = randomUUID();
   return runSerializableTransition(database, "transition", (tx) =>
     transitionInsideTransaction(
       tx,
@@ -747,6 +772,7 @@ export async function transitionAccountRole(
       requestedRole,
       false,
       reassignmentMap,
+      transitionId,
     ),
   );
 }
@@ -759,6 +785,7 @@ export async function deactivateAccount(
 ): Promise<AccountTransitionResult> {
   const reassignmentMap = parseReassignmentMap(options.reassignmentMap);
   const database = options.database ?? prisma;
+  const transitionId = randomUUID();
   return runSerializableTransition(database, "deactivation", (tx) =>
     transitionInsideTransaction(
       tx,
@@ -767,6 +794,7 @@ export async function deactivateAccount(
       undefined,
       true,
       reassignmentMap,
+      transitionId,
     ),
   );
 }

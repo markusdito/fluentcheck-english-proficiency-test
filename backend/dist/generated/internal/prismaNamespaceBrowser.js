@@ -202,6 +202,7 @@ export const ExaminerAssignmentScalarFieldEnum = {
 };
 export const ExaminerAssignmentReassignmentScalarFieldEnum = {
     id: 'id',
+    transitionId: 'transitionId',
     assignmentId: 'assignmentId',
     previousExaminerId: 'previousExaminerId',
     newExaminerId: 'newExaminerId',

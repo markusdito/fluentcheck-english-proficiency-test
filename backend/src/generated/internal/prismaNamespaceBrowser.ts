@@ -274,6 +274,7 @@ export type ExaminerAssignmentScalarFieldEnum = (typeof ExaminerAssignmentScalar
 
 export const ExaminerAssignmentReassignmentScalarFieldEnum = {
   id: 'id',
+  transitionId: 'transitionId',
   assignmentId: 'assignmentId',
   previousExaminerId: 'previousExaminerId',
   newExaminerId: 'newExaminerId',
