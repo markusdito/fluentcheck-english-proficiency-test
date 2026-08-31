@@ -366,7 +366,7 @@ test("role-transition preview drives an exact reassignment and replay is idempot
   const target = await createUser("target", "EXAMINER");
   const currentPeer = await createUser("current_peer", "EXAMINER");
   const replacement = await createUser("replacement", "EXAMINER");
-  const { assignments } = await createLegacyScoringAssignment(
+  const { answers, assignments } = await createLegacyScoringAssignment(
     target.id,
     currentPeer.id,
   );
@@ -452,6 +452,36 @@ test("role-transition preview drives an exact reassignment and replay is idempot
     }),
     1,
   );
+
+  const replacementList = await fetch(`${baseUrl}/api/examiner/assignments`, {
+    headers: { Cookie: cookieFor(replacement.id) },
+  });
+  assert.equal(replacementList.status, 200);
+  assert.equal((await replacementList.json()).data[0].id, assignments[0].id);
+
+  const oldOwnerList = await fetch(`${baseUrl}/api/examiner/assignments`, {
+    headers: { Cookie: cookieFor(target.id) },
+  });
+  assert.equal(oldOwnerList.status, 403);
+  assert.deepEqual(await oldOwnerList.json(), { error: "Insufficient permissions" });
+
+  const start = await fetch(
+    `${baseUrl}/api/examiner/assignments/${assignments[0].id}/start`,
+    { method: "PUT", headers: { Cookie: cookieFor(replacement.id) } },
+  );
+  assert.equal(start.status, 200);
+  const score = await fetch(
+    `${baseUrl}/api/examiner/assignments/${assignments[0].id}/scores/${answers[0].id}`,
+    {
+      method: "PUT",
+      headers: {
+        Cookie: cookieFor(replacement.id),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ value: 91 }),
+    },
+  );
+  assert.equal(score.status, 200);
 });
 
 test("invalid reassignment maps fail atomically without changing role or ownership", async () => {
@@ -542,12 +572,113 @@ test("the shared deactivation boundary transfers eligible work and replays safel
     (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).examinerId,
     replacement.id,
   );
-  assert.equal(
-    (await prisma.examinerAssignmentReassignment.findFirstOrThrow({ where: { assignmentId: assignments[0].id } })).reason,
-    "ACCOUNT_DEACTIVATION",
+  const history = await prisma.examinerAssignmentReassignment.findFirstOrThrow({
+    where: { assignmentId: assignments[0].id },
+  });
+  assert.equal(history.reason, "ACCOUNT_DEACTIVATION");
+  await assert.rejects(
+    prisma.examinerAssignmentReassignment.update({
+      where: { id: history.id },
+      data: { reason: "tampered" },
+    }),
+    /immutable/,
+  );
+  await assert.rejects(
+    prisma.examinerAssignmentReassignment.delete({ where: { id: history.id } }),
+    /immutable/,
   );
 
   const replay = await deactivateAccount(target.id, admin.id, { reassignmentMap });
   assert.equal(replay.outcome, "ALREADY_APPLIED");
   assert.equal(await prisma.examinerAssignmentReassignment.count(), 1);
+});
+
+test("assignment start and account deactivation serialize on ownership", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const replacement = await createUser("replacement", "EXAMINER");
+  const { assignments } = await createLegacyScoringAssignment(target.id, currentPeer.id);
+  const { AccountTransitionError, deactivateAccount } = await import(
+    "../../src/service/account-transition.service.js"
+  );
+  const { ScoringFinalizationError, startExaminerAssignment } = await import(
+    "../../src/service/examiner.service.js"
+  );
+
+  const startAttempt = startExaminerAssignment(assignments[0].id, target.id);
+  const transitionAttempt = deactivateAccount(target.id, admin.id, {
+    reassignmentMap: { [assignments[0].id]: replacement.id },
+  });
+  const [startResult, transitionResult] = await Promise.allSettled([
+    startAttempt,
+    transitionAttempt,
+  ]);
+
+  if (transitionResult.status === "fulfilled") {
+    assert.equal(startResult.status, "rejected");
+    assert.ok(startResult.reason instanceof ScoringFinalizationError);
+    assert.equal(startResult.reason.code, "UNAUTHORIZED");
+    assert.equal(
+      (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).examinerId,
+      replacement.id,
+    );
+    assert.ok((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).deletedAt);
+  } else {
+    assert.equal(startResult.status, "fulfilled");
+    assert.ok(transitionResult.reason instanceof AccountTransitionError);
+    assert.equal(transitionResult.reason.code, "EXAMINER_ASSIGNMENTS_IN_PROGRESS");
+    assert.equal(
+      (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).status,
+      "IN_PROGRESS",
+    );
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "EXAMINER");
+  }
+});
+
+test("assignment creation and role removal share one candidate snapshot", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const peer = await createUser("peer", "EXAMINER");
+  const student = await createUser("student", "STUDENT");
+  const { submission } = await createManifestSubmission(student.id, "PAID");
+  const { AccountTransitionError, transitionAccountRole } = await import(
+    "../../src/service/account-transition.service.js"
+  );
+  const { AssignmentSetError, createExaminerAssignmentSet } = await import(
+    "../../src/service/examiner.service.js"
+  );
+
+  const [assignmentResult, transitionResult] = await Promise.allSettled([
+    createExaminerAssignmentSet(submission.id, {
+      selectCandidates: () => [target.id, peer.id],
+    }),
+    transitionAccountRole(target.id, admin.id, "STUDENT"),
+  ]);
+
+  if (assignmentResult.status === "fulfilled") {
+    assert.equal(transitionResult.status, "rejected");
+    assert.ok(transitionResult.reason instanceof AccountTransitionError);
+    assert.equal(transitionResult.reason.code, "INVALID_REASSIGNMENT");
+    assert.equal(
+      (await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role,
+      "EXAMINER",
+    );
+    assert.equal(
+      await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
+      2,
+    );
+  } else {
+    assert.equal(transitionResult.status, "fulfilled");
+    assert.ok(assignmentResult.reason instanceof AssignmentSetError);
+    assert.equal(assignmentResult.reason.code, "INSUFFICIENT_CAPACITY");
+    assert.equal(
+      (await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role,
+      "STUDENT",
+    );
+    assert.equal(
+      await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
+      0,
+    );
+  }
 });

@@ -80,16 +80,7 @@ export async function startAssignment(req: Request, res: Response) {
       message: "Assignment started",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to start assignment";
-    const status =
-      message === "Assignment not found"
-        ? 404
-        : message === "Unauthorized"
-          ? 403
-          : message === "Assignment is not in ASSIGNED status"
-            ? 400
-            : 500;
-    res.status(status).json({ error: message });
+    sendScoringError(res, error, "Failed to start assignment");
   }
 }
 

@@ -401,13 +401,13 @@ export async function startExaminerAssignment(assignmentId, examinerId) {
             select: { examinerId: true, submissionId: true, status: true },
         });
         if (!assignment || assignment.submissionId !== submissionId) {
-            throw new Error("Assignment not found");
+            throw new ScoringFinalizationError("ASSIGNMENT_NOT_FOUND", "Assignment not found");
         }
         if (assignment.examinerId !== examinerId) {
-            throw new Error("Unauthorized");
+            throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
         }
         if (assignment.status !== "ASSIGNED") {
-            throw new Error("Assignment is not in ASSIGNED status");
+            throw new ScoringFinalizationError("INVALID_LIFECYCLE", "Assignment is not in ASSIGNED status");
         }
         await tx.examinerAssignment.update({
             where: { id: assignmentId },
