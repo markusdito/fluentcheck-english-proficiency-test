@@ -82,15 +82,17 @@ test("admin question retrieval can include retired Questions and Tasks on reques
 });
 
 test("Question restoration clears only the Question retirement state", async () => {
+  const questionId = "00000000-0000-4000-8000-000000000001";
+  const taskId = "00000000-0000-4000-8000-000000000002";
   const retiredAt = new Date("2026-08-31T00:00:00.000Z");
   const restored = {
-    id: "question-1",
+    id: questionId,
     category: QuestionCategory.PART_1,
     order: 1,
     deletedAt: null,
     tasks: [
       {
-        id: "task-1",
+        id: taskId,
         promptText: "Retained task",
         order: 1,
         deletedAt: retiredAt,
@@ -106,7 +108,7 @@ test("Question restoration clears only the Question retirement state", async () 
       findCount += 1;
       if (args.select) {
         return {
-          id: "question-1",
+          id: questionId,
           category: QuestionCategory.PART_1,
           order: 1,
           deletedAt: retiredAt,
@@ -124,23 +126,25 @@ test("Question restoration clears only the Question retirement state", async () 
     }) as typeof prisma.question.update,
   );
 
-  const result = await restoreQuestion("question-1");
+  const result = await restoreQuestion(questionId);
 
   assert.equal(findCount, 2);
   assert.deepEqual(updateArgs, {
-    where: { id: "question-1" },
+    where: { id: questionId },
     data: { deletedAt: null },
   });
-  assert.equal(result.id, "question-1");
+  assert.equal(result.id, questionId);
   assert.equal(result.deletedAt, null);
   assert.equal(result.tasks[0]?.deletedAt, retiredAt);
 });
 
 test("Task restoration accepts a retired parent without changing the parent", async () => {
+  const questionId = "00000000-0000-4000-8000-000000000001";
+  const taskId = "00000000-0000-4000-8000-000000000002";
   const retiredAt = new Date("2026-08-31T00:00:00.000Z");
   const restored = {
-    id: "task-1",
-    questionId: "question-1",
+    id: taskId,
+    questionId,
     promptText: "Retained task",
     order: 1,
     deletedAt: null,
@@ -159,8 +163,8 @@ test("Task restoration accepts a retired parent without changing the parent", as
       findCount += 1;
       if (findCount === 1) {
         return {
-          id: "task-1",
-          questionId: "question-1",
+          id: taskId,
+          questionId,
           promptText: "Retained task",
           order: 1,
           deletedAt: retiredAt,
@@ -178,13 +182,13 @@ test("Task restoration accepts a retired parent without changing the parent", as
     }) as typeof prisma.task.update,
   );
 
-  const result = await restoreTask("question-1", "task-1");
+  const result = await restoreTask(questionId, taskId);
 
   assert.deepEqual(updateArgs, {
-    where: { id: "task-1" },
+    where: { id: taskId },
     data: { deletedAt: null },
   });
-  assert.equal(result.questionId, "question-1");
+  assert.equal(result.questionId, questionId);
   assert.equal(result.deletedAt, null);
 });
 
