@@ -39,6 +39,38 @@ function accountTransitionStatus(error: AccountTransitionError): number {
   }
 }
 
+function validateReassignmentMapInput(value: unknown): void {
+  if (value === undefined) return;
+
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new AccountTransitionError(
+      "INVALID_REASSIGNMENT",
+      "Reassignment map must be an object",
+    );
+  }
+
+  const replacementIds = new Set<string>();
+  for (const [assignmentId, examinerId] of Object.entries(value)) {
+    if (
+      !UUID_RE.test(assignmentId) ||
+      typeof examinerId !== "string" ||
+      !UUID_RE.test(examinerId)
+    ) {
+      throw new AccountTransitionError(
+        "INVALID_REASSIGNMENT",
+        "Reassignment map must contain valid assignment and examiner IDs",
+      );
+    }
+    if (replacementIds.has(examinerId)) {
+      throw new AccountTransitionError(
+        "INVALID_REASSIGNMENT",
+        "Each replacement examiner must be assigned at most once",
+      );
+    }
+    replacementIds.add(examinerId);
+  }
+}
+
 /**
  * GET /api/admin/users
  * List users with pagination and optional role/q filtering.
@@ -124,6 +156,8 @@ export async function updateUserRole(req: Request, res: Response) {
       res.status(404).json({ error: "User not found", code: "USER_NOT_FOUND" });
       return;
     }
+
+    validateReassignmentMapInput(reassignmentMap);
 
     const result = await changeUserRole(
       userId,

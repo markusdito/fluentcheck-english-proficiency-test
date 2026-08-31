@@ -4,6 +4,7 @@ export interface AdminUser {
   email: string;
   role: string;
   createdAt: string;
+  deletedAt: string | null;
 }
 
 export interface AccountTransitionCandidate {

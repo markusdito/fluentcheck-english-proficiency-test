@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminUsersPage from "@/app/admin/users/page";
+import { ApiError } from "@/lib/api";
 
 const mocks = vi.hoisted(() => ({
   fetchAdminUsers: vi.fn(),
@@ -72,6 +73,7 @@ describe("admin role transition review", () => {
     email: "target@example.test",
     role: "EXAMINER",
     createdAt: "2026-01-01T00:00:00.000Z",
+    deletedAt: null,
   };
   const replacement = {
     id: "replacement-1",
@@ -154,5 +156,60 @@ describe("admin role transition review", () => {
       ),
     );
     expect(await screen.findByText("Already applied.")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
+  });
+
+  it("shows deactivated accounts and prevents role edits for them", async () => {
+    mocks.fetchAdminUsers.mockResolvedValueOnce({
+      items: [
+        target,
+        {
+          ...target,
+          id: "deactivated-1",
+          username: "deactivated-user",
+          deletedAt: "2026-01-03T00:00:00.000Z",
+        },
+      ],
+      total: 2,
+      page: 1,
+      limit: 20,
+      totalPages: 1,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("deactivated-user")).toBeInTheDocument();
+    expect(screen.getByText("Deactivated")).toBeInTheDocument();
+    const roleSelects = screen.getAllByRole("combobox");
+    expect(roleSelects[2]).toBeDisabled();
+  });
+
+  it("distinguishes an updated role from a rejected stale transition", async () => {
+    const user = userEvent.setup();
+    mocks.updateUserRole.mockReset().mockResolvedValueOnce({
+      outcome: "UPDATED",
+      user: { ...target, role: "ADMIN", deletedAt: null },
+      assignments: [],
+    });
+
+    renderPage();
+    await screen.findByText("target-examiner");
+    await user.selectOptions(screen.getAllByRole("combobox")[1]!, "ADMIN");
+    expect(await screen.findByText("Role updated.")).toBeInTheDocument();
+
+    mocks.updateUserRole.mockRejectedValueOnce(
+      new ApiError(
+        "The requested reassignment is not the committed account state",
+        409,
+        undefined,
+        "REASSIGNMENT_CONFLICT",
+      ),
+    );
+    await user.selectOptions(screen.getAllByRole("combobox")[1]!, "EXAMINER");
+    expect(
+      await screen.findByText(
+        "The account changed while you were reviewing it. Refresh and try again.",
+      ),
+    ).toBeInTheDocument();
   });
 });

@@ -361,14 +361,14 @@ export async function getAdminSubmissionDetail(submissionId: string) {
 }
 
 /**
- * List non-deleted users with optional role/q filtering and pagination.
+ * List users, including deactivated accounts, with optional role/q filtering
+ * and pagination so the role-management screen can show active state.
  * Never selects the password field.
  */
 export async function listAdminUsers(params: ListUsersParams) {
   const { page, limit, role, q } = params;
 
   const where: Prisma.UserWhereInput = {
-    deletedAt: null,
     ...(role ? { role } : {}),
     ...(q
       ? {
@@ -389,6 +389,7 @@ export async function listAdminUsers(params: ListUsersParams) {
         email: true,
         role: true,
         createdAt: true,
+        deletedAt: true,
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,

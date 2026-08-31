@@ -298,13 +298,13 @@ export async function getAdminSubmissionDetail(submissionId) {
     };
 }
 /**
- * List non-deleted users with optional role/q filtering and pagination.
+ * List users, including deactivated accounts, with optional role/q filtering
+ * and pagination so the role-management screen can show active state.
  * Never selects the password field.
  */
 export async function listAdminUsers(params) {
     const { page, limit, role, q } = params;
     const where = {
-        deletedAt: null,
         ...(role ? { role } : {}),
         ...(q
             ? {
@@ -324,6 +324,7 @@ export async function listAdminUsers(params) {
                 email: true,
                 role: true,
                 createdAt: true,
+                deletedAt: true,
             },
             orderBy: { createdAt: "desc" },
             skip: (page - 1) * limit,

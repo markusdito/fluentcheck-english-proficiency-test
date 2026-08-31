@@ -438,6 +438,9 @@ export default function AdminUsersPage() {
                     Role
                   </TableHead>
                   <TableHead className="mark px-5 text-xs font-semibold">
+                    State
+                  </TableHead>
+                  <TableHead className="mark px-5 text-xs font-semibold">
                     Created
                   </TableHead>
                 </TableRow>
@@ -445,6 +448,7 @@ export default function AdminUsersPage() {
               <TableBody>
                 {items.map((user) => {
                   const isSelf = user.id === currentAdminId;
+                  const isDeactivated = user.deletedAt != null;
                   const selectedRole =
                     pendingTransition?.user.id === user.id
                       ? pendingTransition.role
@@ -463,7 +467,7 @@ export default function AdminUsersPage() {
                           onValueChange={(role) =>
                             role != null && handleRoleChange(user, role)
                           }
-                          disabled={isSelf || roleBusy !== null}
+                          disabled={isSelf || isDeactivated || roleBusy !== null}
                         >
                           <SelectTrigger size="sm" className="w-full max-w-36">
                             <SelectValue placeholder="Role" />
@@ -486,6 +490,9 @@ export default function AdminUsersPage() {
                             {roleSuccess[user.id]}
                           </p>
                         )}
+                      </TableCell>
+                      <TableCell className="px-5 py-3.5 text-sm text-ink-soft">
+                        {isDeactivated ? "Deactivated" : "Active"}
                       </TableCell>
                       <TableCell className="px-5 py-3.5 text-sm text-ink-soft">
                         {new Date(user.createdAt).toLocaleDateString("en-US", {
