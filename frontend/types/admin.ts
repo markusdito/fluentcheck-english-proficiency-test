@@ -191,6 +191,8 @@ export interface AdminTask {
   id: string;
   promptText: string;
   order: number;
+  /** Omitted by older active-only responses; a non-null value means retired. */
+  deletedAt?: string | null;
 }
 
 export interface AdminQuestion {
@@ -204,6 +206,8 @@ export interface AdminQuestion {
   audioSizeBytes: number | null;
   audioUploadStatus: "PENDING" | "UPLOADED" | "FAILED";
   createdAt: string;
+  /** Omitted by older active-only responses; a non-null value means retired. */
+  deletedAt?: string | null;
   tasks: AdminTask[];
 }
 import type {

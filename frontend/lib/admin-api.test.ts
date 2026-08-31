@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  fetchAdminQuestions,
   fetchRoleTransitionPreview,
+  restoreQuestion,
+  restoreTask,
   updateUserRole,
 } from "@/lib/admin-api";
 
@@ -75,6 +78,60 @@ describe("admin account transition API", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
       role: "STUDENT",
       reassignmentMap: { "assignment-1": "examiner-2" },
+    });
+  });
+});
+
+describe("admin question lifecycle API", () => {
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps the default listing active-only and opts into retired records explicitly", async () => {
+    const signal = new AbortController().signal;
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: "success", data: [] }))
+      .mockResolvedValueOnce(jsonResponse({ status: "success", data: [] }));
+
+    await fetchAdminQuestions(undefined, signal);
+    await fetchAdminQuestions({ includeRetired: true }, signal);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/backend-api/questions/admin");
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ signal });
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "/backend-api/questions/admin?includeRetired=true",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ signal });
+  });
+
+  it("restores a Question and a Task through their explicit admin endpoints", async () => {
+    const question = { id: "question-1" };
+    const task = { id: "task-1" };
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ status: "success", data: question }))
+      .mockResolvedValueOnce(jsonResponse({ status: "success", data: task }));
+
+    await expect(restoreQuestion("question-1")).resolves.toEqual(question);
+    await expect(restoreTask("question-1", "task-1")).resolves.toEqual(task);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/backend-api/questions/question-1/restore",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      credentials: "include",
+    });
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "/backend-api/questions/question-1/tasks/task-1/restore",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      method: "POST",
+      credentials: "include",
     });
   });
 });

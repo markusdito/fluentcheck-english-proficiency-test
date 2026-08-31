@@ -180,8 +180,18 @@ export async function updateAdminSettings(
   return res.data;
 }
 
-export async function fetchAdminQuestions(signal?: AbortSignal): Promise<AdminQuestion[]> {
-  const res = await api.get<ListEnvelope<AdminQuestion>>("/questions/admin", { signal });
+export interface FetchAdminQuestionsParams {
+  includeRetired?: boolean;
+}
+
+export async function fetchAdminQuestions(
+  params?: FetchAdminQuestionsParams,
+  signal?: AbortSignal,
+): Promise<AdminQuestion[]> {
+  const endpoint = params?.includeRetired
+    ? "/questions/admin?includeRetired=true"
+    : "/questions/admin";
+  const res = await api.get<ListEnvelope<AdminQuestion>>(endpoint, { signal });
   return res.data;
 }
 
@@ -209,6 +219,11 @@ export async function updateQuestion(
 
 export async function retireQuestion(id: string): Promise<void> {
   await api.delete(`/questions/${id}`);
+}
+
+export async function restoreQuestion(id: string): Promise<AdminQuestion> {
+  const res = await api.post<QuestionEnvelope>(`/questions/${id}/restore`);
+  return res.data;
 }
 
 interface TaskPayload {
@@ -244,4 +259,14 @@ export async function deleteTask(
   taskId: string
 ): Promise<void> {
   await api.delete(`/questions/${questionId}/tasks/${taskId}`);
+}
+
+export async function restoreTask(
+  questionId: string,
+  taskId: string,
+): Promise<AdminTask> {
+  const res = await api.post<TaskEnvelope>(
+    `/questions/${questionId}/tasks/${taskId}/restore`,
+  );
+  return res.data;
 }
