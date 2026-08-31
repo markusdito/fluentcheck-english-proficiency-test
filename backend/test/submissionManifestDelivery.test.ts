@@ -77,6 +77,8 @@ test("reports one signing failure without exposing storage identity", async () =
       });
       assert.equal(JSON.stringify(error).includes("q-2"), false);
       assert.equal(JSON.stringify(error).includes("signer secret"), false);
+      assert.equal(error.message.includes("signer secret"), false);
+      assert.equal(error.stack?.includes("signer secret"), false);
       return true;
     },
   );

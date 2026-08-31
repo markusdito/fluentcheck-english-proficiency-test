@@ -91,10 +91,49 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
 }
 
+function isAssessmentInitializationUnavailable(error: unknown): boolean {
+  return (
+    error instanceof AssessmentUnavailableError ||
+    error instanceof ManifestEvidenceUnavailableError ||
+    error instanceof EligibilityConflictError
+  );
+}
+
+function observeInitializationFailure(
+  error: unknown,
+  observeFailure: (event: AssessmentInitializationFailureEvent) => void,
+): void {
+  if (
+    error instanceof ActiveSubmissionConflictError ||
+    error instanceof IdempotencyKeyConflictError
+  ) {
+    return;
+  }
+  const classification = error instanceof EligibilityConflictError
+    ? "ELIGIBILITY_CONFLICT"
+    : error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError
+      ? "PREPARATION"
+      : "UNKNOWN";
+  const diagnostics = error instanceof ManifestEvidenceUnavailableError
+    ? error.diagnostics
+    : undefined;
+  try {
+    observeFailure({
+      classification,
+      categoryCount: CATEGORIES.length,
+      failureCount: diagnostics?.failureCount ?? 1,
+      ...(diagnostics ? { failedEntries: diagnostics.failures } : {}),
+    });
+  } catch {
+    // Observability failures must never alter initialization behavior.
+  }
+}
+
 async function replayStartIntent(
   studentId: string,
   idempotencyKey: string,
   signPromptMedia: NonNullable<InitializationDependencies["signPromptMedia"]>,
+  deadline: number,
 ) {
   const existingIntent = await prisma.submissionStartIntent.findUnique({
     where: { idempotencyKey },
@@ -118,7 +157,10 @@ async function replayStartIntent(
       tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
     })),
   };
-  const entries = await buildManifestDelivery(manifest, signPromptMedia);
+  const entries = await buildManifestDelivery(
+    manifest,
+    (key, mime) => withDeadline(signPromptMedia(key, mime), deadline),
+  );
   return { submissionId: existingIntent.submissionId, status: existingIntent.submission.status, manifestId: manifest.id, version: manifest.version, entries };
 }
 
@@ -135,7 +177,7 @@ export async function initializeManifestSubmission(
 
   try {
     if (idempotencyKey) {
-      const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia);
+      const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
       if (replay) return replay;
     }
     const active = await prisma.submission.findFirst({
@@ -289,34 +331,20 @@ export async function initializeManifestSubmission(
       // A concurrent request may have won the idempotency insert after the
       // initial lookup. Replay its committed result after the transaction rolls
       // back, preserving exactly one manifest for the key.
-      const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia);
-      if (replay) return replay;
+      try {
+        const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
+        if (replay) return replay;
+      } catch (replayError) {
+        observeInitializationFailure(replayError, observeFailure);
+        if (isAssessmentInitializationUnavailable(replayError)) {
+          throw new AssessmentUnavailableError();
+        }
+        throw replayError;
+      }
       throw new IdempotencyKeyConflictError();
     }
-    if (
-      !(error instanceof ActiveSubmissionConflictError) &&
-      !(error instanceof IdempotencyKeyConflictError)
-    ) {
-      const classification = error instanceof EligibilityConflictError
-        ? "ELIGIBILITY_CONFLICT"
-        : error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError
-          ? "PREPARATION"
-          : "UNKNOWN";
-      const diagnostics = error instanceof ManifestEvidenceUnavailableError
-        ? error.diagnostics
-        : undefined;
-      try {
-        observeFailure({
-          classification,
-          categoryCount: CATEGORIES.length,
-          failureCount: diagnostics?.failureCount ?? 1,
-          ...(diagnostics ? { failedEntries: diagnostics.failures } : {}),
-        });
-      } catch {
-        // Observability failures must never alter initialization behavior.
-      }
-    }
-    if (error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError || error instanceof EligibilityConflictError) {
+    observeInitializationFailure(error, observeFailure);
+    if (isAssessmentInitializationUnavailable(error)) {
       throw new AssessmentUnavailableError();
     }
     throw error;
@@ -328,6 +356,7 @@ export async function resumeManifestSubmission(
   dependencies: InitializationDependencies = {},
 ) {
   const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
+  const deadline = dependencies.deadline ?? (dependencies.now ?? Date.now)() + INITIALIZATION_DEADLINE_MS;
   const submission = await prisma.submission.findFirst({
     where: { studentId, status: "IN_PROGRESS" },
     orderBy: { createdAt: "desc" },
@@ -354,20 +383,16 @@ export async function resumeManifestSubmission(
   };
   let entries;
   try {
-    entries = await buildManifestDelivery(manifest, signPromptMedia);
+    entries = await buildManifestDelivery(
+      manifest,
+      (key, mime) => withDeadline(signPromptMedia(key, mime), deadline),
+    );
   } catch (error) {
     if (!(error instanceof ManifestEvidenceUnavailableError)) throw error;
-    const observeFailure = dependencies.observeFailure ?? reportAssessmentInitializationFailure;
-    try {
-      observeFailure({
-        classification: "PREPARATION",
-        categoryCount: CATEGORIES.length,
-        failureCount: error.diagnostics?.failureCount ?? 1,
-        ...(error.diagnostics ? { failedEntries: error.diagnostics.failures } : {}),
-      });
-    } catch {
-      // Observability failures must never alter initialization behavior.
-    }
+    observeInitializationFailure(
+      error,
+      dependencies.observeFailure ?? reportAssessmentInitializationFailure,
+    );
     throw new AssessmentUnavailableError();
   }
   return {

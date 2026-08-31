@@ -102,7 +102,18 @@ test("initialization selects one eligible question per category and persists a c
 
 test("unavailable assessment persists no Submission", async () => {
   const student = await createStudent();
-  await prisma.question.updateMany({ data: { deletedAt: new Date() } });
+  const activeQuestionIds = (
+    await prisma.question.findMany({
+      where: { deletedAt: null },
+      select: { id: true },
+    })
+  ).map(({ id }: { id: string }) => id);
+  if (activeQuestionIds.length > 0) {
+    await prisma.question.updateMany({
+      where: { id: { in: activeQuestionIds } },
+      data: { deletedAt: new Date() },
+    });
+  }
   const failures: unknown[] = [];
   await assert.rejects(
     initializeManifestSubmission(student.id, "start-key-empty", {
@@ -116,7 +127,6 @@ test("unavailable assessment persists no Submission", async () => {
   assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 0);
   assert.deepEqual(failures, [{ classification: "PREPARATION", categoryCount: 3, failureCount: 1 }]);
 
-  await prisma.question.updateMany({ data: { deletedAt: new Date() } });
   const response = await fetch(`${baseUrl}/api/submissions`, {
     method: "POST",
     headers: {
@@ -257,6 +267,13 @@ test("resume maps Prompt media signing failure to Assessment unavailable", async
     }),
     AssessmentUnavailableError,
   );
+  await assert.rejects(
+    resumeManifestSubmission(student.id, {
+      deadline: Date.now() + 20,
+      signPromptMedia: async () => new Promise<string>(() => {}),
+    }),
+    AssessmentUnavailableError,
+  );
 });
 
 test("student prompt media is limited to the active submission manifest", async () => {
@@ -354,6 +371,18 @@ test("replaying an idempotency key converges on the same retained manifest", asy
     signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
   });
   await prisma.submission.update({ where: { id: first.submissionId }, data: { status: "ABANDONED" } });
+  const replayFailures: unknown[] = [];
+  await assert.rejects(
+    initializeManifestSubmission(student.id, "replay-key", {
+      signPromptMedia: async () => {
+        throw new Error("signer unavailable");
+      },
+      observeFailure: (event) => replayFailures.push(event),
+    }),
+    AssessmentUnavailableError,
+  );
+  assert.equal(replayFailures.length, 1);
+  assert.equal((replayFailures[0] as { failureCount: number }).failureCount, 3);
   const replay = await initializeManifestSubmission(student.id, "replay-key", {
     chooseIndex: () => 0,
     signPromptMedia: async (key) => `https://media.example/replay/${encodeURIComponent(key)}`,

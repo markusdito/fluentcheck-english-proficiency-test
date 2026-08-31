@@ -224,6 +224,8 @@ test("combined test delivery fails closed and reports multiple signer failures",
       });
       assert.equal(JSON.stringify(error).includes("questions/question-1"), false);
       assert.equal(JSON.stringify(error).includes("signer secret"), false);
+      assert.equal(error.message.includes("signer secret"), false);
+      assert.equal(error.stack?.includes("signer secret"), false);
       return true;
     },
   );
