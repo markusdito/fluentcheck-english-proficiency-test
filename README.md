@@ -289,6 +289,7 @@ Open [http://localhost:3000](http://localhost:3000). The API listens on
 | `npm run dev` | Start Express with automatic restarts |
 | `npm run test:unit` | Run the fast backend unit suite without Docker |
 | `npm run test:integration` | Run HTTP and concurrency tests against disposable PostgreSQL |
+| `npm run test:critical` | Run the critical evidence, lifecycle, auth, payment, scoring, and media regression suite |
 | `npm test` | Run the complete unit and integration suite |
 | `npm run build` | Compile TypeScript into `dist/` |
 | `npm run start` | Run the compiled API |

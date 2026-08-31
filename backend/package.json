@@ -7,6 +7,7 @@
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "tsx --test test/*.test.ts",
     "test:integration": "tsx --test test/integration/*.test.ts",
+    "test:critical": "tsx --test test/integration/answerUploadIntegrity.test.ts test/integration/submissionCompletion.test.ts test/integration/payment.test.ts test/integration/examinerAssignmentSet.test.ts test/integration/examinerScoringCompletion.test.ts test/integration/authCurrentAccount.test.ts test/integration/authRateLimit.test.ts test/integration/questionLifecycle.test.ts test/integration/promptMediaIntegrity.test.ts",
     "preflight:submission-manifest": "tsx scripts/preflightSubmissionManifest.ts",
     "preflight:examiner-assignment": "tsx scripts/preflightExaminerAssignment.ts",
     "preflight:account-identity": "tsx scripts/preflightAccountIdentity.ts",
