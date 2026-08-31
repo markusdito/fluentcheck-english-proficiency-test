@@ -121,19 +121,13 @@ export default function AdminOverviewPage() {
       </div>
 
       <section className="mb-10" aria-label="Your examiner work">
-        <div className="mb-4 flex items-end justify-between gap-4">
+        <div className="mb-4">
           <div>
             <p className="mark">Your examiner work</p>
             <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
               Existing assignments
             </h2>
           </div>
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-ink underline-offset-4 hover:underline"
-          >
-            Open work view
-          </Link>
         </div>
         {assignmentsQuery.isPending ? (
           <div className="flex h-28 items-center justify-center border border-rule bg-paper-raised">

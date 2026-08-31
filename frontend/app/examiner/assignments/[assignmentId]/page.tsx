@@ -11,6 +11,7 @@ import {
 } from "@/lib/examiner-api";
 import { useSession } from "@/hooks/useSession";
 import { queryKeys } from "@/lib/query-keys";
+import { ApiError } from "@/lib/api";
 import { VideoReviewer } from "@/components/examiner/VideoReviewer";
 import { ScoringPanel } from "@/components/examiner/ScoringPanel";
 import { Header } from "@/components/layout/Header";
@@ -33,6 +34,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   const queryClient = useQueryClient();
   const session = useSession({ required: true });
   const user = session.data;
+  const homeHref = user?.role === "ADMIN" ? "/admin" : "/dashboard";
   const assignmentKey = queryKeys.examinerAssignment(assignmentId);
   const canWorkExistingAssignment =
     user?.role === "EXAMINER" || user?.role === "ADMIN";
@@ -47,6 +49,14 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const initializedAssignmentId = useRef<string | null>(null);
+
+  function refreshAfterOwnershipConflict(error: unknown) {
+    if (!(error instanceof ApiError) || (error.statusCode !== 403 && error.statusCode !== 409)) {
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey: assignmentKey });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.examinerAssignments });
+  }
 
   useEffect(() => {
     if (user && !canWorkExistingAssignment) {
@@ -100,6 +110,9 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
             }
           : current,
       );
+    } catch (error) {
+      refreshAfterOwnershipConflict(error);
+      throw error;
     } finally {
       setSubmitting(false);
     }
@@ -116,6 +129,9 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
         queryKey: queryKeys.examinerAssignments,
       });
       setSubmitted(true);
+    } catch (error) {
+      refreshAfterOwnershipConflict(error);
+      throw error;
     } finally {
       setSubmitting(false);
     }
@@ -142,7 +158,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
               ? assignmentQuery.error.message
               : "Assignment not found"}
           </p>
-          <Button className="mt-6" size="lg" render={<Link href="/dashboard" />}>
+          <Button className="mt-6" size="lg" render={<Link href={homeHref} />}>
             Back to dashboard
           </Button>
         </div>
@@ -168,7 +184,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
             recorded.
           </p>
           <div className="mt-8 flex justify-center">
-            <Button size="lg" render={<Link href="/dashboard" />}>
+            <Button size="lg" render={<Link href={homeHref} />}>
               Back to dashboard
             </Button>
           </div>
@@ -180,7 +196,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   return (
     <div className="min-h-screen bg-paper">
       <Header
-        logoHref="/dashboard"
+        logoHref={homeHref}
         actions={
           <AccountMenu
             name={user?.name}
@@ -194,7 +210,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
         <Breadcrumb className="mb-8">
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/dashboard" />}>
+              <BreadcrumbLink render={<Link href={homeHref} />}>
                 Dashboard
               </BreadcrumbLink>
             </BreadcrumbItem>
