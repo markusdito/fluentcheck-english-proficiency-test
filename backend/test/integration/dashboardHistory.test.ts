@@ -11,13 +11,17 @@ import {
 import type { Express } from "express";
 import jwt from "jsonwebtoken";
 import type { Prisma, PrismaClient } from "../../src/generated/client.js";
-import type { SubmissionStatus } from "../../src/generated/enums.js";
+import type {
+  ScoringSystem,
+  SubmissionStatus,
+} from "../../src/generated/enums.js";
 
 const execFileAsync = promisify(execFile);
 
 let container: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 let disconnectDB: () => Promise<void>;
+let getStudentDashboard: typeof import("../../src/service/submission.service.js").getStudentDashboard;
 let server: Server;
 let baseUrl: string;
 
@@ -36,6 +40,7 @@ async function migrateDatabase(databaseUrl: string) {
 before(async () => {
   container = await new PostgreSqlContainer("postgres:17-alpine").start();
   process.env.NODE_ENV = "test";
+  process.env.PRISMA_QUERY_EVENTS = "1";
   process.env.DATABASE_URL = container.getConnectionUri();
   process.env.JWT_SECRET = "dashboard-history-integration-secret";
   process.env.R2_ACCOUNT_ID = "dashboard-history-test-account";
@@ -47,6 +52,7 @@ before(async () => {
   await migrateDatabase(process.env.DATABASE_URL);
 
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
+  ({ getStudentDashboard } = await import("../../src/service/submission.service.js"));
   const { createApp } = await import("../../src/server.js");
   const app: Express = createApp();
   server = app.listen(0);
@@ -123,13 +129,14 @@ async function createSubmission(
   studentId: string,
   createdAt: string,
   status: SubmissionStatus = "SCORED",
+  scoringSystem: ScoringSystem = "RUBRIC_6",
 ) {
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const submission = await tx.submission.create({
       data: {
         studentId,
         status,
-        scoringSystem: "RUBRIC_6",
+        scoringSystem,
         createdAt: new Date(createdAt),
       },
     });
@@ -157,6 +164,63 @@ async function createSubmission(
     }
     return { submission, entries };
   });
+}
+
+async function createCertificate(submissionId: string, finalScore: number) {
+  return prisma.certificate.create({
+    data: { submissionId, finalScore },
+  });
+}
+
+async function addAnswerScores(
+  submission: Awaited<ReturnType<typeof createSubmission>>,
+  valuesByAnswer: number[][],
+) {
+  const examiners = await Promise.all(
+    ["one", "two"].map(async (name) => {
+      const email = `${name}-${submission.submission.id}@example.test`;
+      return prisma.user.create({
+        data: {
+          username: `${name}_${submission.submission.id.replaceAll("-", "")}`,
+          email,
+          normalizedEmail: email,
+          password: "unused",
+          role: "EXAMINER",
+        },
+      });
+    }),
+  );
+  const assignments = await Promise.all(
+    examiners.map((examiner, index) =>
+      prisma.examinerAssignment.create({
+        data: {
+          submissionId: submission.submission.id,
+          examinerId: examiner.id,
+          slot: index + 1,
+          status: "COMPLETED",
+        },
+      }),
+    ),
+  );
+
+  for (const [answerIndex, entry] of submission.entries.entries()) {
+    const answer = await prisma.answer.create({
+      data: {
+        submissionId: submission.submission.id,
+        manifestEntryId: entry.id,
+        storageKey: `answers/${entry.id}.webm`,
+      },
+    });
+    for (const [assignmentIndex, assignment] of assignments.entries()) {
+      await prisma.score.create({
+        data: {
+          assignmentId: assignment.id,
+          answerId: answer.id,
+          value: valuesByAnswer[answerIndex]![assignmentIndex]!,
+        },
+      });
+    }
+  }
 }
 
 function cookieFor(userId: string) {
@@ -213,4 +277,125 @@ test("returns a bounded summary page with deterministic cursor metadata", async 
   assert.equal(secondPage.submissions.length, 1);
   assert.equal(secondPage.pagination.hasMore, false);
   assert.equal(secondPage.pagination.nextCursor, null);
+});
+
+test("keeps cursor traversal stable when a newer submission is inserted", async () => {
+  const student = await createStudent();
+  const firstSubmission = (await createSubmission(
+    student.id,
+    "2026-02-03T00:00:00.000Z",
+  )).submission;
+  const secondSubmission = (await createSubmission(
+    student.id,
+    "2026-02-02T00:00:00.000Z",
+  )).submission;
+  await createSubmission(student.id, "2026-02-01T00:00:00.000Z");
+
+  const firstResponse = await dashboardRequest(
+    "/submissions?limit=1",
+    student.id,
+  );
+  const firstPage = (await firstResponse.json()).data;
+  assert.equal(firstPage.submissions[0].id, firstSubmission.id);
+
+  await createSubmission(student.id, "2026-02-04T00:00:00.000Z");
+  const secondResponse = await dashboardRequest(
+    `/submissions?limit=1&cursor=${encodeURIComponent(firstPage.pagination.nextCursor)}`,
+    student.id,
+  );
+  const secondPage = (await secondResponse.json()).data;
+
+  assert.equal(secondPage.submissions[0].id, secondSubmission.id);
+});
+
+test("computes global aggregates and dynamic page scores without detail collections", async () => {
+  const student = await createStudent();
+  const rubric = await createSubmission(
+    student.id,
+    "2026-03-04T00:00:00.000Z",
+    "CERTIFIED",
+    "RUBRIC_6",
+  );
+  await createCertificate(rubric.submission.id, 5.5);
+
+  const legacy = await createSubmission(
+    student.id,
+    "2026-03-03T00:00:00.000Z",
+    "CERTIFIED",
+    "LEGACY_100",
+  );
+  await createCertificate(legacy.submission.id, 99);
+
+  const dynamic = await createSubmission(
+    student.id,
+    "2026-03-02T00:00:00.000Z",
+    "SCORED",
+    "RUBRIC_6",
+  );
+  await addAnswerScores(dynamic, [[4, 6], [5, 5], [5, 6]]);
+
+  const incomplete = await createSubmission(
+    student.id,
+    "2026-03-01T00:00:00.000Z",
+    "SCORED",
+    "RUBRIC_6",
+  );
+  await createSubmission(
+    student.id,
+    "2026-03-05T00:00:00.000Z",
+    "IN_PROGRESS",
+  );
+
+  const response = await dashboardRequest("/submissions?limit=10", student.id);
+  assert.equal(response.status, 200);
+  const data = (await response.json()).data;
+
+  assert.equal(data.totalTests, 4);
+  assert.deepEqual(data.bestScore, {
+    value: 5.5,
+    scoringSystem: "RUBRIC_6",
+  });
+  const summaries = new Map(
+    data.submissions.map((submission: { id: string }) => [submission.id, submission]),
+  );
+  assert.equal(summaries.get(dynamic.submission.id).score, "5.17");
+  assert.equal(summaries.get(rubric.submission.id).score, "5.5");
+  assert.equal(summaries.get(legacy.submission.id).score, "99");
+  assert.equal(summaries.get(incomplete.submission.id).score, null);
+  assert.deepEqual(Object.keys(summaries.get(dynamic.submission.id)).sort(), [
+    "createdAt",
+    "id",
+    "score",
+    "scoringSystem",
+    "status",
+  ]);
+});
+
+test("keeps dashboard query count constant as history grows", async () => {
+  const student = await createStudent();
+  await createSubmission(student.id, "2026-04-02T00:00:00.000Z");
+  await createSubmission(student.id, "2026-04-01T00:00:00.000Z");
+
+  const queries: string[] = [];
+  prisma.$on("query", (event) => queries.push(event.query));
+  await getStudentDashboard(student.id, { limit: 2 });
+  const smallHistoryQueryCount = queries.length;
+  assert.ok(smallHistoryQueryCount > 0);
+
+  for (let index = 0; index < 40; index += 1) {
+    await createSubmission(
+      student.id,
+      new Date(Date.UTC(2026, 2, index + 1)).toISOString(),
+    );
+  }
+  queries.length = 0;
+  const largeHistory = await getStudentDashboard(student.id, { limit: 2 });
+
+  assert.equal(largeHistory.submissions.length, 2);
+  assert.equal(largeHistory.totalTests, 42);
+  assert.ok(
+    smallHistoryQueryCount <= 8,
+    `expected a bounded dashboard query count, got ${smallHistoryQueryCount}`,
+  );
+  assert.equal(queries.length, smallHistoryQueryCount);
 });

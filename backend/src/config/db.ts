@@ -1,4 +1,5 @@
 import { PrismaClient } from "../generated/client.js";
+import type { Prisma } from "../generated/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
@@ -8,11 +9,16 @@ const pool = new Pool({
 
 const adapter = new PrismaPg(pool);
 
+const prismaLog: (Prisma.LogLevel | Prisma.LogDefinition)[] =
+    process.env.PRISMA_QUERY_EVENTS === "1"
+        ? [{ emit: "event", level: "query" }]
+        : process.env.NODE_ENV === "development"
+            ? ["query", "error", "warn"]
+            : ["error"];
+
 const prisma = new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"]
+    log: prismaLog,
 });
 
 const connectDB = async () => {
