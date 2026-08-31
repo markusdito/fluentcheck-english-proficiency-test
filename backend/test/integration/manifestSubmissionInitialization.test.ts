@@ -14,6 +14,7 @@ let container: StartedPostgreSqlContainer;
 let prisma: any;
 let disconnectDB: (() => Promise<void>) | undefined;
 let initializeManifestSubmission: typeof import("../../src/service/manifestSubmissionInitialization.service.js").initializeManifestSubmission;
+let resumeManifestSubmission: typeof import("../../src/service/manifestSubmissionInitialization.service.js").resumeManifestSubmission;
 let AssessmentUnavailableError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").AssessmentUnavailableError;
 let IdempotencyKeyConflictError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").IdempotencyKeyConflictError;
 let app: Express;
@@ -38,7 +39,7 @@ before(async () => {
     timeout: 120_000,
   });
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
-  ({ initializeManifestSubmission, AssessmentUnavailableError, IdempotencyKeyConflictError } = await import("../../src/service/manifestSubmissionInitialization.service.js"));
+  ({ initializeManifestSubmission, resumeManifestSubmission, AssessmentUnavailableError, IdempotencyKeyConflictError } = await import("../../src/service/manifestSubmissionInitialization.service.js"));
   const { createApp } = await import("../../src/server.js");
   app = createApp();
   server = app.listen(0);
@@ -101,6 +102,7 @@ test("initialization selects one eligible question per category and persists a c
 
 test("unavailable assessment persists no Submission", async () => {
   const student = await createStudent();
+  await prisma.question.updateMany({ data: { deletedAt: new Date() } });
   const failures: unknown[] = [];
   await assert.rejects(
     initializeManifestSubmission(student.id, "start-key-empty", {
@@ -167,6 +169,94 @@ test("retries once when selected source evidence changes before persistence", as
   assert.equal(mutated, true);
   assert.equal(result.entries.length, 3);
   assert.equal(result.entries[0]?.preparationSeconds, 99);
+});
+
+test("aggregates selected signing failures and retries the same start intent", async () => {
+  const student = await createStudent();
+  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
+    const storageKey = `questions/${crypto.randomUUID()}/prompt.webm`;
+    await prisma.question.create({
+      data: {
+        category,
+        order: Math.floor(Math.random() * 1000000),
+        preparationSeconds: 20,
+        recordingSeconds: 60,
+        audioStorageKey: storageKey,
+        audioMimeType: "audio/webm",
+        audioSizeBytes: 128,
+        audioUploadStatus: "UPLOADED",
+        tasks: { create: [{ promptText: `${category} task`, order: 1 }] },
+      },
+    });
+  }
+  let recovered = false;
+  const failures: unknown[] = [];
+  const signPromptMedia = async (key: string) => {
+    if (!recovered) throw new Error(`signer secret for ${key}`);
+    return `https://media.example/${encodeURIComponent(key)}`;
+  };
+
+  await assert.rejects(
+    initializeManifestSubmission(student.id, "signing-retry-key", {
+      chooseIndex: () => 0,
+      signPromptMedia,
+      observeFailure: (event) => failures.push(event),
+    }),
+    AssessmentUnavailableError,
+  );
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 0);
+  assert.equal(await prisma.submissionStartIntent.count({ where: { idempotencyKey: "signing-retry-key" } }), 0);
+  assert.equal(failures.length, 1);
+  assert.equal((failures[0] as { failureCount: number }).failureCount, 3);
+  assert.deepEqual(
+    (failures[0] as { failedEntries: Array<{ category: string; reason: string }> }).failedEntries
+      .map(({ category, reason }) => ({ category, reason })),
+    [
+      { category: "PART_1", reason: "SIGNING_FAILED" },
+      { category: "PART_2", reason: "SIGNING_FAILED" },
+      { category: "PART_3", reason: "SIGNING_FAILED" },
+    ],
+  );
+
+  recovered = true;
+  const result = await initializeManifestSubmission(student.id, "signing-retry-key", {
+    chooseIndex: () => 0,
+    signPromptMedia,
+  });
+  assert.equal(result.entries.length, 3);
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 1);
+});
+
+test("resume maps Prompt media signing failure to Assessment unavailable", async () => {
+  const student = await createStudent();
+  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
+    await prisma.question.create({
+      data: {
+        category,
+        order: Math.floor(Math.random() * 1000000),
+        preparationSeconds: 20,
+        recordingSeconds: 60,
+        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+        audioMimeType: "audio/webm",
+        audioSizeBytes: 128,
+        audioUploadStatus: "UPLOADED",
+        tasks: { create: [{ promptText: `${category} task`, order: 1 }] },
+      },
+    });
+  }
+  await initializeManifestSubmission(student.id, "resume-failure-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+
+  await assert.rejects(
+    resumeManifestSubmission(student.id, {
+      signPromptMedia: async () => {
+        throw new Error("signer unavailable");
+      },
+    }),
+    AssessmentUnavailableError,
+  );
 });
 
 test("student prompt media is limited to the active submission manifest", async () => {

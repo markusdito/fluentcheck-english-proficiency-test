@@ -17,6 +17,16 @@ import {
 } from "../service/manifestSubmissionInitialization.service.js";
 import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
 
+function sendAssessmentUnavailable(res: Response) {
+  res.setHeader("Retry-After", "5");
+  res.status(503).json({
+    error: "Assessment unavailable",
+    code: "ASSESSMENT_UNAVAILABLE",
+    retryable: true,
+    retryAfterSeconds: 5,
+  });
+}
+
 /**
  * POST /api/submissions
  * Create a new test submission for the authenticated student.
@@ -42,13 +52,7 @@ export async function startSubmission(req: Request, res: Response) {
       return;
     }
     if (error instanceof AssessmentUnavailableError) {
-      res.setHeader("Retry-After", String(error.retryAfterSeconds));
-      res.status(503).json({
-        error: error.message,
-        code: error.code,
-        retryable: error.retryable,
-        retryAfterSeconds: error.retryAfterSeconds,
-      });
+      sendAssessmentUnavailable(res);
       return;
     }
     console.error("Create submission error:", error);
@@ -78,6 +82,10 @@ export async function resumeActiveSubmission(req: Request, res: Response) {
     const data = await resumeManifestSubmission(req.user!.id);
     res.status(200).json({ status: "success", data });
   } catch (error) {
+    if (error instanceof AssessmentUnavailableError && error.message !== "No active assessment") {
+      sendAssessmentUnavailable(res);
+      return;
+    }
     const message = error instanceof Error ? error.message : "Assessment unavailable";
     res.status(404).json({ error: message });
   }

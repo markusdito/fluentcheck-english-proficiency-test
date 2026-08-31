@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { prisma } from "../config/db.js";
 import { createQuestionAudioViewUrlFromMetadata } from "./upload.service.js";
 import { buildManifestDelivery, ManifestEvidenceUnavailableError, } from "./submissionManifestDelivery.service.js";
@@ -38,10 +38,19 @@ function withDeadline(promise, deadline) {
     const remaining = deadline - Date.now();
     if (remaining <= 0)
         return Promise.reject(new AssessmentUnavailableError());
-    return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new AssessmentUnavailableError()), remaining)),
-    ]);
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new AssessmentUnavailableError()), remaining);
+        promise.then((value) => {
+            clearTimeout(timer);
+            resolve(value);
+        }, (error) => {
+            clearTimeout(timer);
+            reject(error);
+        });
+    });
+}
+export function reportAssessmentInitializationFailure(event) {
+    console.error("Assessment initialization failed", event);
 }
 function isUniqueViolation(error) {
     return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
@@ -80,6 +89,7 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
     const chooseIndex = dependencies.chooseIndex ?? ((length) => randomInt(length));
     const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
     const deadline = dependencies.deadline ?? (dependencies.now ?? Date.now)() + INITIALIZATION_DEADLINE_MS;
+    const observeFailure = dependencies.observeFailure ?? reportAssessmentInitializationFailure;
     try {
         if (idempotencyKey) {
             const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia);
@@ -115,32 +125,44 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 throw new AssessmentUnavailableError();
             return candidates[chooseIndex(candidates.length)];
         }));
-        const prepared = await Promise.all(selected.map(async (question, index) => {
-            if (!question.audioStorageKey || !question.audioMimeType || question.audioSizeBytes === null) {
-                throw new AssessmentUnavailableError();
-            }
-            let promptMediaUrl;
-            try {
-                promptMediaUrl = await withDeadline(signPromptMedia(question.audioStorageKey, question.audioMimeType), deadline);
-            }
-            catch {
-                throw new AssessmentUnavailableError();
-            }
-            if (!promptMediaUrl || !/^https:\/\//.test(promptMediaUrl)) {
+        const manifestId = randomUUID();
+        const prepared = selected.map((question, index) => {
+            if (!question.audioStorageKey ||
+                !question.audioMimeType ||
+                question.audioSizeBytes === null ||
+                question.audioSizeBytes <= 0) {
                 throw new AssessmentUnavailableError();
             }
             return {
                 question,
-                promptMediaUrl,
                 deliveryPosition: index + 1,
+                manifestEntryId: randomUUID(),
             };
-        }));
+        });
+        const safe = await buildManifestDelivery({
+            id: manifestId,
+            version: 1,
+            entries: prepared.map((item) => ({
+                id: item.manifestEntryId,
+                category: item.question.category,
+                deliveryPosition: item.deliveryPosition,
+                preparationSeconds: item.question.preparationSeconds,
+                recordingSeconds: item.question.recordingSeconds,
+                promptMediaStorageKey: item.question.audioStorageKey,
+                promptMediaMimeType: item.question.audioMimeType,
+                promptMediaSizeBytes: item.question.audioSizeBytes,
+                tasks: item.question.tasks.map((task) => ({
+                    deliveredOrder: task.order,
+                    deliveredText: task.promptText,
+                })),
+            })),
+        }, (key, mime) => withDeadline(signPromptMedia(key, mime), deadline));
         const result = await prisma.$transaction(async (tx) => {
             const submission = await tx.submission.create({
                 data: { studentId, status: "IN_PROGRESS" },
             });
             const manifest = await tx.submissionManifest.create({
-                data: { submissionId: submission.id, version: 1 },
+                data: { id: manifestId, submissionId: submission.id, version: 1 },
             });
             for (const item of prepared) {
                 const current = await tx.question.findUnique({
@@ -157,6 +179,7 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 }
                 const entry = await tx.manifestEntry.create({
                     data: {
+                        id: item.manifestEntryId,
                         manifestId: manifest.id,
                         submissionId: submission.id,
                         category: item.question.category,
@@ -188,36 +211,13 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
             }
             return { submission, manifest };
         });
-        const delivery = {
-            id: result.manifest.id,
+        return {
+            submissionId: result.submission.id,
+            status: result.submission.status,
+            manifestId: result.manifest.id,
             version: result.manifest.version,
-            entries: prepared.map((item) => ({
-                id: "",
-                category: item.question.category,
-                deliveryPosition: item.deliveryPosition,
-                preparationSeconds: item.question.preparationSeconds,
-                recordingSeconds: item.question.recordingSeconds,
-                promptMediaStorageKey: item.question.audioStorageKey,
-                promptMediaMimeType: item.question.audioMimeType,
-                promptMediaSizeBytes: item.question.audioSizeBytes,
-                tasks: item.question.tasks.map((task) => ({ deliveredOrder: task.order, deliveredText: task.promptText })),
-            })),
+            entries: safe,
         };
-        const persistedEntries = await prisma.manifestEntry.findMany({
-            where: { manifestId: result.manifest.id },
-            orderBy: { deliveryPosition: "asc" },
-            select: { id: true, category: true, deliveryPosition: true, preparationSeconds: true, recordingSeconds: true,
-                promptMediaStorageKey: true, promptMediaMimeType: true, promptMediaSizeBytes: true,
-                tasks: { orderBy: { deliveredOrder: "asc" }, select: { deliveredOrder: true, deliveredText: true } } },
-        });
-        delivery.entries = persistedEntries;
-        const safe = await buildManifestDelivery(delivery, async (key, mime) => {
-            if (key === prepared.find((item) => item.question.audioStorageKey === key)?.question.audioStorageKey) {
-                return prepared.find((item) => item.question.audioStorageKey === key)?.promptMediaUrl ?? signPromptMedia(key, mime);
-            }
-            return signPromptMedia(key, mime);
-        });
-        return { submissionId: result.submission.id, status: result.submission.status, manifestId: result.manifest.id, version: result.manifest.version, entries: safe };
     }
     catch (error) {
         if (error instanceof EligibilityConflictError && (dependencies.attempt ?? 0) < 2) {
@@ -244,17 +244,22 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 return replay;
             throw new IdempotencyKeyConflictError();
         }
-        if (dependencies.observeFailure && !(error instanceof ActiveSubmissionConflictError)) {
+        if (!(error instanceof ActiveSubmissionConflictError) &&
+            !(error instanceof IdempotencyKeyConflictError)) {
             const classification = error instanceof EligibilityConflictError
                 ? "ELIGIBILITY_CONFLICT"
                 : error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError
                     ? "PREPARATION"
                     : "UNKNOWN";
+            const diagnostics = error instanceof ManifestEvidenceUnavailableError
+                ? error.diagnostics
+                : undefined;
             try {
-                dependencies.observeFailure({
+                observeFailure({
                     classification,
                     categoryCount: CATEGORIES.length,
-                    failureCount: 1,
+                    failureCount: diagnostics?.failureCount ?? 1,
+                    ...(diagnostics ? { failedEntries: diagnostics.failures } : {}),
                 });
             }
             catch {
@@ -294,7 +299,27 @@ export async function resumeManifestSubmission(studentId, dependencies = {}) {
             tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
         })),
     };
-    const entries = await buildManifestDelivery(manifest, signPromptMedia);
+    let entries;
+    try {
+        entries = await buildManifestDelivery(manifest, signPromptMedia);
+    }
+    catch (error) {
+        if (!(error instanceof ManifestEvidenceUnavailableError))
+            throw error;
+        const observeFailure = dependencies.observeFailure ?? reportAssessmentInitializationFailure;
+        try {
+            observeFailure({
+                classification: "PREPARATION",
+                categoryCount: CATEGORIES.length,
+                failureCount: error.diagnostics?.failureCount ?? 1,
+                ...(error.diagnostics ? { failedEntries: error.diagnostics.failures } : {}),
+            });
+        }
+        catch {
+            // Observability failures must never alter initialization behavior.
+        }
+        throw new AssessmentUnavailableError();
+    }
     return {
         submissionId: submission.id,
         status: submission.status,
