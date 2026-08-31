@@ -509,6 +509,129 @@ test("invalid reassignment maps fail atomically without changing role or ownersh
   assert.equal(await prisma.examinerAssignmentReassignment.count(), 0);
 });
 
+test("reassignment replays require the complete map and reject stale owners", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const firstReplacement = await createUser("first_replacement", "EXAMINER");
+  const secondReplacement = await createUser("second_replacement", "EXAMINER");
+  const sequentialReplacement = await createUser("sequential_replacement", "EXAMINER");
+  const first = await createLegacyScoringAssignment(target.id, currentPeer.id);
+  const second = await createLegacyScoringAssignment(target.id, currentPeer.id);
+  const assignmentMap = {
+    [first.assignments[0].id]: firstReplacement.id,
+    [second.assignments[0].id]: secondReplacement.id,
+  };
+
+  const updated = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    assignmentMap,
+  );
+  assert.equal(updated.status, 200);
+  assert.equal((await updated.json()).data.outcome, "UPDATED");
+
+  const partialReplay = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    { [first.assignments[0].id]: firstReplacement.id },
+  );
+  assert.equal(partialReplay.status, 400);
+  assert.equal((await partialReplay.json()).code, "INVALID_REASSIGNMENT");
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 2);
+
+  const sequential = await requestRole(
+    firstReplacement.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    { [first.assignments[0].id]: sequentialReplacement.id },
+  );
+  assert.equal(sequential.status, 200);
+  assert.equal((await sequential.json()).data.outcome, "UPDATED");
+
+  const staleReplay = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    assignmentMap,
+  );
+  assert.equal(staleReplay.status, 409);
+  assert.equal((await staleReplay.json()).code, "REASSIGNMENT_CONFLICT");
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 3);
+});
+
+test("capability removal fails closed for malformed assignment sets", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const { assignments } = await createLegacyScoringAssignment(
+    target.id,
+    currentPeer.id,
+  );
+  await prisma.examinerAssignment.delete({ where: { id: assignments[1].id } });
+
+  const response = await requestRole(target.id, "STUDENT", cookieFor(admin.id));
+  assert.equal(response.status, 409);
+  const body = await response.json();
+  assert.equal(body.code, "REASSIGNMENT_CONFLICT");
+  assert.deepEqual(body.assignmentIds, [assignments[0].id]);
+  assert.equal(
+    (await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role,
+    "EXAMINER",
+  );
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 0);
+});
+
+test("replacement maps reject missing, extra, duplicate, deleted, and non-Examiner targets", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const replacement = await createUser("replacement", "EXAMINER");
+  const deletedReplacement = await createUser("deleted_replacement", "EXAMINER");
+  const studentReplacement = await createUser("student_replacement", "STUDENT");
+  const { assignments } = await createLegacyScoringAssignment(
+    target.id,
+    currentPeer.id,
+  );
+  await prisma.user.update({
+    where: { id: deletedReplacement.id },
+    data: { deletedAt: new Date() },
+  });
+
+  const invalidMaps = [
+    undefined,
+    { [assignments[0].id]: crypto.randomUUID() },
+    { [assignments[0].id]: deletedReplacement.id },
+    { [assignments[0].id]: studentReplacement.id },
+  ];
+  for (const reassignmentMap of invalidMaps) {
+    const response = await requestRole(
+      target.id,
+      "STUDENT",
+      cookieFor(admin.id),
+      reassignmentMap,
+    );
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).code, "INVALID_REASSIGNMENT");
+  }
+
+  const second = await createLegacyScoringAssignment(target.id, currentPeer.id);
+  const duplicateTarget = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    {
+      [assignments[0].id]: replacement.id,
+      [second.assignments[0].id]: replacement.id,
+    },
+  );
+  assert.equal(duplicateTarget.status, 400);
+  assert.equal((await duplicateTarget.json()).code, "INVALID_REASSIGNMENT");
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 0);
+});
+
 test("in-progress and score-bearing assignments fail closed during capability removal", async () => {
   const admin = await createUser("admin", "ADMIN");
   const inProgressTarget = await createUser("in_progress_target", "EXAMINER");

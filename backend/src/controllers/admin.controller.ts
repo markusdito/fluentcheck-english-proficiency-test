@@ -24,6 +24,21 @@ const ADMIN_SUBMISSION_STATUSES: readonly string[] = Object.values(SubmissionSta
 );
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function accountTransitionStatus(error: AccountTransitionError): number {
+  switch (error.code) {
+    case "USER_NOT_FOUND":
+      return 404;
+    case "UNAUTHORIZED":
+      return 403;
+    case "INVALID_ROLE":
+    case "INVALID_REASSIGNMENT":
+    case "SELF_ROLE_CHANGE":
+      return 400;
+    default:
+      return 409;
+  }
+}
+
 /**
  * GET /api/admin/users
  * List users with pagination and optional role/q filtering.
@@ -122,18 +137,7 @@ export async function updateUserRole(req: Request, res: Response) {
     });
   } catch (error) {
     if (error instanceof AccountTransitionError) {
-      const status =
-        error.code === "USER_NOT_FOUND"
-          ? 404
-          : error.code === "UNAUTHORIZED"
-            ? 403
-            : error.code === "LAST_ACTIVE_ADMIN"
-              ? 409
-              : error.code === "INVALID_ROLE" ||
-                  error.code === "INVALID_REASSIGNMENT" ||
-                  error.code === "SELF_ROLE_CHANGE"
-                ? 400
-                : 409;
+      const status = accountTransitionStatus(error);
       res.status(status).json({
         error: error.message,
         code: error.code,
@@ -177,14 +181,7 @@ export async function getRoleTransitionPreview(req: Request, res: Response) {
     res.status(200).json({ status: "success", data });
   } catch (error) {
     if (error instanceof AccountTransitionError) {
-      const status =
-        error.code === "USER_NOT_FOUND"
-          ? 404
-          : error.code === "UNAUTHORIZED"
-            ? 403
-            : error.code === "INVALID_ROLE" || error.code === "SELF_ROLE_CHANGE"
-              ? 400
-              : 409;
+      const status = accountTransitionStatus(error);
       res.status(status).json({
         error: error.message,
         code: error.code,

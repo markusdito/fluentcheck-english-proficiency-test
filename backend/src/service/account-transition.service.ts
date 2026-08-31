@@ -73,8 +73,6 @@ export interface AccountTransitionResult {
 export interface AccountTransitionOptions {
   /** Exact assignment-id to replacement-examiner-id map. */
   reassignmentMap?: unknown;
-  /** Internal shared boundary for a supported soft-deactivation caller. */
-  deactivate?: boolean;
   database?: typeof prisma;
 }
 
@@ -197,6 +195,27 @@ function contentionConflict(operation: "transition" | "deactivation"): AccountTr
     "REASSIGNMENT_CONFLICT",
     `Account ${operation} could not be committed because the account state changed concurrently`,
   );
+}
+
+async function runSerializableTransition<T>(
+  database: typeof prisma,
+  operation: "transition" | "deactivation",
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  for (let attempt = 1; attempt <= ACCOUNT_TRANSITION_TRANSACTION_ATTEMPTS; attempt += 1) {
+    try {
+      return await database.$transaction(callback, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      if (!isContention(error)) throw error;
+      if (attempt === ACCOUNT_TRANSITION_TRANSACTION_ATTEMPTS) {
+        throw contentionConflict(operation);
+      }
+    }
+  }
+
+  throw contentionConflict(operation);
 }
 
 function requiresAssignmentTransfer(
@@ -385,27 +404,21 @@ async function readReplayHistory(
       createdAt: true,
     },
   });
-  const latestHistory = history[0];
-  if (latestHistory) {
-    const latestTransitionAssignmentIds = new Set(
-      history
-        .filter(
-          (entry) =>
-            entry.createdAt.getTime() === latestHistory.createdAt.getTime(),
-        )
-        .map((entry) => entry.assignmentId),
-    );
+  const historicalAssignmentIds = new Set(
+    history.map((entry) => entry.assignmentId),
+  );
+  if (historicalAssignmentIds.size > 0) {
     const suppliedAssignmentIds = new Set(assignmentIds);
     if (
-      latestTransitionAssignmentIds.size !== suppliedAssignmentIds.size ||
-      [...latestTransitionAssignmentIds].some(
+      historicalAssignmentIds.size !== suppliedAssignmentIds.size ||
+      [...historicalAssignmentIds].some(
         (assignmentId) => !suppliedAssignmentIds.has(assignmentId),
       )
     ) {
       throw new AccountTransitionError(
         "INVALID_REASSIGNMENT",
-        "Every reassignment from the completed transition must be included",
-        { assignmentIds: [...latestTransitionAssignmentIds].sort() },
+        "Every reassignment from the account's completed transitions must be included",
+        { assignmentIds: [...historicalAssignmentIds].sort() },
       );
     }
   }
@@ -724,31 +737,16 @@ export async function transitionAccountRole(
 
   const reassignmentMap = parseReassignmentMap(options.reassignmentMap);
   const database = options.database ?? prisma;
-  for (let attempt = 1; attempt <= ACCOUNT_TRANSITION_TRANSACTION_ATTEMPTS; attempt += 1) {
-    try {
-      return await database.$transaction(
-        (tx) =>
-          transitionInsideTransaction(
-            tx,
-            targetUserId,
-            actorUserId,
-            requestedRole,
-            false,
-            reassignmentMap,
-          ),
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
-    } catch (error) {
-      if (!isContention(error)) {
-        throw error;
-      }
-      if (attempt === ACCOUNT_TRANSITION_TRANSACTION_ATTEMPTS) {
-        throw contentionConflict("transition");
-      }
-    }
-  }
-
-  throw contentionConflict("transition");
+  return runSerializableTransition(database, "transition", (tx) =>
+    transitionInsideTransaction(
+      tx,
+      targetUserId,
+      actorUserId,
+      requestedRole,
+      false,
+      reassignmentMap,
+    ),
+  );
 }
 
 /** Shared internal boundary for supported soft-deactivation callers. */
@@ -759,68 +757,52 @@ export async function deactivateAccount(
 ): Promise<AccountTransitionResult> {
   const reassignmentMap = parseReassignmentMap(options.reassignmentMap);
   const database = options.database ?? prisma;
-  for (let attempt = 1; attempt <= ACCOUNT_TRANSITION_TRANSACTION_ATTEMPTS; attempt += 1) {
-    try {
-      return await database.$transaction(
-        async (tx) => {
-          await tx.$executeRaw`
-            SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
-          `;
-          const targetRows = await tx.$queryRaw<LockedUser[]>`
-            SELECT
-              "id"::text AS "id",
-              "username",
-              "email",
-              "role"::text AS "role",
-              "createdAt",
-              "deletedAt"
-              FROM "User"
-             WHERE "id" = ${targetUserId}::uuid
-             FOR UPDATE
-          `;
-          const target = targetRows[0];
-          if (!target) {
-            throw new AccountTransitionError("USER_NOT_FOUND", "User not found", { userId: targetUserId });
-          }
-          const users = await lockUsers(tx, [
-            actorUserId,
-            ...Object.values(reassignmentMap),
-          ]);
-          const actor = users.get(actorUserId);
-          if (!actor || actor.deletedAt !== null || actor.role !== "ADMIN") {
-            throw new AccountTransitionError(
-              "UNAUTHORIZED",
-              "Only an active administrator can transition accounts",
-            );
-          }
-          if (targetUserId === actorUserId) {
-            throw new AccountTransitionError(
-              "SELF_ROLE_CHANGE",
-              "Cannot change your own role",
-            );
-          }
-          return transitionInsideTransaction(
-            tx,
-            targetUserId,
-            actorUserId,
-            target.role as Role,
-            true,
-            reassignmentMap,
-          );
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
-    } catch (error) {
-      if (!isContention(error)) {
-        throw error;
-      }
-      if (attempt === ACCOUNT_TRANSITION_TRANSACTION_ATTEMPTS) {
-        throw contentionConflict("deactivation");
-      }
+  return runSerializableTransition(database, "deactivation", async (tx) => {
+    await tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
+    `;
+    const targetRows = await tx.$queryRaw<LockedUser[]>`
+      SELECT
+        "id"::text AS "id",
+        "username",
+        "email",
+        "role"::text AS "role",
+        "createdAt",
+        "deletedAt"
+        FROM "User"
+       WHERE "id" = ${targetUserId}::uuid
+       FOR UPDATE
+    `;
+    const target = targetRows[0];
+    if (!target) {
+      throw new AccountTransitionError("USER_NOT_FOUND", "User not found", { userId: targetUserId });
     }
-  }
-
-  throw contentionConflict("deactivation");
+    const users = await lockUsers(tx, [
+      actorUserId,
+      ...Object.values(reassignmentMap),
+    ]);
+    const actor = users.get(actorUserId);
+    if (!actor || actor.deletedAt !== null || actor.role !== "ADMIN") {
+      throw new AccountTransitionError(
+        "UNAUTHORIZED",
+        "Only an active administrator can transition accounts",
+      );
+    }
+    if (targetUserId === actorUserId) {
+      throw new AccountTransitionError(
+        "SELF_ROLE_CHANGE",
+        "Cannot change your own role",
+      );
+    }
+    return transitionInsideTransaction(
+      tx,
+      targetUserId,
+      actorUserId,
+      target.role as Role,
+      true,
+      reassignmentMap,
+    );
+  });
 }
 
 /** Read-only impact data used to build an exact reassignment map. */
