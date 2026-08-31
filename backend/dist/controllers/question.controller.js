@@ -1,6 +1,6 @@
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
-import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, } from "../service/question.service.js";
+import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, restoreQuestion as restoreQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, restoreTask as restoreTaskService, PositionConflictError, } from "../service/question.service.js";
 import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, createQuestionAudioViewUrlFromMetadata, } from "../service/upload.service.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 function handleQuestionAudioError(res, error) {
@@ -89,8 +89,12 @@ function isNonNegativeInteger(value) {
     return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 function handleQuestionError(res, error) {
+    if (error instanceof PositionConflictError) {
+        res.status(409).json({ error: error.message });
+        return;
+    }
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        res.status(409).json({ error: "A question or task with the same order already exists" });
+        res.status(409).json({ error: "The requested question or task position is already occupied" });
         return;
     }
     const message = error instanceof Error ? error.message : "Internal server error";
@@ -112,7 +116,8 @@ export async function getQuestions(req, res) {
 }
 export async function getAdminQuestions(req, res) {
     try {
-        const questions = await retrieveAdminQuestions();
+        const includeRetired = req.query.includeRetired === "true";
+        const questions = await retrieveAdminQuestions(includeRetired);
         res.status(200).json({
             status: "success",
             data: questions,
@@ -121,6 +126,15 @@ export async function getAdminQuestions(req, res) {
     catch (error) {
         console.error("Error fetching admin questions:", error);
         res.status(500).json({ error: "Failed to fetch admin questions" });
+    }
+}
+export async function restoreQuestion(req, res) {
+    try {
+        const question = await restoreQuestionService(req.params.id);
+        res.status(200).json({ status: "success", data: question });
+    }
+    catch (error) {
+        handleQuestionError(res, error);
     }
 }
 export async function createQuestion(req, res) {
@@ -262,6 +276,17 @@ export async function deleteTask(req, res) {
         const taskId = req.params.taskId;
         await deleteTaskService(questionId, taskId);
         res.status(200).json({ status: "success" });
+    }
+    catch (error) {
+        handleQuestionError(res, error);
+    }
+}
+export async function restoreTask(req, res) {
+    try {
+        const questionId = req.params.id;
+        const taskId = req.params.taskId;
+        const task = await restoreTaskService(questionId, taskId);
+        res.status(200).json({ status: "success", data: task });
     }
     catch (error) {
         handleQuestionError(res, error);
