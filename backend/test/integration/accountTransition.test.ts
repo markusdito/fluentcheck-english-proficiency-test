@@ -58,8 +58,7 @@ before(async () => {
 }, { timeout: 120_000 });
 
 beforeEach(async () => {
-  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ExaminerAssignmentReassignment_immutable" ON "ExaminerAssignmentReassignment"`);
-  await prisma.examinerAssignmentReassignment.deleteMany();
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE "ExaminerAssignmentReassignment"`);
   await prisma.examinerAssignment.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestEntry_immutable" ON "ManifestEntry"`);
@@ -72,13 +71,15 @@ beforeEach(async () => {
   await prisma.$executeRawUnsafe(`DELETE FROM "ManifestEntry"`);
   await prisma.$executeRawUnsafe(`DELETE FROM "SubmissionManifest"`);
   await prisma.submission.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.user.updateMany({
+    where: { deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
   await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "SubmissionManifest_v1_shape_check" AFTER INSERT OR UPDATE ON "SubmissionManifest" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
   await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "ManifestEntry_v1_shape_check" AFTER INSERT OR UPDATE OR DELETE ON "ManifestEntry" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
   await prisma.$executeRawUnsafe(`CREATE TRIGGER "SubmissionManifest_immutable" BEFORE UPDATE OR DELETE ON "SubmissionManifest" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
   await prisma.$executeRawUnsafe(`CREATE TRIGGER "ManifestEntry_immutable" BEFORE UPDATE OR DELETE ON "ManifestEntry" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
   await prisma.$executeRawUnsafe(`CREATE TRIGGER "ManifestTask_immutable" BEFORE UPDATE OR DELETE ON "ManifestTask" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
-  await prisma.$executeRawUnsafe(`CREATE TRIGGER "ExaminerAssignmentReassignment_immutable" BEFORE UPDATE OR DELETE ON "ExaminerAssignmentReassignment" FOR EACH ROW EXECUTE FUNCTION reject_examiner_assignment_reassignment_mutation()`);
 });
 
 after(async () => {
@@ -245,14 +246,48 @@ test("a valid demotion commits and replaying the desired role is explicit", asyn
   assert.equal((await replay.json()).data.outcome, "ALREADY_APPLIED");
 });
 
+test("supported role transitions cover the complete role matrix", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "STUDENT");
+  const roles = ["ADMIN", "EXAMINER", "ADMIN", "STUDENT", "EXAMINER", "STUDENT"];
+
+  for (const role of roles) {
+    const response = await requestRole(target.id, role, cookieFor(admin.id));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).data.outcome, "UPDATED");
+  }
+  assert.equal(
+    (await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role,
+    "STUDENT",
+  );
+});
+
+test("admin user listing exposes active state for deactivated accounts", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const active = await createUser("active", "STUDENT");
+  const deactivated = await createUser("deactivated", "STUDENT");
+  await prisma.user.update({
+    where: { id: deactivated.id },
+    data: { deletedAt: new Date() },
+  });
+
+  const response = await fetch(`${baseUrl}/api/admin/users?limit=20`, {
+    headers: { Cookie: cookieFor(admin.id) },
+  });
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  const users = payload.data.items as Array<{ id: string; deletedAt: string | null }>;
+  assert.equal(users.find((user) => user.id === active.id)?.deletedAt, null);
+  assert.ok(users.find((user) => user.id === deactivated.id)?.deletedAt);
+});
+
 test("concurrent demotions cannot remove every active administrator", async () => {
-  const actor = await createUser("actor", "ADMIN");
   const firstTarget = await createUser("first_target", "ADMIN");
   const secondTarget = await createUser("second_target", "ADMIN");
 
   const responses = await Promise.all([
-    requestRole(firstTarget.id, "EXAMINER", cookieFor(actor.id)),
-    requestRole(secondTarget.id, "STUDENT", cookieFor(actor.id)),
+    requestRole(firstTarget.id, "EXAMINER", cookieFor(secondTarget.id)),
+    requestRole(secondTarget.id, "STUDENT", cookieFor(firstTarget.id)),
   ]);
   const outcomes = await Promise.all(
     responses.map(async (response) => ({
@@ -261,15 +296,11 @@ test("concurrent demotions cannot remove every active administrator", async () =
     })),
   );
 
-  assert.deepEqual(outcomes.map(({ status }) => status).sort(), [200, 200]);
+  assert.equal(outcomes.filter(({ status }) => status === 200).length, 1);
+  assert.ok(outcomes.some(({ status }) => status === 403 || status === 409));
   assert.equal(
     await prisma.user.count({ where: { role: "ADMIN", deletedAt: null } }),
     1,
-  );
-  assert.ok(outcomes.every(({ payload }) => payload.data?.outcome === "UPDATED"));
-  assert.equal(
-    (await prisma.user.findUniqueOrThrow({ where: { id: actor.id } })).role,
-    "ADMIN",
   );
 });
 
@@ -516,6 +547,7 @@ test("reassignment replays require the complete map and reject stale owners", as
   const firstReplacement = await createUser("first_replacement", "EXAMINER");
   const secondReplacement = await createUser("second_replacement", "EXAMINER");
   const sequentialReplacement = await createUser("sequential_replacement", "EXAMINER");
+  const laterReplacement = await createUser("later_replacement", "EXAMINER");
   const first = await createLegacyScoringAssignment(target.id, currentPeer.id);
   const second = await createLegacyScoringAssignment(target.id, currentPeer.id);
   const assignmentMap = {
@@ -551,6 +583,32 @@ test("reassignment replays require the complete map and reject stale owners", as
   assert.equal(sequential.status, 200);
   assert.equal((await sequential.json()).data.outcome, "UPDATED");
 
+  const promote = await requestRole(
+    target.id,
+    "EXAMINER",
+    cookieFor(admin.id),
+  );
+  assert.equal(promote.status, 200);
+  const later = await createLegacyScoringAssignment(target.id, currentPeer.id);
+  const laterMap = { [later.assignments[0].id]: laterReplacement.id };
+  const laterUpdated = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    laterMap,
+  );
+  assert.equal(laterUpdated.status, 200);
+  assert.equal((await laterUpdated.json()).data.outcome, "UPDATED");
+
+  const laterReplay = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    laterMap,
+  );
+  assert.equal(laterReplay.status, 200);
+  assert.equal((await laterReplay.json()).data.outcome, "ALREADY_APPLIED");
+
   const staleReplay = await requestRole(
     target.id,
     "STUDENT",
@@ -559,7 +617,7 @@ test("reassignment replays require the complete map and reject stale owners", as
   );
   assert.equal(staleReplay.status, 409);
   assert.equal((await staleReplay.json()).code, "REASSIGNMENT_CONFLICT");
-  assert.equal(await prisma.examinerAssignmentReassignment.count(), 3);
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 4);
 });
 
 test("capability removal fails closed for malformed assignment sets", async () => {
@@ -714,6 +772,26 @@ test("the shared deactivation boundary transfers eligible work and replays safel
   const replay = await deactivateAccount(target.id, admin.id, { reassignmentMap });
   assert.equal(replay.outcome, "ALREADY_APPLIED");
   assert.equal(await prisma.examinerAssignmentReassignment.count(), 1);
+});
+
+test("concurrent deactivations cannot remove every active administrator", async () => {
+  const firstAdmin = await createUser("first_admin", "ADMIN");
+  const secondAdmin = await createUser("second_admin", "ADMIN");
+  const { deactivateAccount } = await import("../../src/service/accountTransition.service.js");
+
+  const results = await Promise.allSettled([
+    deactivateAccount(firstAdmin.id, secondAdmin.id),
+    deactivateAccount(secondAdmin.id, firstAdmin.id),
+  ]);
+
+  assert.equal(
+    results.filter((result) => result.status === "fulfilled").length,
+    1,
+  );
+  assert.equal(
+    await prisma.user.count({ where: { role: "ADMIN", deletedAt: null } }),
+    1,
+  );
 });
 
 test("assignment start and account deactivation serialize on ownership", async () => {
