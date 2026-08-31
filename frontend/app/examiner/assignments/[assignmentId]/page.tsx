@@ -34,11 +34,13 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   const session = useSession({ required: true });
   const user = session.data;
   const assignmentKey = queryKeys.examinerAssignment(assignmentId);
+  const canWorkExistingAssignment =
+    user?.role === "EXAMINER" || user?.role === "ADMIN";
   const assignmentQuery = useQuery({
     queryKey: assignmentKey,
     queryFn: ({ signal }) =>
       fetchExaminerAssignmentDetail(assignmentId, signal),
-    enabled: user?.role === "EXAMINER",
+    enabled: canWorkExistingAssignment,
   });
   const assignment = assignmentQuery.data;
   const [submitting, setSubmitting] = useState(false);
@@ -47,10 +49,10 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   const initializedAssignmentId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (user && user.role !== "EXAMINER") {
+    if (user && !canWorkExistingAssignment) {
       window.location.replace("/dashboard");
     }
-  }, [user]);
+  }, [canWorkExistingAssignment, user]);
 
   useEffect(() => {
     if (!assignment || initializedAssignmentId.current === assignment.id) return;
@@ -121,8 +123,8 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
 
   if (
     session.isPending ||
-    (user?.role === "EXAMINER" && assignmentQuery.isPending) ||
-    (user && user.role !== "EXAMINER")
+    (canWorkExistingAssignment && assignmentQuery.isPending) ||
+    (user && !canWorkExistingAssignment)
   ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">

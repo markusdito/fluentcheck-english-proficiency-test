@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAdminStats } from "@/lib/admin-api";
+import { fetchExaminerAssignments } from "@/lib/examiner-api";
+import { AssignmentList } from "@/components/examiner/AssignmentList";
 import { queryKeys } from "@/lib/query-keys";
 import { SubmissionStatus } from "@/components/ui/submission-status";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,10 @@ export default function AdminOverviewPage() {
   const statsQuery = useQuery({
     queryKey: queryKeys.adminStats,
     queryFn: ({ signal }) => fetchAdminStats(signal),
+  });
+  const assignmentsQuery = useQuery({
+    queryKey: queryKeys.examinerAssignments,
+    queryFn: ({ signal }) => fetchExaminerAssignments(signal),
   });
   const stats = statsQuery.data;
 
@@ -113,6 +119,36 @@ export default function AdminOverviewPage() {
         <StatCard eyebrow="Paid revenue" value={revenue} />
         <StatCard eyebrow="Pending grading" value={String(stats?.pendingGrading ?? 0)} />
       </div>
+
+      <section className="mb-10" aria-label="Your examiner work">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <p className="mark">Your examiner work</p>
+            <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
+              Existing assignments
+            </h2>
+          </div>
+          <Link
+            href="/dashboard"
+            className="text-sm font-medium text-ink underline-offset-4 hover:underline"
+          >
+            Open work view
+          </Link>
+        </div>
+        {assignmentsQuery.isPending ? (
+          <div className="flex h-28 items-center justify-center border border-rule bg-paper-raised">
+            <Loader2 className="size-6 animate-spin text-ink-faint" role="status" aria-label="Loading assignments" />
+          </div>
+        ) : assignmentsQuery.isError ? (
+          <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-8 text-center">
+            <p className="text-sm text-ink-soft">
+              Existing examiner assignments could not be loaded. Refresh to try again.
+            </p>
+          </div>
+        ) : (
+          <AssignmentList assignments={assignmentsQuery.data ?? []} />
+        )}
+      </section>
 
       {/* Recent submissions */}
       <section>

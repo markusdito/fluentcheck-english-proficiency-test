@@ -12,7 +12,7 @@ import {
 } from "@testcontainers/postgresql";
 import bcrypt from "bcryptjs";
 import type { Express } from "express";
-import type { PrismaClient, Role } from "../../src/generated/client.js";
+import type { Prisma, PrismaClient, Role } from "../../src/generated/client.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -40,6 +40,10 @@ before(async () => {
   process.env.DATABASE_URL = container.getConnectionUri();
   process.env.JWT_SECRET = "account-transition-integration-secret";
   process.env.FRONTEND_URL = "https://fluentcheck.example.test";
+  process.env.R2_ACCOUNT_ID = "account-transition-test-account";
+  process.env.R2_ACCESS_KEY_ID = "account-transition-test-access-key";
+  process.env.R2_SECRET_ACCESS_KEY = "account-transition-test-secret-key";
+  process.env.R2_BUCKET_NAME = "account-transition-test-bucket";
 
   await migrateDatabase(process.env.DATABASE_URL);
 
@@ -101,6 +105,78 @@ async function requestRole(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ role }),
+  });
+}
+
+async function createLegacyScoringAssignment(
+  examinerId: string,
+  secondExaminerId: string,
+) {
+  const student = await createUser("student", "STUDENT");
+  const { submission, answers } = await createManifestSubmission(
+    student.id,
+    "SCORING",
+  );
+  const assignments = await prisma.examinerAssignment.createManyAndReturn({
+    data: [
+      { submissionId: submission.id, examinerId, slot: 1, status: "ASSIGNED" },
+      { submissionId: submission.id, examinerId: secondExaminerId, slot: 2, status: "ASSIGNED" },
+    ],
+  });
+
+  return { answers, assignments };
+}
+
+async function createManifestSubmission(
+  studentId: string,
+  status: "PAID" | "SCORING",
+) {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const submission = await tx.submission.create({
+      data: {
+        studentId,
+        status,
+        scoringSystem: "LEGACY_100",
+        paymentRequired: false,
+      },
+    });
+    const manifest = await tx.submissionManifest.create({
+      data: { submissionId: submission.id, version: 1 },
+    });
+    const answers = [];
+    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+      const question = await tx.question.create({
+        data: {
+          category,
+          order: Math.floor(Math.random() * 1_000_000),
+          preparationSeconds: 30,
+          recordingSeconds: 120,
+        },
+      });
+      const entry = await tx.manifestEntry.create({
+        data: {
+          manifestId: manifest.id,
+          submissionId: submission.id,
+          category,
+          deliveryPosition: index + 1,
+          preparationSeconds: 30,
+          recordingSeconds: 120,
+          promptMediaStorageKey: `questions/${question.id}/prompt.mp3`,
+          promptMediaMimeType: "audio/mpeg",
+          promptMediaSizeBytes: 10,
+          sourceQuestionId: question.id,
+        },
+      });
+      answers.push(await tx.answer.create({
+        data: {
+          submissionId: submission.id,
+          manifestEntryId: entry.id,
+          storageKey: `unused/${entry.id}`,
+          uploadStatus: "PENDING",
+        },
+      }));
+    }
+    return { submission, answers };
   });
 }
 
@@ -182,4 +258,83 @@ test("non-admin callers cannot execute a role transition", async () => {
   const response = await requestRole(target.id, "EXAMINER", cookieFor(student.id));
   assert.equal(response.status, 403);
   assert.deepEqual(await response.json(), { error: "Insufficient permissions" });
+});
+
+test("an Examiner promoted to ADMIN keeps access to existing work while new assignment selection excludes ADMIN", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const promoted = await createUser("promoted", "EXAMINER");
+  const secondExaminer = await createUser("second_examiner", "EXAMINER");
+  const thirdExaminer = await createUser("third_examiner", "EXAMINER");
+  const { answers, assignments } = await createLegacyScoringAssignment(
+    promoted.id,
+    secondExaminer.id,
+  );
+
+  const promotion = await requestRole(
+    promoted.id,
+    "ADMIN",
+    cookieFor(admin.id),
+  );
+  assert.equal(promotion.status, 200);
+
+  const promotedCookie = cookieFor(promoted.id);
+  const workList = await fetch(`${baseUrl}/api/examiner/assignments`, {
+    headers: { Cookie: promotedCookie },
+  });
+  assert.equal(workList.status, 200);
+  assert.equal((await workList.json()).data[0].id, assignments[0].id);
+
+  const detail = await fetch(
+    `${baseUrl}/api/examiner/assignments/${assignments[0].id}`,
+    { headers: { Cookie: promotedCookie } },
+  );
+  assert.equal(detail.status, 200);
+
+  for (const answer of answers) {
+    const score = await fetch(
+      `${baseUrl}/api/examiner/assignments/${assignments[0].id}/scores/${answer.id}`,
+      {
+        method: "PUT",
+        headers: {
+          Cookie: promotedCookie,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ value: 88 }),
+      },
+    );
+    assert.equal(score.status, 200);
+  }
+
+  const completion = await fetch(
+    `${baseUrl}/api/examiner/assignments/${assignments[0].id}/complete`,
+    { method: "POST", headers: { Cookie: promotedCookie } },
+  );
+  assert.equal(completion.status, 200);
+  assert.equal(
+    (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).status,
+    "COMPLETED",
+  );
+
+  const nextStudent = await createUser("next_student", "STUDENT");
+  const { submission: nextSubmission } = await createManifestSubmission(
+    nextStudent.id,
+    "PAID",
+  );
+  const assignmentSet = await import("../../src/service/examiner.service.js");
+  const result = await assignmentSet.createExaminerAssignmentSet(nextSubmission.id, {
+    selectCandidates: (ids) => {
+      const eligible = ids.filter((id) => id !== promoted.id).sort();
+      return [eligible[0], eligible[1]];
+    },
+  });
+  assert.equal(result.outcome, "CREATED");
+  assert.equal(
+    result.assignedExaminers.some((examiner) => examiner.id === promoted.id),
+    false,
+  );
+  assert.equal(
+    (await prisma.user.findUniqueOrThrow({ where: { id: promoted.id } })).role,
+    "ADMIN",
+  );
+  assert.equal(thirdExaminer.role, "EXAMINER");
 });
