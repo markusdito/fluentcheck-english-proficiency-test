@@ -6,6 +6,47 @@ export interface AdminUser {
   createdAt: string;
 }
 
+export interface AccountTransitionCandidate {
+  id: string;
+  username: string;
+  email: string;
+}
+
+export interface AccountTransitionAssignmentImpact {
+  id: string;
+  submissionId: string;
+  slot: number;
+  status: string;
+  createdAt: string;
+  currentExaminer: AccountTransitionCandidate;
+  scoreCount: number;
+  transferEligible: boolean;
+  candidates: AccountTransitionCandidate[];
+}
+
+export interface AccountTransitionPreview {
+  user: AdminUser & { deletedAt: string | null };
+  requestedRole: string;
+  assignments: AccountTransitionAssignmentImpact[];
+}
+
+export interface AccountTransitionAssignmentSummary {
+  id: string;
+  submissionId: string;
+  slot: number;
+  status: string;
+  previousExaminerId: string;
+  newExaminerId: string;
+  scoreCount: number;
+  createdAt: string;
+}
+
+export interface AccountTransitionResult {
+  outcome: "UPDATED" | "ALREADY_APPLIED";
+  user: AdminUser & { deletedAt: string | null };
+  assignments: AccountTransitionAssignmentSummary[];
+}
+
 export interface AdminExaminer {
   id: string;
   username: string;

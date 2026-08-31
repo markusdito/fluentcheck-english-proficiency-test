@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ children }: { children: ReactNode }) => <a href="/">{children}</a>,
+  default: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
 vi.mock("@/lib/admin-api", () => ({

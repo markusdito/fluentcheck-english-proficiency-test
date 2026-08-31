@@ -10,6 +10,8 @@ import type {
   AdminUser,
   Paginated,
   AssignSubmissionResult,
+  AccountTransitionPreview,
+  AccountTransitionResult,
 } from "@/types/admin";
 
 interface PaginatedEnvelope<T> {
@@ -79,8 +81,39 @@ export async function fetchAdminUsers(
   return res.data;
 }
 
-export async function updateUserRole(id: string, role: string): Promise<void> {
-  await api.put(`/admin/users/${id}/role`, { role });
+interface AccountTransitionPreviewEnvelope {
+  status: string;
+  data: AccountTransitionPreview;
+}
+
+interface AccountTransitionResultEnvelope {
+  status: string;
+  data: AccountTransitionResult;
+}
+
+export async function fetchRoleTransitionPreview(
+  id: string,
+  role: string,
+  signal?: AbortSignal,
+): Promise<AccountTransitionPreview> {
+  const params = new URLSearchParams({ role });
+  const res = await api.get<AccountTransitionPreviewEnvelope>(
+    `/admin/users/${id}/role-transition-preview?${params.toString()}`,
+    { signal },
+  );
+  return res.data;
+}
+
+export async function updateUserRole(
+  id: string,
+  role: string,
+  reassignmentMap?: Record<string, string>,
+): Promise<AccountTransitionResult> {
+  const res = await api.put<AccountTransitionResultEnvelope>(
+    `/admin/users/${id}/role`,
+    { role, ...(reassignmentMap ? { reassignmentMap } : {}) },
+  );
+  return res.data;
 }
 
 export async function fetchAdminExaminers(signal?: AbortSignal): Promise<AdminExaminer[]> {
