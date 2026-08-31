@@ -23,7 +23,7 @@ function isTaskPositionViolation(error) {
     if (Array.isArray(target) && target.some((field) => field === "questionId")) {
         return true;
     }
-    return /Task_(?:active_)?questionId_order|questionId[\s_,].*order/u.test(error.message ?? "");
+    return /Task_(?:active_)?questionId_order|questionId.*order/u.test(error.message ?? "");
 }
 function duplicateTaskOrder(tasks) {
     const seen = new Set();
@@ -39,6 +39,9 @@ function questionPositionConflict(category, order) {
 }
 function taskPositionConflict(questionId, order) {
     return new PositionConflictError("Task", `${questionId}/${order}`);
+}
+function isUuid(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
 }
 /**
  * Retrieve one random question per category (PART_1, PART_2, PART_3)
@@ -214,9 +217,6 @@ export async function updateQuestion(id, data) {
     catch (error) {
         if (!isUniqueViolation(error))
             throw error;
-        if (isTaskPositionViolation(error)) {
-            throw taskPositionConflict("unknown", data.order ?? 0);
-        }
         throw questionPositionConflict(data.category ?? existing.category, data.order ?? existing.order);
     }
 }
@@ -324,6 +324,8 @@ async function retrieveAdminQuestion(id) {
 }
 /** Restore a Question at its original position without changing child Tasks. */
 export async function restoreQuestion(id) {
+    if (!isUuid(id))
+        throw new Error("Question not found");
     const existing = await prisma.question.findUnique({
         where: { id },
         select: { id: true, category: true, order: true, deletedAt: true },
@@ -348,6 +350,9 @@ export async function restoreQuestion(id) {
 }
 /** Restore a Task at its original Question/order position independently. */
 export async function restoreTask(questionId, taskId) {
+    if (!isUuid(questionId) || !isUuid(taskId)) {
+        throw new Error("Task not found");
+    }
     const existing = await prisma.task.findUnique({
         where: { id: taskId },
         select: {
