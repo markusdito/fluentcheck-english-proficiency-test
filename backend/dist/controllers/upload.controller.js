@@ -49,7 +49,7 @@ export async function confirmUploadHandler(req, res) {
     }
     catch (error) {
         const message = error instanceof Error ? error.message : "Failed to confirm upload";
-        const status = message === "Unauthorized" || message === "Answer not found" || message === "Manifest entry not found" ? 404 : message.includes("Video") || message.includes("Answer upload") ? 409 : 500;
+        const status = message === "Unauthorized" || message === "Answer not found" || message === "Manifest entry not found" ? 404 : message.includes("Video") || message.includes("Answer upload") || message.includes("content-type mismatch") ? 409 : 500;
         res.status(status).json({ error: message });
     }
 }
