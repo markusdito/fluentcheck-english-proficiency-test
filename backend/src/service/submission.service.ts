@@ -26,6 +26,8 @@ export interface ScaleAwareScore {
 
 export const DEFAULT_DASHBOARD_PAGE_SIZE = 10;
 export const MAX_DASHBOARD_PAGE_SIZE = 50;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 export interface DashboardQuery {
   limit?: number;
@@ -86,7 +88,7 @@ function decodeDashboardCursor(value: string): DashboardCursor {
     if (
       decoded.version !== 1 ||
       typeof decoded.id !== "string" ||
-      decoded.id.length === 0 ||
+      !UUID_PATTERN.test(decoded.id) ||
       typeof decoded.createdAt !== "string"
     ) {
       throw new Error("Invalid dashboard cursor payload");

@@ -308,6 +308,36 @@ test("keeps cursor traversal stable when a newer submission is inserted", async 
   assert.equal(secondPage.submissions[0].id, secondSubmission.id);
 });
 
+test("orders equal timestamps by id and rejects invalid pagination input", async () => {
+  const student = await createStudent();
+  const timestamp = "2026-02-10T00:00:00.000Z";
+  const first = (await createSubmission(student.id, timestamp)).submission;
+  const second = (await createSubmission(student.id, timestamp)).submission;
+  const expectedOrder = [first.id, second.id].sort().reverse();
+
+  const response = await dashboardRequest("/submissions?limit=1", student.id);
+  const data = (await response.json()).data;
+  assert.equal(data.submissions[0].id, expectedOrder[0]);
+  assert.equal(data.pagination.hasMore, true);
+
+  const invalidLimit = await dashboardRequest("/submissions?limit=0", student.id);
+  assert.equal(invalidLimit.status, 400);
+  assert.deepEqual(await invalidLimit.json(), {
+    error: "limit must be a positive integer",
+  });
+
+  const invalidCursor = await dashboardRequest(
+    "/submissions?cursor=not-a-dashboard-cursor",
+    student.id,
+  );
+  assert.equal(invalidCursor.status, 400);
+  assert.deepEqual(await invalidCursor.json(), { error: "cursor is invalid" });
+
+  const oversized = await dashboardRequest("/submissions?limit=999", student.id);
+  assert.equal(oversized.status, 200);
+  assert.equal((await oversized.json()).data.pagination.limit, 50);
+});
+
 test("computes global aggregates and dynamic page scores without detail collections", async () => {
   const student = await createStudent();
   const rubric = await createSubmission(

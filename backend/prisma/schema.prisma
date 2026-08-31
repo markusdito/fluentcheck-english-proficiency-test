@@ -151,6 +151,7 @@ model Submission {
   updatedAt       DateTime             @updatedAt @db.Timestamptz()
 
   @@index([studentId, status])
+  @@index([studentId, createdAt, id])
   @@index([status])
 }
 
