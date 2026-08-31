@@ -10,6 +10,7 @@
     "preflight:submission-manifest": "tsx scripts/preflightSubmissionManifest.ts",
     "preflight:examiner-assignment": "tsx scripts/preflightExaminerAssignment.ts",
     "preflight:account-identity": "tsx scripts/preflightAccountIdentity.ts",
+    "preflight:question-position": "tsx scripts/preflightQuestionPosition.ts",
     "reconcile:prompt-media": "tsx scripts/reconcileRetiredPromptMedia.ts",
     "dev": "nodemon --watch src --exec tsx src/server.ts",
     "build": "tsc",
