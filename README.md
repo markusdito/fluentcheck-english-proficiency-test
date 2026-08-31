@@ -281,6 +281,8 @@ Open [http://localhost:3000](http://localhost:3000). The API listens on
 | `npm run build` | Create a production build |
 | `npm run start` | Serve the production build |
 | `npm run lint` | Run ESLint |
+| `npm run test:critical` | Run the critical recording and upload workflow suite |
+| `npm test` | Run the complete frontend test suite |
 
 ### Backend
 
