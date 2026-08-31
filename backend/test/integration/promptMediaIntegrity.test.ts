@@ -167,6 +167,7 @@ async function createRetirementFixture() {
         create: { promptText: "Describe the scene.", order: 1 },
       },
     },
+    include: { tasks: true },
   });
   async function createSubmissionWithStatus(
     status: "IN_PROGRESS" | "AWAITING_PAYMENT" | "SCORING",
@@ -191,6 +192,7 @@ async function createRetirementFixture() {
       for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
         const entryQuestion = category === "PART_1" ? question : await tx.question.create({
           data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+          include: { tasks: true },
         });
         const entry = await tx.manifestEntry.create({
           data: {
@@ -202,6 +204,16 @@ async function createRetirementFixture() {
             promptMediaMimeType: "audio/webm",
             promptMediaSizeBytes: 4_096,
             sourceQuestionId: entryQuestion.id,
+          },
+        });
+        const sourceTask = entryQuestion.tasks[0];
+        await tx.manifestTask.create({
+          data: {
+            manifestEntryId: entry.id,
+            sourceTaskId: sourceTask.id,
+            sourceQuestionId: entryQuestion.id,
+            deliveredOrder: sourceTask.order,
+            deliveredText: sourceTask.promptText,
           },
         });
         if (category === "PART_1") part1EntryId = entry.id;
