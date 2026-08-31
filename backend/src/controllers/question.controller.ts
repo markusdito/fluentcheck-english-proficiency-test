@@ -2,7 +2,6 @@ import type { Request, Response } from "express";
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
 import {
-  retrieveQuestions,
   retrieveAdminQuestions,
   retrieveTestQuestions,
   createQuestion as createQuestionService,
@@ -164,7 +163,7 @@ function handleQuestionError(res: Response, error: unknown) {
 
 export async function getQuestions(req: Request, res: Response) {
   try {
-    const questions = await retrieveQuestions(2);
+    const questions = await retrieveAdminQuestions();
     res.status(200).json({
       status: "success",
       data: questions,

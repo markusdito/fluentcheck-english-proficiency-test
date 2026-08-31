@@ -1,6 +1,6 @@
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
-import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, restoreQuestion as restoreQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, restoreTask as restoreTaskService, PositionConflictError, DuplicateTaskPositionError, } from "../service/question.service.js";
+import { retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, restoreQuestion as restoreQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, restoreTask as restoreTaskService, PositionConflictError, DuplicateTaskPositionError, } from "../service/question.service.js";
 import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, createQuestionAudioViewUrlFromMetadata, } from "../service/upload.service.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 import { ManifestEvidenceUnavailableError, } from "../service/submissionManifestDelivery.service.js";
@@ -122,7 +122,7 @@ function handleQuestionError(res, error) {
 }
 export async function getQuestions(req, res) {
     try {
-        const questions = await retrieveQuestions(2);
+        const questions = await retrieveAdminQuestions();
         res.status(200).json({
             status: "success",
             data: questions,
