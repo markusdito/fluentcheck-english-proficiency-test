@@ -175,7 +175,7 @@ export async function retrieveAdminQuestions(includeRetired = false) {
 /**
  * Retrieve only questions that are ready to be delivered to test takers.
  */
-export async function retrieveTestQuestions(order: number) {
+export async function retrieveTestQuestions() {
   const categories = [
     QuestionCategory.PART_1,
     QuestionCategory.PART_2,
@@ -186,7 +186,6 @@ export async function retrieveTestQuestions(order: number) {
     where: {
       deletedAt: null,
       category: {in: categories},
-      order,
       audioUploadStatus: "UPLOADED",
       tasks: {some: {deletedAt: null}},
     },

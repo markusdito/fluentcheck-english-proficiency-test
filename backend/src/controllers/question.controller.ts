@@ -99,7 +99,7 @@ export async function getQuestionAudioUrl(req: Request, res: Response) {
  */
 export async function getTestQuestions(req: Request, res: Response) {
   try {
-    const questions = await retrieveTestQuestions(2);
+    const questions = await retrieveTestQuestions();
     const data = await buildTestQuestionDelivery(
       questions,
       createQuestionAudioViewUrlFromMetadata,

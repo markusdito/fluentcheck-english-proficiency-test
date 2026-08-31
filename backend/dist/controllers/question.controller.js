@@ -72,7 +72,7 @@ export async function getQuestionAudioUrl(req, res) {
  */
 export async function getTestQuestions(req, res) {
     try {
-        const questions = await retrieveTestQuestions(2);
+        const questions = await retrieveTestQuestions();
         const data = await buildTestQuestionDelivery(questions, createQuestionAudioViewUrlFromMetadata);
         res.status(200).json({ status: "success", data });
     }

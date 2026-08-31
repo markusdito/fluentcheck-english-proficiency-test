@@ -203,7 +203,7 @@ test("test question retrieval excludes drafts without confirmed audio", async ()
     }) as typeof prisma.question.findMany,
   );
 
-  await retrieveTestQuestions(2);
+  await retrieveTestQuestions();
 
   assert.deepEqual(query!.where, {
     deletedAt: null,
@@ -214,7 +214,6 @@ test("test question retrieval excludes drafts without confirmed audio", async ()
         QuestionCategory.PART_3,
       ],
     },
-    order: 2,
     audioUploadStatus: "UPLOADED",
     tasks: { some: { deletedAt: null } },
   });
