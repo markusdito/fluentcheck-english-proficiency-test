@@ -4,6 +4,8 @@ import type {
   ScoringSystem,
 } from "@/types/scoring";
 
+export const DASHBOARD_PAGE_SIZE = 10;
+
 export interface SubmissionSummary {
   id: string;
   status: string;
@@ -17,10 +19,22 @@ export interface ScaleAwareScore {
   scoringSystem: ScoringSystem;
 }
 
+export interface DashboardPageParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface DashboardPagination {
+  limit: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
 export interface DashboardStats {
   totalTests: number;
   bestScore: ScaleAwareScore | null;
   submissions: SubmissionSummary[];
+  pagination: DashboardPagination;
 }
 
 export interface AnswerDetail {
@@ -63,10 +77,18 @@ interface SubmissionDetailResponse {
 
 /**
  * Fetch dashboard stats and submission history for the authenticated user.
- * GET /api/submissions
+ * GET /api/submissions?limit={limit}&cursor={cursor}
  */
-export async function fetchDashboardStats(signal?: AbortSignal): Promise<DashboardStats> {
-  const res = await api.get<DashboardResponse>("/submissions", { signal });
+export async function fetchDashboardStats(
+  params: DashboardPageParams = {},
+  signal?: AbortSignal,
+): Promise<DashboardStats> {
+  const query = new URLSearchParams();
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.cursor !== undefined) query.set("cursor", params.cursor);
+  const queryString = query.toString();
+  const endpoint = queryString ? `/submissions?${queryString}` : "/submissions";
+  const res = await api.get<DashboardResponse>(endpoint, { signal });
   return res.data;
 }
 

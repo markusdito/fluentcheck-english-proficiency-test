@@ -1,6 +1,7 @@
 export const queryKeys = {
   session: ["session"] as const,
-  studentDashboard: ["dashboard", "student"] as const,
+  studentDashboard: (params: { limit: number; cursor?: string }) =>
+    ["dashboard", "student", params] as const,
   examinerAssignments: ["assignments", "examiner"] as const,
   examinerAssignment: (assignmentId: string) =>
     ["assignments", "examiner", assignmentId] as const,
