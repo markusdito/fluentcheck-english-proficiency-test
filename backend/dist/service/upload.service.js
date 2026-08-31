@@ -339,8 +339,15 @@ export async function confirmUpload(submissionId, manifestEntryId, userId, _meta
             verifiedAt: new Date(),
         },
     });
-    if (updated.count !== 1)
+    if (updated.count !== 1) {
+        const current = await prisma.answer.findUnique({
+            where: { id: answer.id },
+            select: { uploadStatus: true, verifiedAt: true },
+        });
+        if (current?.uploadStatus === "UPLOADED" && current.verifiedAt)
+            return;
         throw new Error("Submission is not in progress");
+    }
 }
 /**
  * Generate a presigned GET URL for viewing a video.

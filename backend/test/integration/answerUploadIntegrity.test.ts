@@ -278,6 +278,26 @@ test("confirmation rejects unproven objects and records server-observed metadata
   assert.ok(answer.verifiedAt);
 });
 
+test("concurrent confirmations converge on one verified Answer", async () => {
+  const fixture = await createFixture();
+  const signed = await presign(fixture);
+  storage.put(signed.body.data!.storageKey, {
+    contentLength: 17,
+    contentType: "video/webm",
+  });
+
+  const responses = await Promise.all([confirm(fixture), confirm(fixture)]);
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 200]);
+
+  const answer = await prisma.answer.findUniqueOrThrow({
+    where: { manifestEntryId: fixture.entries[0]!.id },
+    select: { uploadStatus: true, proofVersion: true, verifiedAt: true },
+  });
+  assert.equal(answer.uploadStatus, "UPLOADED");
+  assert.equal(answer.proofVersion, 1);
+  assert.ok(answer.verifiedAt);
+});
+
 test("pending retries receive a fresh storage key and verified Answers cannot be re-armed", async () => {
   const fixture = await createFixture();
   const first = await presign(fixture);
