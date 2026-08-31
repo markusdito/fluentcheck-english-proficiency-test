@@ -22,6 +22,10 @@ import {
   assertLegacyAnswerQuestion,
   assertLegacySubmissionEvidence,
 } from "./submissionManifest.service.js";
+import {
+  transitionAccountRole,
+  type AccountTransitionResult,
+} from "./account-transition.service.js";
 
 export interface ListUsersParams {
   page: number;
@@ -401,38 +405,14 @@ export async function listAdminUsers(params: ListUsersParams) {
 }
 
 /**
- * Change a user's role, guarding against demoting the last ADMIN.
+ * Change a user's role through the shared account-transition boundary.
  */
-export async function changeUserRole(userId: string, newRole: Role) {
-  const user = await prisma.user.findFirst({
-    where: { id: userId, deletedAt: null },
-    select: { id: true, role: true },
-  });
-
-  if (!user) {
-    throw new Error("User not found");
-  }
-
-  if (user.role === "ADMIN" && newRole !== "ADMIN") {
-    const adminCount = await prisma.user.count({
-      where: { role: "ADMIN", deletedAt: null },
-    });
-    if (adminCount <= 1) {
-      throw new Error("Cannot demote the last admin");
-    }
-  }
-
-  return prisma.user.update({
-    where: { id: userId },
-    data: { role: newRole },
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      role: true,
-      createdAt: true,
-    },
-  });
+export async function changeUserRole(
+  userId: string,
+  newRole: Role,
+  actorUserId: string,
+): Promise<AccountTransitionResult> {
+  return transitionAccountRole(userId, actorUserId, newRole);
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   updatePaymentEnabled,
 } from "../service/settings.service.js";
 import { AssignmentSetError } from "../service/examiner.service.js";
+import { AccountTransitionError } from "../service/account-transition.service.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 
@@ -85,29 +86,55 @@ export async function updateUserRole(req: Request, res: Response) {
     if (typeof role !== "string" || !ADMIN_ROLES.includes(role)) {
       res
         .status(400)
-        .json({ error: "role must be one of STUDENT, EXAMINER, ADMIN" });
+        .json({
+          error: "Role must be one of STUDENT, EXAMINER, ADMIN",
+          code: "INVALID_ROLE",
+        });
       return;
     }
 
     if (userId === req.user!.id) {
-      res.status(400).json({ error: "Cannot change your own role" });
+      res.status(400).json({
+        error: "Cannot change your own role",
+        code: "SELF_ROLE_CHANGE",
+      });
       return;
     }
 
-    const user = await changeUserRole(userId, role as Role);
+    if (!UUID_RE.test(userId)) {
+      res.status(404).json({ error: "User not found", code: "USER_NOT_FOUND" });
+      return;
+    }
+
+    const result = await changeUserRole(userId, role as Role, req.user!.id);
     res.status(200).json({
       status: "success",
-      data: { user },
+      data: result,
     });
   } catch (error) {
+    if (error instanceof AccountTransitionError) {
+      const status =
+        error.code === "USER_NOT_FOUND"
+          ? 404
+          : error.code === "UNAUTHORIZED"
+            ? 403
+            : error.code === "LAST_ACTIVE_ADMIN"
+              ? 409
+              : error.code === "INVALID_ROLE" ||
+                  error.code === "SELF_ROLE_CHANGE"
+                ? 400
+                : 409;
+      res.status(status).json({
+        error: error.message,
+        code: error.code,
+        ...(error.details ?? {}),
+      });
+      return;
+    }
+
     const message =
       error instanceof Error ? error.message : "Failed to update user role";
-    const status =
-      message === "User not found"
-        ? 404
-        : message === "Cannot demote the last admin"
-          ? 400
-          : 500;
+    const status = message === "User not found" ? 404 : 500;
     res.status(status).json({ error: message });
   }
 }
