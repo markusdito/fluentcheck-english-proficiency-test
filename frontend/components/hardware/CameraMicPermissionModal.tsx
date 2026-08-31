@@ -43,6 +43,7 @@ export function CameraMicPermissionModal({
   useEffect(() => {
     if (!open) {
       hasRequestedRef.current = false;
+      setPermissionGranted(false);
       stopStream();
       return;
     }

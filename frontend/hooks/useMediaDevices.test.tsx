@@ -55,13 +55,18 @@ function installAudioContextMocks(
 
 function installAnimationFrameMocks() {
   let nextAnimationFrameId = 1;
+  const callbacks = new Map<number, FrameRequestCallback>();
   const requestAnimationFrame = vi
     .fn<(callback: FrameRequestCallback) => number>()
-    .mockImplementation(() => nextAnimationFrameId++);
+    .mockImplementation((callback) => {
+      const id = nextAnimationFrameId++;
+      callbacks.set(id, callback);
+      return id;
+    });
   const cancelAnimationFrame = vi.fn<(handle: number) => void>();
   vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
   vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
-  return { requestAnimationFrame, cancelAnimationFrame };
+  return { requestAnimationFrame, cancelAnimationFrame, callbacks };
 }
 
 function createDeferred<T>() {
@@ -169,7 +174,8 @@ describe("useMediaDevices", () => {
     const firstAudio = createAudioContextMock();
     const secondAudio = createAudioContextMock();
     installAudioContextMocks(firstAudio, secondAudio);
-    const { cancelAnimationFrame } = installAnimationFrameMocks();
+    const { cancelAnimationFrame, callbacks, requestAnimationFrame } =
+      installAnimationFrameMocks();
 
     const { result } = renderHook(() => useMediaDevices());
 
@@ -188,6 +194,9 @@ describe("useMediaDevices", () => {
     expect(firstAudio.context.close).toHaveBeenCalledOnce();
     expect(secondTrack.stop).not.toHaveBeenCalled();
     expect(result.current.stream).toBe(secondStream);
+
+    callbacks.get(1)?.(0);
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(2);
   });
 
   it("deduplicates concurrent permission requests", async () => {

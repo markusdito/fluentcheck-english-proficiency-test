@@ -39,10 +39,13 @@ function installAudioMonitor() {
   const audioContexts = vi.fn<() => AudioContext>(function () {
     return context as unknown as AudioContext;
   });
+  const cancelAnimationFrame = vi.fn();
 
   vi.stubGlobal("AudioContext", audioContexts);
   vi.stubGlobal("requestAnimationFrame", vi.fn(() => 1));
-  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+
+  return { source, analyser, context, cancelAnimationFrame };
 }
 
 describe("CameraMicPermissionModal", () => {
@@ -73,7 +76,7 @@ describe("CameraMicPermissionModal", () => {
     const onClose = vi.fn();
     const onComplete = vi.fn();
     installMediaDevices(getUserMedia, enumerateDevices);
-    installAudioMonitor();
+    const audio = installAudioMonitor();
 
     render(
       <CameraMicPermissionModal
@@ -96,6 +99,9 @@ describe("CameraMicPermissionModal", () => {
     expect(onComplete).toHaveBeenCalledOnce();
     expect(onClose).not.toHaveBeenCalled();
     expect(track.stop).toHaveBeenCalledOnce();
+    expect(audio.source.disconnect).toHaveBeenCalledOnce();
+    expect(audio.analyser.disconnect).toHaveBeenCalledOnce();
+    expect(audio.context.close).toHaveBeenCalledOnce();
   });
 
   it("requests permissions again after the modal is remounted", async () => {
@@ -130,14 +136,13 @@ describe("CameraMicPermissionModal", () => {
       { deviceId: "camera-1", kind: "videoinput", label: "Front camera" },
       { deviceId: "microphone-1", kind: "audioinput", label: "Desk microphone" },
     ]);
-    const stream = {
-      getTracks: () => [{ stop: vi.fn() }],
-    } as unknown as MediaStream;
+    const track = { stop: vi.fn() };
+    const stream = { getTracks: () => [track] } as unknown as MediaStream;
     getUserMedia.mockResolvedValue(stream);
     installMediaDevices(getUserMedia, enumerateDevices);
-    installAudioMonitor();
+    const audio = installAudioMonitor();
 
-    render(
+    const view = render(
       <StrictMode>
         <CameraMicPermissionModal
           open
@@ -151,6 +156,12 @@ describe("CameraMicPermissionModal", () => {
       expect(getUserMedia).toHaveBeenCalledOnce();
       expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
     });
+
+    view.unmount();
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(audio.source.disconnect).toHaveBeenCalledOnce();
+    expect(audio.analyser.disconnect).toHaveBeenCalledOnce();
+    expect(audio.context.close).toHaveBeenCalledOnce();
   });
 
   it("releases media when the modal closes through its open prop", async () => {
@@ -161,7 +172,9 @@ describe("CameraMicPermissionModal", () => {
     ]);
     const track = { stop: vi.fn() };
     const stream = { getTracks: () => [track] } as unknown as MediaStream;
-    getUserMedia.mockResolvedValue(stream);
+    getUserMedia
+      .mockResolvedValueOnce(stream)
+      .mockReturnValueOnce(new Promise<MediaStream>(() => undefined));
     installMediaDevices(getUserMedia, enumerateDevices);
     installAudioMonitor();
 
@@ -175,5 +188,9 @@ describe("CameraMicPermissionModal", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(track.stop).toHaveBeenCalledOnce();
+
+    view.rerender(<CameraMicPermissionModal {...props} open />);
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   });
 });
