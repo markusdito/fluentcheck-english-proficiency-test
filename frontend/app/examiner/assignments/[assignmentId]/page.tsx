@@ -11,7 +11,7 @@ import {
 } from "@/lib/examiner-api";
 import { useSession } from "@/hooks/useSession";
 import { queryKeys } from "@/lib/query-keys";
-import { ApiError } from "@/lib/api";
+import { refreshExaminerWorkAfterOwnershipConflict } from "@/lib/examiner-ownership";
 import { VideoReviewer } from "@/components/examiner/VideoReviewer";
 import { ScoringPanel } from "@/components/examiner/ScoringPanel";
 import { Header } from "@/components/layout/Header";
@@ -49,14 +49,6 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const initializedAssignmentId = useRef<string | null>(null);
-
-  function refreshAfterOwnershipConflict(error: unknown) {
-    if (!(error instanceof ApiError) || (error.statusCode !== 403 && error.statusCode !== 409)) {
-      return;
-    }
-    void queryClient.invalidateQueries({ queryKey: assignmentKey });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.examinerAssignments });
-  }
 
   useEffect(() => {
     if (user && !canWorkExistingAssignment) {
@@ -111,7 +103,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
           : current,
       );
     } catch (error) {
-      refreshAfterOwnershipConflict(error);
+      refreshExaminerWorkAfterOwnershipConflict(error, queryClient, assignmentKey);
       throw error;
     } finally {
       setSubmitting(false);
@@ -130,7 +122,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
       });
       setSubmitted(true);
     } catch (error) {
-      refreshAfterOwnershipConflict(error);
+      refreshExaminerWorkAfterOwnershipConflict(error, queryClient, assignmentKey);
       throw error;
     } finally {
       setSubmitting(false);
