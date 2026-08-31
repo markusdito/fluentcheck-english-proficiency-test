@@ -180,7 +180,14 @@ manifest-backed flow does not use it.
 ### Submissions
 
 <!-- route: GET /api/submissions | source=backend/src/routes/submission.routes.ts -->
-| GET | /api/submissions | Authenticated | Returns the student's dashboard submissions. |
+| GET | /api/submissions | Authenticated | Returns global dashboard stats and a bounded cursor-paginated summary page; answer and score detail is served by the detail route. |
+
+The student dashboard history accepts optional `limit` and opaque `cursor`
+query parameters. Results are ordered by `createdAt DESC, id DESC`, and the
+response includes `pagination.limit`, `pagination.hasMore`, and
+`pagination.nextCursor`. The `totalTests` and `bestScore` values remain global
+to the student's retained non-IN_PROGRESS Submissions rather than being
+calculated from the current page.
 
 <!-- route: POST /api/submissions | source=backend/src/routes/submission.routes.ts -->
 | POST | /api/submissions | Authenticated, creation rate limits | Creates or replays a manifest-backed Submission using Idempotency-Key. |
