@@ -43,7 +43,6 @@ export function CameraMicPermissionModal({
   useEffect(() => {
     if (!open) {
       hasRequestedRef.current = false;
-      setPermissionGranted(false);
       stopStream();
       return;
     }
@@ -86,8 +85,11 @@ export function CameraMicPermissionModal({
   const allChecksPassed =
     open &&
     permissionGranted &&
+    stream !== null &&
     videoDevices.length > 0 &&
     audioDevices.length > 0;
+
+  const hasActivePermission = open && permissionGranted && stream !== null;
 
   if (!open) return null;
 
@@ -187,7 +189,7 @@ export function CameraMicPermissionModal({
           <div className="border border-rule bg-rule/30 px-4 py-3">
             <div className="flex items-center gap-3">
               <span className="shrink-0">
-                {open && permissionGranted ? (
+                {hasActivePermission ? (
                   micLevel > 5 ? (
                     <svg className="h-5 w-5 text-verified" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
@@ -210,14 +212,14 @@ export function CameraMicPermissionModal({
                   <p
                     className={cn(
                       "truncate text-xs",
-                      !(open && permissionGranted)
+                      !hasActivePermission
                         ? "text-ink-soft"
                         : micLevel > 5
                           ? "text-verified"
                           : "text-amber-500",
                     )}
                   >
-                    {!(open && permissionGranted)
+                    {!hasActivePermission
                       ? "Permissions not yet granted"
                       : micLevel > 5
                         ? "Microphone is picking up sound"
