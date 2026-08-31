@@ -11,7 +11,9 @@ const adapter = new PrismaPg(pool);
 
 const prismaLog: (Prisma.LogLevel | Prisma.LogDefinition)[] =
     process.env.PRISMA_QUERY_EVENTS === "1"
-        ? [{ emit: "event", level: "query" }]
+        ? process.env.NODE_ENV === "development"
+            ? ["error", "warn", { emit: "event", level: "query" }]
+            : ["error", { emit: "event", level: "query" }]
         : process.env.NODE_ENV === "development"
             ? ["query", "error", "warn"]
             : ["error"];

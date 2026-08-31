@@ -24,6 +24,7 @@ let disconnectDB: () => Promise<void>;
 let getStudentDashboard: typeof import("../../src/service/submission.service.js").getStudentDashboard;
 let server: Server;
 let baseUrl: string;
+let nextTestQuestionOrder = 1;
 
 async function migrateDatabase(databaseUrl: string) {
   await execFileAsync(
@@ -140,6 +141,11 @@ async function createSubmission(
         createdAt: new Date(createdAt),
       },
     });
+    await tx.$executeRaw`
+      UPDATE "Submission"
+      SET "createdAt" = ${createdAt}::timestamptz
+      WHERE "id" = ${submission.id}::uuid
+    `;
     const manifest = await tx.submissionManifest.create({
       data: { submissionId: submission.id, version: 1 },
     });
@@ -148,7 +154,7 @@ async function createSubmission(
       const question = await tx.question.create({
         data: {
           category,
-          order: Math.floor(Math.random() * 1_000_000),
+          order: nextTestQuestionOrder++,
           tasks: { create: { promptText: "Prompt", order: 1 } },
         },
       });
@@ -338,6 +344,32 @@ test("orders equal timestamps by id and rejects invalid pagination input", async
   assert.equal((await oversized.json()).data.pagination.limit, 50);
 });
 
+test("keeps cursor traversal exact for sub-millisecond timestamps", async () => {
+  const student = await createStudent();
+  const older = (await createSubmission(
+    student.id,
+    "2026-02-11T00:00:00.000001Z",
+  )).submission;
+  const newer = (await createSubmission(
+    student.id,
+    "2026-02-11T00:00:00.000002Z",
+  )).submission;
+
+  const firstResponse = await dashboardRequest(
+    "/submissions?limit=1",
+    student.id,
+  );
+  const firstPage = (await firstResponse.json()).data;
+  assert.equal(firstPage.submissions[0].id, newer.id);
+
+  const secondResponse = await dashboardRequest(
+    `/submissions?limit=1&cursor=${encodeURIComponent(firstPage.pagination.nextCursor)}`,
+    student.id,
+  );
+  const secondPage = (await secondResponse.json()).data;
+  assert.equal(secondPage.submissions[0].id, older.id);
+});
+
 test("computes global aggregates and dynamic page scores without detail collections", async () => {
   const student = await createStudent();
   const rubric = await createSubmission(
@@ -406,11 +438,18 @@ test("keeps dashboard query count constant as history grows", async () => {
   await createSubmission(student.id, "2026-04-02T00:00:00.000Z");
   await createSubmission(student.id, "2026-04-01T00:00:00.000Z");
 
-  const queries: string[] = [];
-  prisma.$on("query", (event) => queries.push(event.query));
+  const queries: Array<{ query: string; params: string }> = [];
+  prisma.$on("query", (event) =>
+    queries.push({ query: event.query, params: event.params }),
+  );
   await getStudentDashboard(student.id, { limit: 2 });
   const smallHistoryQueryCount = queries.length;
   assert.ok(smallHistoryQueryCount > 0);
+  const smallHistoryPageQuery = queries.find((event) =>
+    event.query.includes("dashboard-history-page"),
+  );
+  assert.ok(smallHistoryPageQuery);
+  assert.equal(JSON.parse(smallHistoryPageQuery.params).at(-1), 3);
 
   for (let index = 0; index < 40; index += 1) {
     await createSubmission(
@@ -428,4 +467,14 @@ test("keeps dashboard query count constant as history grows", async () => {
     `expected a bounded dashboard query count, got ${smallHistoryQueryCount}`,
   );
   assert.equal(queries.length, smallHistoryQueryCount);
+  const largeHistoryPageQuery = queries.find((event) =>
+    event.query.includes("dashboard-history-page"),
+  );
+  assert.ok(largeHistoryPageQuery);
+  assert.equal(JSON.parse(largeHistoryPageQuery.params).at(-1), 3);
+  const largeHistoryScoreQuery = queries.find((event) =>
+    event.query.includes("dashboard-dynamic-scores"),
+  );
+  assert.ok(largeHistoryScoreQuery);
+  assert.equal(JSON.parse(largeHistoryScoreQuery.params).length, 2);
 });

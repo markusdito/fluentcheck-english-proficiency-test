@@ -69,7 +69,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /dashboard | source=frontend/app/dashboard/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /dashboard | Authenticated Submission dashboard and status navigation. |
+| /dashboard | Authenticated dashboard with bounded cursor-paginated Submission history, summary fields, and status navigation. |
 
 <!-- page: /profile | source=frontend/app/profile/page.tsx -->
 | Route | Current behavior |
@@ -137,13 +137,19 @@ required-session page redirects an absent session to /login. The server's
 httpOnly cookie is the authority; the frontend does not store a JWT in
 localStorage or sessionStorage.
 
+The dashboard history request uses GET /submissions with a bounded `limit`
+(the browser default is 10) and an opaque `cursor` for the next page. The
+response contains summary fields and pagination metadata; the dashboard keeps
+the cursor stack for Previous/Next navigation. Full Answer and Score
+collections remain behind the Submission detail route.
+
 The higher-level modules are deliberately grouped by feature:
 
 | Module | Responsibility |
 | --- | --- |
 | frontend/lib/auth.ts | Auth request helpers and account response types. |
 | frontend/lib/google-auth.ts | Google OAuth start/error handling. |
-| frontend/lib/dashboard-api.ts | Dashboard Submission queries. |
+| frontend/lib/dashboard-api.ts | Bounded dashboard Submission summary pages, cursor navigation, and detail/status queries. |
 | frontend/lib/test-initialization.ts | Idempotent manifest initialization and resume mapping. |
 | frontend/lib/test-api.ts | Submission lifecycle requests plus transitional question helpers. |
 | frontend/lib/upload-api.ts | Presign, direct PUT, and confirmation requests. |
@@ -313,7 +319,7 @@ Focused tests that protect the current frontend contracts include:
 | Upload transitions | frontend/lib/recording-upload-state.test.ts |
 | Media and examiner presentation | frontend/components/media/LazyAnswerMedia.test.tsx, frontend/components/examiner/VideoReviewer.test.tsx |
 | Auth controls | frontend/components/auth/AuthForms.test.tsx, frontend/components/auth/GoogleAuthButton.test.tsx |
-| Dashboard/admin routes | frontend/app/dashboard/page.test.tsx, frontend/app/admin/questions/page.test.tsx, frontend/app/admin/submissions/[submissionId]/page.test.tsx |
+| Dashboard/admin routes | frontend/app/dashboard/page.test.tsx, frontend/lib/dashboard-api.test.ts, frontend/app/admin/questions/page.test.tsx, frontend/app/admin/submissions/[submissionId]/page.test.tsx |
 
 Run the dependency-free page/route inventory check with
 node scripts/check-architecture-docs.mjs. Review procedure and the

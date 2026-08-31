@@ -8,6 +8,7 @@ import { aggregateStoredScores, average, averageRubrics, roundScore, } from "../
 export const DEFAULT_DASHBOARD_PAGE_SIZE = 10;
 export const MAX_DASHBOARD_PAGE_SIZE = 50;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const DASHBOARD_CURSOR_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/u;
 export class InvalidDashboardCursorError extends Error {
     constructor() {
         super("Dashboard cursor is invalid");
@@ -18,7 +19,7 @@ function encodeDashboardCursor(submission) {
     return Buffer.from(JSON.stringify({
         version: 1,
         id: submission.id,
-        createdAt: submission.createdAt.toISOString(),
+        createdAt: submission.createdAtCursor,
     })).toString("base64url");
 }
 function decodeDashboardCursor(value) {
@@ -27,15 +28,12 @@ function decodeDashboardCursor(value) {
         if (decoded.version !== 1 ||
             typeof decoded.id !== "string" ||
             !UUID_PATTERN.test(decoded.id) ||
-            typeof decoded.createdAt !== "string") {
+            typeof decoded.createdAt !== "string" ||
+            !DASHBOARD_CURSOR_TIMESTAMP_PATTERN.test(decoded.createdAt) ||
+            Number.isNaN(Date.parse(decoded.createdAt))) {
             throw new Error("Invalid dashboard cursor payload");
         }
-        const createdAt = new Date(decoded.createdAt);
-        if (Number.isNaN(createdAt.getTime()) ||
-            createdAt.toISOString() !== decoded.createdAt) {
-            throw new Error("Invalid dashboard cursor timestamp");
-        }
-        return { id: decoded.id, createdAt };
+        return { id: decoded.id, createdAt: decoded.createdAt };
     }
     catch {
         throw new InvalidDashboardCursorError();
@@ -72,6 +70,7 @@ async function readDynamicDashboardScores(submissionIds) {
     if (submissionIds.length === 0)
         return new Map();
     const rows = await prisma.$queryRaw `
+    /* dashboard-dynamic-scores */
     WITH answer_scores AS (
       SELECT
         a."submissionId" AS "submissionId",
@@ -96,6 +95,39 @@ async function readDynamicDashboardScores(submissionIds) {
     FROM complete_submission_scores
   `;
     return new Map(rows.map((row) => [row.submissionId, Number(row.score).toFixed(2)]));
+}
+async function readDashboardHistoryPage(userId, cursor, limit) {
+    const cursorFilter = cursor
+        ? Prisma.sql `
+        AND (
+          s."createdAt" < ${cursor.createdAt}::timestamptz
+          OR (
+            s."createdAt" = ${cursor.createdAt}::timestamptz
+            AND s."id" < ${cursor.id}::uuid
+          )
+        )
+      `
+        : Prisma.empty;
+    return prisma.$queryRaw(Prisma.sql `
+    /* dashboard-history-page */
+    SELECT
+      s."id",
+      s."status",
+      s."scoringSystem",
+      s."createdAt",
+      to_char(
+        s."createdAt" AT TIME ZONE 'UTC',
+        'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
+      ) AS "createdAtCursor",
+      c."finalScore" AS "certificateFinalScore"
+    FROM "Submission" AS s
+    LEFT JOIN "Certificate" AS c ON c."submissionId" = s."id"
+    WHERE s."studentId" = ${userId}::uuid
+      AND s."status" <> 'IN_PROGRESS'
+      ${cursorFilter}
+    ORDER BY s."createdAt" DESC, s."id" DESC
+    LIMIT ${limit + 1}
+  `);
 }
 /**
  * Create a new submission for the authenticated student.
@@ -148,33 +180,9 @@ export async function getStudentDashboard(userId, options = {}) {
         studentId: userId,
         status: { not: "IN_PROGRESS" },
     };
-    const historyWhere = cursor
-        ? {
-            AND: [
-                baseWhere,
-                {
-                    OR: [
-                        { createdAt: { lt: cursor.createdAt } },
-                        { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-                    ],
-                },
-            ],
-        }
-        : baseWhere;
     const [totalTests, pageRowsWithExtra, rubricBest, legacyBest] = await Promise.all([
         prisma.submission.count({ where: baseWhere }),
-        prisma.submission.findMany({
-            where: historyWhere,
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: limit + 1,
-            select: {
-                id: true,
-                status: true,
-                scoringSystem: true,
-                createdAt: true,
-                certificate: { select: { finalScore: true } },
-            },
-        }),
+        readDashboardHistoryPage(userId, cursor, limit),
         findBestCertificateScore(userId, "RUBRIC_6"),
         findBestCertificateScore(userId, "LEGACY_100"),
     ]);
@@ -182,7 +190,7 @@ export async function getStudentDashboard(userId, options = {}) {
     const pageRows = hasMore
         ? pageRowsWithExtra.slice(0, limit)
         : pageRowsWithExtra;
-    const dynamicScores = await readDynamicDashboardScores(pageRows.flatMap((submission) => !submission.certificate &&
+    const dynamicScores = await readDynamicDashboardScores(pageRows.flatMap((submission) => submission.certificateFinalScore === null &&
         (submission.status === "SCORED" || submission.status === "CERTIFIED")
         ? [submission.id]
         : []));
@@ -198,7 +206,7 @@ export async function getStudentDashboard(userId, options = {}) {
         submissions: pageRows.map((submission) => ({
             id: submission.id,
             status: submission.status,
-            score: submission.certificate?.finalScore?.toString() ??
+            score: submission.certificateFinalScore?.toString() ??
                 dynamicScores.get(submission.id) ??
                 null,
             scoringSystem: submission.scoringSystem,
