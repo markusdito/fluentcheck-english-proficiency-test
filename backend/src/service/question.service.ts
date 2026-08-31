@@ -14,6 +14,13 @@ export class PositionConflictError extends Error {
   }
 }
 
+export class DuplicateTaskPositionError extends Error {
+  constructor(readonly order: number) {
+    super(`Task order ${order} is duplicated in the requested Question`);
+    this.name = "DuplicateTaskPositionError";
+  }
+}
+
 function isUniqueViolation(error: unknown): error is {
   code: "P2002";
   meta?: {target?: unknown};
@@ -45,7 +52,7 @@ function duplicateTaskOrder(tasks: CreateTaskInput[] | undefined) {
     if (seen.has(task.order)) return task.order;
     seen.add(task.order);
   }
-  return tasks?.[0]?.order ?? 0;
+  return undefined;
 }
 
 function questionPositionConflict(category: QuestionCategory, order: number) {
@@ -181,6 +188,7 @@ export async function retrieveTestQuestions(order: number) {
       category: {in: categories},
       order,
       audioUploadStatus: "UPLOADED",
+      tasks: {some: {deletedAt: null}},
     },
     select: {
       id: true,
@@ -208,6 +216,11 @@ export async function retrieveTestQuestions(order: number) {
  * Create a question and its nested tasks (admin only).
  */
 export async function createQuestion(userId: string, data: CreateQuestionInput) {
+  const duplicateOrder = duplicateTaskOrder(data.tasks);
+  if (duplicateOrder !== undefined) {
+    throw new DuplicateTaskPositionError(duplicateOrder);
+  }
+
   try {
     return await prisma.question.create({
       data: {
@@ -230,7 +243,7 @@ export async function createQuestion(userId: string, data: CreateQuestionInput) 
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
     if (isTaskPositionViolation(error)) {
-      throw taskPositionConflict("new-question", duplicateTaskOrder(data.tasks));
+      throw new DuplicateTaskPositionError(duplicateTaskOrder(data.tasks) ?? 0);
     }
     throw questionPositionConflict(data.category, data.order);
   }

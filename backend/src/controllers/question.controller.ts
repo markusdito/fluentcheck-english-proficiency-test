@@ -14,6 +14,7 @@ import {
   deleteTask as deleteTaskService,
   restoreTask as restoreTaskService,
   PositionConflictError,
+  DuplicateTaskPositionError,
 } from "../service/question.service.js";
 import {
   createQuestionAudioPresignedUpload,
@@ -123,7 +124,10 @@ function isNonNegativeInteger(value: unknown): value is number {
 }
 
 function handleQuestionError(res: Response, error: unknown) {
-  if (error instanceof PositionConflictError) {
+  if (
+    error instanceof PositionConflictError ||
+    error instanceof DuplicateTaskPositionError
+  ) {
     res.status(409).json({ error: error.message });
     return;
   }

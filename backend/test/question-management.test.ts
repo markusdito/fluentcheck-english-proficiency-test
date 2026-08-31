@@ -216,5 +216,6 @@ test("test question retrieval excludes drafts without confirmed audio", async ()
     },
     order: 2,
     audioUploadStatus: "UPLOADED",
+    tasks: { some: { deletedAt: null } },
   });
 });

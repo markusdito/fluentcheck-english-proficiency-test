@@ -112,10 +112,19 @@ async function request(
   path: string,
   body?: Record<string, unknown>,
 ) {
+  return requestAs(adminId, method, path, body);
+}
+
+async function requestAs(
+  userId: string | undefined,
+  method: string,
+  path: string,
+  body?: Record<string, unknown>,
+) {
   return fetch(`${baseUrl}/api${path}`, {
     method,
     headers: {
-      Cookie: cookieFor(),
+      ...(userId ? { Cookie: cookieFor(userId) } : {}),
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -367,7 +376,7 @@ test("nested Question creation is atomic when a Task position conflicts", async 
     ],
   });
   assert.equal(response.status, 409);
-  assert.match((await response.json()).error, /Task position/);
+  assert.match((await response.json()).error, /Task order 1 is duplicated/);
 
   const records = await listQuestions(true);
   assert.equal(
@@ -470,6 +479,31 @@ test("Task restoration is independent of its parent Question and ownership", asy
   assert.equal((await request("POST", `/questions/${conflictParent.id}/tasks/not-a-task/restore`)).status, 404);
 });
 
+test("Question and Task restoration remain restricted to administrators", async () => {
+  const questionId = crypto.randomUUID();
+  const taskId = crypto.randomUUID();
+  const noAuth = await requestAs(undefined, "POST", `/questions/${questionId}/restore`);
+  assert.equal(noAuth.status, 401);
+
+  const email = `${crypto.randomUUID()}@example.test`;
+  const student = await prisma.user.create({
+    data: {
+      username: `question_student_${crypto.randomUUID().replaceAll("-", "")}`,
+      email,
+      normalizedEmail: email,
+      password: "unused",
+      role: "STUDENT",
+    },
+  });
+  for (const path of [
+    `/questions/${questionId}/restore`,
+    `/questions/${questionId}/tasks/${taskId}/restore`,
+  ]) {
+    const forbidden = await requestAs(student.id, "POST", path);
+    assert.equal(forbidden.status, 403);
+  }
+});
+
 test("restored incomplete or retired content remains outside test delivery", async () => {
   const deliveryOrder = nextPosition();
   for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
@@ -523,7 +557,7 @@ test("restoring a Task resumes delivery only under an active eligible Question",
   assert.equal((await request("DELETE", `/questions/${question.id}/tasks/${task.id}`)).status, 200);
   const { retrieveTestQuestions } = await import("../../src/service/question.service.js");
   const withoutTask = await retrieveTestQuestions(order);
-  assert.equal(withoutTask.find((item) => item.id === question.id)?.tasks.length, 0);
+  assert.equal(withoutTask.some((item) => item.id === question.id), false);
 
   const restored = await request(
     "POST",
