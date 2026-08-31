@@ -16,6 +16,22 @@ _Avoid_: Test, exam
 A Submission that has not been explicitly purged from FluentCheck, regardless of its completion, payment, or scoring state.
 _Avoid_: Historical submission
 
+**Purge request**:
+An explicit, reasoned request to remove a Submission's purgeable evidence under the approved retention policy; it is not itself permission to delete evidence.
+_Avoid_: Deletion request, cleanup request
+
+**Quarantined submission**:
+A Submission whose purge has been approved and whose evidence is temporarily protected from access and irreversible deletion while recovery remains possible.
+_Avoid_: Deleted submission, archived submission
+
+**Purged submission**:
+A Submission whose purgeable evidence has been removed after the approved quarantine boundary, while the minimum immutable retention audit remains.
+_Avoid_: Deleted attempt, erased submission
+
+**Retention hold**:
+An explicit reason a Submission must remain retained, such as a legal matter, dispute, scoring review, recovery investigation, or certificate obligation.
+_Avoid_: Cleanup exception, deletion lock
+
 **Legacy Submission**:
 A Submission created before the Submission manifest contract; its historical delivery is preserved as-is and is never reconstructed from the current Question bank.
 _Avoid_: Migrated submission, backfilled submission
@@ -43,6 +59,22 @@ _Avoid_: Deleted question, soft-deleted question
 **Prompt media**:
 The audio content presented with a Question and required to interpret Answers recorded against that Question.
 _Avoid_: Question file, storage object
+
+**Prompt-media cleanup candidate**:
+A retired Question Prompt-media identity reported for cleanup after checking every retained Answer and Delivered prompt snapshot that may reference it.
+_Avoid_: Orphan file, unused audio
+
+**Cleanup quarantine**:
+The recoverable interval after cleanup authorization during which the exact Prompt-media identity remains available and no irreversible storage deletion is allowed.
+_Avoid_: Soft deletion, archive window
+
+**Irreversible deletion**:
+The point after storage confirms that a quarantined evidence object is absent and FluentCheck can no longer recover it through the approved workflow.
+_Avoid_: Delete requested, cleanup started
+
+**Retention audit event**:
+An immutable record of a retention request, decision, quarantine transition, storage attempt, recovery action, or deletion outcome.
+_Avoid_: Log line, audit note
 
 **Prompt media preparation**:
 Creation of a non-empty, absolute HTTPS runtime-authorized URL for selected Prompt media from its retained identity metadata. It proves that FluentCheck can prepare authorized presentation, not that the R2 object exists, is currently readable, or will play in the student's browser.
