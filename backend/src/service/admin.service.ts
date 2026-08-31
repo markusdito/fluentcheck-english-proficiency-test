@@ -27,7 +27,7 @@ import {
   transitionAccountRole,
   type AccountTransitionResult,
   type AccountTransitionPreview,
-} from "./account-transition.service.js";
+} from "./accountTransition.service.js";
 
 export interface ListUsersParams {
   page: number;

@@ -682,7 +682,7 @@ test("the shared deactivation boundary transfers eligible work and replays safel
   const currentPeer = await createUser("current_peer", "EXAMINER");
   const replacement = await createUser("replacement", "EXAMINER");
   const { assignments } = await createLegacyScoringAssignment(target.id, currentPeer.id);
-  const { deactivateAccount } = await import("../../src/service/account-transition.service.js");
+  const { deactivateAccount } = await import("../../src/service/accountTransition.service.js");
   const reassignmentMap = { [assignments[0].id]: replacement.id };
 
   const result = await deactivateAccount(target.id, admin.id, { reassignmentMap });
@@ -723,7 +723,7 @@ test("assignment start and account deactivation serialize on ownership", async (
   const replacement = await createUser("replacement", "EXAMINER");
   const { assignments } = await createLegacyScoringAssignment(target.id, currentPeer.id);
   const { AccountTransitionError, deactivateAccount } = await import(
-    "../../src/service/account-transition.service.js"
+    "../../src/service/accountTransition.service.js"
   );
   const { ScoringFinalizationError, startExaminerAssignment } = await import(
     "../../src/service/examiner.service.js"
@@ -766,7 +766,7 @@ test("assignment creation and role removal share one candidate snapshot", async 
   const student = await createUser("student", "STUDENT");
   const { submission } = await createManifestSubmission(student.id, "PAID");
   const { AccountTransitionError, transitionAccountRole } = await import(
-    "../../src/service/account-transition.service.js"
+    "../../src/service/accountTransition.service.js"
   );
   const { AssignmentSetError, createExaminerAssignmentSet } = await import(
     "../../src/service/examiner.service.js"

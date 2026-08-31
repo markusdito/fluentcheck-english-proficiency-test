@@ -3,7 +3,7 @@ import { Prisma } from "../generated/client.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { ScoreValidationError, calculateRubricOverall, readStoredRubric, roundScore, validateAnswerCoverage, validateLegacyScore, validateRubricValues, } from "../utils/scoring.js";
 import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
-import { ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY } from "./account-transition.service.js";
+import { ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY } from "./accountTransition.service.js";
 export class AssignmentSetError extends Error {
     code;
     retryable;

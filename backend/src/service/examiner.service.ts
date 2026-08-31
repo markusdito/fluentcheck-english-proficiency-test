@@ -23,7 +23,7 @@ import type {
   AssignmentStatus,
   SubmissionStatus,
 } from "../generated/enums.js";
-import { ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY } from "./account-transition.service.js";
+import { ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY } from "./accountTransition.service.js";
 
 export interface ExaminerAssignmentSummary {
   id: string;

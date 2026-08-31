@@ -1,7 +1,7 @@
 import { listAdminUsers, changeUserRole, listAdminExaminers, assignExaminers, getAdminStats, getAdminSubmissionDetail, listAdminSubmissions, previewUserRoleTransition, } from "../service/admin.service.js";
 import { getAppSettings, updatePaymentEnabled, } from "../service/settings.service.js";
 import { AssignmentSetError } from "../service/examiner.service.js";
-import { AccountTransitionError } from "../service/account-transition.service.js";
+import { AccountTransitionError } from "../service/accountTransition.service.js";
 import { SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 const ADMIN_ROLES = ["STUDENT", "EXAMINER", "ADMIN"];

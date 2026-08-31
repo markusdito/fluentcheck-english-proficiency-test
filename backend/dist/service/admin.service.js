@@ -3,7 +3,7 @@ import { createExaminerAssignmentSet, } from "./examiner.service.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, calculateRubricOverall, readStoredRubric, roundScore, } from "../utils/scoring.js";
 import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
-import { previewAccountRoleTransition, transitionAccountRole, } from "./account-transition.service.js";
+import { previewAccountRoleTransition, transitionAccountRole, } from "./accountTransition.service.js";
 /**
  * List completed submissions with optional status filtering and pagination.
  * IN_PROGRESS submissions are abandoned drafts, not admin history.

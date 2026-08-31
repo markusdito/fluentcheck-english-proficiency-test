@@ -14,7 +14,7 @@ import {
   updatePaymentEnabled,
 } from "../service/settings.service.js";
 import { AssignmentSetError } from "../service/examiner.service.js";
-import { AccountTransitionError } from "../service/account-transition.service.js";
+import { AccountTransitionError } from "../service/accountTransition.service.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 
