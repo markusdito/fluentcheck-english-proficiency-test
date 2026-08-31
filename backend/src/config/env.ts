@@ -1,8 +1,33 @@
+const DEFAULT_REMEMBERED_SESSION_SECONDS = 7 * 24 * 60 * 60;
+const MAX_REMEMBERED_SESSION_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1000);
+
+function parseRememberedSessionSeconds(value: string | undefined): number {
+    if (value === undefined) return DEFAULT_REMEMBERED_SESSION_SECONDS;
+
+    if (!/^\d+$/u.test(value)) {
+        throw new Error("REMEMBERED_SESSION_SECONDS must be a positive integer");
+    }
+
+    const seconds = Number(value);
+    if (
+        !Number.isSafeInteger(seconds) ||
+        seconds <= 0 ||
+        seconds > MAX_REMEMBERED_SESSION_SECONDS
+    ) {
+        throw new Error("REMEMBERED_SESSION_SECONDS must be a positive integer");
+    }
+
+    return seconds;
+}
+
 export const env = {
     NODE_ENV: process.env.NODE_ENV ?? "development",
     DATABASE_URL: process.env.DATABASE_URL!,
     JWT_SECRET: process.env.JWT_SECRET!,
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? "1h",
+    REMEMBERED_SESSION_SECONDS: parseRememberedSessionSeconds(
+        process.env.REMEMBERED_SESSION_SECONDS,
+    ),
     R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID!,
     R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID!,
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY!,

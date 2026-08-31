@@ -10,6 +10,8 @@ import type {
   AdminUser,
   Paginated,
   AssignSubmissionResult,
+  AccountTransitionPreview,
+  AccountTransitionResult,
 } from "@/types/admin";
 
 interface PaginatedEnvelope<T> {
@@ -79,8 +81,39 @@ export async function fetchAdminUsers(
   return res.data;
 }
 
-export async function updateUserRole(id: string, role: string): Promise<void> {
-  await api.put(`/admin/users/${id}/role`, { role });
+interface AccountTransitionPreviewEnvelope {
+  status: string;
+  data: AccountTransitionPreview;
+}
+
+interface AccountTransitionResultEnvelope {
+  status: string;
+  data: AccountTransitionResult;
+}
+
+export async function fetchRoleTransitionPreview(
+  id: string,
+  role: string,
+  signal?: AbortSignal,
+): Promise<AccountTransitionPreview> {
+  const params = new URLSearchParams({ role });
+  const res = await api.get<AccountTransitionPreviewEnvelope>(
+    `/admin/users/${id}/role-transition-preview?${params.toString()}`,
+    { signal },
+  );
+  return res.data;
+}
+
+export async function updateUserRole(
+  id: string,
+  role: string,
+  reassignmentMap?: Record<string, string>,
+): Promise<AccountTransitionResult> {
+  const res = await api.put<AccountTransitionResultEnvelope>(
+    `/admin/users/${id}/role`,
+    { role, ...(reassignmentMap ? { reassignmentMap } : {}) },
+  );
+  return res.data;
 }
 
 export async function fetchAdminExaminers(signal?: AbortSignal): Promise<AdminExaminer[]> {
@@ -147,8 +180,18 @@ export async function updateAdminSettings(
   return res.data;
 }
 
-export async function fetchAdminQuestions(signal?: AbortSignal): Promise<AdminQuestion[]> {
-  const res = await api.get<ListEnvelope<AdminQuestion>>("/questions/admin", { signal });
+export interface FetchAdminQuestionsParams {
+  includeRetired?: boolean;
+}
+
+export async function fetchAdminQuestions(
+  params?: FetchAdminQuestionsParams,
+  signal?: AbortSignal,
+): Promise<AdminQuestion[]> {
+  const endpoint = params?.includeRetired
+    ? "/questions/admin?includeRetired=true"
+    : "/questions/admin";
+  const res = await api.get<ListEnvelope<AdminQuestion>>(endpoint, { signal });
   return res.data;
 }
 
@@ -176,6 +219,11 @@ export async function updateQuestion(
 
 export async function retireQuestion(id: string): Promise<void> {
   await api.delete(`/questions/${id}`);
+}
+
+export async function restoreQuestion(id: string): Promise<AdminQuestion> {
+  const res = await api.post<QuestionEnvelope>(`/questions/${id}/restore`);
+  return res.data;
 }
 
 interface TaskPayload {
@@ -211,4 +259,14 @@ export async function deleteTask(
   taskId: string
 ): Promise<void> {
   await api.delete(`/questions/${questionId}/tasks/${taskId}`);
+}
+
+export async function restoreTask(
+  questionId: string,
+  taskId: string,
+): Promise<AdminTask> {
+  const res = await api.post<TaskEnvelope>(
+    `/questions/${questionId}/tasks/${taskId}/restore`,
+  );
+  return res.data;
 }

@@ -25,6 +25,7 @@ describe("patchAssignedSubmissionPage", () => {
     const updated = patchAssignedSubmissionPage(page, {
       submissionId: "submission-1",
       status: "SCORING",
+      outcome: "CREATED",
       assignments: [
         { id: "assignment-1", status: "ASSIGNED", examinerName: "Examiner" },
       ],

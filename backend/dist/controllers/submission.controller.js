@@ -1,4 +1,4 @@
-import { completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, abandonSubmission, } from "../service/submission.service.js";
+import { completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, abandonSubmission, InvalidDashboardCursorError, } from "../service/submission.service.js";
 import { ActiveSubmissionConflictError, AssessmentUnavailableError, IdempotencyKeyConflictError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
 import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
 /**
@@ -114,13 +114,37 @@ export async function finishSubmission(req, res) {
 export async function getDashboard(req, res) {
     try {
         const userId = req.user.id;
-        const data = await getStudentDashboard(userId);
+        const query = {};
+        if (req.query.limit !== undefined) {
+            if (typeof req.query.limit !== "string") {
+                res.status(400).json({ error: "limit must be a positive integer" });
+                return;
+            }
+            const limit = Number(req.query.limit);
+            if (!Number.isSafeInteger(limit) || limit < 1) {
+                res.status(400).json({ error: "limit must be a positive integer" });
+                return;
+            }
+            query.limit = limit;
+        }
+        if (req.query.cursor !== undefined) {
+            if (typeof req.query.cursor !== "string" || req.query.cursor.length === 0) {
+                res.status(400).json({ error: "cursor is invalid" });
+                return;
+            }
+            query.cursor = req.query.cursor;
+        }
+        const data = await getStudentDashboard(userId, query);
         res.status(200).json({
             status: "success",
             data,
         });
     }
     catch (error) {
+        if (error instanceof InvalidDashboardCursorError) {
+            res.status(400).json({ error: "cursor is invalid" });
+            return;
+        }
         console.error("Get dashboard error:", error);
         res.status(500).json({ error: "Failed to load dashboard data" });
     }

@@ -4,6 +4,7 @@ import { requireRole } from "../middleware/role.middleware.js";
 import {
   listUsers,
   updateUserRole,
+  getRoleTransitionPreview,
   getExaminers,
   assignSubmission,
   getSubmission,
@@ -19,6 +20,7 @@ const router = Router();
 router.use(verifyToken, requireRole("ADMIN"));
 
 router.get("/users", listUsers);
+router.get("/users/:id/role-transition-preview", getRoleTransitionPreview);
 router.put("/users/:id/role", updateUserRole);
 router.get("/examiners", getExaminers);
 router.post("/submissions/:id/assign", assignSubmission);

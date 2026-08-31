@@ -21,6 +21,67 @@ interface UseMediaDevicesReturn {
   stopStream: () => void;
 }
 
+function closeAudioContext(audioContext: AudioContext | null) {
+  if (!audioContext) return;
+  try {
+    void Promise.resolve(audioContext.close()).catch(() => undefined);
+  } catch {
+    // Resource cleanup is best effort when a browser context is already closed.
+  }
+}
+
+function disconnectAudioNode(node: AudioNode | null) {
+  if (!node) return;
+  try {
+    node.disconnect();
+  } catch {
+    // A partially initialized audio graph may already be disconnected.
+  }
+}
+
+function stopMediaStream(stream: MediaStream | null) {
+  if (!stream) return;
+  try {
+    stream.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch {
+        // Continue releasing the remaining tracks if one track rejects cleanup.
+      }
+    });
+  } catch {
+    // A browser may expose a stream whose tracks are no longer readable.
+  }
+}
+
+function cancelAnimationFrameSafely(handle: number | null) {
+  if (handle === null) return;
+  try {
+    cancelAnimationFrame(handle);
+  } catch {
+    // A browser may reject a handle that was already canceled.
+  }
+}
+
+interface MonitorResources {
+  audioContext: AudioContext | null;
+  source: MediaStreamAudioSourceNode | null;
+  analyser: AnalyserNode | null;
+  animationFrame: number | null;
+}
+
+function releaseMonitorResources({
+  audioContext,
+  source,
+  analyser,
+  animationFrame,
+}: MonitorResources) {
+  cancelAnimationFrameSafely(animationFrame);
+  disconnectAudioNode(source);
+  disconnectAudioNode(analyser);
+  closeAudioContext(audioContext);
+}
+
 export function useMediaDevices(): UseMediaDevicesReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
@@ -31,8 +92,21 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   const [isMicActive, setIsMicActive] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
+  const monitorTokenRef = useRef<object | null>(null);
+  const mountedRef = useRef(false);
+  const requestIdRef = useRef(0);
+  const inFlightRequestRef = useRef<Promise<boolean> | null>(null);
+  const stoppedStreamsRef = useRef(new WeakSet<MediaStream>());
+
+  const stopOwnedStream = useCallback((mediaStream: MediaStream | null) => {
+    if (!mediaStream || stoppedStreamsRef.current.has(mediaStream)) return;
+    stoppedStreamsRef.current.add(mediaStream);
+    stopMediaStream(mediaStream);
+  }, []);
 
   /** Enumerate all media devices */
   const enumerateDevices = useCallback(async () => {
@@ -55,20 +129,30 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
   /** Start mic level monitoring via AnalyserNode */
   const startMicMonitor = useCallback((mediaStream: MediaStream) => {
-    try {
-      const audioCtx = new AudioContext();
-      const source = audioCtx.createMediaStreamSource(mediaStream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.8; // Smooth out jitter, behave like browser meter
-      source.connect(analyser);
-      analyserRef.current = analyser;
+    const monitorToken = {};
+    let audioContext: AudioContext | null = null;
+    let source: MediaStreamAudioSourceNode | null = null;
+    let analyser: AnalyserNode | null = null;
 
-      const bufferLength = analyser.frequencyBinCount;
+    try {
+      audioContext = new AudioContext();
+      source = audioContext.createMediaStreamSource(mediaStream);
+      const createdAnalyser = audioContext.createAnalyser();
+      analyser = createdAnalyser;
+      createdAnalyser.fftSize = 1024;
+      createdAnalyser.smoothingTimeConstant = 0.8; // Smooth out jitter, behave like browser meter
+      source.connect(createdAnalyser);
+      audioContextRef.current = audioContext;
+      sourceRef.current = source;
+      analyserRef.current = createdAnalyser;
+      monitorTokenRef.current = monitorToken;
+
+      const bufferLength = createdAnalyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
       const tick = () => {
-        analyser.getByteTimeDomainData(dataArray);
+        if (monitorTokenRef.current !== monitorToken) return;
+        createdAnalyser.getByteTimeDomainData(dataArray);
         // Time-domain: values range 0-255, where 128 = silence.
         // Compute RMS deviation from 128 to get actual audio amplitude.
         let sumSquares = 0;
@@ -89,76 +173,169 @@ export function useMediaDevices(): UseMediaDevicesReturn {
         animationRef.current = requestAnimationFrame(tick);
       };
       tick();
-    } catch {
-      // AudioContext may not be available
+    } catch (error) {
+      if (monitorTokenRef.current === monitorToken) {
+        monitorTokenRef.current = null;
+      }
+      releaseMonitorResources({
+        audioContext,
+        source,
+        analyser,
+        animationFrame: animationRef.current,
+      });
+      animationRef.current = null;
+      if (sourceRef.current === source) {
+        sourceRef.current = null;
+      }
+      if (analyserRef.current === analyser) {
+        analyserRef.current = null;
+      }
+      if (audioContextRef.current === audioContext) {
+        audioContextRef.current = null;
+      }
+      throw error;
     }
   }, []);
 
-  /** Stop mic monitoring */
-  const stopMicMonitor = useCallback(() => {
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
-    }
+  /** Stop mic monitoring and release every resource it owns. */
+  const stopMicMonitor = useCallback((resetState = true) => {
+    monitorTokenRef.current = null;
+    releaseMonitorResources({
+      audioContext: audioContextRef.current,
+      source: sourceRef.current,
+      analyser: analyserRef.current,
+      animationFrame: animationRef.current,
+    });
+    animationRef.current = null;
+    sourceRef.current = null;
     analyserRef.current = null;
-    setIsMicActive(false);
-    setMicLevel(0);
+    audioContextRef.current = null;
+    if (resetState) {
+      setIsMicActive(false);
+      setMicLevel(0);
+    }
   }, []);
+
+  const cleanupMediaResources = useCallback(
+    (resetState = true) => {
+      stopMicMonitor(resetState);
+      const currentStream = streamRef.current;
+      if (currentStream) {
+        stopOwnedStream(currentStream);
+        streamRef.current = null;
+      }
+      if (resetState) {
+        setStream(null);
+        setIsLoading(false);
+      }
+    },
+    [stopMicMonitor, stopOwnedStream],
+  );
 
   /** Request camera + mic permissions */
-  const requestPermissions = useCallback(async (): Promise<boolean> => {
-    setIsLoading(true);
-    setVideoError(null);
-    setAudioError(null);
+  const requestPermissions = useCallback((): Promise<boolean> => {
+    const inFlightRequest = inFlightRequestRef.current;
+    if (inFlightRequest) return inFlightRequest;
+    if (!mountedRef.current) return Promise.resolve(false);
 
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const isCurrentRequest = () =>
+      mountedRef.current && requestIdRef.current === requestId;
 
-      setStream(mediaStream);
-      streamRef.current = mediaStream;
-      await enumerateDevices();
-      startMicMonitor(mediaStream);
-      setIsLoading(false);
-      return true;
-    } catch (err: unknown) {
-      setIsLoading(false);
+    const request = (async (): Promise<boolean> => {
+      cleanupMediaResources();
+      setIsLoading(true);
+      setVideoError(null);
+      setAudioError(null);
 
-      if (err instanceof DOMException) {
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setVideoError("Permission denied. Please allow camera and microphone access in your browser settings.");
-          setAudioError("Permission denied. Please allow camera and microphone access in your browser settings.");
-        } else if (err.name === "NotFoundError") {
-          setVideoError("No camera found. Please connect a webcam.");
-          setAudioError("No microphone found. Please connect a microphone.");
-        } else if (err.name === "NotReadableError") {
-          setVideoError("Camera is already in use by another application.");
-          setAudioError("Microphone is already in use by another application.");
-        } else {
-          setVideoError(`Camera error: ${err.message}`);
-          setAudioError(`Microphone error: ${err.message}`);
+      let mediaStream: MediaStream | null = null;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+
+        if (!isCurrentRequest()) {
+          stopOwnedStream(mediaStream);
+          return false;
         }
-      } else {
-        setVideoError("An unexpected error occurred while accessing media devices.");
-        setAudioError("An unexpected error occurred while accessing media devices.");
-      }
 
-      return false;
-    }
-  }, [enumerateDevices, startMicMonitor]);
+        streamRef.current = mediaStream;
+        setStream(mediaStream);
+        await enumerateDevices();
+
+        if (!isCurrentRequest()) {
+          if (streamRef.current === mediaStream) cleanupMediaResources(false);
+          return false;
+        }
+
+        startMicMonitor(mediaStream);
+
+        if (!isCurrentRequest()) {
+          if (streamRef.current === mediaStream) cleanupMediaResources(false);
+          return false;
+        }
+
+        setIsLoading(false);
+        return true;
+      } catch (err: unknown) {
+        if (!isCurrentRequest()) {
+          if (streamRef.current === mediaStream) {
+            cleanupMediaResources(false);
+          } else {
+            stopOwnedStream(mediaStream);
+          }
+          return false;
+        }
+
+        cleanupMediaResources();
+
+        if (err instanceof DOMException) {
+          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+            setVideoError("Permission denied. Please allow camera and microphone access in your browser settings.");
+            setAudioError("Permission denied. Please allow camera and microphone access in your browser settings.");
+          } else if (err.name === "NotFoundError") {
+            setVideoError("No camera found. Please connect a webcam.");
+            setAudioError("No microphone found. Please connect a microphone.");
+          } else if (err.name === "NotReadableError") {
+            setVideoError("Camera is already in use by another application.");
+            setAudioError("Microphone is already in use by another application.");
+          } else {
+            setVideoError(`Camera error: ${err.message}`);
+            setAudioError(`Microphone error: ${err.message}`);
+          }
+        } else {
+          setVideoError("An unexpected error occurred while accessing media devices.");
+          setAudioError("An unexpected error occurred while accessing media devices.");
+        }
+
+        return false;
+      }
+    })();
+
+    inFlightRequestRef.current = request;
+    void request.then(
+      () => {
+        if (inFlightRequestRef.current === request) {
+          inFlightRequestRef.current = null;
+        }
+      },
+      () => {
+        if (inFlightRequestRef.current === request) {
+          inFlightRequestRef.current = null;
+        }
+      },
+    );
+    return request;
+  }, [cleanupMediaResources, enumerateDevices, startMicMonitor, stopOwnedStream]);
 
   /** Stop all tracks and clean up — uses ref to avoid recreating on stream state change */
   const stopStream = useCallback(() => {
-    const currentStream = streamRef.current;
-    if (currentStream) {
-      currentStream.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      setStream(null);
-    }
-    stopMicMonitor();
-  }, [stopMicMonitor]);
+    requestIdRef.current += 1;
+    inFlightRequestRef.current = null;
+    cleanupMediaResources();
+  }, [cleanupMediaResources]);
 
   /** Enumerate devices on mount in case permissions already granted */
   useEffect(() => {
@@ -181,15 +358,12 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
   /** Cleanup on unmount — uses ref to avoid recreating on stream state change */
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      stopMicMonitor();
-      const currentStream = streamRef.current;
-      if (currentStream) {
-        currentStream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
+      mountedRef.current = false;
+      cleanupMediaResources(false);
     };
-  }, [stopMicMonitor]);
+  }, [cleanupMediaResources]);
 
   return {
     stream,

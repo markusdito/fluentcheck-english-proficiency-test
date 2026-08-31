@@ -92,7 +92,7 @@ export function createGoogleAuthHandlers(config, dependencies = {}) {
     const resolveAccount = dependencies.resolveAccount ?? resolveGoogleAccount;
     const stateStore = dependencies.stateStore ?? databaseGoogleOAuthStateStore;
     const issueSession = dependencies.issueSession ??
-        ((userId, response) => generateToken(userId, response));
+        ((userId, response) => generateToken(userId, response, "session"));
     const now = dependencies.now ?? (() => Date.now());
     const start = async (request, response) => {
         const returnTo = returnToValue(queryValue(request, "returnTo"));

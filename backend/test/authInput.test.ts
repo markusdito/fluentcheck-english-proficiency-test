@@ -95,6 +95,9 @@ test("accepts bounded login passwords and only strict boolean rememberMe", () =>
   assert.equal(loginSchema.safeParse({ ...boundary, password: "a".repeat(1025) }).success, false);
   assert.equal(loginSchema.safeParse({ ...boundary, password: "password" }).success, true);
   assert.equal(loginSchema.safeParse({ ...boundary, password: "password", rememberMe: false }).success, true);
+  const omittedRememberMe = loginSchema.safeParse({ ...boundary, password: "password" });
+  assert.equal(omittedRememberMe.success, true);
+  if (omittedRememberMe.success) assert.equal(omittedRememberMe.data.rememberMe, false);
   assert.equal(loginSchema.safeParse({ ...boundary, password: "password", rememberMe: "true" }).success, false);
   assert.equal(loginSchema.safeParse({ ...boundary, password: "password", unexpected: true }).success, false);
 });

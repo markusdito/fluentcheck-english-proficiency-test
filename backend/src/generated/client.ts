@@ -107,6 +107,11 @@ export type Payment = Prisma.PaymentModel
  */
 export type ExaminerAssignment = Prisma.ExaminerAssignmentModel
 /**
+ * Model ExaminerAssignmentReassignment
+ *
+ */
+export type ExaminerAssignmentReassignment = Prisma.ExaminerAssignmentReassignmentModel
+/**
  * Model Score
  *
  */

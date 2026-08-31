@@ -170,6 +170,7 @@ describe("frontend rate-limit flow contract", () => {
     await expect(paySubmission("submission-1")).rejects.toEqual(
       expect.objectContaining<ApiError>({
         message,
+        name: "ApiError",
         statusCode: status,
       }),
     );

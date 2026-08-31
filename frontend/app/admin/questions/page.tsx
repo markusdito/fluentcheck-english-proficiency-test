@@ -8,9 +8,11 @@ import {
   createQuestion,
   updateQuestion,
   retireQuestion,
+  restoreQuestion,
   createTask,
   updateTask,
   deleteTask,
+  restoreTask,
 } from "@/lib/admin-api";
 import type { AdminQuestion, AdminTask } from "@/types/admin";
 import { queryKeys } from "@/lib/query-keys";
@@ -56,6 +58,27 @@ function CategoryBadge({ category }: { category: string }) {
       {categoryLabels[category] ?? category}
     </Badge>
   );
+}
+
+function LifecycleBadge({
+  entity,
+  retired,
+}: {
+  entity: "Question" | "Task";
+  retired: boolean;
+}) {
+  return (
+    <Badge
+      variant={retired ? "destructive" : "outline"}
+      aria-label={`${entity} ${retired ? "retired" : "active"}`}
+    >
+      {retired ? "Retired" : "Active"}
+    </Badge>
+  );
+}
+
+function isRetired(record: { deletedAt?: string | null }) {
+  return record.deletedAt != null;
 }
 
 function ToNumberInput({
@@ -168,12 +191,16 @@ function TaskEditor({
   tasks,
   onChange,
   onCommitted,
+  onRestoreTask,
+  restoringTaskKey,
   disabled,
 }: {
   questionId: string;
   tasks: AdminTask[];
   onChange: (tasks: AdminTask[]) => void;
   onCommitted: () => void;
+  onRestoreTask: (taskId: string) => void;
+  restoringTaskKey: string | null;
   disabled?: boolean;
 }) {
   const [newPrompt, setNewPrompt] = useState("");
@@ -286,65 +313,83 @@ function TaskEditor({
         <p className="mb-3 text-sm text-ink-soft">No tasks added yet.</p>
       ) : (
         <ul className="mb-3 space-y-2">
-          {tasks.map((task, index) => (
-            <li
-              key={task.id}
-              className="flex flex-col gap-3 border border-rule bg-paper-raised p-3 sm:flex-row sm:items-end"
-            >
-              <FormField
-                id={`task-prompt-${task.id}`}
-                label="Prompt"
-                value={task.promptText}
-                placeholder="Task prompt"
-                onChange={(e) =>
-                  updateLocal(index, { ...task, promptText: e.target.value })
-                }
-                disabled={disabled}
-                className="flex-1"
-              />
-              <div className="w-full sm:w-24">
+          {tasks.map((task, index) => {
+            const retired = isRetired(task);
+            const taskKey = `${questionId}:${task.id}`;
+            return (
+              <li
+                key={task.id}
+                className="flex flex-col gap-3 border border-rule bg-paper-raised p-3 sm:flex-row sm:items-end"
+              >
                 <FormField
-                  id={`task-order-${task.id}`}
-                  label="Order"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={Number.isNaN(task.order) ? "" : String(task.order)}
-                  placeholder="1"
+                  id={`task-prompt-${task.id}`}
+                  label="Prompt"
+                  value={task.promptText}
                   onChange={(e) =>
-                    updateLocal(index, {
-                      ...task,
-                      order: e.target.value === "" ? NaN : Number(e.target.value),
-                    })
+                    updateLocal(index, { ...task, promptText: e.target.value })
                   }
-                  disabled={disabled}
+                  disabled={disabled || retired}
+                  className="flex-1"
                 />
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={disabled}
-                  onClick={() =>
-                    handleUpdate(index, {
-                      promptText: task.promptText,
-                      order: task.order,
-                    })
-                  }
-                >
-                  Save
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={disabled}
-                  onClick={() => handleRemove(index)}
-                >
-                  Remove
-                </Button>
-              </div>
-            </li>
-          ))}
+                <div className="w-full sm:w-24">
+                  <FormField
+                    id={`task-order-${task.id}`}
+                    label="Order"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={Number.isNaN(task.order) ? "" : String(task.order)}
+                    placeholder="1"
+                    onChange={(e) =>
+                      updateLocal(index, {
+                        ...task,
+                        order: e.target.value === "" ? NaN : Number(e.target.value),
+                      })
+                    }
+                    disabled={disabled || retired}
+                  />
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <LifecycleBadge entity="Task" retired={retired} />
+                  {retired ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      loading={restoringTaskKey === taskKey}
+                      disabled={disabled || restoringTaskKey !== null}
+                      onClick={() => onRestoreTask(task.id)}
+                    >
+                      Restore task
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled}
+                        onClick={() =>
+                          handleUpdate(index, {
+                            promptText: task.promptText,
+                            order: task.order,
+                          })
+                        }
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={disabled}
+                        onClick={() => handleRemove(index)}
+                      >
+                        Remove
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -391,9 +436,18 @@ function TaskEditor({
 
 export default function AdminQuestionsPage() {
   const queryClient = useQueryClient();
+  const [includeRetired, setIncludeRetired] = useState(false);
+  const [restoringQuestionId, setRestoringQuestionId] = useState<string | null>(null);
+  const [restoringTaskKey, setRestoringTaskKey] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+  const questionsQueryKey = [
+    ...queryKeys.adminQuestions,
+    { includeRetired },
+  ] as const;
   const questionsQuery = useQuery({
-    queryKey: queryKeys.adminQuestions,
-    queryFn: ({ signal }) => fetchAdminQuestions(signal),
+    queryKey: questionsQueryKey,
+    queryFn: ({ signal }) => fetchAdminQuestions({ includeRetired }, signal),
   });
   const questions = questionsQuery.data ?? [];
 
@@ -415,14 +469,12 @@ export default function AdminQuestionsPage() {
 
   const [confirmRetireId, setConfirmRetireId] = useState<string | null>(null);
   const [retireLoading, setRetireLoading] = useState(false);
-  const [retireError, setRetireError] = useState("");
-  const [retireSuccess, setRetireSuccess] = useState("");
 
   function updateQuestions(
     updater: (current: AdminQuestion[]) => AdminQuestion[],
   ) {
     queryClient.setQueryData<AdminQuestion[]>(
-      queryKeys.adminQuestions,
+      questionsQueryKey,
       (current) => updater(current ?? []),
     );
   }
@@ -476,7 +528,8 @@ export default function AdminQuestionsPage() {
     setEditRecord(String(q.recordingSeconds));
     setEditTasks(q.tasks.map((t) => ({ ...t })));
     setEditError("");
-    setRetireError("");
+    setActionError("");
+    setActionSuccess("");
   }
 
   function cancelEdit() {
@@ -533,29 +586,104 @@ export default function AdminQuestionsPage() {
 
   function requestRetire(id: string) {
     setConfirmRetireId(id);
-    setRetireError("");
-    setRetireSuccess("");
+    setActionError("");
+    setActionSuccess("");
   }
 
   async function handleRetire() {
     if (!confirmRetireId) return;
-    setRetireError("");
+    const questionId = confirmRetireId;
+    setActionError("");
     setRetireLoading(true);
     try {
-      await retireQuestion(confirmRetireId);
+      await retireQuestion(questionId);
       updateQuestions((current) =>
-        current.filter((q) => q.id !== confirmRetireId),
+        includeRetired
+          ? current.map((q) =>
+              q.id === questionId
+                ? { ...q, deletedAt: q.deletedAt ?? new Date().toISOString() }
+                : q,
+            )
+          : current.filter((q) => q.id !== questionId),
       );
-      setEditingId((prev) => (prev === confirmRetireId ? null : prev));
+      setEditingId((prev) => (prev === questionId ? null : prev));
       setConfirmRetireId(null);
-      setRetireSuccess("Question retired. Retained evidence is unchanged.");
+      setActionSuccess("Question retired. Retained evidence is unchanged.");
     } catch (err) {
-      setRetireError(
+      setActionError(
         err instanceof ApiError ? err.message : "Failed to retire question."
       );
     } finally {
       setRetireLoading(false);
     }
+  }
+
+  async function handleRestoreQuestion(id: string) {
+    setActionError("");
+    setActionSuccess("");
+    setRestoringQuestionId(id);
+    try {
+      await restoreQuestion(id);
+      const restored = questions.find((q) => q.id === id);
+      updateQuestions((current) =>
+        current.map((q) => (q.id === id ? { ...q, deletedAt: null } : q)),
+      );
+      setActionSuccess(
+        restored
+          ? `Question restored at ${categoryLabels[restored.category] ?? restored.category}, order ${restored.order}. Child task states are unchanged.`
+          : "Question restored. Child task states are unchanged.",
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Failed to restore question."
+      );
+    } finally {
+      setRestoringQuestionId(null);
+    }
+  }
+
+  async function handleRestoreTask(questionId: string, taskId: string) {
+    setActionError("");
+    setActionSuccess("");
+    const taskKey = `${questionId}:${taskId}`;
+    setRestoringTaskKey(taskKey);
+    try {
+      await restoreTask(questionId, taskId);
+      const question = questions.find((q) => q.id === questionId);
+      const task = question?.tasks.find((t) => t.id === taskId);
+      updateQuestions((current) =>
+        current.map((q) =>
+          q.id === questionId
+            ? {
+                ...q,
+                tasks: q.tasks.map((t) =>
+                  t.id === taskId ? { ...t, deletedAt: null } : t,
+                ),
+              }
+            : q,
+        ),
+      );
+      setEditTasks((current) =>
+        current.map((t) => (t.id === taskId ? { ...t, deletedAt: null } : t)),
+      );
+      setActionSuccess(
+        task
+          ? `Task restored at order ${task.order}. The parent question's lifecycle is unchanged.`
+          : "Task restored. The parent question's lifecycle is unchanged.",
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Failed to restore task."
+      );
+    } finally {
+      setRestoringTaskKey(null);
+    }
+  }
+
+  function setQuestionView(nextIncludeRetired: boolean) {
+    setIncludeRetired(nextIncludeRetired);
+    setActionError("");
+    setActionSuccess("");
   }
 
   if (questionsQuery.isPending) {
@@ -595,6 +723,50 @@ export default function AdminQuestionsPage() {
           Manage speaking questions, grouped by part, and their tasks.
         </p>
       </div>
+
+      {actionError && (
+        <Alert variant="destructive" className="items-start">
+          <TriangleAlertIcon />
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+
+      {actionSuccess && (
+        <Alert className="items-start">
+          <AlertDescription>{actionSuccess}</AlertDescription>
+        </Alert>
+      )}
+
+      <section className="flex flex-col gap-3 border-y border-rule py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
+            Question view
+          </p>
+          <p className="mt-1 text-sm text-ink-soft">
+            Active questions are shown by default. Include retired records when needed for restoration.
+          </p>
+        </div>
+        <div
+          className="flex shrink-0 gap-2"
+          role="group"
+          aria-label="Question lifecycle view"
+        >
+          <Button
+            variant={includeRetired ? "outline" : "default"}
+            aria-pressed={!includeRetired}
+            onClick={() => setQuestionView(false)}
+          >
+            Active only
+          </Button>
+          <Button
+            variant={includeRetired ? "default" : "outline"}
+            aria-pressed={includeRetired}
+            onClick={() => setQuestionView(true)}
+          >
+            Active + retired
+          </Button>
+        </div>
+      </section>
 
       {/* Create form */}
       {!editingId && (
@@ -700,9 +872,11 @@ export default function AdminQuestionsPage() {
                   questionId={editingId}
                   tasks={editTasks}
                   onChange={setEditTasks}
+                  onRestoreTask={(taskId) => void handleRestoreTask(editingId, taskId)}
+                  restoringTaskKey={restoringTaskKey}
                   onCommitted={() =>
                     void queryClient.invalidateQueries({
-                      queryKey: queryKeys.adminQuestions,
+                      queryKey: questionsQueryKey,
                     })
                   }
                   disabled={editLoading}
@@ -736,19 +910,6 @@ export default function AdminQuestionsPage() {
         );
       })()}
 
-      {!editingId && retireError && (
-        <Alert variant="destructive" className="items-start">
-          <TriangleAlertIcon />
-          <AlertDescription>{retireError}</AlertDescription>
-        </Alert>
-      )}
-
-      {!editingId && retireSuccess && (
-        <Alert className="items-start">
-          <AlertDescription>{retireSuccess}</AlertDescription>
-        </Alert>
-      )}
-
       {/* Question lists by category */}
       {!editingId && (
         <Tabs defaultValue="PART_1">
@@ -775,61 +936,102 @@ export default function AdminQuestionsPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {items.map((q) => (
-                      <div
-                        key={q.id}
-                        className="border border-rule bg-paper-raised p-5"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="min-w-0 flex-1">
-                            <div className="mb-2 flex flex-wrap items-center gap-3">
-                              <CategoryBadge category={q.category} />
-                              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                                Order {q.order}
-                              </span>
-                              <AudioUploadBadge status={q.audioUploadStatus} />
+                    {items.map((q) => {
+                      const retired = isRetired(q);
+                      return (
+                        <div
+                          key={q.id}
+                          className="border border-rule bg-paper-raised p-5"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-2 flex flex-wrap items-center gap-3">
+                                <CategoryBadge category={q.category} />
+                                <LifecycleBadge entity="Question" retired={retired} />
+                                <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+                                  Order {q.order}
+                                </span>
+                                <AudioUploadBadge status={q.audioUploadStatus} />
+                              </div>
+                              <p className="text-sm leading-6 text-ink">
+                                {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"} ·{" "}
+                                {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
+                              </p>
+                              {q.tasks.length > 0 && (
+                                <ul className="mt-3 space-y-1.5">
+                                  {q.tasks
+                                    .slice()
+                                    .sort((a, b) => a.order - b.order)
+                                    .map((t) => {
+                                      const taskRetired = isRetired(t);
+                                      return (
+                                        <li
+                                          key={t.id}
+                                          className="flex flex-wrap items-center gap-2 border-l-2 border-rule-strong pl-3 text-xs leading-5 text-ink-soft"
+                                        >
+                                          <span>
+                                            <span className="font-medium text-ink">{t.order}.</span>{" "}
+                                            {t.promptText}
+                                          </span>
+                                          <LifecycleBadge entity="Task" retired={taskRetired} />
+                                          {taskRetired && (
+                                            <Button
+                                              variant="outline"
+                                              size="xs"
+                                              loading={restoringTaskKey === `${q.id}:${t.id}`}
+                                              disabled={
+                                                restoringTaskKey !== null ||
+                                                restoringQuestionId !== null
+                                              }
+                                              onClick={() => void handleRestoreTask(q.id, t.id)}
+                                            >
+                                              Restore task
+                                            </Button>
+                                          )}
+                                        </li>
+                                      );
+                                    })}
+                                </ul>
+                              )}
                             </div>
-                            <p className="text-sm leading-6 text-ink">
-                              {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"} ·{" "}
-                              {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
-                            </p>
-                            {q.tasks.length > 0 && (
-                              <ul className="mt-3 space-y-1.5">
-                                {q.tasks
-                                  .slice()
-                                  .sort((a, b) => a.order - b.order)
-                                  .map((t) => (
-                                    <li
-                                      key={t.id}
-                                      className="border-l-2 border-rule-strong pl-3 text-xs leading-5 text-ink-soft"
-                                    >
-                                      <span className="font-medium text-ink">{t.order}.</span>{" "}
-                                      {t.promptText}
-                                    </li>
-                                  ))}
-                              </ul>
-                            )}
-                          </div>
 
-                          <div className="flex shrink-0 items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => startEdit(q)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => requestRetire(q.id)}
-                            >
-                              Retire
-                            </Button>
+                            <div className="flex shrink-0 items-center gap-2">
+                              {retired ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  loading={restoringQuestionId === q.id}
+                                  disabled={
+                                    restoringQuestionId !== null ||
+                                    restoringTaskKey !== null
+                                  }
+                                  onClick={() => void handleRestoreQuestion(q.id)}
+                                >
+                                  Restore question
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => startEdit(q)}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => requestRetire(q.id)}
+                                  >
+                                    Retire
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>

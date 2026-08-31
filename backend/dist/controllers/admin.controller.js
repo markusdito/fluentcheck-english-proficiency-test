@@ -1,11 +1,45 @@
-import { listAdminUsers, changeUserRole, listAdminExaminers, assignExaminers, getAdminStats, getAdminSubmissionDetail, listAdminSubmissions, } from "../service/admin.service.js";
+import { listAdminUsers, changeUserRole, listAdminExaminers, assignExaminers, getAdminStats, getAdminSubmissionDetail, listAdminSubmissions, previewUserRoleTransition, } from "../service/admin.service.js";
 import { getAppSettings, updatePaymentEnabled, } from "../service/settings.service.js";
 import { AssignmentSetError } from "../service/examiner.service.js";
+import { AccountTransitionError } from "../service/accountTransition.service.js";
 import { SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
 const ADMIN_ROLES = ["STUDENT", "EXAMINER", "ADMIN"];
 const ADMIN_SUBMISSION_STATUSES = Object.values(SubmissionStatus).filter((status) => status !== "IN_PROGRESS");
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function accountTransitionStatus(error) {
+    switch (error.code) {
+        case "USER_NOT_FOUND":
+            return 404;
+        case "UNAUTHORIZED":
+            return 403;
+        case "INVALID_ROLE":
+        case "INVALID_REASSIGNMENT":
+        case "SELF_ROLE_CHANGE":
+            return 400;
+        default:
+            return 409;
+    }
+}
+function validateReassignmentMapInput(value) {
+    if (value === undefined)
+        return;
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        throw new AccountTransitionError("INVALID_REASSIGNMENT", "Reassignment map must be an object");
+    }
+    const replacementIds = new Set();
+    for (const [assignmentId, examinerId] of Object.entries(value)) {
+        if (!UUID_RE.test(assignmentId) ||
+            typeof examinerId !== "string" ||
+            !UUID_RE.test(examinerId)) {
+            throw new AccountTransitionError("INVALID_REASSIGNMENT", "Reassignment map must contain valid assignment and examiner IDs");
+        }
+        if (replacementIds.has(examinerId)) {
+            throw new AccountTransitionError("INVALID_REASSIGNMENT", "Each replacement examiner must be assigned at most once");
+        }
+        replacementIds.add(examinerId);
+    }
+}
 /**
  * GET /api/admin/users
  * List users with pagination and optional role/q filtering.
@@ -58,31 +92,82 @@ export async function updateUserRole(req, res) {
             res.status(400).json({ error: "User ID is required" });
             return;
         }
-        const { role } = req.body;
+        const { role, reassignmentMap } = req.body;
         if (typeof role !== "string" || !ADMIN_ROLES.includes(role)) {
             res
                 .status(400)
-                .json({ error: "role must be one of STUDENT, EXAMINER, ADMIN" });
+                .json({
+                error: "Role must be one of STUDENT, EXAMINER, ADMIN",
+                code: "INVALID_ROLE",
+            });
             return;
         }
         if (userId === req.user.id) {
-            res.status(400).json({ error: "Cannot change your own role" });
+            res.status(400).json({
+                error: "Cannot change your own role",
+                code: "SELF_ROLE_CHANGE",
+            });
             return;
         }
-        const user = await changeUserRole(userId, role);
+        if (!UUID_RE.test(userId)) {
+            res.status(404).json({ error: "User not found", code: "USER_NOT_FOUND" });
+            return;
+        }
+        validateReassignmentMapInput(reassignmentMap);
+        const result = await changeUserRole(userId, role, req.user.id, reassignmentMap);
         res.status(200).json({
             status: "success",
-            data: { user },
+            data: result,
         });
     }
     catch (error) {
+        if (error instanceof AccountTransitionError) {
+            const status = accountTransitionStatus(error);
+            res.status(status).json({
+                error: error.message,
+                code: error.code,
+                ...(error.details ?? {}),
+            });
+            return;
+        }
         const message = error instanceof Error ? error.message : "Failed to update user role";
-        const status = message === "User not found"
-            ? 404
-            : message === "Cannot demote the last admin"
-                ? 400
-                : 500;
+        const status = message === "User not found" ? 404 : 500;
         res.status(status).json({ error: message });
+    }
+}
+/**
+ * GET /api/admin/users/:id/role-transition-preview?role=STUDENT
+ * Return the read-only impact needed for an exact reassignment map.
+ */
+export async function getRoleTransitionPreview(req, res) {
+    try {
+        const userId = req.params.id;
+        const requestedRole = typeof req.query.role === "string" ? req.query.role : undefined;
+        if (!requestedRole || !ADMIN_ROLES.includes(requestedRole)) {
+            res.status(400).json({
+                error: "Role must be one of STUDENT, EXAMINER, ADMIN",
+                code: "INVALID_ROLE",
+            });
+            return;
+        }
+        if (!userId || !UUID_RE.test(userId)) {
+            res.status(404).json({ error: "User not found", code: "USER_NOT_FOUND" });
+            return;
+        }
+        const data = await previewUserRoleTransition(userId, requestedRole, req.user.id);
+        res.status(200).json({ status: "success", data });
+    }
+    catch (error) {
+        if (error instanceof AccountTransitionError) {
+            const status = accountTransitionStatus(error);
+            res.status(status).json({
+                error: error.message,
+                code: error.code,
+                ...(error.details ?? {}),
+            });
+            return;
+        }
+        res.status(500).json({ error: "Failed to preview role transition" });
     }
 }
 /**

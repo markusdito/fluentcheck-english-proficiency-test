@@ -3,6 +3,7 @@ import { createExaminerAssignmentSet, } from "./examiner.service.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, calculateRubricOverall, readStoredRubric, roundScore, } from "../utils/scoring.js";
 import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
+import { previewAccountRoleTransition, transitionAccountRole, } from "./accountTransition.service.js";
 /**
  * List completed submissions with optional status filtering and pagination.
  * IN_PROGRESS submissions are abandoned drafts, not admin history.
@@ -297,13 +298,13 @@ export async function getAdminSubmissionDetail(submissionId) {
     };
 }
 /**
- * List non-deleted users with optional role/q filtering and pagination.
+ * List users, including deactivated accounts, with optional role/q filtering
+ * and pagination so the role-management screen can show active state.
  * Never selects the password field.
  */
 export async function listAdminUsers(params) {
     const { page, limit, role, q } = params;
     const where = {
-        deletedAt: null,
         ...(role ? { role } : {}),
         ...(q
             ? {
@@ -323,6 +324,7 @@ export async function listAdminUsers(params) {
                 email: true,
                 role: true,
                 createdAt: true,
+                deletedAt: true,
             },
             orderBy: { createdAt: "desc" },
             skip: (page - 1) * limit,
@@ -339,35 +341,17 @@ export async function listAdminUsers(params) {
     };
 }
 /**
- * Change a user's role, guarding against demoting the last ADMIN.
+ * Change a user's role through the shared account-transition boundary.
  */
-export async function changeUserRole(userId, newRole) {
-    const user = await prisma.user.findFirst({
-        where: { id: userId, deletedAt: null },
-        select: { id: true, role: true },
-    });
-    if (!user) {
-        throw new Error("User not found");
-    }
-    if (user.role === "ADMIN" && newRole !== "ADMIN") {
-        const adminCount = await prisma.user.count({
-            where: { role: "ADMIN", deletedAt: null },
-        });
-        if (adminCount <= 1) {
-            throw new Error("Cannot demote the last admin");
-        }
-    }
-    return prisma.user.update({
-        where: { id: userId },
-        data: { role: newRole },
-        select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-            createdAt: true,
-        },
-    });
+export async function changeUserRole(userId, newRole, actorUserId, reassignmentMap) {
+    return transitionAccountRole(userId, actorUserId, newRole, { reassignmentMap });
+}
+/**
+ * Read the open-work impact before an Examiner capability is removed. The
+ * caller must still submit the exact assignment-to-examiner map separately.
+ */
+export async function previewUserRoleTransition(userId, newRole, actorUserId) {
+    return previewAccountRoleTransition(userId, actorUserId, newRole);
 }
 /**
  * List examiners with their open (non-completed) assignment counts.

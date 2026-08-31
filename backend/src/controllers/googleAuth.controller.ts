@@ -182,7 +182,8 @@ export function createGoogleAuthHandlers(
   const stateStore = dependencies.stateStore ?? databaseGoogleOAuthStateStore;
   const issueSession =
     dependencies.issueSession ??
-    ((userId: string, response: Response) => generateToken(userId, response));
+    ((userId: string, response: Response) =>
+      generateToken(userId, response, "session"));
   const now = dependencies.now ?? (() => Date.now());
 
   const start: RequestHandler = async (request, response) => {

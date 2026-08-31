@@ -42,6 +42,61 @@ afterEach(() => {
 });
 
 describe("LoginForm", () => {
+  it("submits rememberMe as false when Remember me is unchecked", async () => {
+    const user = userEvent.setup();
+    mocks.post.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: "user-1",
+          name: "Jane Doe",
+          email: "jane@example.com",
+          role: "STUDENT",
+          createdAt: "2026-08-31T00:00:00.000Z",
+        },
+      },
+    });
+
+    render(<LoginForm />);
+
+    await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await user.type(screen.getByLabelText(/^Password/), "password-123");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(mocks.post).toHaveBeenCalledWith("/auth/login", {
+      email: "jane@example.com",
+      password: "password-123",
+      rememberMe: false,
+    });
+  });
+
+  it("submits rememberMe as true when Remember me is checked", async () => {
+    const user = userEvent.setup();
+    mocks.post.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: "user-1",
+          name: "Jane Doe",
+          email: "jane@example.com",
+          role: "STUDENT",
+          createdAt: "2026-08-31T00:00:00.000Z",
+        },
+      },
+    });
+
+    render(<LoginForm />);
+
+    await user.type(screen.getByLabelText(/^Email/), "jane@example.com");
+    await user.type(screen.getByLabelText(/^Password/), "password-123");
+    await user.click(screen.getByRole("checkbox", { name: "Remember me" }));
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(mocks.post).toHaveBeenCalledWith("/auth/login", {
+      email: "jane@example.com",
+      password: "password-123",
+      rememberMe: true,
+    });
+  });
+
   it("shows allowlisted Google errors, removes only google_error, and keeps the form usable", async () => {
     window.history.replaceState(null, "", "/login?google_error=cancelled&from=google#retry");
 

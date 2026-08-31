@@ -28,7 +28,8 @@ function assertAuthenticationCookieSet(response: Response) {
   assert.match(setCookie ?? "", /Path=\//);
   assert.match(setCookie ?? "", /HttpOnly/);
   assert.match(setCookie ?? "", /SameSite=Lax/);
-  assert.match(setCookie ?? "", /Max-Age=604800/);
+  assert.doesNotMatch(setCookie ?? "", /Max-Age=/);
+  assert.doesNotMatch(setCookie ?? "", /Expires=/);
 }
 
 async function migrateDatabase(databaseUrl: string) {

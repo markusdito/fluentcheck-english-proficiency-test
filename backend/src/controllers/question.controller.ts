@@ -8,9 +8,13 @@ import {
   createQuestion as createQuestionService,
   updateQuestion as updateQuestionService,
   retireQuestion as retireQuestionService,
+  restoreQuestion as restoreQuestionService,
   createTask as createTaskService,
   updateTask as updateTaskService,
   deleteTask as deleteTaskService,
+  restoreTask as restoreTaskService,
+  PositionConflictError,
+  DuplicateTaskPositionError,
 } from "../service/question.service.js";
 import {
   createQuestionAudioPresignedUpload,
@@ -120,8 +124,15 @@ function isNonNegativeInteger(value: unknown): value is number {
 }
 
 function handleQuestionError(res: Response, error: unknown) {
+  if (
+    error instanceof PositionConflictError ||
+    error instanceof DuplicateTaskPositionError
+  ) {
+    res.status(409).json({ error: error.message });
+    return;
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    res.status(409).json({ error: "A question or task with the same order already exists" });
+    res.status(409).json({ error: "The requested question or task position is already occupied" });
     return;
   }
   const message = error instanceof Error ? error.message : "Internal server error";
@@ -145,7 +156,8 @@ export async function getQuestions(req: Request, res: Response) {
 
 export async function getAdminQuestions(req: Request, res: Response) {
   try {
-    const questions = await retrieveAdminQuestions();
+    const includeRetired = req.query.includeRetired === "true";
+    const questions = await retrieveAdminQuestions(includeRetired);
     res.status(200).json({
       status: "success",
       data: questions,
@@ -153,6 +165,15 @@ export async function getAdminQuestions(req: Request, res: Response) {
   } catch (error) {
     console.error("Error fetching admin questions:", error);
     res.status(500).json({ error: "Failed to fetch admin questions" });
+  }
+}
+
+export async function restoreQuestion(req: Request, res: Response) {
+  try {
+    const question = await restoreQuestionService(req.params.id as string);
+    res.status(200).json({ status: "success", data: question });
+  } catch (error) {
+    handleQuestionError(res, error);
   }
 }
 
@@ -307,6 +328,17 @@ export async function deleteTask(req: Request, res: Response) {
     const taskId = req.params.taskId as string;
     await deleteTaskService(questionId, taskId);
     res.status(200).json({ status: "success" });
+  } catch (error) {
+    handleQuestionError(res, error);
+  }
+}
+
+export async function restoreTask(req: Request, res: Response) {
+  try {
+    const questionId = req.params.id as string;
+    const taskId = req.params.taskId as string;
+    const task = await restoreTaskService(questionId, taskId);
+    res.status(200).json({ status: "success", data: task });
   } catch (error) {
     handleQuestionError(res, error);
   }

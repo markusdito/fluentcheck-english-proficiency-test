@@ -145,8 +145,8 @@ test("the mounted Google flow creates a provider-only account and application JW
   assert.match(jwtCookie, /HttpOnly/);
   assert.match(jwtCookie, /SameSite=Lax/);
   assert.match(jwtCookie, /Path=\//u);
-  assert.match(jwtCookie, /Max-Age=604800/u);
-  assert.match(jwtCookie, /Expires=/u);
+  assert.doesNotMatch(jwtCookie, /Max-Age=/u);
+  assert.doesNotMatch(jwtCookie, /Expires=/u);
 
   const token = jwtCookie.slice(4).split(";", 1)[0];
   const decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;

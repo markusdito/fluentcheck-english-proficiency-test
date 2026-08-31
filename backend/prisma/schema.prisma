@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated"
+  provider        = "prisma-client"
+  output          = "../src/generated"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -72,6 +73,9 @@ model User {
   submissions      Submission[]
   startIntents      SubmissionStartIntent[]
   assignments      ExaminerAssignment[]
+  reassignmentsFrom ExaminerAssignmentReassignment[] @relation("ReassignmentPreviousExaminer")
+  reassignmentsTo   ExaminerAssignmentReassignment[] @relation("ReassignmentNewExaminer")
+  reassignmentsActed ExaminerAssignmentReassignment[] @relation("ReassignmentActingAdmin")
   questionsCreated Question[]
 
   @@index([role])
@@ -110,7 +114,7 @@ model Question {
   updatedAt DateTime  @updatedAt @db.Timestamptz()
   deletedAt DateTime? @db.Timestamptz() // retire a question without breaking historical answers
 
-  @@unique([category, order])
+  @@unique([category, order], where: { deletedAt: null })
   @@index([category])
 }
 
@@ -125,7 +129,7 @@ model Task {
   deletedAt  DateTime? @db.Timestamptz()
   manifestTasks ManifestTask[]
 
-  @@unique([questionId, order])
+  @@unique([questionId, order], where: { deletedAt: null })
   @@unique([id, questionId])
   @@index([questionId])
 }
@@ -147,6 +151,7 @@ model Submission {
   updatedAt       DateTime             @updatedAt @db.Timestamptz()
 
   @@index([studentId, status])
+  @@index([studentId, createdAt, id])
   @@index([status])
 }
 
@@ -281,6 +286,7 @@ model ExaminerAssignment {
   slot         Int // 1 or 2 — populated by the atomic assignment-set operation
   status       AssignmentStatus @default(ASSIGNED)
   scores       Score[]
+  reassignmentHistory ExaminerAssignmentReassignment[]
   createdAt    DateTime         @default(now()) @db.Timestamptz()
   updatedAt    DateTime         @updatedAt @db.Timestamptz()
 
@@ -288,6 +294,27 @@ model ExaminerAssignment {
   @@unique([submissionId, examinerId])
   @@unique([submissionId, slot])
   @@index([examinerId, status]) // examiner's work queue
+}
+
+model ExaminerAssignmentReassignment {
+  id                 String             @id @default(uuid()) @db.Uuid
+  transitionId       String             @db.Uuid
+  assignmentId       String             @db.Uuid
+  assignment         ExaminerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  previousExaminerId String             @db.Uuid
+  previousExaminer   User               @relation("ReassignmentPreviousExaminer", fields: [previousExaminerId], references: [id], onDelete: Restrict)
+  newExaminerId      String             @db.Uuid
+  newExaminer        User               @relation("ReassignmentNewExaminer", fields: [newExaminerId], references: [id], onDelete: Restrict)
+  actingAdminId      String             @db.Uuid
+  actingAdmin        User               @relation("ReassignmentActingAdmin", fields: [actingAdminId], references: [id], onDelete: Restrict)
+  reason             String
+  createdAt          DateTime           @default(now()) @db.Timestamptz()
+
+  @@index([assignmentId, createdAt])
+  @@index([previousExaminerId, reason, createdAt, transitionId])
+  @@index([previousExaminerId])
+  @@index([newExaminerId])
+  @@index([actingAdminId])
 }
 
 model Score {

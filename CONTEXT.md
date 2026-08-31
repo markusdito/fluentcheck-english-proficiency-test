@@ -8,6 +8,10 @@ FluentCheck manages English-proficiency assessments from a student's recorded su
 A student's complete assessment attempt, including its recorded answers and progression through payment, scoring, and certification.
 _Avoid_: Test, exam
 
+**Assessment**:
+The speaking experience in which a student receives one Question from each Required category and records one Answer for each.
+_Avoid_: Test, exam
+
 **Retained submission**:
 A Submission that has not been explicitly purged from FluentCheck, regardless of its completion, payment, or scoring state.
 _Avoid_: Historical submission

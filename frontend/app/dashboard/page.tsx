@@ -5,7 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRightIcon, CircleAlertIcon, Loader2 } from "lucide-react";
-import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-api";
+import {
+  DASHBOARD_PAGE_SIZE,
+  fetchDashboardStats,
+  type DashboardStats,
+} from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { AssignmentList } from "@/components/examiner/AssignmentList";
 import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermissionModal";
@@ -23,11 +27,16 @@ import { queryKeys } from "@/lib/query-keys";
 export default function DashboardPage() {
   const router = useRouter();
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [historyCursors, setHistoryCursors] = useState<string[]>([]);
   const session = useSession({ required: true });
   const user = session.data;
+  const currentHistoryCursor = historyCursors.at(-1);
+  const dashboardParams = currentHistoryCursor
+    ? { limit: DASHBOARD_PAGE_SIZE, cursor: currentHistoryCursor }
+    : { limit: DASHBOARD_PAGE_SIZE };
   const dashboardQuery = useQuery<DashboardStats>({
-    queryKey: queryKeys.studentDashboard,
-    queryFn: ({ signal }) => fetchDashboardStats(signal),
+    queryKey: queryKeys.studentDashboard(dashboardParams),
+    queryFn: ({ signal }) => fetchDashboardStats(dashboardParams, signal),
     enabled: user?.role === "STUDENT",
   });
   const assignmentsQuery = useQuery<ExaminerAssignmentSummary[]>({
@@ -47,6 +56,7 @@ export default function DashboardPage() {
     (user?.role === "EXAMINER" && assignmentsQuery.isPending);
   const queryError =
     session.error ?? dashboardQuery.error ?? assignmentsQuery.error;
+  const historyPageNumber = historyCursors.length + 1;
 
   // Loading state
   if (
@@ -262,6 +272,43 @@ export default function DashboardPage() {
                   </Button>
                 </div>
               )}
+
+              {dashboard &&
+                (historyCursors.length > 0 || dashboard.pagination.hasMore) && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <p className="text-sm text-ink-soft" aria-live="polite">
+                      Page {historyPageNumber}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label="Previous history page"
+                        disabled={historyCursors.length === 0 || dashboardQuery.isFetching}
+                        onClick={() => setHistoryCursors((cursors) => cursors.slice(0, -1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label="Next history page"
+                        disabled={
+                          !dashboard.pagination.hasMore ||
+                          dashboard.pagination.nextCursor == null ||
+                          dashboardQuery.isFetching
+                        }
+                        onClick={() => {
+                          const nextCursor = dashboard.pagination.nextCursor;
+                          if (!nextCursor) return;
+                          setHistoryCursors((cursors) => [...cursors, nextCursor]);
+                        }}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
             </section>
           </>
         )}

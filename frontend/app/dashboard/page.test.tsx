@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "@/app/dashboard/page";
@@ -31,6 +31,7 @@ vi.mock("@/hooks/useSession", () => ({
 }));
 
 vi.mock("@/lib/dashboard-api", () => ({
+  DASHBOARD_PAGE_SIZE: 10,
   fetchDashboardStats: mocks.fetchDashboardStats,
 }));
 
@@ -79,6 +80,7 @@ describe("Dashboard request gating", () => {
       totalTests: 0,
       bestScore: null,
       submissions: [],
+      pagination: { limit: 10, hasMore: false, nextCursor: null },
     });
     mocks.fetchExaminerAssignments.mockReset().mockResolvedValue([]);
   });
@@ -90,7 +92,64 @@ describe("Dashboard request gating", () => {
     await waitFor(() =>
       expect(mocks.fetchDashboardStats).toHaveBeenCalledTimes(1),
     );
+    expect(mocks.fetchDashboardStats).toHaveBeenCalledWith(
+      { limit: 10 },
+      expect.any(AbortSignal),
+    );
     expect(mocks.fetchExaminerAssignments).not.toHaveBeenCalled();
+  });
+
+  it("traverses history pages with cursors and can return to the prior page", async () => {
+    mocks.user = { ...baseUser, role: "STUDENT" };
+    mocks.fetchDashboardStats
+      .mockReset()
+      .mockResolvedValueOnce({
+        totalTests: 2,
+        bestScore: null,
+        submissions: [
+          {
+            id: "submission-1",
+            status: "SCORED",
+            score: "5.00",
+            scoringSystem: "RUBRIC_6",
+            createdAt: "2026-01-02T00:00:00.000Z",
+          },
+        ],
+        pagination: { limit: 10, hasMore: true, nextCursor: "cursor-1" },
+      })
+      .mockResolvedValueOnce({
+        totalTests: 2,
+        bestScore: null,
+        submissions: [
+          {
+            id: "submission-2",
+            status: "SCORED",
+            score: "4.50",
+            scoringSystem: "RUBRIC_6",
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        pagination: { limit: 10, hasMore: false, nextCursor: null },
+      });
+
+    renderDashboard();
+    await screen.findByRole("link", { name: /Jan 2, 2026/i });
+    fireEvent.click(await screen.findByRole("button", { name: "Next history page" }));
+
+    await waitFor(() =>
+      expect(mocks.fetchDashboardStats).toHaveBeenCalledTimes(2),
+    );
+    expect(mocks.fetchDashboardStats.mock.calls[1][0]).toEqual({
+      limit: 10,
+      cursor: "cursor-1",
+    });
+    await screen.findByRole("link", { name: /Jan 1, 2026/i });
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous history page" }));
+    await waitFor(() =>
+      expect(mocks.fetchDashboardStats).toHaveBeenCalledTimes(3),
+    );
+    expect(mocks.fetchDashboardStats.mock.calls[2][0]).toEqual({ limit: 10 });
   });
 
   it("requests only assignment data for examiners", async () => {

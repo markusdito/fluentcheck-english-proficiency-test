@@ -64,6 +64,7 @@ export const ModelName = {
   Answer: 'Answer',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
+  ExaminerAssignmentReassignment: 'ExaminerAssignmentReassignment',
   Score: 'Score',
   Certificate: 'Certificate'
 } as const
@@ -269,6 +270,20 @@ export const ExaminerAssignmentScalarFieldEnum = {
 } as const
 
 export type ExaminerAssignmentScalarFieldEnum = (typeof ExaminerAssignmentScalarFieldEnum)[keyof typeof ExaminerAssignmentScalarFieldEnum]
+
+
+export const ExaminerAssignmentReassignmentScalarFieldEnum = {
+  id: 'id',
+  transitionId: 'transitionId',
+  assignmentId: 'assignmentId',
+  previousExaminerId: 'previousExaminerId',
+  newExaminerId: 'newExaminerId',
+  actingAdminId: 'actingAdminId',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type ExaminerAssignmentReassignmentScalarFieldEnum = (typeof ExaminerAssignmentReassignmentScalarFieldEnum)[keyof typeof ExaminerAssignmentReassignmentScalarFieldEnum]
 
 
 export const ScoreScalarFieldEnum = {

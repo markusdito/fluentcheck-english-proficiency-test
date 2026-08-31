@@ -4,6 +4,48 @@ export interface AdminUser {
   email: string;
   role: string;
   createdAt: string;
+  deletedAt: string | null;
+}
+
+export interface AccountTransitionCandidate {
+  id: string;
+  username: string;
+  email: string;
+}
+
+export interface AccountTransitionAssignmentImpact {
+  id: string;
+  submissionId: string;
+  slot: number;
+  status: string;
+  createdAt: string;
+  currentExaminer: AccountTransitionCandidate;
+  scoreCount: number;
+  transferEligible: boolean;
+  candidates: AccountTransitionCandidate[];
+}
+
+export interface AccountTransitionPreview {
+  user: AdminUser & { deletedAt: string | null };
+  requestedRole: string;
+  assignments: AccountTransitionAssignmentImpact[];
+}
+
+export interface AccountTransitionAssignmentSummary {
+  id: string;
+  submissionId: string;
+  slot: number;
+  status: string;
+  previousExaminerId: string;
+  newExaminerId: string;
+  scoreCount: number;
+  createdAt: string;
+}
+
+export interface AccountTransitionResult {
+  outcome: "UPDATED" | "ALREADY_APPLIED";
+  user: AdminUser & { deletedAt: string | null };
+  assignments: AccountTransitionAssignmentSummary[];
 }
 
 export interface AdminExaminer {
@@ -150,6 +192,8 @@ export interface AdminTask {
   id: string;
   promptText: string;
   order: number;
+  /** Omitted by older active-only responses; a non-null value means retired. */
+  deletedAt?: string | null;
 }
 
 export interface AdminQuestion {
@@ -163,6 +207,8 @@ export interface AdminQuestion {
   audioSizeBytes: number | null;
   audioUploadStatus: "PENDING" | "UPLOADED" | "FAILED";
   createdAt: string;
+  /** Omitted by older active-only responses; a non-null value means retired. */
+  deletedAt?: string | null;
   tasks: AdminTask[];
 }
 import type {

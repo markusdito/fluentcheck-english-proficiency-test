@@ -11,7 +11,10 @@ import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScaleAwareScoreDisplay } from "@/components/results/ScaleAwareScoreDisplay";
-import { fetchDashboardStats } from "@/lib/dashboard-api";
+import {
+  DASHBOARD_PAGE_SIZE,
+  fetchDashboardStats,
+} from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { fetchAdminStats } from "@/lib/admin-api";
 import { adminNavigationItems } from "@/lib/admin-navigation";
@@ -48,9 +51,10 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
   const session = useSession({ required: true });
   const user = session.data;
+  const dashboardParams = { limit: DASHBOARD_PAGE_SIZE };
   const dashboardQuery = useQuery({
-    queryKey: queryKeys.studentDashboard,
-    queryFn: ({ signal }) => fetchDashboardStats(signal),
+    queryKey: queryKeys.studentDashboard(dashboardParams),
+    queryFn: ({ signal }) => fetchDashboardStats(dashboardParams, signal),
     enabled: user?.role === "STUDENT",
   });
   const assignmentsQuery = useQuery({

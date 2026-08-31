@@ -96,6 +96,14 @@ The frontend uses a same-origin `/backend-api` rewrite during local development.
 The Express application is organized into routes, controllers, and services,
 with Prisma providing typed access to PostgreSQL.
 
+### Authentication persistence
+
+Local login accepts an optional boolean `rememberMe`. An omitted or unchecked
+value issues the default one-hour JWT in a browser-session `jwt` cookie, while
+an explicitly checked value issues a JWT and persistent cookie lasting
+`REMEMBERED_SESSION_SECONDS` (seven days by default). Registration and Google
+OAuth remain session-only, and logout clears the same cookie in either mode.
+
 ## Technology Stack
 
 | Area | Technologies |
@@ -171,6 +179,7 @@ FRONTEND_URL="http://localhost:3000"
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 JWT_SECRET="replace-with-a-long-random-secret"
 JWT_EXPIRES_IN="1h"
+REMEMBERED_SESSION_SECONDS="604800"
 
 # Rate-limit privacy and deployment topology
 RATE_LIMIT_HMAC_SECRET="paste-the-output-of-openssl-rand-hex-32"

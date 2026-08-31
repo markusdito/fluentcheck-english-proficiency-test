@@ -167,6 +167,7 @@ async function createRetirementFixture() {
         create: { promptText: "Describe the scene.", order: 1 },
       },
     },
+    include: { tasks: true },
   });
   async function createSubmissionWithStatus(
     status: "IN_PROGRESS" | "AWAITING_PAYMENT" | "SCORING",
@@ -191,6 +192,7 @@ async function createRetirementFixture() {
       for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
         const entryQuestion = category === "PART_1" ? question : await tx.question.create({
           data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+          include: { tasks: true },
         });
         const entry = await tx.manifestEntry.create({
           data: {
@@ -202,6 +204,16 @@ async function createRetirementFixture() {
             promptMediaMimeType: "audio/webm",
             promptMediaSizeBytes: 4_096,
             sourceQuestionId: entryQuestion.id,
+          },
+        });
+        const sourceTask = entryQuestion.tasks[0];
+        await tx.manifestTask.create({
+          data: {
+            manifestEntryId: entry.id,
+            sourceTaskId: sourceTask.id,
+            sourceQuestionId: entryQuestion.id,
+            deliveredOrder: sourceTask.order,
+            deliveredText: sourceTask.promptText,
           },
         });
         if (category === "PART_1") part1EntryId = entry.id;
@@ -249,6 +261,64 @@ async function createRetirementFixture() {
 
 test("retiring a Question is idempotent and preserves authorized retained submissions and Prompt media", async () => {
   const fixture = await createRetirementFixture();
+  const submissionIds = fixture.retainedSubmissions.map((submission: { id: string }) => submission.id);
+  const historicalBefore = {
+    manifests: await prisma.submissionManifest.findMany({
+      where: { submissionId: { in: submissionIds } },
+      orderBy: { id: "asc" },
+      select: { id: true, submissionId: true, version: true },
+    }),
+    entries: await prisma.manifestEntry.findMany({
+      where: { submissionId: { in: submissionIds } },
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        manifestId: true,
+        submissionId: true,
+        category: true,
+        deliveryPosition: true,
+        preparationSeconds: true,
+        recordingSeconds: true,
+        promptMediaStorageKey: true,
+        promptMediaMimeType: true,
+        promptMediaSizeBytes: true,
+        sourceQuestionId: true,
+      },
+    }),
+    manifestTasks: await prisma.manifestTask.findMany({
+      where: { manifestEntry: { submissionId: { in: submissionIds } } },
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        manifestEntryId: true,
+        sourceTaskId: true,
+        sourceQuestionId: true,
+        deliveredOrder: true,
+        deliveredText: true,
+      },
+    }),
+    answers: await prisma.answer.findMany({
+      where: { submissionId: { in: submissionIds } },
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        submissionId: true,
+        questionId: true,
+        manifestEntryId: true,
+        storageKey: true,
+        bucket: true,
+        mimeType: true,
+        sizeBytes: true,
+        durationSeconds: true,
+        uploadStatus: true,
+        verifiedAt: true,
+        observedMimeType: true,
+        proofVersion: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+  };
   const originalMetadata = {
     audioStorageKey: fixture.question.audioStorageKey,
     audioMimeType: fixture.question.audioMimeType,
@@ -288,6 +358,64 @@ test("retiring a Question is idempotent and preserves authorized retained submis
     },
     originalMetadata,
   );
+  const historicalAfter = {
+    manifests: await prisma.submissionManifest.findMany({
+      where: { submissionId: { in: submissionIds } },
+      orderBy: { id: "asc" },
+      select: { id: true, submissionId: true, version: true },
+    }),
+    entries: await prisma.manifestEntry.findMany({
+      where: { submissionId: { in: submissionIds } },
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        manifestId: true,
+        submissionId: true,
+        category: true,
+        deliveryPosition: true,
+        preparationSeconds: true,
+        recordingSeconds: true,
+        promptMediaStorageKey: true,
+        promptMediaMimeType: true,
+        promptMediaSizeBytes: true,
+        sourceQuestionId: true,
+      },
+    }),
+    manifestTasks: await prisma.manifestTask.findMany({
+      where: { manifestEntry: { submissionId: { in: submissionIds } } },
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        manifestEntryId: true,
+        sourceTaskId: true,
+        sourceQuestionId: true,
+        deliveredOrder: true,
+        deliveredText: true,
+      },
+    }),
+    answers: await prisma.answer.findMany({
+      where: { submissionId: { in: submissionIds } },
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        submissionId: true,
+        questionId: true,
+        manifestEntryId: true,
+        storageKey: true,
+        bucket: true,
+        mimeType: true,
+        sizeBytes: true,
+        durationSeconds: true,
+        uploadStatus: true,
+        verifiedAt: true,
+        observedMimeType: true,
+        proofVersion: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+  };
+  assert.deepEqual(historicalAfter, historicalBefore);
   assert.equal(
     await prisma.answer.count({
       where: { submissionId: { in: fixture.retainedSubmissions.map((s: { id: string }) => s.id) } },
