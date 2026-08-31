@@ -72,6 +72,9 @@ model User {
   submissions      Submission[]
   startIntents      SubmissionStartIntent[]
   assignments      ExaminerAssignment[]
+  reassignmentsFrom ExaminerAssignmentReassignment[] @relation("ReassignmentPreviousExaminer")
+  reassignmentsTo   ExaminerAssignmentReassignment[] @relation("ReassignmentNewExaminer")
+  reassignmentsActed ExaminerAssignmentReassignment[] @relation("ReassignmentActingAdmin")
   questionsCreated Question[]
 
   @@index([role])
@@ -281,6 +284,7 @@ model ExaminerAssignment {
   slot         Int // 1 or 2 — populated by the atomic assignment-set operation
   status       AssignmentStatus @default(ASSIGNED)
   scores       Score[]
+  reassignmentHistory ExaminerAssignmentReassignment[]
   createdAt    DateTime         @default(now()) @db.Timestamptz()
   updatedAt    DateTime         @updatedAt @db.Timestamptz()
 
@@ -288,6 +292,25 @@ model ExaminerAssignment {
   @@unique([submissionId, examinerId])
   @@unique([submissionId, slot])
   @@index([examinerId, status]) // examiner's work queue
+}
+
+model ExaminerAssignmentReassignment {
+  id                 String             @id @default(uuid()) @db.Uuid
+  assignmentId       String             @db.Uuid
+  assignment         ExaminerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  previousExaminerId String             @db.Uuid
+  previousExaminer   User               @relation("ReassignmentPreviousExaminer", fields: [previousExaminerId], references: [id], onDelete: Restrict)
+  newExaminerId      String             @db.Uuid
+  newExaminer        User               @relation("ReassignmentNewExaminer", fields: [newExaminerId], references: [id], onDelete: Restrict)
+  actingAdminId      String             @db.Uuid
+  actingAdmin        User               @relation("ReassignmentActingAdmin", fields: [actingAdminId], references: [id], onDelete: Restrict)
+  reason             String
+  createdAt          DateTime           @default(now()) @db.Timestamptz()
+
+  @@index([assignmentId, createdAt])
+  @@index([previousExaminerId])
+  @@index([newExaminerId])
+  @@index([actingAdminId])
 }
 
 model Score {

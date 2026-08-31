@@ -58,7 +58,27 @@ before(async () => {
 }, { timeout: 120_000 });
 
 beforeEach(async () => {
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ExaminerAssignmentReassignment_immutable" ON "ExaminerAssignmentReassignment"`);
+  await prisma.examinerAssignmentReassignment.deleteMany();
+  await prisma.examinerAssignment.deleteMany();
+  await prisma.payment.deleteMany();
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestEntry_immutable" ON "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestTask_immutable" ON "ManifestTask"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "SubmissionManifest_immutable" ON "SubmissionManifest"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestEntry_v1_shape_check" ON "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "SubmissionManifest_v1_shape_check" ON "SubmissionManifest"`);
+  await prisma.answer.deleteMany();
+  await prisma.$executeRawUnsafe(`DELETE FROM "ManifestTask"`);
+  await prisma.$executeRawUnsafe(`DELETE FROM "ManifestEntry"`);
+  await prisma.$executeRawUnsafe(`DELETE FROM "SubmissionManifest"`);
+  await prisma.submission.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "SubmissionManifest_v1_shape_check" AFTER INSERT OR UPDATE ON "SubmissionManifest" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
+  await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "ManifestEntry_v1_shape_check" AFTER INSERT OR UPDATE OR DELETE ON "ManifestEntry" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "SubmissionManifest_immutable" BEFORE UPDATE OR DELETE ON "SubmissionManifest" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "ManifestEntry_immutable" BEFORE UPDATE OR DELETE ON "ManifestEntry" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "ManifestTask_immutable" BEFORE UPDATE OR DELETE ON "ManifestTask" FOR EACH ROW EXECUTE FUNCTION reject_submission_manifest_evidence_mutation()`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER "ExaminerAssignmentReassignment_immutable" BEFORE UPDATE OR DELETE ON "ExaminerAssignmentReassignment" FOR EACH ROW EXECUTE FUNCTION reject_examiner_assignment_reassignment_mutation()`);
 });
 
 after(async () => {
@@ -69,7 +89,8 @@ after(async () => {
 }, { timeout: 120_000 });
 
 function uniqueUsername(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replaceAll("-", "")}`;
+  const safePrefix = prefix.replace(/[^a-z0-9_]/giu, "_").slice(0, 17);
+  return `${safePrefix}_${crypto.randomUUID().replaceAll("-", "")}`;
 }
 
 async function createUser(
@@ -97,6 +118,7 @@ async function requestRole(
   targetId: string,
   role: string,
   actorCookie: string,
+  reassignmentMap?: Record<string, string>,
 ) {
   return fetch(`${baseUrl}/api/admin/users/${targetId}/role`, {
     method: "PUT",
@@ -104,7 +126,7 @@ async function requestRole(
       Cookie: actorCookie,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ role }),
+    body: JSON.stringify({ role, ...(reassignmentMap ? { reassignmentMap } : {}) }),
   });
 }
 
@@ -337,4 +359,195 @@ test("an Examiner promoted to ADMIN keeps access to existing work while new assi
     "ADMIN",
   );
   assert.equal(thirdExaminer.role, "EXAMINER");
+});
+
+test("role-transition preview drives an exact reassignment and replay is idempotent", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const replacement = await createUser("replacement", "EXAMINER");
+  const { assignments } = await createLegacyScoringAssignment(
+    target.id,
+    currentPeer.id,
+  );
+  const before = await prisma.examinerAssignment.findUniqueOrThrow({
+    where: { id: assignments[0].id },
+  });
+
+  const previewResponse = await fetch(
+    `${baseUrl}/api/admin/users/${target.id}/role-transition-preview?role=STUDENT`,
+    { headers: { Cookie: cookieFor(admin.id) } },
+  );
+  assert.equal(previewResponse.status, 200);
+  const preview = (await previewResponse.json()).data;
+  assert.equal(preview.requestedRole, "STUDENT");
+  assert.equal(preview.assignments.length, 1);
+  assert.equal(preview.assignments[0].transferEligible, true);
+  assert.equal(preview.assignments[0].currentExaminer.id, target.id);
+  assert.equal(
+    preview.assignments[0].candidates.some(
+      (candidate: { id: string }) => candidate.id === replacement.id,
+    ),
+    true,
+  );
+  assert.equal(
+    preview.assignments[0].candidates.some(
+      (candidate: { id: string }) => candidate.id === currentPeer.id,
+    ),
+    false,
+  );
+
+  const reassignmentMap = { [assignments[0].id]: replacement.id };
+  const updated = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    reassignmentMap,
+  );
+  assert.equal(updated.status, 200);
+  assert.equal((await updated.json()).data.outcome, "UPDATED");
+
+  const after = await prisma.examinerAssignment.findUniqueOrThrow({
+    where: { id: assignments[0].id },
+  });
+  assert.deepEqual(
+    {
+      id: after.id,
+      submissionId: after.submissionId,
+      slot: after.slot,
+      status: after.status,
+      createdAt: after.createdAt.toISOString(),
+    },
+    {
+      id: before.id,
+      submissionId: before.submissionId,
+      slot: before.slot,
+      status: before.status,
+      createdAt: before.createdAt.toISOString(),
+    },
+  );
+  assert.equal(after.examinerId, replacement.id);
+  assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "STUDENT");
+
+  const history = await prisma.examinerAssignmentReassignment.findMany({
+    where: { assignmentId: assignments[0].id },
+  });
+  assert.equal(history.length, 1);
+  assert.equal(history[0].previousExaminerId, target.id);
+  assert.equal(history[0].newExaminerId, replacement.id);
+  assert.equal(history[0].actingAdminId, admin.id);
+  assert.equal(history[0].reason, "ACCOUNT_ROLE_TRANSITION");
+
+  const replay = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    reassignmentMap,
+  );
+  assert.equal(replay.status, 200);
+  assert.equal((await replay.json()).data.outcome, "ALREADY_APPLIED");
+  assert.equal(
+    await prisma.examinerAssignmentReassignment.count({
+      where: { assignmentId: assignments[0].id },
+    }),
+    1,
+  );
+});
+
+test("invalid reassignment maps fail atomically without changing role or ownership", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const { assignments } = await createLegacyScoringAssignment(
+    target.id,
+    currentPeer.id,
+  );
+
+  const response = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    { [assignments[0].id]: currentPeer.id },
+  );
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "INVALID_REASSIGNMENT");
+  assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "EXAMINER");
+  assert.equal(
+    (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).examinerId,
+    target.id,
+  );
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 0);
+});
+
+test("in-progress and score-bearing assignments fail closed during capability removal", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const inProgressTarget = await createUser("in_progress_target", "EXAMINER");
+  const inProgressPeer = await createUser("in_progress_peer", "EXAMINER");
+  const inProgress = await createLegacyScoringAssignment(
+    inProgressTarget.id,
+    inProgressPeer.id,
+  );
+  await prisma.examinerAssignment.update({
+    where: { id: inProgress.assignments[0].id },
+    data: { status: "IN_PROGRESS" },
+  });
+
+  const inProgressResponse = await requestRole(
+    inProgressTarget.id,
+    "STUDENT",
+    cookieFor(admin.id),
+  );
+  assert.equal(inProgressResponse.status, 409);
+  assert.equal((await inProgressResponse.json()).code, "EXAMINER_ASSIGNMENTS_IN_PROGRESS");
+  assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: inProgressTarget.id } })).role, "EXAMINER");
+
+  const scoredTarget = await createUser("scored_target", "EXAMINER");
+  const scoredPeer = await createUser("scored_peer", "EXAMINER");
+  const scored = await createLegacyScoringAssignment(scoredTarget.id, scoredPeer.id);
+  await prisma.score.create({
+    data: {
+      assignmentId: scored.assignments[0].id,
+      answerId: scored.answers[0].id,
+      value: 88,
+    },
+  });
+
+  const scoredResponse = await requestRole(
+    scoredTarget.id,
+    "STUDENT",
+    cookieFor(admin.id),
+  );
+  assert.equal(scoredResponse.status, 409);
+  assert.equal((await scoredResponse.json()).code, "EXAMINER_HAS_OPEN_ASSIGNMENTS");
+  assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: scoredTarget.id } })).role, "EXAMINER");
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 0);
+});
+
+test("the shared deactivation boundary transfers eligible work and replays safely", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const replacement = await createUser("replacement", "EXAMINER");
+  const { assignments } = await createLegacyScoringAssignment(target.id, currentPeer.id);
+  const { deactivateAccount } = await import("../../src/service/account-transition.service.js");
+  const reassignmentMap = { [assignments[0].id]: replacement.id };
+
+  const result = await deactivateAccount(target.id, admin.id, { reassignmentMap });
+  assert.equal(result.outcome, "UPDATED");
+  assert.equal(result.assignments.length, 1);
+  const deactivated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
+  assert.equal(deactivated.role, "EXAMINER");
+  assert.ok(deactivated.deletedAt);
+  assert.equal(
+    (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).examinerId,
+    replacement.id,
+  );
+  assert.equal(
+    (await prisma.examinerAssignmentReassignment.findFirstOrThrow({ where: { assignmentId: assignments[0].id } })).reason,
+    "ACCOUNT_DEACTIVATION",
+  );
+
+  const replay = await deactivateAccount(target.id, admin.id, { reassignmentMap });
+  assert.equal(replay.outcome, "ALREADY_APPLIED");
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 1);
 });

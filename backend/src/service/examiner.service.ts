@@ -23,6 +23,7 @@ import type {
   AssignmentStatus,
   SubmissionStatus,
 } from "../generated/enums.js";
+import { ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY } from "./account-transition.service.js";
 
 export interface ExaminerAssignmentSummary {
   id: string;
@@ -238,6 +239,12 @@ export async function createExaminerAssignmentSet(
     try {
       return await prisma.$transaction(
         async (tx) => {
+          // Role transitions and assignment creation share this boundary. The
+          // candidate read therefore cannot race a role change or deactivation.
+          await tx.$executeRaw`
+            SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
+          `;
+
           const existing = await readExistingAssignmentSet(tx, submissionId);
           if (existing) {
             return { ...existing, outcome: "EXISTING" as const };
@@ -595,26 +602,33 @@ export async function startExaminerAssignment(
   assignmentId: string,
   examinerId: string
 ): Promise<void> {
-  const assignment = await prisma.examinerAssignment.findUnique({
-    where: { id: assignmentId },
-    select: { examinerId: true, status: true },
-  });
+  const submissionId = await findAssignmentSubmissionId(assignmentId);
 
-  if (!assignment) {
-    throw new Error("Assignment not found");
-  }
+  await prisma.$transaction(async (tx) => {
+    // Scoring, reassignment, and lifecycle mutations all serialize on the
+    // submission row before ownership/status is read again.
+    await lockScoringSubmission(tx, submissionId);
+    const assignment = await tx.examinerAssignment.findUnique({
+      where: { id: assignmentId },
+      select: { examinerId: true, submissionId: true, status: true },
+    });
 
-  if (assignment.examinerId !== examinerId) {
-    throw new Error("Unauthorized");
-  }
+    if (!assignment || assignment.submissionId !== submissionId) {
+      throw new Error("Assignment not found");
+    }
 
-  if (assignment.status !== "ASSIGNED") {
-    throw new Error("Assignment is not in ASSIGNED status");
-  }
+    if (assignment.examinerId !== examinerId) {
+      throw new Error("Unauthorized");
+    }
 
-  await prisma.examinerAssignment.update({
-    where: { id: assignmentId },
-    data: { status: "IN_PROGRESS" },
+    if (assignment.status !== "ASSIGNED") {
+      throw new Error("Assignment is not in ASSIGNED status");
+    }
+
+    await tx.examinerAssignment.update({
+      where: { id: assignmentId },
+      data: { status: "IN_PROGRESS" },
+    });
   });
 }
 

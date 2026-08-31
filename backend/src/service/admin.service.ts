@@ -23,8 +23,10 @@ import {
   assertLegacySubmissionEvidence,
 } from "./submissionManifest.service.js";
 import {
+  previewAccountRoleTransition,
   transitionAccountRole,
   type AccountTransitionResult,
+  type AccountTransitionPreview,
 } from "./account-transition.service.js";
 
 export interface ListUsersParams {
@@ -411,8 +413,21 @@ export async function changeUserRole(
   userId: string,
   newRole: Role,
   actorUserId: string,
+  reassignmentMap?: unknown,
 ): Promise<AccountTransitionResult> {
-  return transitionAccountRole(userId, actorUserId, newRole);
+  return transitionAccountRole(userId, actorUserId, newRole, { reassignmentMap });
+}
+
+/**
+ * Read the open-work impact before an Examiner capability is removed. The
+ * caller must still submit the exact assignment-to-examiner map separately.
+ */
+export async function previewUserRoleTransition(
+  userId: string,
+  newRole: Role,
+  actorUserId: string,
+): Promise<AccountTransitionPreview> {
+  return previewAccountRoleTransition(userId, actorUserId, newRole);
 }
 
 /**

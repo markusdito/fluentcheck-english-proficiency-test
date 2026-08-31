@@ -3,7 +3,7 @@ import { createExaminerAssignmentSet, } from "./examiner.service.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { aggregateStoredScores, average, averageRubrics, calculateRubricOverall, readStoredRubric, roundScore, } from "../utils/scoring.js";
 import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
-import { transitionAccountRole, } from "./account-transition.service.js";
+import { previewAccountRoleTransition, transitionAccountRole, } from "./account-transition.service.js";
 /**
  * List completed submissions with optional status filtering and pagination.
  * IN_PROGRESS submissions are abandoned drafts, not admin history.
@@ -342,8 +342,15 @@ export async function listAdminUsers(params) {
 /**
  * Change a user's role through the shared account-transition boundary.
  */
-export async function changeUserRole(userId, newRole, actorUserId) {
-    return transitionAccountRole(userId, actorUserId, newRole);
+export async function changeUserRole(userId, newRole, actorUserId, reassignmentMap) {
+    return transitionAccountRole(userId, actorUserId, newRole, { reassignmentMap });
+}
+/**
+ * Read the open-work impact before an Examiner capability is removed. The
+ * caller must still submit the exact assignment-to-examiner map separately.
+ */
+export async function previewUserRoleTransition(userId, newRole, actorUserId) {
+    return previewAccountRoleTransition(userId, actorUserId, newRole);
 }
 /**
  * List examiners with their open (non-completed) assignment counts.

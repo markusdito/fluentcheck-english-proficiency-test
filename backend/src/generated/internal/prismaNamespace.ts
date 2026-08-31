@@ -397,6 +397,7 @@ export const ModelName = {
   Answer: 'Answer',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
+  ExaminerAssignmentReassignment: 'ExaminerAssignmentReassignment',
   Score: 'Score',
   Certificate: 'Certificate'
 } as const
@@ -414,7 +415,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "googleOAuthState" | "question" | "task" | "submission" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "score" | "certificate"
+    modelProps: "user" | "googleOAuthState" | "question" | "task" | "submission" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1380,6 +1381,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ExaminerAssignmentReassignment: {
+      payload: Prisma.$ExaminerAssignmentReassignmentPayload<ExtArgs>
+      fields: Prisma.ExaminerAssignmentReassignmentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ExaminerAssignmentReassignmentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ExaminerAssignmentReassignmentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>
+        }
+        findFirst: {
+          args: Prisma.ExaminerAssignmentReassignmentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ExaminerAssignmentReassignmentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>
+        }
+        findMany: {
+          args: Prisma.ExaminerAssignmentReassignmentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>[]
+        }
+        create: {
+          args: Prisma.ExaminerAssignmentReassignmentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>
+        }
+        createMany: {
+          args: Prisma.ExaminerAssignmentReassignmentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ExaminerAssignmentReassignmentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>[]
+        }
+        delete: {
+          args: Prisma.ExaminerAssignmentReassignmentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>
+        }
+        update: {
+          args: Prisma.ExaminerAssignmentReassignmentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>
+        }
+        deleteMany: {
+          args: Prisma.ExaminerAssignmentReassignmentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ExaminerAssignmentReassignmentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ExaminerAssignmentReassignmentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>[]
+        }
+        upsert: {
+          args: Prisma.ExaminerAssignmentReassignmentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ExaminerAssignmentReassignmentPayload>
+        }
+        aggregate: {
+          args: Prisma.ExaminerAssignmentReassignmentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateExaminerAssignmentReassignment>
+        }
+        groupBy: {
+          args: Prisma.ExaminerAssignmentReassignmentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ExaminerAssignmentReassignmentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ExaminerAssignmentReassignmentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ExaminerAssignmentReassignmentCountAggregateOutputType> | number
+        }
+      }
+    }
     Score: {
       payload: Prisma.$ScorePayload<ExtArgs>
       fields: Prisma.ScoreFieldRefs
@@ -1754,6 +1829,19 @@ export const ExaminerAssignmentScalarFieldEnum = {
 export type ExaminerAssignmentScalarFieldEnum = (typeof ExaminerAssignmentScalarFieldEnum)[keyof typeof ExaminerAssignmentScalarFieldEnum]
 
 
+export const ExaminerAssignmentReassignmentScalarFieldEnum = {
+  id: 'id',
+  assignmentId: 'assignmentId',
+  previousExaminerId: 'previousExaminerId',
+  newExaminerId: 'newExaminerId',
+  actingAdminId: 'actingAdminId',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type ExaminerAssignmentReassignmentScalarFieldEnum = (typeof ExaminerAssignmentReassignmentScalarFieldEnum)[keyof typeof ExaminerAssignmentReassignmentScalarFieldEnum]
+
+
 export const ScoreScalarFieldEnum = {
   id: 'id',
   assignmentId: 'assignmentId',
@@ -2111,6 +2199,7 @@ export type GlobalOmitConfig = {
   answer?: Prisma.AnswerOmit
   payment?: Prisma.PaymentOmit
   examinerAssignment?: Prisma.ExaminerAssignmentOmit
+  examinerAssignmentReassignment?: Prisma.ExaminerAssignmentReassignmentOmit
   score?: Prisma.ScoreOmit
   certificate?: Prisma.CertificateOmit
 }

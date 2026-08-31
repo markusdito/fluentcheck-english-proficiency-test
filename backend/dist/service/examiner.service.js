@@ -3,6 +3,7 @@ import { Prisma } from "../generated/client.js";
 import { createQuestionAudioViewUrlFromMetadata, createVideoViewUrlFromMetadata, } from "./upload.service.js";
 import { ScoreValidationError, calculateRubricOverall, readStoredRubric, roundScore, validateAnswerCoverage, validateLegacyScore, validateRubricValues, } from "../utils/scoring.js";
 import { assertLegacyAnswerQuestion, assertLegacySubmissionEvidence, } from "./submissionManifest.service.js";
+import { ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY } from "./account-transition.service.js";
 export class AssignmentSetError extends Error {
     code;
     retryable;
@@ -95,6 +96,11 @@ export async function createExaminerAssignmentSet(submissionId, options = {}) {
     for (let attempt = 1; attempt <= ASSIGNMENT_SET_TRANSACTION_ATTEMPTS; attempt += 1) {
         try {
             return await prisma.$transaction(async (tx) => {
+                // Role transitions and assignment creation share this boundary. The
+                // candidate read therefore cannot race a role change or deactivation.
+                await tx.$executeRaw `
+            SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
+          `;
                 const existing = await readExistingAssignmentSet(tx, submissionId);
                 if (existing) {
                     return { ...existing, outcome: "EXISTING" };
@@ -385,22 +391,28 @@ export async function assignExaminersToSubmission(submissionId) {
  * Mark an assignment as IN_PROGRESS.
  */
 export async function startExaminerAssignment(assignmentId, examinerId) {
-    const assignment = await prisma.examinerAssignment.findUnique({
-        where: { id: assignmentId },
-        select: { examinerId: true, status: true },
-    });
-    if (!assignment) {
-        throw new Error("Assignment not found");
-    }
-    if (assignment.examinerId !== examinerId) {
-        throw new Error("Unauthorized");
-    }
-    if (assignment.status !== "ASSIGNED") {
-        throw new Error("Assignment is not in ASSIGNED status");
-    }
-    await prisma.examinerAssignment.update({
-        where: { id: assignmentId },
-        data: { status: "IN_PROGRESS" },
+    const submissionId = await findAssignmentSubmissionId(assignmentId);
+    await prisma.$transaction(async (tx) => {
+        // Scoring, reassignment, and lifecycle mutations all serialize on the
+        // submission row before ownership/status is read again.
+        await lockScoringSubmission(tx, submissionId);
+        const assignment = await tx.examinerAssignment.findUnique({
+            where: { id: assignmentId },
+            select: { examinerId: true, submissionId: true, status: true },
+        });
+        if (!assignment || assignment.submissionId !== submissionId) {
+            throw new Error("Assignment not found");
+        }
+        if (assignment.examinerId !== examinerId) {
+            throw new Error("Unauthorized");
+        }
+        if (assignment.status !== "ASSIGNED") {
+            throw new Error("Assignment is not in ASSIGNED status");
+        }
+        await tx.examinerAssignment.update({
+            where: { id: assignmentId },
+            data: { status: "IN_PROGRESS" },
+        });
     });
 }
 export class ScoringFinalizationError extends Error {

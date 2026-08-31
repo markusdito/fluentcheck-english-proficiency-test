@@ -7,6 +7,7 @@ import {
   getAdminStats,
   getAdminSubmissionDetail,
   listAdminSubmissions,
+  previewUserRoleTransition,
 } from "../service/admin.service.js";
 import {
   getAppSettings,
@@ -82,7 +83,10 @@ export async function updateUserRole(req: Request, res: Response) {
       return;
     }
 
-    const { role } = req.body as { role?: unknown };
+    const { role, reassignmentMap } = req.body as {
+      role?: unknown;
+      reassignmentMap?: unknown;
+    };
     if (typeof role !== "string" || !ADMIN_ROLES.includes(role)) {
       res
         .status(400)
@@ -106,7 +110,12 @@ export async function updateUserRole(req: Request, res: Response) {
       return;
     }
 
-    const result = await changeUserRole(userId, role as Role, req.user!.id);
+    const result = await changeUserRole(
+      userId,
+      role as Role,
+      req.user!.id,
+      reassignmentMap,
+    );
     res.status(200).json({
       status: "success",
       data: result,
@@ -136,6 +145,53 @@ export async function updateUserRole(req: Request, res: Response) {
       error instanceof Error ? error.message : "Failed to update user role";
     const status = message === "User not found" ? 404 : 500;
     res.status(status).json({ error: message });
+  }
+}
+
+/**
+ * GET /api/admin/users/:id/role-transition-preview?role=STUDENT
+ * Return the read-only impact needed for an exact reassignment map.
+ */
+export async function getRoleTransitionPreview(req: Request, res: Response) {
+  try {
+    const userId = req.params.id as string;
+    const requestedRole = typeof req.query.role === "string" ? req.query.role : undefined;
+    if (!requestedRole || !ADMIN_ROLES.includes(requestedRole)) {
+      res.status(400).json({
+        error: "Role must be one of STUDENT, EXAMINER, ADMIN",
+        code: "INVALID_ROLE",
+      });
+      return;
+    }
+    if (!userId || !UUID_RE.test(userId)) {
+      res.status(404).json({ error: "User not found", code: "USER_NOT_FOUND" });
+      return;
+    }
+
+    const data = await previewUserRoleTransition(
+      userId,
+      requestedRole as Role,
+      req.user!.id,
+    );
+    res.status(200).json({ status: "success", data });
+  } catch (error) {
+    if (error instanceof AccountTransitionError) {
+      const status =
+        error.code === "USER_NOT_FOUND"
+          ? 404
+          : error.code === "UNAUTHORIZED"
+            ? 403
+            : error.code === "INVALID_ROLE" || error.code === "SELF_ROLE_CHANGE"
+              ? 400
+              : 409;
+      res.status(status).json({
+        error: error.message,
+        code: error.code,
+        ...(error.details ?? {}),
+      });
+      return;
+    }
+    res.status(500).json({ error: "Failed to preview role transition" });
   }
 }
 
