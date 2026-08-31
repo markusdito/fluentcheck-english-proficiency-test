@@ -114,7 +114,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /admin/users | source=frontend/app/admin/users/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /admin/users | Administrator user and role management. |
+| /admin/users | Administrator user and role management; capability-removing changes preview open Examiner assignments and require distinct replacement selections before apply. |
 
 <!-- page: /examiner/assignments/[assignmentId] | source=frontend/app/examiner/assignments/[assignmentId]/page.tsx -->
 | Route | Current behavior |

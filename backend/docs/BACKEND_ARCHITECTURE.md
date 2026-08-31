@@ -247,6 +247,9 @@ All administrator routes require an authenticated ADMIN account.
 <!-- route: GET /api/admin/users | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/users | ADMIN | Lists users. |
 
+<!-- route: GET /api/admin/users/:id/role-transition-preview | source=backend/src/routes/admin.routes.ts -->
+| GET | /api/admin/users/:id/role-transition-preview | ADMIN | Previews the open Examiner-assignment impact and eligible replacement candidates for the requested role transition (`role=STUDENT`, `EXAMINER`, or `ADMIN`). |
+
 <!-- route: PUT /api/admin/users/:id/role | source=backend/src/routes/admin.routes.ts -->
 | PUT | /api/admin/users/:id/role | ADMIN | Changes a user's role. |
 
