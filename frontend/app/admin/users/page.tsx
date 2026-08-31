@@ -119,7 +119,10 @@ function TransitionImpactPanel({
                 Current owner: {assignment.currentExaminer.username}
               </p>
               <p className="mt-1 text-xs text-ink-soft">
-                Assignment {assignment.id} · {assignment.scoreCount} saved score{assignment.scoreCount === 1 ? "" : "s"}
+                Assignment {assignment.id} · Submission {assignment.submissionId}
+              </p>
+              <p className="mt-1 text-xs text-ink-soft">
+                {assignment.transferEligible ? "Transfer eligible" : "Transfer blocked"} · {assignment.scoreCount} saved score{assignment.scoreCount === 1 ? "" : "s"}
               </p>
             </div>
             {assignment.status === "IN_PROGRESS" ? (
