@@ -759,6 +759,93 @@ test("assignment start and account deactivation serialize on ownership", async (
   }
 });
 
+test("score saving and account deactivation serialize on ownership", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const replacement = await createUser("replacement", "EXAMINER");
+  const { answers, assignments } = await createLegacyScoringAssignment(
+    target.id,
+    currentPeer.id,
+  );
+  const { AccountTransitionError, deactivateAccount } = await import(
+    "../../src/service/accountTransition.service.js"
+  );
+  const { ScoringFinalizationError, saveExaminerScore } = await import(
+    "../../src/service/examiner.service.js"
+  );
+
+  const [saveResult, transitionResult] = await Promise.allSettled([
+    saveExaminerScore(assignments[0].id, target.id, {
+      answerId: answers[0].id,
+      value: 91,
+    }),
+    deactivateAccount(target.id, admin.id, {
+      reassignmentMap: { [assignments[0].id]: replacement.id },
+    }),
+  ]);
+
+  if (saveResult.status === "fulfilled") {
+    assert.equal(transitionResult.status, "rejected");
+    assert.ok(transitionResult.reason instanceof AccountTransitionError);
+    assert.equal(transitionResult.reason.code, "EXAMINER_ASSIGNMENTS_IN_PROGRESS");
+    assert.equal(
+      (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).status,
+      "IN_PROGRESS",
+    );
+  } else {
+    assert.equal(transitionResult.status, "fulfilled");
+    assert.ok(saveResult.reason instanceof ScoringFinalizationError);
+    assert.equal(saveResult.reason.code, "UNAUTHORIZED");
+    assert.equal(
+      (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).examinerId,
+      replacement.id,
+    );
+  }
+});
+
+test("bulk scoring and account transition serialize without stale finalization", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const replacement = await createUser("replacement", "EXAMINER");
+  const { answers, assignments } = await createLegacyScoringAssignment(
+    target.id,
+    currentPeer.id,
+  );
+  const { AccountTransitionError, transitionAccountRole } = await import(
+    "../../src/service/accountTransition.service.js"
+  );
+  const { ScoringFinalizationError, submitExaminerScores } = await import(
+    "../../src/service/examiner.service.js"
+  );
+  const scores = answers.map((answer) => ({ answerId: answer.id, value: 91 }));
+
+  const [finalizeResult, transitionResult] = await Promise.allSettled([
+    submitExaminerScores(assignments[0].id, target.id, scores),
+    transitionAccountRole(target.id, admin.id, "STUDENT", {
+      reassignmentMap: { [assignments[0].id]: replacement.id },
+    }),
+  ]);
+
+  if (finalizeResult.status === "fulfilled") {
+    assert.equal(transitionResult.status, "rejected");
+    assert.ok(transitionResult.reason instanceof AccountTransitionError);
+    assert.equal(transitionResult.reason.code, "INVALID_REASSIGNMENT");
+    const assignment = await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } });
+    assert.equal(assignment.status, "COMPLETED");
+    assert.equal(assignment.examinerId, target.id);
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "EXAMINER");
+  } else {
+    assert.equal(transitionResult.status, "fulfilled");
+    assert.ok(finalizeResult.reason instanceof ScoringFinalizationError);
+    assert.equal(finalizeResult.reason.code, "UNAUTHORIZED");
+    const assignment = await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } });
+    assert.equal(assignment.examinerId, replacement.id);
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "STUDENT");
+  }
+});
+
 test("assignment creation and role removal share one candidate snapshot", async () => {
   const admin = await createUser("admin", "ADMIN");
   const target = await createUser("target", "EXAMINER");
