@@ -794,6 +794,25 @@ test("concurrent deactivations cannot remove every active administrator", async 
   );
 });
 
+test("deactivating the final active administrator returns a stable conflict", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const { AccountTransitionError, deactivateAccount } = await import(
+    "../../src/service/accountTransition.service.js"
+  );
+
+  await assert.rejects(
+    deactivateAccount(admin.id, admin.id),
+    (error: unknown) => {
+      assert.ok(error instanceof AccountTransitionError);
+      assert.equal(error.code, "LAST_ACTIVE_ADMIN");
+      return true;
+    },
+  );
+  const unchanged = await prisma.user.findUniqueOrThrow({ where: { id: admin.id } });
+  assert.equal(unchanged.role, "ADMIN");
+  assert.equal(unchanged.deletedAt, null);
+});
+
 test("assignment start and account deactivation serialize on ownership", async () => {
   const admin = await createUser("admin", "ADMIN");
   const target = await createUser("target", "EXAMINER");
