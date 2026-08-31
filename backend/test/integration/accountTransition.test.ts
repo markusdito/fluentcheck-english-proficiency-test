@@ -390,6 +390,35 @@ test("an Examiner promoted to ADMIN keeps access to existing work while new assi
     "ADMIN",
   );
   assert.equal(thirdExaminer.role, "EXAMINER");
+
+  const reverse = await requestRole(
+    promoted.id,
+    "EXAMINER",
+    cookieFor(admin.id),
+  );
+  assert.equal(reverse.status, 200);
+  const reverseStudent = await createUser("reverse_student", "STUDENT");
+  const { submission: reverseSubmission } = await createManifestSubmission(
+    reverseStudent.id,
+    "PAID",
+  );
+  const reverseAssignment = await assignmentSet.createExaminerAssignmentSet(
+    reverseSubmission.id,
+    {
+      selectCandidates: (ids) => {
+        assert.ok(ids.includes(promoted.id));
+        const other = ids.find((id) => id !== promoted.id);
+        if (!other) throw new Error("no second eligible examiner");
+        return [promoted.id, other];
+      },
+    },
+  );
+  assert.equal(
+    reverseAssignment.assignedExaminers.some(
+      (examiner) => examiner.id === promoted.id,
+    ),
+    true,
+  );
 });
 
 test("role-transition preview drives an exact reassignment and replay is idempotent", async () => {
