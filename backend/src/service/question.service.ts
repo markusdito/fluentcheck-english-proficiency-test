@@ -264,9 +264,6 @@ export async function updateQuestion(id: string, data: UpdateQuestionInput) {
     });
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
-    if (isTaskPositionViolation(error)) {
-      throw taskPositionConflict("unknown", data.order ?? 0);
-    }
     throw questionPositionConflict(
       data.category ?? existing.category,
       data.order ?? existing.order,

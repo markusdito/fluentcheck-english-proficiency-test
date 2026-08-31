@@ -268,6 +268,35 @@ test("active Question and Task conflicts return 409 without changing existing re
   assert.deepEqual(unchanged, { order: 2, promptText: "Movable task" });
 });
 
+test("concurrent Question creation at one active position admits exactly one record", async () => {
+  const order = nextPosition();
+  const responses = await Promise.all([
+    request("POST", "/questions", {
+      category: "PART_1",
+      order,
+    }),
+    request("POST", "/questions", {
+      category: "PART_1",
+      order,
+    }),
+  ]);
+  const bodies = await Promise.all(
+    responses.map((response) => response.json() as Promise<{ data?: QuestionResponse; error?: string }>),
+  );
+
+  assert.deepEqual(
+    responses.map((response) => response.status).sort((left, right) => left - right),
+    [201, 409],
+  );
+  assert.equal(bodies.filter((body) => body.data !== undefined).length, 1);
+  assert.equal(
+    await prisma.question.count({
+      where: { category: "PART_1", order, deletedAt: null },
+    }),
+    1,
+  );
+});
+
 test("nested Question creation is atomic when a Task position conflicts", async () => {
   const order = nextPosition();
   const response = await request("POST", "/questions", {

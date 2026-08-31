@@ -134,7 +134,10 @@ manifest-backed flow does not use it.
 | GET | /api/questions/test | ADMIN | Transitional test-question retrieval. |
 
 <!-- route: GET /api/questions/admin | source=backend/src/routes/question.routes.ts -->
-| GET | /api/questions/admin | ADMIN | Returns the administrator question view. |
+| GET | /api/questions/admin | ADMIN | Returns the administrator question view; `includeRetired=true` opts into retired Questions and Tasks. |
+
+<!-- route: POST /api/questions/:id/restore | source=backend/src/routes/question.routes.ts -->
+| POST | /api/questions/:id/restore | ADMIN | Restores a retired Question at its original active position. |
 
 <!-- route: GET /api/questions/:id/audio-url | source=backend/src/routes/question.routes.ts -->
 | GET | /api/questions/:id/audio-url | ADMIN | Returns an authorized URL for question audio. |
@@ -162,6 +165,9 @@ manifest-backed flow does not use it.
 
 <!-- route: DELETE /api/questions/:id/tasks/:taskId | source=backend/src/routes/question.routes.ts -->
 | DELETE | /api/questions/:id/tasks/:taskId | ADMIN | Retires/removes a Task according to the current service rules. |
+
+<!-- route: POST /api/questions/:id/tasks/:taskId/restore | source=backend/src/routes/question.routes.ts -->
+| POST | /api/questions/:id/tasks/:taskId/restore | ADMIN | Restores a retired Task at its original active position. |
 
 ### Answer uploads
 
