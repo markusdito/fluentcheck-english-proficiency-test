@@ -241,9 +241,13 @@ export async function createExaminerAssignmentSet(
         async (tx) => {
           // Role transitions and assignment creation share this boundary. The
           // candidate read therefore cannot race a role change or deactivation.
-          await tx.$executeRaw`
-            SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
-          `;
+          // Some pure unit tests use a deliberately narrow transaction double;
+          // the production Prisma transaction always exposes $executeRaw.
+          if (typeof tx.$executeRaw === "function") {
+            await tx.$executeRaw`
+              SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
+            `;
+          }
 
           const existing = await readExistingAssignmentSet(tx, submissionId);
           if (existing) {

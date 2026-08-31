@@ -3,7 +3,7 @@ import { verifyToken } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
 import { createAccountAndIpRateLimiters, } from "../middleware/rate-limit.middleware.js";
 import { RATE_LIMIT_POLICIES } from "../config/rate-limit.js";
-import { getQuestions, getAdminQuestions, createQuestion, updateQuestion, retireQuestion, createTask, updateTask, deleteTask, createQuestionAudioPresignedUrl, confirmQuestionAudioUploadHandler, getQuestionAudioUrl, getTestQuestions, } from "../controllers/question.controller.js";
+import { getQuestions, getAdminQuestions, createQuestion, updateQuestion, retireQuestion, restoreQuestion, createTask, updateTask, deleteTask, restoreTask, createQuestionAudioPresignedUrl, confirmQuestionAudioUploadHandler, getQuestionAudioUrl, getTestQuestions, } from "../controllers/question.controller.js";
 export function createQuestionRouter(runtime) {
     const router = Router();
     const questionAudioLimiters = createAccountAndIpRateLimiters(runtime, RATE_LIMIT_POLICIES.questionAudioStorageAccount, RATE_LIMIT_POLICIES.questionAudioStorageIp);
@@ -13,6 +13,8 @@ export function createQuestionRouter(runtime) {
     router.get("/test", verifyToken, requireRole("ADMIN"), getTestQuestions);
     // Admin question bank — all active questions, including incomplete drafts
     router.get("/admin", verifyToken, requireRole("ADMIN"), getAdminQuestions);
+    // Admin: exact-identity restoration
+    router.post("/:id/restore", verifyToken, requireRole("ADMIN"), restoreQuestion);
     // GET /api/questions/:id/audio-url — presigned GET for question prompt audio
     router.get("/:id/audio-url", verifyToken, requireRole("ADMIN"), getQuestionAudioUrl);
     // Admin: question management
@@ -26,6 +28,7 @@ export function createQuestionRouter(runtime) {
     router.post("/:id/tasks", verifyToken, requireRole("ADMIN"), createTask);
     router.put("/:id/tasks/:taskId", verifyToken, requireRole("ADMIN"), updateTask);
     router.delete("/:id/tasks/:taskId", verifyToken, requireRole("ADMIN"), deleteTask);
+    router.post("/:id/tasks/:taskId/restore", verifyToken, requireRole("ADMIN"), restoreTask);
     return router;
 }
 export default createQuestionRouter();

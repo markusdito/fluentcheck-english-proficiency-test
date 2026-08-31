@@ -12,9 +12,11 @@ import {
   createQuestion,
   updateQuestion,
   retireQuestion,
+  restoreQuestion,
   createTask,
   updateTask,
   deleteTask,
+  restoreTask,
   createQuestionAudioPresignedUrl,
   confirmQuestionAudioUploadHandler,
   getQuestionAudioUrl,
@@ -37,6 +39,9 @@ export function createQuestionRouter(runtime?: RateLimitRuntime) {
 
   // Admin question bank — all active questions, including incomplete drafts
   router.get("/admin", verifyToken, requireRole("ADMIN"), getAdminQuestions);
+
+  // Admin: exact-identity restoration
+  router.post("/:id/restore", verifyToken, requireRole("ADMIN"), restoreQuestion);
 
   // GET /api/questions/:id/audio-url — presigned GET for question prompt audio
   router.get("/:id/audio-url", verifyToken, requireRole("ADMIN"), getQuestionAudioUrl);
@@ -66,6 +71,7 @@ export function createQuestionRouter(runtime?: RateLimitRuntime) {
   router.post("/:id/tasks", verifyToken, requireRole("ADMIN"), createTask);
   router.put("/:id/tasks/:taskId", verifyToken, requireRole("ADMIN"), updateTask);
   router.delete("/:id/tasks/:taskId", verifyToken, requireRole("ADMIN"), deleteTask);
+  router.post("/:id/tasks/:taskId/restore", verifyToken, requireRole("ADMIN"), restoreTask);
 
   return router;
 }

@@ -499,7 +499,7 @@ test("invalid reassignment maps fail atomically without changing role or ownersh
     cookieFor(admin.id),
     { [assignments[0].id]: currentPeer.id },
   );
-  assert.equal(response.status, 409);
+  assert.equal(response.status, 400);
   assert.equal((await response.json()).code, "INVALID_REASSIGNMENT");
   assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "EXAMINER");
   assert.equal(

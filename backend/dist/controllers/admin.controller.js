@@ -95,6 +95,7 @@ export async function updateUserRole(req, res) {
                     : error.code === "LAST_ACTIVE_ADMIN"
                         ? 409
                         : error.code === "INVALID_ROLE" ||
+                            error.code === "INVALID_REASSIGNMENT" ||
                             error.code === "SELF_ROLE_CHANGE"
                             ? 400
                             : 409;
