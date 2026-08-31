@@ -5,6 +5,8 @@ import {
   getSubmissionDetail,
   getSubmissionStatus,
   abandonSubmission,
+  InvalidDashboardCursorError,
+  type DashboardQuery,
 } from "../service/submission.service.js";
 import {
   ActiveSubmissionConflictError,
@@ -138,12 +140,37 @@ export async function finishSubmission(req: Request, res: Response) {
 export async function getDashboard(req: Request, res: Response) {
   try {
     const userId = req.user!.id;
-    const data = await getStudentDashboard(userId);
+    const query: DashboardQuery = {};
+    if (req.query.limit !== undefined) {
+      if (typeof req.query.limit !== "string") {
+        res.status(400).json({ error: "limit must be a positive integer" });
+        return;
+      }
+      const limit = Number(req.query.limit);
+      if (!Number.isSafeInteger(limit) || limit < 1) {
+        res.status(400).json({ error: "limit must be a positive integer" });
+        return;
+      }
+      query.limit = limit;
+    }
+    if (req.query.cursor !== undefined) {
+      if (typeof req.query.cursor !== "string" || req.query.cursor.length === 0) {
+        res.status(400).json({ error: "cursor is invalid" });
+        return;
+      }
+      query.cursor = req.query.cursor;
+    }
+
+    const data = await getStudentDashboard(userId, query);
     res.status(200).json({
       status: "success",
       data,
     });
   } catch (error) {
+    if (error instanceof InvalidDashboardCursorError) {
+      res.status(400).json({ error: "cursor is invalid" });
+      return;
+    }
     console.error("Get dashboard error:", error);
     res.status(500).json({ error: "Failed to load dashboard data" });
   }

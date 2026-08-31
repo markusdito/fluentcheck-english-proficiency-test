@@ -1,5 +1,5 @@
 import { prisma } from "../config/db.js";
-import type { Prisma } from "../generated/client.js";
+import { Prisma } from "../generated/client.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
 import { getAppSettings } from "./settings.service.js";
 import {
@@ -24,6 +24,21 @@ export interface ScaleAwareScore {
   scoringSystem: ScoringSystemValue;
 }
 
+export const DEFAULT_DASHBOARD_PAGE_SIZE = 10;
+export const MAX_DASHBOARD_PAGE_SIZE = 50;
+
+export interface DashboardQuery {
+  limit?: number;
+  cursor?: string;
+}
+
+export class InvalidDashboardCursorError extends Error {
+  constructor() {
+    super("Dashboard cursor is invalid");
+    this.name = "InvalidDashboardCursorError";
+  }
+}
+
 export interface DashboardData {
   totalTests: number;
   bestScore: ScaleAwareScore | null;
@@ -34,6 +49,129 @@ export interface DashboardData {
     scoringSystem: ScoringSystemValue;
     createdAt: Date;
   }>;
+  pagination: {
+    limit: number;
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+}
+
+interface DashboardCursor {
+  createdAt: Date;
+  id: string;
+}
+
+interface DynamicDashboardScoreRow {
+  submissionId: string;
+  score: unknown;
+}
+
+function encodeDashboardCursor(submission: { id: string; createdAt: Date }): string {
+  return Buffer.from(
+    JSON.stringify({
+      version: 1,
+      id: submission.id,
+      createdAt: submission.createdAt.toISOString(),
+    }),
+  ).toString("base64url");
+}
+
+function decodeDashboardCursor(value: string): DashboardCursor {
+  try {
+    const decoded = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as {
+      version?: unknown;
+      id?: unknown;
+      createdAt?: unknown;
+    };
+    if (
+      decoded.version !== 1 ||
+      typeof decoded.id !== "string" ||
+      decoded.id.length === 0 ||
+      typeof decoded.createdAt !== "string"
+    ) {
+      throw new Error("Invalid dashboard cursor payload");
+    }
+
+    const createdAt = new Date(decoded.createdAt);
+    if (
+      Number.isNaN(createdAt.getTime()) ||
+      createdAt.toISOString() !== decoded.createdAt
+    ) {
+      throw new Error("Invalid dashboard cursor timestamp");
+    }
+
+    return { id: decoded.id, createdAt };
+  } catch {
+    throw new InvalidDashboardCursorError();
+  }
+}
+
+function normalizeDashboardLimit(limit: number | undefined): number {
+  if (limit === undefined) return DEFAULT_DASHBOARD_PAGE_SIZE;
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    throw new Error("Dashboard limit must be a positive integer");
+  }
+  return Math.min(MAX_DASHBOARD_PAGE_SIZE, limit);
+}
+
+async function findBestCertificateScore(
+  userId: string,
+  scoringSystem: ScoringSystemValue,
+) {
+  return prisma.certificate.findFirst({
+    where: {
+      submission: {
+        studentId: userId,
+        status: { not: "IN_PROGRESS" },
+        scoringSystem,
+      },
+    },
+    orderBy: [
+      { finalScore: "desc" },
+      { submissionId: "desc" },
+    ],
+    select: {
+      finalScore: true,
+      submission: { select: { scoringSystem: true } },
+    },
+  });
+}
+
+async function readDynamicDashboardScores(
+  submissionIds: string[],
+): Promise<Map<string, string>> {
+  if (submissionIds.length === 0) return new Map();
+
+  const rows = await prisma.$queryRaw<DynamicDashboardScoreRow[]>`
+    WITH answer_scores AS (
+      SELECT
+        a."submissionId" AS "submissionId",
+        a."id" AS "answerId",
+        AVG(s."value") AS "answerScore",
+        COUNT(s."id")::int AS "scoreCount"
+      FROM "Answer" AS a
+      LEFT JOIN "Score" AS s ON s."answerId" = a."id"
+      WHERE a."submissionId" IN (${Prisma.join(
+        submissionIds.map((id) => Prisma.sql`${id}::uuid`),
+      )})
+      GROUP BY a."submissionId", a."id"
+    ),
+    complete_submission_scores AS (
+      SELECT
+        "submissionId",
+        AVG("answerScore") AS "score"
+      FROM answer_scores
+      GROUP BY "submissionId"
+      HAVING COUNT(*) > 0
+        AND COUNT(*) FILTER (WHERE "scoreCount" > 0) = COUNT(*)
+    )
+    SELECT "submissionId", "score"
+    FROM complete_submission_scores
+  `;
+
+  return new Map(
+    rows.map((row) => [row.submissionId, Number(row.score).toFixed(2)]),
+  );
 }
 
 export interface AnswerDetail {
@@ -107,80 +245,87 @@ export async function abandonSubmission(submissionId: string, userId: string) {
 /**
  * Fetch dashboard stats and submission history for the authenticated student.
  */
-export async function getStudentDashboard(userId: string): Promise<DashboardData> {
-  const submissions = await prisma.submission.findMany({
-    where: {
-      studentId: userId,
-      status: { not: "IN_PROGRESS" },
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      certificate: {
-        select: { finalScore: true },
-      },
-      answers: {
-        include: {
-          scores: {
-            select: {
-              value: true,
-              pronunciation: true,
-              fluency: true,
-              vocabulary: true,
-              grammar: true,
-            },
+export async function getStudentDashboard(
+  userId: string,
+  options: DashboardQuery = {},
+): Promise<DashboardData> {
+  const limit = normalizeDashboardLimit(options.limit);
+  const cursor = options.cursor ? decodeDashboardCursor(options.cursor) : undefined;
+  const baseWhere: Prisma.SubmissionWhereInput = {
+    studentId: userId,
+    status: { not: "IN_PROGRESS" },
+  };
+  const historyWhere: Prisma.SubmissionWhereInput = cursor
+    ? {
+        AND: [
+          baseWhere,
+          {
+            OR: [
+              { createdAt: { lt: cursor.createdAt } },
+              { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+            ],
           },
-        },
+        ],
+      }
+    : baseWhere;
+
+  const [totalTests, pageRowsWithExtra, rubricBest, legacyBest] = await Promise.all([
+    prisma.submission.count({ where: baseWhere }),
+    prisma.submission.findMany({
+      where: historyWhere,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      select: {
+        id: true,
+        status: true,
+        scoringSystem: true,
+        createdAt: true,
+        certificate: { select: { finalScore: true } },
       },
-    },
-  });
+    }),
+    findBestCertificateScore(userId, "RUBRIC_6"),
+    findBestCertificateScore(userId, "LEGACY_100"),
+  ]);
 
-  const certificateScores = submissions.flatMap((submission) =>
-    submission.certificate
-      ? [{
-          value: Number(submission.certificate.finalScore),
-          scoringSystem: submission.scoringSystem,
-        }]
-      : [],
+  const hasMore = pageRowsWithExtra.length > limit;
+  const pageRows = hasMore
+    ? pageRowsWithExtra.slice(0, limit)
+    : pageRowsWithExtra;
+  const dynamicScores = await readDynamicDashboardScores(
+    pageRows.flatMap((submission) =>
+      !submission.certificate &&
+      (submission.status === "SCORED" || submission.status === "CERTIFIED")
+        ? [submission.id]
+        : [],
+    ),
   );
-  const rubricCertificateScores = certificateScores.filter(
-    (score) => score.scoringSystem === "RUBRIC_6",
-  );
-  const preferredScores =
-    rubricCertificateScores.length > 0
-      ? rubricCertificateScores
-      : certificateScores.filter((score) => score.scoringSystem === "LEGACY_100");
-
-  const totalTests = submissions.length;
-  const bestScore = preferredScores.length > 0
-    ? preferredScores.reduce((best, score) =>
-        score.value > best.value ? score : best,
-      )
-    : null;
+  const bestCertificate = rubricBest ?? legacyBest;
 
   return {
     totalTests,
-    bestScore,
-    submissions: submissions.map((s) => {
-      let dynamicScore: string | null = null;
-      if (!s.certificate && (s.status === "SCORED" || s.status === "CERTIFIED")) {
-        const answerScores = s.answers.flatMap((a) =>
-          a.scores.length > 0
-            ? [average(a.scores.map((score) => Number(score.value)))!]
-            : [],
-        );
-        if (answerScores.length === s.answers.length && answerScores.length > 0) {
-          dynamicScore = average(answerScores)!.toFixed(2);
+    bestScore: bestCertificate
+      ? {
+          value: Number(bestCertificate.finalScore),
+          scoringSystem: bestCertificate.submission.scoringSystem,
         }
-      }
-
-      return {
-        id: s.id,
-        status: s.status,
-        score: s.certificate?.finalScore?.toString() ?? dynamicScore,
-        scoringSystem: s.scoringSystem,
-        createdAt: s.createdAt,
-      };
-    }),
+      : null,
+    submissions: pageRows.map((submission) => ({
+      id: submission.id,
+      status: submission.status,
+      score:
+        submission.certificate?.finalScore?.toString() ??
+        dynamicScores.get(submission.id) ??
+        null,
+      scoringSystem: submission.scoringSystem,
+      createdAt: submission.createdAt,
+    })),
+    pagination: {
+      limit,
+      hasMore,
+      nextCursor: hasMore
+        ? encodeDashboardCursor(pageRows[pageRows.length - 1]!)
+        : null,
+    },
   };
 }
 
