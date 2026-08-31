@@ -469,7 +469,7 @@ async function transitionInsideTransaction(
   tx: Prisma.TransactionClient,
   targetUserId: string,
   actorUserId: string,
-  requestedRole: Role,
+  requestedRole: Role | undefined,
   deactivate: boolean,
   reassignmentMap: Record<string, string>,
 ): Promise<AccountTransitionResult> {
@@ -500,6 +500,8 @@ async function transitionInsideTransaction(
     );
   }
 
+  const nextRole = (requestedRole ?? target.role) as Role;
+
   if (target.deletedAt !== null) {
     if (!deactivate) {
       throw new AccountTransitionError(
@@ -526,7 +528,7 @@ async function transitionInsideTransaction(
     return userResult("ALREADY_APPLIED", target, replay);
   }
 
-  if (!deactivate && target.role === requestedRole) {
+  if (!deactivate && target.role === nextRole) {
     if (Object.keys(reassignmentMap).length === 0) {
       return userResult("ALREADY_APPLIED", target);
     }
@@ -545,7 +547,7 @@ async function transitionInsideTransaction(
 
   if (
     target.role === "ADMIN" &&
-    (deactivate || requestedRole !== "ADMIN")
+    (deactivate || nextRole !== "ADMIN")
   ) {
     const activeAdminCount = await tx.user.count({
       where: { role: "ADMIN", deletedAt: null },
@@ -589,7 +591,7 @@ async function transitionInsideTransaction(
   );
   const shouldTransfer = requiresAssignmentTransfer(
     target.role,
-    requestedRole,
+    nextRole,
     deactivate,
   );
 
@@ -691,7 +693,7 @@ async function transitionInsideTransaction(
   const updated = await tx.user.update({
     where: { id: targetUserId },
     data: {
-      role: requestedRole,
+      role: nextRole,
       ...(deactivate ? { deletedAt: new Date() } : {}),
     },
     select: {
@@ -705,7 +707,7 @@ async function transitionInsideTransaction(
   });
 
   return userResult(
-    deactivate || target.role !== requestedRole ? "UPDATED" : "ALREADY_APPLIED",
+    deactivate || target.role !== nextRole ? "UPDATED" : "ALREADY_APPLIED",
     updated,
     transferred,
   );
@@ -757,52 +759,16 @@ export async function deactivateAccount(
 ): Promise<AccountTransitionResult> {
   const reassignmentMap = parseReassignmentMap(options.reassignmentMap);
   const database = options.database ?? prisma;
-  return runSerializableTransition(database, "deactivation", async (tx) => {
-    await tx.$executeRaw`
-      SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
-    `;
-    const targetRows = await tx.$queryRaw<LockedUser[]>`
-      SELECT
-        "id"::text AS "id",
-        "username",
-        "email",
-        "role"::text AS "role",
-        "createdAt",
-        "deletedAt"
-        FROM "User"
-       WHERE "id" = ${targetUserId}::uuid
-       FOR UPDATE
-    `;
-    const target = targetRows[0];
-    if (!target) {
-      throw new AccountTransitionError("USER_NOT_FOUND", "User not found", { userId: targetUserId });
-    }
-    const users = await lockUsers(tx, [
-      actorUserId,
-      ...Object.values(reassignmentMap),
-    ]);
-    const actor = users.get(actorUserId);
-    if (!actor || actor.deletedAt !== null || actor.role !== "ADMIN") {
-      throw new AccountTransitionError(
-        "UNAUTHORIZED",
-        "Only an active administrator can transition accounts",
-      );
-    }
-    if (targetUserId === actorUserId) {
-      throw new AccountTransitionError(
-        "SELF_ROLE_CHANGE",
-        "Cannot change your own role",
-      );
-    }
-    return transitionInsideTransaction(
+  return runSerializableTransition(database, "deactivation", (tx) =>
+    transitionInsideTransaction(
       tx,
       targetUserId,
       actorUserId,
-      target.role as Role,
+      undefined,
       true,
       reassignmentMap,
-    );
-  });
+    ),
+  );
 }
 
 /** Read-only impact data used to build an exact reassignment map. */

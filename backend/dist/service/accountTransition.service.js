@@ -258,6 +258,7 @@ async function transitionInsideTransaction(tx, targetUserId, actorUserId, reques
     if (!target) {
         throw new AccountTransitionError("USER_NOT_FOUND", "User not found", { userId: targetUserId });
     }
+    const nextRole = (requestedRole ?? target.role);
     if (target.deletedAt !== null) {
         if (!deactivate) {
             throw new AccountTransitionError("USER_NOT_FOUND", "User not found", { userId: targetUserId });
@@ -271,7 +272,7 @@ async function transitionInsideTransaction(tx, targetUserId, actorUserId, reques
         }
         return userResult("ALREADY_APPLIED", target, replay);
     }
-    if (!deactivate && target.role === requestedRole) {
+    if (!deactivate && target.role === nextRole) {
         if (Object.keys(reassignmentMap).length === 0) {
             return userResult("ALREADY_APPLIED", target);
         }
@@ -281,7 +282,7 @@ async function transitionInsideTransaction(tx, targetUserId, actorUserId, reques
         throw new AccountTransitionError("REASSIGNMENT_CONFLICT", "The requested reassignment is not the committed account state");
     }
     if (target.role === "ADMIN" &&
-        (deactivate || requestedRole !== "ADMIN")) {
+        (deactivate || nextRole !== "ADMIN")) {
         const activeAdminCount = await tx.user.count({
             where: { role: "ADMIN", deletedAt: null },
         });
@@ -311,7 +312,7 @@ async function transitionInsideTransaction(tx, targetUserId, actorUserId, reques
         });
     validateAssignmentSets(assignmentSetRows);
     const openAssignments = assignments.filter((assignment) => assignment.status === "ASSIGNED" || assignment.status === "IN_PROGRESS");
-    const shouldTransfer = requiresAssignmentTransfer(target.role, requestedRole, deactivate);
+    const shouldTransfer = requiresAssignmentTransfer(target.role, nextRole, deactivate);
     if (!shouldTransfer && Object.keys(reassignmentMap).length > 0) {
         throw new AccountTransitionError("INVALID_REASSIGNMENT", "Reassignment is only accepted when Examiner capability is being removed");
     }
@@ -378,7 +379,7 @@ async function transitionInsideTransaction(tx, targetUserId, actorUserId, reques
     const updated = await tx.user.update({
         where: { id: targetUserId },
         data: {
-            role: requestedRole,
+            role: nextRole,
             ...(deactivate ? { deletedAt: new Date() } : {}),
         },
         select: {
@@ -390,7 +391,7 @@ async function transitionInsideTransaction(tx, targetUserId, actorUserId, reques
             deletedAt: true,
         },
     });
-    return userResult(deactivate || target.role !== requestedRole ? "UPDATED" : "ALREADY_APPLIED", updated, transferred);
+    return userResult(deactivate || target.role !== nextRole ? "UPDATED" : "ALREADY_APPLIED", updated, transferred);
 }
 /**
  * Change an account's role inside the shared PostgreSQL transition boundary.
@@ -411,39 +412,7 @@ export async function transitionAccountRole(targetUserId, actorUserId, requested
 export async function deactivateAccount(targetUserId, actorUserId, options = {}) {
     const reassignmentMap = parseReassignmentMap(options.reassignmentMap);
     const database = options.database ?? prisma;
-    return runSerializableTransition(database, "deactivation", async (tx) => {
-        await tx.$executeRaw `
-      SELECT pg_advisory_xact_lock(${ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY})
-    `;
-        const targetRows = await tx.$queryRaw `
-      SELECT
-        "id"::text AS "id",
-        "username",
-        "email",
-        "role"::text AS "role",
-        "createdAt",
-        "deletedAt"
-        FROM "User"
-       WHERE "id" = ${targetUserId}::uuid
-       FOR UPDATE
-    `;
-        const target = targetRows[0];
-        if (!target) {
-            throw new AccountTransitionError("USER_NOT_FOUND", "User not found", { userId: targetUserId });
-        }
-        const users = await lockUsers(tx, [
-            actorUserId,
-            ...Object.values(reassignmentMap),
-        ]);
-        const actor = users.get(actorUserId);
-        if (!actor || actor.deletedAt !== null || actor.role !== "ADMIN") {
-            throw new AccountTransitionError("UNAUTHORIZED", "Only an active administrator can transition accounts");
-        }
-        if (targetUserId === actorUserId) {
-            throw new AccountTransitionError("SELF_ROLE_CHANGE", "Cannot change your own role");
-        }
-        return transitionInsideTransaction(tx, targetUserId, actorUserId, target.role, true, reassignmentMap);
-    });
+    return runSerializableTransition(database, "deactivation", (tx) => transitionInsideTransaction(tx, targetUserId, actorUserId, undefined, true, reassignmentMap));
 }
 /** Read-only impact data used to build an exact reassignment map. */
 export async function previewAccountRoleTransition(targetUserId, actorUserId, requestedRole, dependencies = {}) {
