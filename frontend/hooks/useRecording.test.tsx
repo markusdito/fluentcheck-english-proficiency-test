@@ -14,7 +14,7 @@ class FakeMediaRecorder {
   ondataavailable: RecorderCallback = null;
   onstop: (() => void) | null = null;
   onerror: (() => void) | null = null;
-  readonly start = vi.fn((..._args: unknown[]) => {
+  readonly start = vi.fn(() => {
     this.state = "recording";
   });
   readonly stop = vi.fn(() => {
