@@ -37,10 +37,30 @@ export interface DeliveredManifestEntry {
   tasks: Array<{ order: number; promptText: string }>;
 }
 
+export type ManifestDeliveryFailureReason =
+  | "SIGNING_FAILED"
+  | "INVALID_SIGNED_URL"
+  | "MISSING_MEDIA_METADATA";
+
+export interface ManifestDeliveryFailure {
+  entryId: string;
+  category: string;
+  reason: ManifestDeliveryFailureReason;
+}
+
+export interface ManifestDeliveryDiagnostics {
+  operation: "prompt-media-signing";
+  failureCount: number;
+  failures: ManifestDeliveryFailure[];
+}
+
 export class ManifestEvidenceUnavailableError extends Error {
-  constructor(message: string) {
+  readonly diagnostics?: ManifestDeliveryDiagnostics;
+
+  constructor(message: string, diagnostics?: ManifestDeliveryDiagnostics) {
     super(message);
     this.name = "ManifestEvidenceUnavailableError";
+    this.diagnostics = diagnostics;
   }
 }
 
@@ -48,6 +68,15 @@ type SignPromptMedia = (
   storageKey: string,
   mimeType: string,
 ) => Promise<string>;
+
+export function isValidPromptMediaUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname.length > 0;
+  } catch {
+    return false;
+  }
+}
 
 function assertVersionOne(manifest: ManifestDeliveryManifest) {
   if (manifest.version !== 1) {
@@ -60,7 +89,7 @@ function validateEntry(entry: ManifestDeliveryEntry) {
     !entry.id ||
     !entry.promptMediaStorageKey ||
     !entry.promptMediaMimeType ||
-    entry.promptMediaSizeBytes < 0 ||
+    entry.promptMediaSizeBytes <= 0 ||
     entry.preparationSeconds < 0 ||
     entry.recordingSeconds < 0 ||
     entry.tasks.length === 0
@@ -100,40 +129,71 @@ export async function buildManifestDelivery(
   assertVersionOne(manifest);
   validateShape(manifest.entries);
 
-  const delivered = await Promise.all(
-    [...manifest.entries]
-      .sort((left, right) => left.deliveryPosition - right.deliveryPosition)
-      .map(async (entry) => {
-        let promptMediaUrl: string;
-        try {
-          promptMediaUrl = await signPromptMedia(
-            entry.promptMediaStorageKey,
-            entry.promptMediaMimeType,
-          );
-        } catch {
-          throw new ManifestEvidenceUnavailableError("Prompt media unavailable");
-        }
-        if (!promptMediaUrl || !/^https:\/\//.test(promptMediaUrl)) {
-          throw new ManifestEvidenceUnavailableError("Prompt media unavailable");
-        }
-        return {
-          id: entry.id,
-          category: entry.category,
-          deliveryPosition: entry.deliveryPosition,
-          preparationSeconds: entry.preparationSeconds,
-          recordingSeconds: entry.recordingSeconds,
-          promptMediaMimeType: entry.promptMediaMimeType,
-          promptMediaSizeBytes: entry.promptMediaSizeBytes,
-          promptMediaUrl,
-          tasks: entry.tasks
-            .slice()
-            .sort((left, right) => left.deliveredOrder - right.deliveredOrder)
-            .map((task) => ({
-              order: task.deliveredOrder,
-              promptText: task.deliveredText,
-            })),
-        };
-      }),
+  const orderedEntries = [...manifest.entries].sort(
+    (left, right) => left.deliveryPosition - right.deliveryPosition,
   );
-  return delivered;
+  const attempts = await Promise.all(
+    orderedEntries.map(async (entry) => {
+      try {
+        const promptMediaUrl = await signPromptMedia(
+          entry.promptMediaStorageKey,
+          entry.promptMediaMimeType,
+        );
+        if (!isValidPromptMediaUrl(promptMediaUrl)) {
+          return {
+            entry,
+            failure: {
+              entryId: entry.id,
+              category: entry.category,
+              reason: "INVALID_SIGNED_URL" as const,
+            },
+          };
+        }
+        return { entry, promptMediaUrl };
+      } catch {
+        return {
+          entry,
+          failure: {
+            entryId: entry.id,
+            category: entry.category,
+            reason: "SIGNING_FAILED" as const,
+          },
+        };
+      }
+    }),
+  );
+  const failures = attempts.flatMap((attempt) =>
+    attempt.failure ? [attempt.failure] : [],
+  );
+  if (failures.length > 0) {
+    throw new ManifestEvidenceUnavailableError("Prompt media unavailable", {
+      operation: "prompt-media-signing",
+      failureCount: failures.length,
+      failures,
+    });
+  }
+
+  return attempts.map((attempt) => {
+    if (!attempt.promptMediaUrl) {
+      throw new ManifestEvidenceUnavailableError("Prompt media unavailable");
+    }
+    const { entry } = attempt;
+    return {
+      id: entry.id,
+      category: entry.category,
+      deliveryPosition: entry.deliveryPosition,
+      preparationSeconds: entry.preparationSeconds,
+      recordingSeconds: entry.recordingSeconds,
+      promptMediaMimeType: entry.promptMediaMimeType,
+      promptMediaSizeBytes: entry.promptMediaSizeBytes,
+      promptMediaUrl: attempt.promptMediaUrl,
+      tasks: entry.tasks
+        .slice()
+        .sort((left, right) => left.deliveredOrder - right.deliveredOrder)
+        .map((task) => ({
+          order: task.deliveredOrder,
+          promptText: task.deliveredText,
+        })),
+    };
+  });
 }
