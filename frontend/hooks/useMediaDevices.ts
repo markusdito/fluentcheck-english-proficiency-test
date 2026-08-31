@@ -63,6 +63,25 @@ function cancelAnimationFrameSafely(handle: number | null) {
   }
 }
 
+interface MonitorResources {
+  audioContext: AudioContext | null;
+  source: MediaStreamAudioSourceNode | null;
+  analyser: AnalyserNode | null;
+  animationFrame: number | null;
+}
+
+function releaseMonitorResources({
+  audioContext,
+  source,
+  analyser,
+  animationFrame,
+}: MonitorResources) {
+  cancelAnimationFrameSafely(animationFrame);
+  disconnectAudioNode(source);
+  disconnectAudioNode(analyser);
+  closeAudioContext(audioContext);
+}
+
 export function useMediaDevices(): UseMediaDevicesReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
@@ -158,10 +177,13 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       if (monitorTokenRef.current === monitorToken) {
         monitorTokenRef.current = null;
       }
-      if (animationRef.current !== null) {
-        cancelAnimationFrameSafely(animationRef.current);
-        animationRef.current = null;
-      }
+      releaseMonitorResources({
+        audioContext,
+        source,
+        analyser,
+        animationFrame: animationRef.current,
+      });
+      animationRef.current = null;
       if (sourceRef.current === source) {
         sourceRef.current = null;
       }
@@ -171,9 +193,6 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       if (audioContextRef.current === audioContext) {
         audioContextRef.current = null;
       }
-      disconnectAudioNode(source);
-      disconnectAudioNode(analyser);
-      closeAudioContext(audioContext);
       throw error;
     }
   }, []);
@@ -181,17 +200,16 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   /** Stop mic monitoring and release every resource it owns. */
   const stopMicMonitor = useCallback((resetState = true) => {
     monitorTokenRef.current = null;
-    if (animationRef.current !== null) {
-      cancelAnimationFrameSafely(animationRef.current);
-      animationRef.current = null;
-    }
-    disconnectAudioNode(sourceRef.current);
+    releaseMonitorResources({
+      audioContext: audioContextRef.current,
+      source: sourceRef.current,
+      analyser: analyserRef.current,
+      animationFrame: animationRef.current,
+    });
+    animationRef.current = null;
     sourceRef.current = null;
-    disconnectAudioNode(analyserRef.current);
     analyserRef.current = null;
-    const audioContext = audioContextRef.current;
     audioContextRef.current = null;
-    closeAudioContext(audioContext);
     if (resetState) {
       setIsMicActive(false);
       setMicLevel(0);
