@@ -5,11 +5,14 @@ const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
 });
 const adapter = new PrismaPg(pool);
+const prismaLog = process.env.PRISMA_QUERY_EVENTS === "1"
+    ? [{ emit: "event", level: "query" }]
+    : process.env.NODE_ENV === "development"
+        ? ["query", "error", "warn"]
+        : ["error"];
 const prisma = new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"]
+    log: prismaLog,
 });
 const connectDB = async () => {
     try {
