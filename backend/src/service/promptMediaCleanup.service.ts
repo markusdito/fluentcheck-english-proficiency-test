@@ -699,7 +699,7 @@ async function finalizeCandidate(
           error: message,
         };
       }
-    });
+    }, { maxWait: 60_000, timeout: 60_000 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Cleanup finalization failed";
     try {

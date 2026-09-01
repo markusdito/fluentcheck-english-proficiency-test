@@ -227,6 +227,24 @@ test("purge approval requires dual control and creates a recoverable quarantine"
     }),
     /Answer writes are blocked for a non-retained Submission/u,
   );
+  const quarantinedManifest = await prisma.submissionManifest.findUniqueOrThrow({
+    where: { submissionId: fixture.submission.id },
+  });
+  await assert.rejects(
+    prisma.manifestEntry.create({
+      data: {
+        manifestId: quarantinedManifest.id,
+        submissionId: fixture.submission.id,
+        category: "PART_1",
+        deliveryPosition: 99,
+        sourceQuestionId: fixture.question.id,
+        promptMediaStorageKey: fixture.question.audioStorageKey,
+        promptMediaMimeType: "audio/webm",
+        promptMediaSizeBytes: 10,
+      },
+    }),
+    /Manifest evidence writes are blocked for a non-retained Submission/u,
+  );
   const otherFixture = await createPurgeFixture(false);
   await assert.rejects(
     prisma.answer.create({
