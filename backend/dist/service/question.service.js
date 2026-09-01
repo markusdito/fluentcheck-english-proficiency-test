@@ -20,6 +20,14 @@ export class DuplicateTaskPositionError extends Error {
         this.name = "DuplicateTaskPositionError";
     }
 }
+export class QuestionPromptMediaUnavailableError extends Error {
+    storageKey;
+    constructor(storageKey) {
+        super(`Question cannot be restored after the irreversible Prompt-media cleanup boundary: ${storageKey}`);
+        this.storageKey = storageKey;
+        this.name = "QuestionPromptMediaUnavailableError";
+    }
+}
 function isUniqueViolation(error) {
     return ((error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
         (typeof error === "object" &&
@@ -342,27 +350,52 @@ async function retrieveAdminQuestion(id) {
 export async function restoreQuestion(id) {
     if (!isUuid(id))
         throw new Error("Question not found");
-    const existing = await prisma.question.findUnique({
-        where: { id },
-        select: { id: true, category: true, order: true, deletedAt: true },
-    });
-    if (!existing)
-        throw new Error("Question not found");
-    if (existing.deletedAt) {
-        try {
-            await prisma.question.update({
-                where: { id },
-                data: { deletedAt: null },
-            });
-        }
-        catch (error) {
-            if (isUniqueViolation(error)) {
-                throw questionPositionConflict(existing.category, existing.order);
+    return prisma.$transaction(async (transaction) => {
+        const existing = await transaction.question.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                category: true,
+                order: true,
+                audioStorageKey: true,
+                deletedAt: true,
+            },
+        });
+        if (!existing)
+            throw new Error("Question not found");
+        if (existing.deletedAt) {
+            await lockPromptMediaStorageIdentity(transaction, existing.audioStorageKey ?? "");
+            if (existing.audioStorageKey) {
+                const cleanupObject = await transaction.promptMediaCleanupObject.findUnique({
+                    where: { storageKey: existing.audioStorageKey },
+                    select: { status: true },
+                });
+                if (cleanupObject?.status === "DELETED" || cleanupObject?.status === "MISSING") {
+                    throw new QuestionPromptMediaUnavailableError(existing.audioStorageKey);
+                }
             }
-            throw error;
+            try {
+                await transaction.question.update({
+                    where: { id },
+                    data: { deletedAt: null },
+                });
+            }
+            catch (error) {
+                if (isUniqueViolation(error)) {
+                    throw questionPositionConflict(existing.category, existing.order);
+                }
+                throw error;
+            }
         }
-    }
-    return retrieveAdminQuestion(id);
+        return transaction.question.findUniqueOrThrow({
+            where: { id },
+            include: {
+                tasks: {
+                    orderBy: { order: "asc" },
+                },
+            },
+        });
+    });
 }
 /** Restore a Task at its original Question/order position independently. */
 export async function restoreTask(questionId, taskId) {

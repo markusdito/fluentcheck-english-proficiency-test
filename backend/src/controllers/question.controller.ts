@@ -14,6 +14,7 @@ import {
   restoreTask as restoreTaskService,
   PositionConflictError,
   DuplicateTaskPositionError,
+  QuestionPromptMediaUnavailableError,
 } from "../service/question.service.js";
 import {
   createQuestionAudioPresignedUpload,
@@ -146,7 +147,8 @@ function isNonNegativeInteger(value: unknown): value is number {
 function handleQuestionError(res: Response, error: unknown) {
   if (
     error instanceof PositionConflictError ||
-    error instanceof DuplicateTaskPositionError
+    error instanceof DuplicateTaskPositionError ||
+    error instanceof QuestionPromptMediaUnavailableError
   ) {
     res.status(409).json({ error: error.message });
     return;

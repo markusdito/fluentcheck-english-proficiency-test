@@ -1,6 +1,6 @@
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
-import { retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, restoreQuestion as restoreQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, restoreTask as restoreTaskService, PositionConflictError, DuplicateTaskPositionError, } from "../service/question.service.js";
+import { retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, restoreQuestion as restoreQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, restoreTask as restoreTaskService, PositionConflictError, DuplicateTaskPositionError, QuestionPromptMediaUnavailableError, } from "../service/question.service.js";
 import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, createQuestionAudioViewUrlFromMetadata, } from "../service/upload.service.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 import { ManifestEvidenceUnavailableError, } from "../service/submissionManifestDelivery.service.js";
@@ -108,7 +108,8 @@ function isNonNegativeInteger(value) {
 }
 function handleQuestionError(res, error) {
     if (error instanceof PositionConflictError ||
-        error instanceof DuplicateTaskPositionError) {
+        error instanceof DuplicateTaskPositionError ||
+        error instanceof QuestionPromptMediaUnavailableError) {
         res.status(409).json({ error: error.message });
         return;
     }

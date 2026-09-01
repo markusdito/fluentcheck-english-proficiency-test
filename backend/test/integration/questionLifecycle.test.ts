@@ -424,6 +424,51 @@ test("Question restoration is exact, idempotent, and conflict-safe", async () =>
   assert.equal((await request("POST", "/questions/not-a-question/restore")).status, 404);
 });
 
+test("Question restoration cannot revive media after cleanup crosses the irreversible boundary", async () => {
+  const question = await createQuestion("PART_3", nextPosition());
+  const storageKey = `questions/${question.id}/prompt.webm`;
+  await prisma.question.update({
+    where: { id: question.id },
+    data: {
+      audioStorageKey: storageKey,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 10,
+      audioUploadStatus: "UPLOADED",
+      deletedAt: new Date("2026-01-01T00:00:00.000Z"),
+    },
+  });
+  const cleanupRun = await prisma.promptMediaCleanupRun.create({
+    data: {
+      mode: "FINALIZE",
+      actorId: adminId,
+      authorizationId: "cleanup-irreversible-boundary",
+      reason: "Prompt media was deleted",
+      policyVersion: "2026-08-31",
+      status: "COMPLETED",
+      completedAt: new Date("2026-02-01T00:00:00.000Z"),
+    },
+  });
+  await prisma.promptMediaCleanupObject.create({
+    data: {
+      sourceQuestionId: question.id,
+      storageKey,
+      bucket: "question-lifecycle-test-bucket",
+      eligibilityReason: "No retained references",
+      status: "DELETED",
+      lastRunId: cleanupRun.id,
+      deletedAt: new Date("2026-02-01T00:00:00.000Z"),
+    },
+  });
+
+  const restore = await request("POST", `/questions/${question.id}/restore`);
+  assert.equal(restore.status, 409);
+  assert.match((await restore.json() as { error: string }).error, /irreversible Prompt-media cleanup boundary/u);
+  assert.notEqual(
+    (await prisma.question.findUniqueOrThrow({ where: { id: question.id }, select: { deletedAt: true } })).deletedAt,
+    null,
+  );
+});
+
 test("Task restoration is independent of its parent Question and ownership", async () => {
   const parent = await createQuestion("PART_3", nextPosition(), [
     { promptText: "Restore independently", order: 1 },
