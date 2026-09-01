@@ -406,6 +406,12 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
+    -- ON DELETE SET NULL uses an internal trigger update to preserve the
+    -- audit row after its optional target is purged. Direct UPDATE/DELETE
+    -- statements still run at trigger depth one and remain forbidden.
+    IF pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
     RAISE EXCEPTION
       'Retention audit events are immutable: %', TG_OP
       USING ERRCODE = '55000';

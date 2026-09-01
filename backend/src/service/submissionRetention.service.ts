@@ -788,6 +788,10 @@ async function completeSubmissionPurge(
     // This setting is transaction-local and is accepted only while this
     // request is QUARANTINED. It is the sole escape hatch from the ordinary
     // manifest immutability triggers.
+    await transaction.submissionPurgeRequest.update({
+      where: { id: request.id },
+      data: { status: "QUARANTINED", lastError: null },
+    });
     await transaction.$executeRaw`
       SELECT set_config('fluentcheck.retention_purge_request_id', ${request.id}, true)
     `;
