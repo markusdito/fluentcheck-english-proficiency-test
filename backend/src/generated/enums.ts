@@ -107,6 +107,7 @@ export const SubmissionPurgeObjectStatus = {
   QUARANTINED: 'QUARANTINED',
   DELETE_PENDING: 'DELETE_PENDING',
   DELETED: 'DELETED',
+  MISSING: 'MISSING',
   FAILED: 'FAILED',
   CANCELLED: 'CANCELLED'
 } as const
@@ -136,6 +137,7 @@ export type PromptMediaCleanupRunMode = (typeof PromptMediaCleanupRunMode)[keyof
 
 
 export const PromptMediaCleanupRunStatus = {
+  RUNNING: 'RUNNING',
   COMPLETED: 'COMPLETED',
   FAILED: 'FAILED'
 } as const

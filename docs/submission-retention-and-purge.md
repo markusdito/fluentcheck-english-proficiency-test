@@ -9,7 +9,7 @@ This runbook implements the accepted policy in ADR-0015. It is intentionally con
 - `PAID`, `SCORING`, `SCORED`, and `CERTIFIED` Submissions are blocked in v1. A future policy revision must define their legal/business retention before code may loosen this gate.
 - A purge request records the target identity, requester, reason, policy version, and timestamp. A different active `ADMIN` must approve it.
 - Approval moves the Submission to quarantine for 30 days and blocks student, examiner, and administrator evidence access. Recovery is a cancellation before finalization; cancellation never rewrites or fabricates evidence.
-- Finalization deletes only the exact Answer-media identities captured in the purge request. It then removes Answer rows, manifest tasks/entries, the manifest, the start intent, and the purgeable Submission. The immutable Retention audit remains.
+- Finalization deletes only the exact Answer-media identities captured in the purge request while each identity lock is held. It then removes Answer rows, manifest tasks/entries, the manifest, the start intent, and the purgeable Submission. The immutable Retention audit remains. An already-absent object is stored as `MISSING` and counts as confirmed absence; it is never reported as deleted by this run.
 - Prompt media is never deleted by Submission purge. Its separate cleanup workflow protects both retained Answer references and retained Manifest-entry snapshot references.
 
 ## Dry-run inventory
@@ -28,7 +28,7 @@ The inventory is not a bucket scan. Invalid or missing identities, storage failu
 
 The service boundary requires an active administrator, a non-empty reason, and a distinct approving active administrator. The request and approval create immutable Retention audit events. An active hold or an ineligible Submission state fails closed; it never creates a partial purge.
 
-The approved request captures Answer-media identities before quarantine. A request may be cancelled while all captured objects remain quarantined and no final deletion attempt has started. Once finalization begins, cancellation is rejected.
+The approved request captures Answer-media identities before quarantine and reserves those identities against new Answer writes. A request may be cancelled while all captured objects remain quarantined and no final deletion attempt has started. Once finalization begins, cancellation is rejected. A pre-existing identity shared by another non-purged Submission blocks approval and finalization.
 
 ## Authorized Prompt-media cleanup
 
@@ -54,13 +54,14 @@ RETENTION_CLEANUP_ENABLED=1 npm run cleanup:prompt-media -- \
   --reason "Approved finalization after quarantine"
 ```
 
-Finalization acquires the per-identity PostgreSQL advisory lock, rechecks Retired source state and retained Answer/Manifest-entry references, and keeps that lock through the storage delete and follow-up existence check. A new reference therefore either commits before the check and blocks deletion, or waits until after a confirmed deletion. The operation never reports `DELETED` from the delete request alone.
+Finalization acquires the per-identity PostgreSQL advisory lock, rechecks Retired source state and retained Answer/Manifest-entry references, and keeps that lock through the storage delete and follow-up existence check. A new reference therefore either commits before the check and blocks deletion, or waits until after a confirmed deletion. The operation never reports `DELETED` from the delete request alone. Authorized cleanup runs are durable `RUNNING` records until they become `COMPLETED` or `FAILED`, so an interrupted run remains visible for retry.
 
 ## Failure, retry, and recovery
 
 - A storage error creates a visible failed attempt with the exact key, actor, reason, attempt count, and error outcome. The identity stays retryable.
 - A follow-up existence check that still finds the object is a failed deletion, not success.
-- An already absent object is recorded as `ALREADY_ABSENT`; no false successful deletion claim is made.
+- An already absent object is recorded as `ALREADY_ABSENT` in the audit and `MISSING` on the durable object; no false successful deletion claim is made.
+- A signed URL issued immediately before quarantine can remain usable only for its bounded five-minute TTL; all new evidence URL issuance is rejected for quarantined Submissions.
 - A quarantined Submission can be recovered only before finalization. After storage confirms deletion, the evidence is irreversible and the audit must not claim recovery.
 - Missing historical Prompt media is reported for incident/recovery handling. FluentCheck never fabricates replacement assessment evidence.
 

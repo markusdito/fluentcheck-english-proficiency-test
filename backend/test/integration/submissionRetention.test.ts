@@ -20,6 +20,7 @@ let approveSubmissionPurge: typeof import("../../src/service/submissionRetention
 let cancelSubmissionPurge: typeof import("../../src/service/submissionRetention.service.js")["cancelSubmissionPurge"];
 let finalizeSubmissionPurge: typeof import("../../src/service/submissionRetention.service.js")["finalizeSubmissionPurge"];
 let RetentionCleanupDisabledError: typeof import("../../src/service/submissionRetention.service.js")["RetentionCleanupDisabledError"];
+let SubmissionPurgeNotEligibleError: typeof import("../../src/service/submissionRetention.service.js")["SubmissionPurgeNotEligibleError"];
 let inventoryPromptMedia: typeof import("../../src/service/promptMediaCleanup.service.js")["inventoryPromptMedia"];
 let runPromptMediaCleanup: typeof import("../../src/service/promptMediaCleanup.service.js")["runPromptMediaCleanup"];
 
@@ -52,6 +53,7 @@ before(async () => {
     cancelSubmissionPurge,
     finalizeSubmissionPurge,
     RetentionCleanupDisabledError,
+    SubmissionPurgeNotEligibleError,
   } = await import("../../src/service/submissionRetention.service.js"));
   ({ inventoryPromptMedia, runPromptMediaCleanup } = await import(
     "../../src/service/promptMediaCleanup.service.js"
@@ -212,6 +214,33 @@ test("purge approval requires dual control and creates a recoverable quarantine"
   assert.equal(approved.objects.length, 1);
   assert.equal((await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).retentionStatus, "QUARANTINED");
   assert.equal(await prisma.retentionAuditEvent.count({ where: { purgeRequestId: request.id } }), 2);
+  await assert.rejects(
+    prisma.answer.create({
+      data: {
+        submissionId: fixture.submission.id,
+        questionId: fixture.question.id,
+        storageKey: `submissions/${fixture.submission.id}/answers/quarantine-guard.webm`,
+        bucket: "retention-test-bucket",
+        mimeType: "video/webm",
+        uploadStatus: "UPLOADED",
+      },
+    }),
+    /Answer writes are blocked for a non-retained Submission/u,
+  );
+  const otherFixture = await createPurgeFixture(false);
+  await assert.rejects(
+    prisma.answer.create({
+      data: {
+        submissionId: otherFixture.submission.id,
+        questionId: otherFixture.question.id,
+        storageKey: fixture.answer!.storageKey,
+        bucket: "retention-test-bucket",
+        mimeType: "video/webm",
+        uploadStatus: "UPLOADED",
+      },
+    }),
+    /storage identity is reserved by a purge workflow/u,
+  );
   const cancelled = await cancelSubmissionPurge(
     request.id,
     fixture.approver.id,
@@ -249,6 +278,42 @@ test("retention audit events cannot be rewritten or removed", async () => {
   );
 });
 
+test("purge approval fails closed when an Answer-media identity is shared", async () => {
+  const fixture = await createPurgeFixture();
+  const otherFixture = await createPurgeFixture(false);
+  await prisma.answer.create({
+    data: {
+      submissionId: otherFixture.submission.id,
+      questionId: otherFixture.question.id,
+      storageKey: fixture.answer!.storageKey,
+      bucket: "retention-test-bucket",
+      mimeType: "video/webm",
+      uploadStatus: "UPLOADED",
+    },
+  });
+  const request = await requestSubmissionPurge(
+    fixture.submission.id,
+    fixture.requester.id,
+    { reason: "Shared identity check" },
+    { database: prisma },
+  );
+  await assert.rejects(
+    approveSubmissionPurge(
+      request.id,
+      fixture.approver.id,
+      { reason: "Independent approval" },
+      { database: prisma },
+    ),
+    (error: unknown) =>
+      error instanceof SubmissionPurgeNotEligibleError &&
+      error.blockers.some((blocker) => blocker.includes("shared by another retained Submission")),
+  );
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).retentionStatus,
+    "RETAINED",
+  );
+});
+
 test("purge storage failures remain visible and retryable until absence is confirmed", async () => {
   const fixture = await createPurgeFixture();
   const request = await requestSubmissionPurge(fixture.submission.id, fixture.requester.id, { reason: "Remove abandoned attempt" }, { database: prisma, now: () => new Date("2026-01-01T00:00:00.000Z") });
@@ -281,6 +346,48 @@ test("purge storage failures remain visible and retryable until absence is confi
   assert.ok(await prisma.retentionAuditEvent.count({ where: { targetSubmissionId: fixture.submission.id, action: "PURGE_COMPLETED" } }));
 });
 
+test("already absent Answer media crosses the irreversible boundary as MISSING", async () => {
+  const fixture = await createPurgeFixture();
+  const request = await requestSubmissionPurge(
+    fixture.submission.id,
+    fixture.requester.id,
+    { reason: "Remove abandoned attempt" },
+    { database: prisma, now: () => new Date("2026-01-01T00:00:00.000Z") },
+  );
+  await approveSubmissionPurge(
+    request.id,
+    fixture.approver.id,
+    { reason: "Independent approval" },
+    { database: prisma, now: () => new Date("2026-01-01T00:00:00.000Z") },
+  );
+  const finalized = await finalizeSubmissionPurge(
+    request.id,
+    fixture.approver.id,
+    { reason: "Finalize absent object" },
+    {
+      database: prisma,
+      enabled: true,
+      now: () => new Date("2026-02-01T00:00:00.000Z"),
+      storage: {
+        deleteObject: async (): Promise<StorageDeleteConfirmation> => ({
+          outcome: "ALREADY_ABSENT",
+        }),
+      },
+    },
+  );
+  assert.equal(finalized.status, "COMPLETED");
+  assert.equal(finalized.objects[0]?.status, "MISSING");
+  await assert.rejects(
+    cancelSubmissionPurge(
+      request.id,
+      fixture.approver.id,
+      { reason: "Too late" },
+      { database: prisma },
+    ),
+    /Only an approved quarantined or failed purge/u,
+  );
+});
+
 test("Prompt-media inventory blocks a manifest-only reference", async () => {
   const fixture = await createPurgeFixture(false);
   const promptQuestion = fixture.question;
@@ -295,6 +402,34 @@ test("Prompt-media inventory blocks a manifest-only reference", async () => {
   assert.equal(candidate.manifestReferences.length, 1);
   assert.equal(candidate.eligible, false);
   assert.match(candidate.reasons.join("; "), /Delivered prompt snapshot/u);
+});
+
+test("Prompt-media inventory reports active Questions sharing a retired identity", async () => {
+  const fixture = await createPurgeFixture(false);
+  await prisma.question.update({
+    where: { id: fixture.question.id },
+    data: { deletedAt: new Date("2026-01-01T00:00:00.000Z") },
+  });
+  const activeQuestion = await prisma.question.create({
+    data: {
+      category: "PART_1",
+      order: Math.floor(Math.random() * 1_000_000),
+      audioStorageKey: fixture.question.audioStorageKey,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 10,
+      audioUploadStatus: "UPLOADED",
+      tasks: { create: { promptText: "Prompt", order: 1 } },
+    },
+  });
+  const result = await inventoryPromptMedia({
+    database: prisma,
+    inspectPromptMedia: async () => ({ exists: true, contentLength: 10, contentType: "audio/webm" }),
+  });
+  const candidate = result.candidates.find((item) => item.sourceQuestionId === fixture.question.id);
+  assert.ok(candidate);
+  assert.deepEqual(candidate.activeSourceQuestionIds, [activeQuestion.id]);
+  assert.equal(candidate.eligible, false);
+  assert.match(candidate.reasons.join("; "), /active Question uses/u);
 });
 
 test("Prompt-media cleanup quarantines and finalizes an unreferenced retired identity", async () => {

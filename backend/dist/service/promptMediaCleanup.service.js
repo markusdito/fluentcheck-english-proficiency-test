@@ -129,6 +129,7 @@ export async function inventoryPromptMedia(dependencies = {}) {
             candidates.push({
                 sourceQuestionId: group.sourceQuestionIds[0],
                 sourceQuestionIds: group.sourceQuestionIds,
+                activeSourceQuestionIds: [],
                 storageKey: null,
                 bucket,
                 storage: null,
@@ -146,6 +147,15 @@ export async function inventoryPromptMedia(dependencies = {}) {
         }
         if (!group.storageKey.startsWith(`questions/${group.sourceQuestionIds[0]}/`)) {
             reasons.push("Prompt media storage identity does not match the source Question");
+        }
+        const activeSourceQuestions = await database.question.findMany({
+            where: { audioStorageKey: group.storageKey, deletedAt: null },
+            select: { id: true },
+            orderBy: { id: "asc" },
+        });
+        const activeSourceQuestionIds = activeSourceQuestions.map((question) => question.id);
+        if (activeSourceQuestionIds.length > 0) {
+            reasons.push("An active Question uses this Prompt-media identity");
         }
         const references = await readReferences(database, group.storageKey, group.sourceQuestionIds);
         if (references.answerReferences.length > 0) {
@@ -169,6 +179,7 @@ export async function inventoryPromptMedia(dependencies = {}) {
         candidates.push({
             sourceQuestionId: group.sourceQuestionIds[0],
             sourceQuestionIds: group.sourceQuestionIds,
+            activeSourceQuestionIds,
             storageKey: group.storageKey,
             bucket,
             storage,
@@ -215,7 +226,7 @@ async function createCleanupRun(mode, options, dependencies) {
                 authorizationId,
                 reason,
                 policyVersion: RETENTION_POLICY_VERSION,
-                status: "COMPLETED",
+                status: "RUNNING",
             },
         });
         await audit(transaction, {
@@ -543,51 +554,59 @@ export async function runPromptMediaCleanup(mode, options, dependencies = {}) {
     if (!(dependencies.enabled ?? env.RETENTION_CLEANUP_ENABLED)) {
         throw new RetentionCleanupDisabledError();
     }
-    const inventory = await inventoryPromptMedia(dependencies);
     const normalizedOptions = {
         ...options,
         authorizationId: requireAuthorizationId(options.authorizationId),
         reason: requireReason(options.reason),
     };
     const runId = await createCleanupRun(mode, normalizedOptions, dependencies);
-    const objects = [];
-    let failed = inventory.totals.storageErrors > 0;
-    if (mode === "QUARANTINE") {
-        for (const candidate of inventory.candidates) {
-            const result = await quarantineCandidate(runId, candidate, normalizedOptions, dependencies);
-            objects.push(result);
-        }
-    }
-    else {
-        const database = databaseOf(dependencies);
-        const now = nowOf(dependencies);
-        const due = await database.promptMediaCleanupObject.findMany({
-            where: {
-                status: { in: ["QUARANTINED", "FAILED", "DELETE_PENDING"] },
-                quarantineUntil: { lte: now },
-            },
-            orderBy: { storageKey: "asc" },
-            select: {
-                id: true,
-                storageKey: true,
-                bucket: true,
-                sourceQuestionId: true,
-                quarantineUntil: true,
-                status: true,
-            },
-        });
-        for (const object of due) {
-            const result = await finalizeCandidate(runId, object, normalizedOptions, dependencies);
-            objects.push(result);
-            if (result.status === "FAILED")
-                failed = true;
-        }
-    }
     const database = databaseOf(dependencies);
-    const status = failed ? "FAILED" : "COMPLETED";
-    await database.promptMediaCleanupRun.update({
-        where: { id: runId },
-        data: { status, completedAt: nowOf(dependencies) },
-    });
-    return { runId, mode, status, inventory, objects };
+    try {
+        const inventory = await inventoryPromptMedia(dependencies);
+        const objects = [];
+        let failed = inventory.totals.storageErrors > 0;
+        if (mode === "QUARANTINE") {
+            for (const candidate of inventory.candidates) {
+                const result = await quarantineCandidate(runId, candidate, normalizedOptions, dependencies);
+                objects.push(result);
+            }
+        }
+        else {
+            const now = nowOf(dependencies);
+            const due = await database.promptMediaCleanupObject.findMany({
+                where: {
+                    status: { in: ["QUARANTINED", "FAILED", "DELETE_PENDING"] },
+                    quarantineUntil: { lte: now },
+                },
+                orderBy: { storageKey: "asc" },
+                select: {
+                    id: true,
+                    storageKey: true,
+                    bucket: true,
+                    sourceQuestionId: true,
+                    quarantineUntil: true,
+                    status: true,
+                },
+            });
+            for (const object of due) {
+                const result = await finalizeCandidate(runId, object, normalizedOptions, dependencies);
+                objects.push(result);
+                if (result.status === "FAILED")
+                    failed = true;
+            }
+        }
+        const status = failed ? "FAILED" : "COMPLETED";
+        await database.promptMediaCleanupRun.update({
+            where: { id: runId },
+            data: { status, completedAt: nowOf(dependencies) },
+        });
+        return { runId, mode, status, inventory, objects };
+    }
+    catch (error) {
+        await database.promptMediaCleanupRun.updateMany({
+            where: { id: runId, status: "RUNNING" },
+            data: { status: "FAILED", completedAt: nowOf(dependencies) },
+        });
+        throw error;
+    }
 }

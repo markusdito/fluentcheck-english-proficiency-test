@@ -65,6 +65,7 @@ export const SubmissionPurgeObjectStatus = {
     QUARANTINED: 'QUARANTINED',
     DELETE_PENDING: 'DELETE_PENDING',
     DELETED: 'DELETED',
+    MISSING: 'MISSING',
     FAILED: 'FAILED',
     CANCELLED: 'CANCELLED'
 };
@@ -82,6 +83,7 @@ export const PromptMediaCleanupRunMode = {
     FINALIZE: 'FINALIZE'
 };
 export const PromptMediaCleanupRunStatus = {
+    RUNNING: 'RUNNING',
     COMPLETED: 'COMPLETED',
     FAILED: 'FAILED'
 };

@@ -15,6 +15,7 @@ function inventory(): PromptMediaCleanupInventory {
       {
         sourceQuestionId: "question-1",
         sourceQuestionIds: ["question-1"],
+        activeSourceQuestionIds: [],
         storageKey: "questions/question-1/prompt.webm",
         bucket: "test-bucket",
         storage: { exists: true, contentLength: 12, contentType: "audio/webm" },

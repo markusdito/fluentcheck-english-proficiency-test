@@ -78,6 +78,7 @@ enum SubmissionPurgeObjectStatus {
   QUARANTINED
   DELETE_PENDING
   DELETED
+  MISSING
   FAILED
   CANCELLED
 }
@@ -98,6 +99,7 @@ enum PromptMediaCleanupRunMode {
 }
 
 enum PromptMediaCleanupRunStatus {
+  RUNNING
   COMPLETED
   FAILED
 }

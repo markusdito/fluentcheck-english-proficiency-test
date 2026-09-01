@@ -450,5 +450,8 @@ export async function createVideoViewUrlFromMetadata(storageKey, bucket, mimeTyp
         ResponseContentType: mimeType ?? "video/webm",
         ResponseCacheControl: "no-cache",
     });
-    return getSignedUrl(r2Client, command, { expiresIn: 3600 });
+    // Quarantine blocks new URL issuance. Keep any URL issued immediately
+    // before quarantine bounded to the same five-minute evidence window as
+    // prompt media; R2 signed URLs are not individually revocable.
+    return getSignedUrl(r2Client, command, { expiresIn: 300 });
 }
