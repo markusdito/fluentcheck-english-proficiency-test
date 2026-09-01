@@ -14,6 +14,7 @@ import jwt from "jsonwebtoken";
 import type { PrismaClient } from "../../src/generated/client.js";
 
 const execFileAsync = promisify(execFile);
+const TEST_PASSWORD_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
 type TaskResponse = {
   id: string;
@@ -82,7 +83,7 @@ before(async () => {
       username: `question_admin_${crypto.randomUUID().replaceAll("-", "")}`,
       email,
       normalizedEmail: email,
-      password: "unused",
+      password: TEST_PASSWORD_HASH,
       role: "ADMIN",
     },
   });
@@ -536,7 +537,7 @@ test("Question and Task restoration remain restricted to administrators", async 
       username: `question_student_${crypto.randomUUID().replaceAll("-", "")}`,
       email,
       normalizedEmail: email,
-      password: "unused",
+      password: TEST_PASSWORD_HASH,
       role: "STUDENT",
     },
   });

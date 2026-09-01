@@ -102,6 +102,11 @@ test("Question restoration clears only the Question retirement state", async () 
   let updateArgs: Parameters<typeof prisma.question.update>[0] | undefined;
   let findCount = 0;
   replaceMethod(
+    prisma,
+    "$transaction",
+    (async (callback) => callback(prisma)) as typeof prisma.$transaction,
+  );
+  replaceMethod(
     prisma.question,
     "findUnique",
     (async (args) => {
@@ -111,6 +116,7 @@ test("Question restoration clears only the Question retirement state", async () 
           id: questionId,
           category: QuestionCategory.PART_1,
           order: 1,
+          audioStorageKey: null,
           deletedAt: retiredAt,
         };
       }
@@ -125,10 +131,15 @@ test("Question restoration clears only the Question retirement state", async () 
       return restored;
     }) as typeof prisma.question.update,
   );
+  replaceMethod(
+    prisma.question,
+    "findUniqueOrThrow",
+    (async () => restored) as typeof prisma.question.findUniqueOrThrow,
+  );
 
   const result = await restoreQuestion(questionId);
 
-  assert.equal(findCount, 2);
+  assert.equal(findCount, 1);
   assert.deepEqual(updateArgs, {
     where: { id: questionId },
     data: { deletedAt: null },

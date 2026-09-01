@@ -12,6 +12,7 @@ import type { PrismaClient } from "../../src/generated/client.js";
 import type { StorageDeleteConfirmation } from "../../src/service/retentionStorage.service.js";
 
 const execFileAsync = promisify(execFile);
+const TEST_PASSWORD_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 let container: StartedPostgreSqlContainer;
 let prisma: PrismaClient;
 let disconnectDB: () => Promise<void>;
@@ -106,7 +107,7 @@ function userData(role: "ADMIN" | "STUDENT") {
     username: `${role.toLowerCase()}_${suffix}`,
     email,
     normalizedEmail: email,
-    password: "unused",
+    password: TEST_PASSWORD_HASH,
     role,
   } as const;
 }
