@@ -44,7 +44,7 @@ async function readExistingAssignmentSet(tx, submissionId) {
     if (!submission) {
         throw new AssignmentSetError("SUBMISSION_NOT_FOUND", "Submission not found");
     }
-    if (submission.retentionStatus !== "RETAINED") {
+    if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
         throw new AssignmentSetError("NOT_ASSIGNMENT_READY", "Submission is not Assignment-ready");
     }
     const assignments = await tx.examinerAssignment.findMany({
@@ -119,7 +119,7 @@ export async function createExaminerAssignmentSet(submissionId, options = {}) {
                 if (!submission) {
                     throw new AssignmentSetError("SUBMISSION_NOT_FOUND", "Submission not found");
                 }
-                if (submission.retentionStatus !== "RETAINED" ||
+                if ((submission.retentionStatus && submission.retentionStatus !== "RETAINED") ||
                     !ASSIGNMENT_READY_STATUSES.includes(submission.status)) {
                     throw new AssignmentSetError("NOT_ASSIGNMENT_READY", "Submission is not Assignment-ready");
                 }

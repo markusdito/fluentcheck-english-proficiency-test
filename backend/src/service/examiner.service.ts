@@ -169,7 +169,7 @@ async function readExistingAssignmentSet(
       "Submission not found",
     );
   }
-  if (submission.retentionStatus !== "RETAINED") {
+  if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
     throw new AssignmentSetError(
       "NOT_ASSIGNMENT_READY",
       "Submission is not Assignment-ready",
@@ -271,7 +271,7 @@ export async function createExaminerAssignmentSet(
             );
           }
           if (
-            submission.retentionStatus !== "RETAINED" ||
+            (submission.retentionStatus && submission.retentionStatus !== "RETAINED") ||
             !(ASSIGNMENT_READY_STATUSES as readonly string[]).includes(
               submission.status,
             )
