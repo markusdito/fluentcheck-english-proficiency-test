@@ -749,6 +749,7 @@ export async function runPromptMediaCleanup(
           dependencies,
         );
         objects.push(result);
+        if (result.status === "FAILED") failed = true;
       }
     } else {
       const now = nowOf(dependencies);

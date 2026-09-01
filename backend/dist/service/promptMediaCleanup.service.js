@@ -569,6 +569,8 @@ export async function runPromptMediaCleanup(mode, options, dependencies = {}) {
             for (const candidate of inventory.candidates) {
                 const result = await quarantineCandidate(runId, candidate, normalizedOptions, dependencies);
                 objects.push(result);
+                if (result.status === "FAILED")
+                    failed = true;
             }
         }
         else {

@@ -192,6 +192,27 @@ async function createPurgeFixture(withAnswer = true) {
   return { requester, approver, student, question, submission, answer };
 }
 
+async function createRetiredPromptQuestion() {
+  const id = crypto.randomUUID();
+  const question = await prisma.question.create({
+    data: {
+      id,
+      category: "PART_1",
+      order: Math.floor(Math.random() * 1_000_000),
+      audioStorageKey: `questions/${id}/prompt.webm`,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 10,
+      audioUploadStatus: "UPLOADED",
+      tasks: { create: { promptText: "Prompt", order: 1 } },
+    },
+  });
+  await prisma.question.update({
+    where: { id },
+    data: { deletedAt: new Date("2026-01-01T00:00:00.000Z") },
+  });
+  return question;
+}
+
 test("purge approval requires dual control and creates a recoverable quarantine", async () => {
   const fixture = await createPurgeFixture();
   const request = await requestSubmissionPurge(
@@ -535,6 +556,200 @@ test("Prompt-media cleanup quarantines and finalizes an unreferenced retired ide
   assert.equal(finalized.status, "COMPLETED");
   assert.equal(finalized.objects[0]?.status, "DELETED");
   assert.equal(deletes, 1);
+});
+
+test("Prompt-media cleanup rejects a reference that waits behind finalization", async () => {
+  const fixture = await createPurgeFixture(false);
+  const cleanupQuestion = await createRetiredPromptQuestion();
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  let signalDeleteStarted!: () => void;
+  const deleteStarted = new Promise<void>((resolve) => {
+    signalDeleteStarted = resolve;
+  });
+  let releaseDelete!: () => void;
+  const deleteReleased = new Promise<void>((resolve) => {
+    releaseDelete = resolve;
+  });
+  let deletes = 0;
+  const dependencies = {
+    database: prisma,
+    enabled: true,
+    now: () => now,
+    inspectPromptMedia: async () => ({ exists: true, contentLength: 10, contentType: "audio/webm" }),
+    storage: {
+      deleteObject: async (): Promise<StorageDeleteConfirmation> => {
+        deletes += 1;
+        signalDeleteStarted();
+        await deleteReleased;
+        return { outcome: "DELETED" };
+      },
+    },
+  };
+  const quarantined = await runPromptMediaCleanup(
+    "QUARANTINE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-concurrent-quarantine",
+      reason: "Retired media review",
+    },
+    dependencies,
+  );
+  assert.equal(quarantined.objects[0]?.status, "QUARANTINED");
+  now.setUTCDate(now.getUTCDate() + 31);
+
+  const finalizePromise = runPromptMediaCleanup(
+    "FINALIZE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-concurrent-finalize",
+      reason: "Finalization after quarantine",
+    },
+    dependencies,
+  );
+  await deleteStarted;
+
+  const answerAttempt = prisma.answer.create({
+    data: {
+      submissionId: fixture.submission.id,
+      questionId: cleanupQuestion.id,
+      storageKey: `submissions/${fixture.submission.id}/answers/${crypto.randomUUID()}.webm`,
+      bucket: "retention-test-bucket",
+      mimeType: "video/webm",
+      uploadStatus: "PENDING",
+    },
+  });
+  const answerState = await Promise.race([
+    answerAttempt.then(() => "created", () => "rejected"),
+    new Promise<string>((resolve) => setTimeout(() => resolve("pending"), 100)),
+  ]);
+  assert.equal(answerState, "pending");
+
+  releaseDelete();
+  await finalizePromise;
+  await assert.rejects(
+    answerAttempt,
+    /Prompt-media storage identity is reserved by cleanup/u,
+  );
+  assert.equal(deletes, 1);
+});
+
+test("Prompt-media cleanup records failed deletion and retries after storage recovery", async () => {
+  const fixture = await createPurgeFixture(false);
+  await createRetiredPromptQuestion();
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  let fail = true;
+  let deletes = 0;
+  const dependencies = {
+    database: prisma,
+    enabled: true,
+    now: () => now,
+    inspectPromptMedia: async () => ({ exists: true, contentLength: 10, contentType: "audio/webm" }),
+    storage: {
+      deleteObject: async (): Promise<StorageDeleteConfirmation> => {
+        deletes += 1;
+        if (fail) {
+          fail = false;
+          throw new Error("storage unavailable");
+        }
+        return { outcome: "DELETED" };
+      },
+    },
+  };
+  const quarantined = await runPromptMediaCleanup(
+    "QUARANTINE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-retry-quarantine",
+      reason: "Retired media review",
+    },
+    dependencies,
+  );
+  assert.equal(quarantined.objects[0]?.status, "QUARANTINED");
+  now.setUTCDate(now.getUTCDate() + 31);
+
+  const failed = await runPromptMediaCleanup(
+    "FINALIZE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-retry-first-finalize",
+      reason: "Attempt finalization",
+    },
+    dependencies,
+  );
+  assert.equal(failed.status, "FAILED");
+  assert.equal(failed.objects[0]?.status, "FAILED");
+  assert.match(failed.objects[0]?.error ?? "", /storage unavailable/u);
+  assert.ok(
+    await prisma.retentionAuditEvent.findFirst({
+      where: { cleanupRunId: failed.runId, action: "PROMPT_CLEANUP_DELETE_FAILED" },
+    }),
+  );
+
+  const retried = await runPromptMediaCleanup(
+    "FINALIZE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-retry-second-finalize",
+      reason: "Retry after storage recovery",
+    },
+    dependencies,
+  );
+  assert.equal(retried.status, "COMPLETED");
+  assert.equal(retried.objects[0]?.status, "DELETED");
+  assert.equal(deletes, 2);
+  assert.ok(
+    await prisma.retentionAuditEvent.findFirst({
+      where: { cleanupRunId: retried.runId, action: "PROMPT_CLEANUP_DELETE_CONFIRMED" },
+    }),
+  );
+});
+
+test("Prompt-media cleanup marks quarantine inspection failures and retries them", async () => {
+  const fixture = await createPurgeFixture(false);
+  await createRetiredPromptQuestion();
+  let inspections = 0;
+  const dependencies = {
+    database: prisma,
+    enabled: true,
+    inspectPromptMedia: async () => {
+      inspections += 1;
+      if (inspections === 2) throw new Error("storage inspection unavailable");
+      return { exists: true, contentLength: 10, contentType: "audio/webm" };
+    },
+    storage: {
+      deleteObject: async (): Promise<StorageDeleteConfirmation> => ({ outcome: "DELETED" }),
+    },
+  };
+
+  const failed = await runPromptMediaCleanup(
+    "QUARANTINE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-inspection-failure",
+      reason: "Inspect retired media",
+    },
+    dependencies,
+  );
+  assert.equal(failed.status, "FAILED");
+  assert.equal(failed.objects[0]?.status, "FAILED");
+  assert.ok(
+    await prisma.retentionAuditEvent.findFirst({
+      where: { cleanupRunId: failed.runId, action: "PROMPT_CLEANUP_SKIPPED" },
+    }),
+  );
+
+  const retried = await runPromptMediaCleanup(
+    "QUARANTINE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-inspection-retry",
+      reason: "Retry retired media inspection",
+    },
+    dependencies,
+  );
+  assert.equal(retried.status, "COMPLETED");
+  assert.equal(retried.objects[0]?.status, "QUARANTINED");
+  assert.equal(inspections, 4);
 });
 
 test("Prompt-media quarantine rechecks references after the dry-run snapshot", async () => {
