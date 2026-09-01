@@ -11,6 +11,7 @@ import { previewAccountRoleTransition, transitionAccountRole, } from "./accountT
 export async function listAdminSubmissions(params) {
     const { page, limit, status } = params;
     const where = {
+        retentionStatus: "RETAINED",
         status: status && status !== "IN_PROGRESS" ? status : { not: "IN_PROGRESS" },
     };
     const [items, total] = await Promise.all([
@@ -70,8 +71,8 @@ export async function listAdminSubmissions(params) {
  * Authorization is enforced by the admin router before this service is called.
  */
 export async function getAdminSubmissionDetail(submissionId) {
-    const submission = await prisma.submission.findUnique({
-        where: { id: submissionId },
+    const submission = await prisma.submission.findFirst({
+        where: { id: submissionId, retentionStatus: "RETAINED" },
         include: {
             manifest: {
                 select: {
@@ -366,7 +367,10 @@ export async function listAdminExaminers() {
             _count: {
                 select: {
                     assignments: {
-                        where: { status: { not: "COMPLETED" } },
+                        where: {
+                            status: { not: "COMPLETED" },
+                            submission: { retentionStatus: "RETAINED" },
+                        },
                     },
                 },
             },
@@ -398,18 +402,30 @@ export async function getAdminStats() {
         }),
         prisma.submission.groupBy({
             by: ["status"],
-            where: { status: { not: "IN_PROGRESS" } },
+            where: {
+                retentionStatus: "RETAINED",
+                status: { not: "IN_PROGRESS" },
+            },
             _count: { _all: true },
         }),
         prisma.payment.aggregate({
-            where: { status: "PAID" },
+            where: {
+                status: "PAID",
+                submission: { retentionStatus: "RETAINED" },
+            },
             _sum: { amount: true },
         }),
         prisma.submission.count({
-            where: { status: { in: ["PAID", "SCORING"] } },
+            where: {
+                retentionStatus: "RETAINED",
+                status: { in: ["PAID", "SCORING"] },
+            },
         }),
         prisma.submission.findMany({
-            where: { status: { not: "IN_PROGRESS" } },
+            where: {
+                retentionStatus: "RETAINED",
+                status: { not: "IN_PROGRESS" },
+            },
             orderBy: { createdAt: "desc" },
             take: 5,
             select: {

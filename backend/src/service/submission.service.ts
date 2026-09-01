@@ -132,6 +132,7 @@ async function findBestCertificateScore(
     where: {
       submission: {
         studentId: userId,
+        retentionStatus: "RETAINED",
         status: { not: "IN_PROGRESS" },
         scoringSystem,
       },
@@ -217,6 +218,7 @@ async function readDashboardHistoryPage(
     FROM "Submission" AS s
     LEFT JOIN "Certificate" AS c ON c."submissionId" = s."id"
     WHERE s."studentId" = ${userId}::uuid
+      AND s."retentionStatus" = 'RETAINED'
       AND s."status" <> 'IN_PROGRESS'
       ${cursorFilter}
     ORDER BY s."createdAt" DESC, s."id" DESC
@@ -274,21 +276,29 @@ export async function createSubmission(userId: string): Promise<{ id: string; st
 
 /** Explicitly abandon an in-progress attempt; the transition is terminal and idempotent. */
 export async function abandonSubmission(submissionId: string, userId: string) {
-  const submission = await prisma.submission.findUnique({
+  const submission = await prisma.submission.findFirst({
     where: { id: submissionId },
-    select: { id: true, studentId: true, status: true },
+    select: { id: true, studentId: true, status: true, retentionStatus: true },
   });
   if (!submission) throw new Error("Submission not found");
   if (submission.studentId !== userId) throw new Error("Unauthorized");
+  if (submission.retentionStatus !== "RETAINED") {
+    throw new Error("Submission is not available");
+  }
   if (submission.status === "ABANDONED") return submission;
   if (submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
   await prisma.submission.updateMany({
-    where: { id: submissionId, studentId: userId, status: "IN_PROGRESS" },
+    where: {
+      id: submissionId,
+      studentId: userId,
+      status: "IN_PROGRESS",
+      retentionStatus: "RETAINED",
+    },
     data: { status: "ABANDONED" },
   });
   return prisma.submission.findUniqueOrThrow({
     where: { id: submissionId },
-    select: { id: true, studentId: true, status: true },
+    select: { id: true, studentId: true, status: true, retentionStatus: true },
   });
 }
 
@@ -303,6 +313,7 @@ export async function getStudentDashboard(
   const cursor = options.cursor ? decodeDashboardCursor(options.cursor) : undefined;
   const baseWhere: Prisma.SubmissionWhereInput = {
     studentId: userId,
+    retentionStatus: "RETAINED",
     status: { not: "IN_PROGRESS" },
   };
   const [totalTests, pageRowsWithExtra, rubricBest, legacyBest] = await Promise.all([
@@ -361,8 +372,8 @@ export async function getSubmissionDetail(
   submissionId: string,
   userId: string
 ): Promise<SubmissionDetail> {
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
+  const submission = await prisma.submission.findFirst({
+    where: { id: submissionId, retentionStatus: "RETAINED" },
     include: {
       manifest: {
         select: {
@@ -531,9 +542,9 @@ export async function getSubmissionStatus(
   submissionId: string,
   userId: string,
 ): Promise<SubmissionStatusSnapshot> {
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-    select: { id: true, studentId: true, status: true, updatedAt: true },
+  const submission = await prisma.submission.findFirst({
+    where: { id: submissionId, retentionStatus: "RETAINED" },
+    select: { id: true, studentId: true, status: true, retentionStatus: true, updatedAt: true },
   });
 
   if (!submission || submission.studentId !== userId) {
@@ -571,6 +582,7 @@ export async function completeSubmission(
       select: {
         studentId: true,
         status: true,
+        retentionStatus: true,
         manifest: {
           select: {
             version: true,
@@ -594,6 +606,9 @@ export async function completeSubmission(
 
     if (!submission) throw new Error("Submission not found");
     if (submission.studentId !== userId) throw new Error("Unauthorized");
+    if (submission.retentionStatus !== "RETAINED") {
+      throw new Error("Submission is not available");
+    }
 
     // A retry after a committed transition is a successful no-op. Abandoned,
     // legacy in-progress, corrupt, and unknown lifecycle states remain closed.
@@ -631,7 +646,7 @@ export async function completeSubmission(
     }
 
     await tx.submission.update({
-      where: { id: submissionId },
+      where: { id: submissionId, retentionStatus: "RETAINED" },
       data: {
         paymentRequired,
         status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",

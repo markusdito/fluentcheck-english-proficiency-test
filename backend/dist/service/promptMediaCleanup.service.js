@@ -61,10 +61,7 @@ async function readReferences(database, storageKey, sourceQuestionIds) {
         database.manifestEntry.findMany({
             where: {
                 manifest: { submission: { retentionStatus: { not: "PURGED" } } },
-                OR: [
-                    { promptMediaStorageKey: storageKey },
-                    { sourceQuestionId: { in: sourceQuestionIds } },
-                ],
+                promptMediaStorageKey: storageKey,
             },
             select: { id: true, submissionId: true },
             orderBy: { id: "asc" },
@@ -206,6 +203,8 @@ export async function inventoryPromptMedia(dependencies = {}) {
 async function createCleanupRun(mode, options, dependencies) {
     const database = databaseOf(dependencies);
     const runId = randomUUID();
+    const authorizationId = requireAuthorizationId(options.authorizationId);
+    const reason = requireReason(options.reason);
     await database.$transaction(async (transaction) => {
         await assertActiveAdmin(transaction, options.actorId);
         await transaction.promptMediaCleanupRun.create({
@@ -213,8 +212,8 @@ async function createCleanupRun(mode, options, dependencies) {
                 id: runId,
                 mode,
                 actorId: options.actorId,
-                authorizationId: requireAuthorizationId(options.authorizationId),
-                reason: requireReason(options.reason),
+                authorizationId,
+                reason,
                 policyVersion: RETENTION_POLICY_VERSION,
                 status: "COMPLETED",
             },
@@ -222,8 +221,8 @@ async function createCleanupRun(mode, options, dependencies) {
         await audit(transaction, {
             actorId: options.actorId,
             action: "PROMPT_CLEANUP_AUTHORIZED",
-            authorizationId: options.authorizationId,
-            reason: options.reason,
+            authorizationId,
+            reason,
             cleanupRunId: runId,
             outcome: mode,
         });
@@ -243,6 +242,57 @@ async function quarantineCandidate(runId, candidate, options, dependencies) {
             return { storageKey: "", status: "MISSING", outcome: "NO_STORAGE_IDENTITY" };
         }
         await lockPromptMediaStorageIdentity(transaction, candidate.storageKey);
+        let storage;
+        try {
+            storage = await inspectionOf(dependencies)(candidate.storageKey, candidate.bucket);
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : "Prompt media inspection failed";
+            const existing = await transaction.promptMediaCleanupObject.findUnique({
+                where: { storageKey: candidate.storageKey },
+                select: { id: true, status: true },
+            });
+            if (!existing || existing.status !== "DELETED") {
+                await transaction.promptMediaCleanupObject.upsert({
+                    where: { storageKey: candidate.storageKey },
+                    update: {
+                        sourceQuestionId: candidate.sourceQuestionId,
+                        bucket: candidate.bucket,
+                        answerReferenceCount: 0,
+                        manifestReferenceCount: 0,
+                        referenceSnapshot: asJson({ answerReferences: [], manifestReferences: [] }),
+                        eligibilityReason: message,
+                        status: "FAILED",
+                        lastRunId: runId,
+                        quarantineUntil: null,
+                        lastError: message,
+                    },
+                    create: {
+                        id: randomUUID(),
+                        sourceQuestionId: candidate.sourceQuestionId,
+                        storageKey: candidate.storageKey,
+                        bucket: candidate.bucket,
+                        answerReferenceCount: 0,
+                        manifestReferenceCount: 0,
+                        referenceSnapshot: asJson({ answerReferences: [], manifestReferences: [] }),
+                        eligibilityReason: message,
+                        status: "FAILED",
+                        lastRunId: runId,
+                        lastError: message,
+                    },
+                });
+            }
+            await audit(transaction, {
+                actorId: options.actorId,
+                action: "PROMPT_CLEANUP_SKIPPED",
+                authorizationId: options.authorizationId,
+                reason: options.reason,
+                cleanupRunId: runId,
+                storageKey: candidate.storageKey,
+                outcome: message,
+            });
+            return { storageKey: candidate.storageKey, status: "FAILED", outcome: message };
+        }
         const activeSourceQuestions = await transaction.question.count({
             where: {
                 audioStorageKey: candidate.storageKey,
@@ -250,7 +300,7 @@ async function quarantineCandidate(runId, candidate, options, dependencies) {
             },
         });
         const references = await readReferences(transaction, candidate.storageKey, candidate.sourceQuestionIds);
-        const exists = candidate.storage?.exists === true && !candidate.storageError;
+        const exists = storage.exists;
         const eligible = AUDIO_KEY_RE.test(candidate.storageKey) &&
             activeSourceQuestions === 0 &&
             references.answerReferences.length === 0 &&
@@ -259,10 +309,14 @@ async function quarantineCandidate(runId, candidate, options, dependencies) {
         const quarantineUntil = new Date(now.getTime() + RETENTION_QUARANTINE_MS);
         const status = eligible
             ? "QUARANTINED"
-            : candidate.storage?.exists === false
+            : !storage.exists
                 ? "MISSING"
                 : "SKIPPED_REFERENCED";
-        const outcome = eligible ? "QUARANTINED" : candidateReason(candidate);
+        const outcome = eligible
+            ? "QUARANTINED"
+            : !storage.exists
+                ? "Prompt media is already absent from storage"
+                : candidateReason(candidate);
         const snapshot = referenceSnapshotValue(references);
         const existing = await transaction.promptMediaCleanupObject.findUnique({
             where: { storageKey: candidate.storageKey },
@@ -324,6 +378,24 @@ async function finalizeCandidate(runId, object, options, dependencies) {
     try {
         return await database.$transaction(async (transaction) => {
             await lockPromptMediaStorageIdentity(transaction, object.storageKey);
+            const current = await transaction.promptMediaCleanupObject.findUniqueOrThrow({
+                where: { id: object.id },
+            });
+            if (["DELETED", "MISSING", "CANCELLED"].includes(current.status)) {
+                return {
+                    storageKey: object.storageKey,
+                    status: current.status,
+                    outcome: "ALREADY_FINALIZED",
+                };
+            }
+            if (!current.quarantineUntil ||
+                current.quarantineUntil.getTime() > now.getTime()) {
+                return {
+                    storageKey: object.storageKey,
+                    status: current.status,
+                    outcome: "QUARANTINE_ACTIVE",
+                };
+            }
             const sourceQuestions = await transaction.question.findMany({
                 where: { audioStorageKey: object.storageKey },
                 select: { id: true, deletedAt: true },
@@ -331,7 +403,8 @@ async function finalizeCandidate(runId, object, options, dependencies) {
             const sourceQuestionIds = sourceQuestions.map((question) => question.id);
             const activeSourceQuestions = sourceQuestions.filter((question) => question.deletedAt === null);
             const references = await readReferences(transaction, object.storageKey, sourceQuestionIds.length > 0 ? sourceQuestionIds : [object.sourceQuestionId]);
-            if (activeSourceQuestions.length > 0 ||
+            if (sourceQuestions.length === 0 ||
+                activeSourceQuestions.length > 0 ||
                 references.answerReferences.length > 0 ||
                 references.manifestReferences.length > 0) {
                 await transaction.promptMediaCleanupObject.update({
@@ -343,7 +416,9 @@ async function finalizeCandidate(runId, object, options, dependencies) {
                         referenceSnapshot: asJson(referenceSnapshotValue(references)),
                         eligibilityReason: activeSourceQuestions.length > 0
                             ? "An active Question now uses this Prompt-media identity"
-                            : "A non-purged Submission now references this Prompt media",
+                            : sourceQuestions.length === 0
+                                ? "The retired source Question no longer exists"
+                                : "A non-purged Submission now references this Prompt media",
                         lastRunId: runId,
                         quarantineUntil: null,
                     },
@@ -362,24 +437,6 @@ async function finalizeCandidate(runId, object, options, dependencies) {
                     storageKey: object.storageKey,
                     status: "SKIPPED_REFERENCED",
                     outcome: "REFERENCE_RECHECK_BLOCKED",
-                };
-            }
-            const current = await transaction.promptMediaCleanupObject.findUniqueOrThrow({
-                where: { id: object.id },
-            });
-            if (current.status === "DELETED" || current.status === "MISSING") {
-                return {
-                    storageKey: object.storageKey,
-                    status: current.status,
-                    outcome: "ALREADY_FINALIZED",
-                };
-            }
-            if (!current.quarantineUntil ||
-                current.quarantineUntil.getTime() > now.getTime()) {
-                return {
-                    storageKey: object.storageKey,
-                    status: current.status,
-                    outcome: "QUARANTINE_ACTIVE",
                 };
             }
             const pending = await transaction.promptMediaCleanupObject.update({
@@ -481,12 +538,17 @@ export async function runPromptMediaCleanup(mode, options, dependencies = {}) {
         throw new RetentionCleanupDisabledError();
     }
     const inventory = await inventoryPromptMedia(dependencies);
-    const runId = await createCleanupRun(mode, options, dependencies);
+    const normalizedOptions = {
+        ...options,
+        authorizationId: requireAuthorizationId(options.authorizationId),
+        reason: requireReason(options.reason),
+    };
+    const runId = await createCleanupRun(mode, normalizedOptions, dependencies);
     const objects = [];
     let failed = inventory.totals.storageErrors > 0;
     if (mode === "QUARANTINE") {
         for (const candidate of inventory.candidates) {
-            const result = await quarantineCandidate(runId, candidate, options, dependencies);
+            const result = await quarantineCandidate(runId, candidate, normalizedOptions, dependencies);
             objects.push(result);
         }
     }
@@ -509,7 +571,7 @@ export async function runPromptMediaCleanup(mode, options, dependencies = {}) {
             },
         });
         for (const object of due) {
-            const result = await finalizeCandidate(runId, object, options, dependencies);
+            const result = await finalizeCandidate(runId, object, normalizedOptions, dependencies);
             objects.push(result);
             if (result.status === "FAILED")
                 failed = true;

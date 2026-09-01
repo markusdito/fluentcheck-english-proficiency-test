@@ -161,12 +161,18 @@ async function readExistingAssignmentSet(
 ): Promise<AssignExaminersResult | null> {
   const submission = await tx.submission.findUnique({
     where: { id: submissionId },
-    select: { status: true },
+    select: { status: true, retentionStatus: true },
   });
   if (!submission) {
     throw new AssignmentSetError(
       "SUBMISSION_NOT_FOUND",
       "Submission not found",
+    );
+  }
+  if (submission.retentionStatus !== "RETAINED") {
+    throw new AssignmentSetError(
+      "NOT_ASSIGNMENT_READY",
+      "Submission is not Assignment-ready",
     );
   }
 
@@ -256,7 +262,7 @@ export async function createExaminerAssignmentSet(
 
           const submission = await tx.submission.findUnique({
             where: { id: submissionId },
-            select: { status: true },
+            select: { status: true, retentionStatus: true },
           });
           if (!submission) {
             throw new AssignmentSetError(
@@ -265,6 +271,7 @@ export async function createExaminerAssignmentSet(
             );
           }
           if (
+            submission.retentionStatus !== "RETAINED" ||
             !(ASSIGNMENT_READY_STATUSES as readonly string[]).includes(
               submission.status,
             )
@@ -323,7 +330,11 @@ export async function createExaminerAssignmentSet(
           // Conditionally claim the Assignment-ready submission. Only the
           // winning claim inserts the assignment set and enters scoring.
           const claim = await tx.submission.updateMany({
-            where: { id: submissionId, status: "PAID" },
+            where: {
+              id: submissionId,
+              status: "PAID",
+              retentionStatus: "RETAINED",
+            },
             data: { status: "SCORING" },
           });
           if (claim.count !== 1) {
@@ -400,7 +411,7 @@ export async function createExaminerAssignmentSet(
  */
 export async function getExaminerAssignments(examinerId: string): Promise<ExaminerAssignmentSummary[]> {
   const assignments = await prisma.examinerAssignment.findMany({
-    where: { examinerId },
+    where: { examinerId, submission: { retentionStatus: "RETAINED" } },
     orderBy: { createdAt: "desc" },
     include: {
       submission: {
@@ -434,8 +445,11 @@ export async function getExaminerAssignmentDetail(
   assignmentId: string,
   examinerId: string
 ): Promise<AssignmentDetail> {
-  const assignment = await prisma.examinerAssignment.findUnique({
-    where: { id: assignmentId },
+  const assignment = await prisma.examinerAssignment.findFirst({
+    where: {
+      id: assignmentId,
+      submission: { retentionStatus: "RETAINED" },
+    },
     include: {
       submission: {
         include: {
@@ -621,6 +635,17 @@ export async function startExaminerAssignment(
       throw new ScoringFinalizationError(
         "ASSIGNMENT_NOT_FOUND",
         "Assignment not found",
+      );
+    }
+
+    const submission = await tx.submission.findUnique({
+      where: { id: submissionId },
+      select: { retentionStatus: true },
+    });
+    if (!submission || submission.retentionStatus !== "RETAINED") {
+      throw new ScoringFinalizationError(
+        "INVALID_LIFECYCLE",
+        "Submission is not available",
       );
     }
 
@@ -847,6 +872,7 @@ async function finalizeExaminerScoring(
       where: { id: submissionId },
       select: {
         status: true,
+        retentionStatus: true,
         scoringSystem: true,
         answers: { select: { id: true } },
       },
@@ -877,6 +903,12 @@ async function finalizeExaminerScoring(
       throw new ScoringFinalizationError(
         "ASSIGNMENT_NOT_FOUND",
         "Assignment not found",
+      );
+    }
+    if (submission.retentionStatus !== "RETAINED") {
+      throw new ScoringFinalizationError(
+        "INVALID_LIFECYCLE",
+        "Submission is not available",
       );
     }
     if (assignment.examinerId !== examinerId) {
@@ -983,6 +1015,7 @@ export async function saveExaminerScore(
         submission: {
           select: {
             scoringSystem: true,
+            retentionStatus: true,
             answers: {
               where: { id: score.answerId },
               select: { id: true },
@@ -996,6 +1029,12 @@ export async function saveExaminerScore(
       throw new ScoringFinalizationError(
         "ASSIGNMENT_NOT_FOUND",
         "Assignment not found",
+      );
+    }
+    if (assignment.submission.retentionStatus !== "RETAINED") {
+      throw new ScoringFinalizationError(
+        "INVALID_LIFECYCLE",
+        "Submission is not available",
       );
     }
     if (assignment.examinerId !== examinerId) {

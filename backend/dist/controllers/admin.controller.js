@@ -4,6 +4,7 @@ import { AssignmentSetError } from "../service/examiner.service.js";
 import { AccountTransitionError } from "../service/accountTransition.service.js";
 import { SubmissionStatus } from "../generated/enums.js";
 import { Prisma } from "../generated/client.js";
+import { approveSubmissionPurge, cancelSubmissionPurge, createRetentionHold, finalizeSubmissionPurge, getSubmissionPurgeRequest, requestSubmissionPurge, releaseRetentionHold, RetentionOperationError, } from "../service/submissionRetention.service.js";
 const ADMIN_ROLES = ["STUDENT", "EXAMINER", "ADMIN"];
 const ADMIN_SUBMISSION_STATUSES = Object.values(SubmissionStatus).filter((status) => status !== "IN_PROGRESS");
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -362,5 +363,178 @@ export async function updateSettings(req, res) {
     catch (error) {
         console.error("Update settings error:", error);
         res.status(500).json({ error: "Failed to update settings" });
+    }
+}
+function retentionErrorStatus(error) {
+    switch (error.code) {
+        case "SUBMISSION_NOT_FOUND":
+        case "PURGE_REQUEST_NOT_FOUND":
+        case "HOLD_NOT_FOUND":
+            return 404;
+        case "ACTIVE_ADMIN_REQUIRED":
+            return 403;
+        case "RETENTION_CLEANUP_DISABLED":
+            return 503;
+        case "PURGE_NOT_ELIGIBLE":
+        case "DUAL_CONTROL_REQUIRED":
+        case "PURGE_NOT_APPROVED":
+        case "PURGE_QUARANTINE_ACTIVE":
+        case "PURGE_NOT_RECOVERABLE":
+        case "PURGE_IRREVERSIBLE":
+        case "PURGE_DELETE_IN_FLIGHT":
+            return 409;
+        default:
+            return 400;
+    }
+}
+function retentionErrorResponse(res, error) {
+    if (error instanceof RetentionOperationError) {
+        res.status(retentionErrorStatus(error)).json({
+            error: error.message,
+            code: error.code,
+            ...(error.details ?? {}),
+        });
+        return;
+    }
+    res.status(500).json({ error: "Retention operation failed" });
+}
+function retentionBody(req) {
+    return req.body;
+}
+function requiredReason(value) {
+    return typeof value === "string" && value.trim() ? value : undefined;
+}
+/** POST /api/admin/submissions/:id/purge-request */
+export async function requestPurge(req, res) {
+    const submissionId = req.params.id;
+    const body = retentionBody(req);
+    const reason = requiredReason(body.reason);
+    if (!UUID_RE.test(submissionId) || !reason) {
+        res.status(400).json({ error: "A valid Submission ID and non-empty reason are required" });
+        return;
+    }
+    try {
+        const data = await requestSubmissionPurge(submissionId, req.user.id, {
+            reason,
+            ...(typeof body.authorizationId === "string" ? { authorizationId: body.authorizationId } : {}),
+        });
+        res.status(201).json({ status: "success", data });
+    }
+    catch (error) {
+        retentionErrorResponse(res, error);
+    }
+}
+/** POST /api/admin/submissions/purge-requests/:id/approve */
+export async function approvePurge(req, res) {
+    const requestId = req.params.id;
+    const body = retentionBody(req);
+    const reason = requiredReason(body.reason);
+    if (!UUID_RE.test(requestId) || !reason) {
+        res.status(400).json({ error: "A valid purge request ID and non-empty reason are required" });
+        return;
+    }
+    try {
+        const data = await approveSubmissionPurge(requestId, req.user.id, {
+            reason,
+            ...(typeof body.authorizationId === "string" ? { authorizationId: body.authorizationId } : {}),
+        });
+        res.status(200).json({ status: "success", data });
+    }
+    catch (error) {
+        retentionErrorResponse(res, error);
+    }
+}
+/** POST /api/admin/submissions/purge-requests/:id/cancel */
+export async function cancelPurge(req, res) {
+    const requestId = req.params.id;
+    const body = retentionBody(req);
+    const reason = requiredReason(body.reason);
+    if (!UUID_RE.test(requestId) || !reason) {
+        res.status(400).json({ error: "A valid purge request ID and non-empty reason are required" });
+        return;
+    }
+    try {
+        const data = await cancelSubmissionPurge(requestId, req.user.id, {
+            reason,
+            ...(typeof body.authorizationId === "string" ? { authorizationId: body.authorizationId } : {}),
+        });
+        res.status(200).json({ status: "success", data });
+    }
+    catch (error) {
+        retentionErrorResponse(res, error);
+    }
+}
+/** POST /api/admin/submissions/purge-requests/:id/finalize */
+export async function finalizePurge(req, res) {
+    const requestId = req.params.id;
+    const body = retentionBody(req);
+    const reason = requiredReason(body.reason);
+    const authorizationId = typeof body.authorizationId === "string" ? body.authorizationId : undefined;
+    if (!UUID_RE.test(requestId) || !reason || !authorizationId?.trim()) {
+        res.status(400).json({ error: "A valid purge request ID, authorization ID, and non-empty reason are required" });
+        return;
+    }
+    try {
+        const data = await finalizeSubmissionPurge(requestId, req.user.id, {
+            reason,
+            authorizationId,
+        });
+        res.status(200).json({ status: "success", data });
+    }
+    catch (error) {
+        retentionErrorResponse(res, error);
+    }
+}
+/** GET /api/admin/submissions/purge-requests/:id */
+export async function getPurgeRequest(req, res) {
+    const requestId = req.params.id;
+    if (!UUID_RE.test(requestId)) {
+        res.status(400).json({ error: "A valid purge request ID is required" });
+        return;
+    }
+    try {
+        const data = await getSubmissionPurgeRequest(requestId);
+        if (!data) {
+            res.status(404).json({ error: "Purge request not found" });
+            return;
+        }
+        res.status(200).json({ status: "success", data });
+    }
+    catch (error) {
+        retentionErrorResponse(res, error);
+    }
+}
+/** POST /api/admin/submissions/:id/retention-holds */
+export async function addRetentionHold(req, res) {
+    const submissionId = req.params.id;
+    const body = retentionBody(req);
+    const reason = requiredReason(body.reason);
+    const types = ["LEGAL", "DISPUTE", "PAYMENT", "SCORING_REVIEW", "RECOVERY", "CERTIFICATE", "ADMIN"];
+    if (!UUID_RE.test(submissionId) || !reason || typeof body.type !== "string" || !types.includes(body.type)) {
+        res.status(400).json({ error: "A valid Submission ID, hold type, and non-empty reason are required" });
+        return;
+    }
+    try {
+        const data = await createRetentionHold(submissionId, req.user.id, body.type, reason);
+        res.status(201).json({ status: "success", data });
+    }
+    catch (error) {
+        retentionErrorResponse(res, error);
+    }
+}
+/** POST /api/admin/retention-holds/:id/release */
+export async function releaseHold(req, res) {
+    const holdId = req.params.id;
+    const reason = requiredReason(retentionBody(req).reason);
+    if (!UUID_RE.test(holdId) || !reason) {
+        res.status(400).json({ error: "A valid hold ID and non-empty reason are required" });
+        return;
+    }
+    try {
+        const data = await releaseRetentionHold(holdId, req.user.id, reason);
+        res.status(200).json({ status: "success", data });
+    }
+    catch (error) {
+        retentionErrorResponse(res, error);
     }
 }

@@ -95,6 +95,9 @@ async function replayStartIntent(studentId, idempotencyKey, signPromptMedia, dea
         return undefined;
     if (existingIntent.studentId !== studentId)
         throw new IdempotencyKeyConflictError();
+    if (existingIntent.submission.retentionStatus !== "RETAINED") {
+        throw new AssessmentUnavailableError();
+    }
     if (!existingIntent.submission.manifest)
         throw new AssessmentUnavailableError();
     const manifest = {
@@ -128,7 +131,11 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 return replay;
         }
         const active = await prisma.submission.findFirst({
-            where: { studentId, status: "IN_PROGRESS" },
+            where: {
+                studentId,
+                status: "IN_PROGRESS",
+                retentionStatus: "RETAINED",
+            },
             select: { id: true },
         });
         if (active)
@@ -267,7 +274,11 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
         }
         if (error instanceof Error && error.message.includes("Submission_one_active_per_student_key")) {
             const active = await prisma.submission.findFirst({
-                where: { studentId, status: "IN_PROGRESS" },
+                where: {
+                    studentId,
+                    status: "IN_PROGRESS",
+                    retentionStatus: "RETAINED",
+                },
                 select: { id: true },
             });
             if (active)
