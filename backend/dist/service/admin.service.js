@@ -71,8 +71,8 @@ export async function listAdminSubmissions(params) {
  * Authorization is enforced by the admin router before this service is called.
  */
 export async function getAdminSubmissionDetail(submissionId) {
-    const submission = await prisma.submission.findFirst({
-        where: { id: submissionId, retentionStatus: "RETAINED" },
+    const submission = await prisma.submission.findUnique({
+        where: { id: submissionId },
         include: {
             manifest: {
                 select: {
@@ -169,6 +169,9 @@ export async function getAdminSubmissionDetail(submissionId) {
         },
     });
     if (!submission) {
+        throw new Error("Submission not found");
+    }
+    if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
         throw new Error("Submission not found");
     }
     const manifest = submission.manifest;

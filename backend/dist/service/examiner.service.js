@@ -245,11 +245,8 @@ export async function getExaminerAssignments(examinerId) {
  * Only the assigned examiner can view this.
  */
 export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
-    const assignment = await prisma.examinerAssignment.findFirst({
-        where: {
-            id: assignmentId,
-            submission: { retentionStatus: "RETAINED" },
-        },
+    const assignment = await prisma.examinerAssignment.findUnique({
+        where: { id: assignmentId },
         include: {
             submission: {
                 include: {
@@ -316,6 +313,10 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
     }
     if (assignment.examinerId !== examinerId) {
         throw new Error("Unauthorized");
+    }
+    if (assignment.submission.retentionStatus &&
+        assignment.submission.retentionStatus !== "RETAINED") {
+        throw new Error("Submission is not available");
     }
     const manifest = assignment.submission.manifest;
     if (manifest && manifest.version !== 1)

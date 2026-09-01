@@ -151,7 +151,7 @@ export async function createSubmission(userId) {
 }
 /** Explicitly abandon an in-progress attempt; the transition is terminal and idempotent. */
 export async function abandonSubmission(submissionId, userId) {
-    const submission = await prisma.submission.findFirst({
+    const submission = await prisma.submission.findUnique({
         where: { id: submissionId },
         select: { id: true, studentId: true, status: true, retentionStatus: true },
     });
@@ -159,7 +159,7 @@ export async function abandonSubmission(submissionId, userId) {
         throw new Error("Submission not found");
     if (submission.studentId !== userId)
         throw new Error("Unauthorized");
-    if (submission.retentionStatus !== "RETAINED") {
+    if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
         throw new Error("Submission is not available");
     }
     if (submission.status === "ABANDONED")
@@ -236,8 +236,8 @@ export async function getStudentDashboard(userId, options = {}) {
  * Fetch a single submission with its answers and presigned video URLs.
  */
 export async function getSubmissionDetail(submissionId, userId) {
-    const submission = await prisma.submission.findFirst({
-        where: { id: submissionId, retentionStatus: "RETAINED" },
+    const submission = await prisma.submission.findUnique({
+        where: { id: submissionId },
         include: {
             manifest: {
                 select: {
@@ -289,6 +289,9 @@ export async function getSubmissionDetail(submissionId, userId) {
     }
     if (submission.studentId !== userId) {
         throw new Error("Unauthorized");
+    }
+    if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
+        throw new Error("Submission is not available");
     }
     if (submission.manifest && submission.manifest.version !== 1) {
         throw new Error("Unsupported manifest version");
@@ -378,12 +381,15 @@ export async function getSubmissionDetail(submissionId, userId) {
 }
 /** Fetch status only, restricted to the owning student. */
 export async function getSubmissionStatus(submissionId, userId) {
-    const submission = await prisma.submission.findFirst({
-        where: { id: submissionId, retentionStatus: "RETAINED" },
+    const submission = await prisma.submission.findUnique({
+        where: { id: submissionId },
         select: { id: true, studentId: true, status: true, retentionStatus: true, updatedAt: true },
     });
     if (!submission || submission.studentId !== userId) {
         throw new Error("Submission not found");
+    }
+    if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
+        throw new Error("Submission is not available");
     }
     return {
         id: submission.id,

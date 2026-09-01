@@ -399,6 +399,9 @@ function retentionErrorResponse(res, error) {
     res.status(500).json({ error: "Retention operation failed" });
 }
 function retentionBody(req) {
+    if (typeof req.body !== "object" || req.body === null || Array.isArray(req.body)) {
+        return {};
+    }
     return req.body;
 }
 function requiredReason(value) {

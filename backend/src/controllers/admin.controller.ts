@@ -487,6 +487,9 @@ function retentionBody(req: Request): {
   authorizationId?: unknown;
   type?: unknown;
 } {
+  if (typeof req.body !== "object" || req.body === null || Array.isArray(req.body)) {
+    return {};
+  }
   return req.body as {
     reason?: unknown;
     authorizationId?: unknown;

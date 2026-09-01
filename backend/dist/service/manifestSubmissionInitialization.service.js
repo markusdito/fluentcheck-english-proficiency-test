@@ -95,7 +95,8 @@ async function replayStartIntent(studentId, idempotencyKey, signPromptMedia, dea
         return undefined;
     if (existingIntent.studentId !== studentId)
         throw new IdempotencyKeyConflictError();
-    if (existingIntent.submission.retentionStatus !== "RETAINED") {
+    if (existingIntent.submission.retentionStatus &&
+        existingIntent.submission.retentionStatus !== "RETAINED") {
         throw new AssessmentUnavailableError();
     }
     if (!existingIntent.submission.manifest)

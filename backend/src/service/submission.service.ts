@@ -276,13 +276,13 @@ export async function createSubmission(userId: string): Promise<{ id: string; st
 
 /** Explicitly abandon an in-progress attempt; the transition is terminal and idempotent. */
 export async function abandonSubmission(submissionId: string, userId: string) {
-  const submission = await prisma.submission.findFirst({
+  const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: { id: true, studentId: true, status: true, retentionStatus: true },
   });
   if (!submission) throw new Error("Submission not found");
   if (submission.studentId !== userId) throw new Error("Unauthorized");
-  if (submission.retentionStatus !== "RETAINED") {
+  if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
     throw new Error("Submission is not available");
   }
   if (submission.status === "ABANDONED") return submission;
@@ -372,8 +372,8 @@ export async function getSubmissionDetail(
   submissionId: string,
   userId: string
 ): Promise<SubmissionDetail> {
-  const submission = await prisma.submission.findFirst({
-    where: { id: submissionId, retentionStatus: "RETAINED" },
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
     include: {
       manifest: {
         select: {
@@ -427,6 +427,9 @@ export async function getSubmissionDetail(
 
   if (submission.studentId !== userId) {
     throw new Error("Unauthorized");
+  }
+  if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
+    throw new Error("Submission is not available");
   }
   if (submission.manifest && submission.manifest.version !== 1) {
     throw new Error("Unsupported manifest version");
@@ -542,13 +545,16 @@ export async function getSubmissionStatus(
   submissionId: string,
   userId: string,
 ): Promise<SubmissionStatusSnapshot> {
-  const submission = await prisma.submission.findFirst({
-    where: { id: submissionId, retentionStatus: "RETAINED" },
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
     select: { id: true, studentId: true, status: true, retentionStatus: true, updatedAt: true },
   });
 
   if (!submission || submission.studentId !== userId) {
     throw new Error("Submission not found");
+  }
+  if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
+    throw new Error("Submission is not available");
   }
 
   return {

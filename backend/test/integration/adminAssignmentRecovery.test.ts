@@ -382,3 +382,70 @@ test("automatic payment failure preserves the committed payment and later admin 
     "SCORING",
   );
 });
+
+test("retention endpoints validate bodies and enforce independent approval", async () => {
+  const submission = await createAssignmentReadySubmission("ABANDONED");
+  const requesterCookie = await createAdmin();
+  const approverCookie = await createAdmin();
+  const requestUrl = `${baseUrl}/api/admin/submissions/${submission.id}/purge-request`;
+
+  const malformed = await fetch(requestUrl, {
+    method: "POST",
+    headers: { Cookie: requesterCookie, "Content-Type": "application/json" },
+    body: "null",
+  });
+  assert.equal(malformed.status, 400);
+
+  const requested = await fetch(requestUrl, {
+    method: "POST",
+    headers: { Cookie: requesterCookie, "Content-Type": "application/json" },
+    body: JSON.stringify({ reason: "Student requested removal" }),
+  });
+  const requestedPayload = await requested.json() as { data: { id: string; status: string } };
+  assert.equal(requested.status, 201);
+  assert.equal(requestedPayload.data.status, "REQUESTED");
+
+  const selfApproval = await fetch(
+    `${baseUrl}/api/admin/submissions/purge-requests/${requestedPayload.data.id}/approve`,
+    {
+      method: "POST",
+      headers: { Cookie: requesterCookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Self approval" }),
+    },
+  );
+  const selfApprovalPayload = await selfApproval.json() as { code?: string };
+  assert.equal(selfApproval.status, 409);
+  assert.equal(selfApprovalPayload.code, "DUAL_CONTROL_REQUIRED");
+
+  const approved = await fetch(
+    `${baseUrl}/api/admin/submissions/purge-requests/${requestedPayload.data.id}/approve`,
+    {
+      method: "POST",
+      headers: { Cookie: approverCookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Independent approval", authorizationId: "approval-http" }),
+    },
+  );
+  const approvedPayload = await approved.json() as { data: { status: string } };
+  assert.equal(approved.status, 200);
+  assert.equal(approvedPayload.data.status, "QUARANTINED");
+
+  const detail = await fetch(
+    `${baseUrl}/api/admin/submissions/purge-requests/${requestedPayload.data.id}`,
+    { headers: { Cookie: approverCookie } },
+  );
+  const detailPayload = await detail.json() as { data: { status: string } };
+  assert.equal(detail.status, 200);
+  assert.equal(detailPayload.data.status, "QUARANTINED");
+
+  const cancelled = await fetch(
+    `${baseUrl}/api/admin/submissions/purge-requests/${requestedPayload.data.id}/cancel`,
+    {
+      method: "POST",
+      headers: { Cookie: approverCookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Recovery review" }),
+    },
+  );
+  const cancelledPayload = await cancelled.json() as { data: { status: string } };
+  assert.equal(cancelled.status, 200);
+  assert.equal(cancelledPayload.data.status, "CANCELLED");
+});
