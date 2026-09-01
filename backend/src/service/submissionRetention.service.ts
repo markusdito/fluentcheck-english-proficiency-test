@@ -142,6 +142,17 @@ function requireAuthorizationId(value: string | undefined, fallback: string): st
   return normalized;
 }
 
+function requireExplicitAuthorizationId(value: string | undefined): string {
+  const normalized = value?.trim();
+  if (!normalized) {
+    throw new RetentionOperationError(
+      "AUTHORIZATION_REQUIRED",
+      "Explicit authorization evidence is required for finalization",
+    );
+  }
+  return normalized;
+}
+
 function assertCleanupEnabled(dependencies: SubmissionRetentionDependencies): void {
   if (!(dependencies.enabled ?? env.RETENTION_CLEANUP_ENABLED)) {
     throw new RetentionCleanupDisabledError();
@@ -268,10 +279,6 @@ function requestAuthorizationId(requestId: string): string {
 
 function approvalAuthorizationId(requestId: string): string {
   return `purge-approval:${requestId}`;
-}
-
-function resultAuthorizationId(requestId: string): string {
-  return `purge-finalization:${requestId}`;
 }
 
 /** Request a purge without changing the Submission or touching storage. */
@@ -572,24 +579,16 @@ export async function cancelSubmissionPurge(
       throw new RetentionOperationError("PURGE_REQUEST_NOT_FOUND", "Purge request not found");
     }
     if (request.status === "CANCELLED") return request;
-    if (request.status !== "QUARANTINED" && request.status !== "FAILED") {
+    if (request.status !== "QUARANTINED") {
       throw new RetentionOperationError(
         "PURGE_NOT_RECOVERABLE",
-        "Only an approved quarantined or failed purge can be recovered",
+        "Only an approved quarantined purge can be recovered",
       );
     }
-    if (request.objects.some((object) =>
-      object.status === "DELETED" || object.status === "MISSING"
-    )) {
+    if (request.objects.some((object) => object.status !== "QUARANTINED")) {
       throw new RetentionOperationError(
         "PURGE_IRREVERSIBLE",
-        "Recovery is unavailable after storage confirms an object absent",
-      );
-    }
-    if (request.objects.some((object) => object.status === "DELETE_PENDING")) {
-      throw new RetentionOperationError(
-        "PURGE_DELETE_IN_FLIGHT",
-        "Recovery is unavailable while a storage deletion attempt is pending",
+        "Recovery is unavailable after purge finalization begins",
       );
     }
     await transaction.$queryRaw`
@@ -634,27 +633,29 @@ export async function cancelSubmissionPurge(
   });
 }
 
+interface PurgeObjectAttempt {
+  id: string;
+  requestId: string;
+  submissionId: string;
+  storageKey: string;
+  bucket: string;
+}
+
 interface PurgeObjectProcessingResult {
   attempted: boolean;
   failed: boolean;
 }
 
-/**
- * Mark, delete, and confirm one Answer-media identity while its advisory
- * lock remains held. The target Answer stays in the database until every
- * object has succeeded and the relational purge runs in its own locked
- * transaction.
- */
-async function processPurgeObject(
+/** Reserve an Answer-media identity before calling the external storage API. */
+async function preparePurgeObjectAttempt(
   requestId: string,
   objectId: string,
   actorId: string,
   reason: string,
   authorizationId: string,
   dependencies: SubmissionRetentionDependencies,
-): Promise<PurgeObjectProcessingResult> {
+): Promise<PurgeObjectAttempt | null> {
   const database = databaseOf(dependencies);
-  const storage = storageOf(dependencies);
   return database.$transaction(async (transaction) => {
     await transaction.$queryRaw`
       SELECT "id" FROM "SubmissionPurgeRequest" WHERE "id" = ${requestId}::uuid FOR UPDATE
@@ -664,7 +665,7 @@ async function processPurgeObject(
       select: { targetSubmissionId: true, status: true },
     });
     if (!request || (request.status !== "QUARANTINED" && request.status !== "FAILED")) {
-      return { attempted: false, failed: false };
+      return null;
     }
     await transaction.$queryRaw`
       SELECT "id" FROM "Submission" WHERE "id" = ${request.targetSubmissionId}::uuid FOR UPDATE
@@ -673,9 +674,7 @@ async function processPurgeObject(
       transaction,
       request.targetSubmissionId,
     );
-    if (!submission || submission.retentionStatus !== "QUARANTINED") {
-      return { attempted: false, failed: false };
-    }
+    if (!submission || submission.retentionStatus !== "QUARANTINED") return null;
     const holdBlockers = activeHoldBlockers(submission);
     if (holdBlockers.length > 0) {
       throw new SubmissionPurgeNotEligibleError(holdBlockers);
@@ -690,9 +689,8 @@ async function processPurgeObject(
         object.status !== "FAILED" &&
         object.status !== "DELETE_PENDING")
     ) {
-      return { attempted: false, failed: false };
+      return null;
     }
-
     await lockPromptMediaStorageIdentity(transaction, object.storageKey);
     const sharedAnswer = await findSharedAnswerMedia(
       transaction,
@@ -701,30 +699,10 @@ async function processPurgeObject(
       object.bucket,
     );
     if (sharedAnswer) {
-      const message = `Answer media storage identity ${object.bucket}/${object.storageKey} is shared by another retained Submission`;
-      await transaction.submissionPurgeObject.update({
-        where: { id: object.id },
-        data: { status: "FAILED", lastError: message },
-      });
-      await transaction.submissionPurgeRequest.updateMany({
-        where: { id: requestId, status: { in: ["QUARANTINED", "FAILED"] } },
-        data: { status: "FAILED", lastError: message },
-      });
-      await audit(transaction, {
-        targetSubmissionId: object.targetSubmissionId,
-        submissionId: object.submissionId ?? undefined,
-        purgeRequestId: requestId,
-        actorId,
-        action: "PURGE_DELETE_FAILED",
-        authorizationId,
-        reason,
-        storageKey: object.storageKey,
-        outcome: "PURGE_SHARED_STORAGE_IDENTITY",
-        metadata: { sharedAnswerId: sharedAnswer.id, sharedSubmissionId: sharedAnswer.submissionId },
-      });
-      return { attempted: true, failed: true };
+      throw new SubmissionPurgeNotEligibleError([
+        `Answer media storage identity ${object.bucket}/${object.storageKey} is shared by another retained Submission`,
+      ]);
     }
-
     const attempted = await transaction.submissionPurgeObject.update({
       where: { id: object.id },
       data: {
@@ -745,54 +723,190 @@ async function processPurgeObject(
       outcome: "DELETE_REQUESTED",
       metadata: { attemptCount: attempted.attemptCount },
     });
+    return {
+      id: object.id,
+      requestId,
+      submissionId: object.targetSubmissionId,
+      storageKey: object.storageKey,
+      bucket: object.bucket,
+    };
+  }, { maxWait: 60_000, timeout: 10_000 });
+}
 
+/** Delete a reserved identity while the advisory lock remains held. */
+async function confirmPurgeObjectAttempt(
+  attempt: PurgeObjectAttempt,
+  actorId: string,
+  reason: string,
+  authorizationId: string,
+  dependencies: SubmissionRetentionDependencies,
+): Promise<PurgeObjectProcessingResult> {
+  const database = databaseOf(dependencies);
+  const storage = storageOf(dependencies);
+  try {
+    return await database.$transaction(async (transaction) => {
+      await transaction.$queryRaw`
+        SELECT "id" FROM "SubmissionPurgeRequest" WHERE "id" = ${attempt.requestId}::uuid FOR UPDATE
+      `;
+      const request = await transaction.submissionPurgeRequest.findUnique({
+        where: { id: attempt.requestId },
+        select: { targetSubmissionId: true, status: true },
+      });
+      if (!request || (request.status !== "QUARANTINED" && request.status !== "FAILED")) {
+        return { attempted: false, failed: false };
+      }
+      await transaction.$queryRaw`
+        SELECT "id" FROM "Submission" WHERE "id" = ${request.targetSubmissionId}::uuid FOR UPDATE
+      `;
+      const submission = await loadSubmissionPolicy(
+        transaction,
+        request.targetSubmissionId,
+      );
+      if (!submission || submission.retentionStatus !== "QUARANTINED") {
+        return { attempted: false, failed: false };
+      }
+      const holdBlockers = activeHoldBlockers(submission);
+      if (holdBlockers.length > 0) {
+        throw new SubmissionPurgeNotEligibleError(holdBlockers);
+      }
+      const object = await transaction.submissionPurgeObject.findUnique({
+        where: { id: attempt.id },
+      });
+      if (!object || object.status !== "DELETE_PENDING") {
+        return { attempted: false, failed: false };
+      }
+      await lockPromptMediaStorageIdentity(transaction, object.storageKey);
+      const sharedAnswer = await findSharedAnswerMedia(
+        transaction,
+        request.targetSubmissionId,
+        object.storageKey,
+        object.bucket,
+      );
+      if (sharedAnswer) {
+        const message = `Answer media storage identity ${object.bucket}/${object.storageKey} is shared by another retained Submission`;
+        await transaction.submissionPurgeObject.update({
+          where: { id: object.id },
+          data: { status: "FAILED", lastError: message },
+        });
+        await transaction.submissionPurgeRequest.updateMany({
+          where: { id: attempt.requestId, status: { in: ["QUARANTINED", "FAILED"] } },
+          data: { status: "FAILED", lastError: message },
+        });
+        await audit(transaction, {
+          targetSubmissionId: object.targetSubmissionId,
+          submissionId: object.submissionId ?? undefined,
+          purgeRequestId: attempt.requestId,
+          actorId,
+          action: "PURGE_DELETE_FAILED",
+          authorizationId,
+          reason,
+          storageKey: object.storageKey,
+          outcome: "PURGE_SHARED_STORAGE_IDENTITY",
+          metadata: { sharedAnswerId: sharedAnswer.id, sharedSubmissionId: sharedAnswer.submissionId },
+        });
+        return { attempted: true, failed: true };
+      }
+      try {
+        const confirmation = await storage.deleteObject(object.storageKey, object.bucket);
+        const missing = confirmation.outcome === "ALREADY_ABSENT";
+        await transaction.submissionPurgeObject.update({
+          where: { id: object.id },
+          data: {
+            status: missing ? "MISSING" : "DELETED",
+            deletedAt: missing ? null : nowOf(dependencies),
+            lastError: null,
+          },
+        });
+        await audit(transaction, {
+          targetSubmissionId: object.targetSubmissionId,
+          submissionId: object.submissionId ?? undefined,
+          purgeRequestId: attempt.requestId,
+          actorId,
+          action: "PURGE_DELETE_CONFIRMED",
+          authorizationId,
+          reason,
+          storageKey: object.storageKey,
+          outcome: confirmation.outcome,
+        });
+        return { attempted: true, failed: false };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Storage deletion failed";
+        await transaction.submissionPurgeObject.update({
+          where: { id: object.id },
+          data: { status: "FAILED", lastError: message },
+        });
+        await transaction.submissionPurgeRequest.updateMany({
+          where: { id: attempt.requestId, status: { in: ["QUARANTINED", "FAILED"] } },
+          data: { status: "FAILED", lastError: message },
+        });
+        await audit(transaction, {
+          targetSubmissionId: object.targetSubmissionId,
+          submissionId: object.submissionId ?? undefined,
+          purgeRequestId: attempt.requestId,
+          actorId,
+          action: "PURGE_DELETE_FAILED",
+          authorizationId,
+          reason,
+          storageKey: object.storageKey,
+          outcome: message,
+        });
+        return { attempted: true, failed: true };
+      }
+    }, { maxWait: 60_000, timeout: 60_000 });
+  } catch (error) {
+    // The preparation transaction committed DELETE_PENDING before this
+    // external call. If persistence fails after storage changed, leave that
+    // durable state in place so recovery cannot incorrectly restore access.
+    const message = error instanceof Error ? error.message : "Purge finalization failed";
     try {
-      const confirmation = await storage.deleteObject(object.storageKey, object.bucket);
-      const missing = confirmation.outcome === "ALREADY_ABSENT";
-      await transaction.submissionPurgeObject.update({
-        where: { id: object.id },
-        data: {
-          status: missing ? "MISSING" : "DELETED",
-          deletedAt: missing ? null : nowOf(dependencies),
-          lastError: null,
-        },
+      await database.$transaction(async (transaction) => {
+        await transaction.submissionPurgeRequest.updateMany({
+          where: { id: attempt.requestId, status: { in: ["QUARANTINED", "FAILED"] } },
+          data: { status: "FAILED", lastError: message },
+        });
+        await audit(transaction, {
+          targetSubmissionId: attempt.submissionId,
+          submissionId: attempt.submissionId,
+          purgeRequestId: attempt.requestId,
+          actorId,
+          action: "PURGE_DELETE_FAILED",
+          authorizationId,
+          reason,
+          storageKey: attempt.storageKey,
+          outcome: "DELETE_CONFIRMATION_PERSISTENCE_FAILED",
+        });
       });
-      await audit(transaction, {
-        targetSubmissionId: object.targetSubmissionId,
-        submissionId: object.submissionId ?? undefined,
-        purgeRequestId: requestId,
-        actorId,
-        action: "PURGE_DELETE_CONFIRMED",
-        authorizationId,
-        reason,
-        storageKey: object.storageKey,
-        outcome: confirmation.outcome,
-      });
-      return { attempted: true, failed: false };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Storage deletion failed";
-      await transaction.submissionPurgeObject.update({
-        where: { id: object.id },
-        data: { status: "FAILED", lastError: message },
-      });
-      await transaction.submissionPurgeRequest.updateMany({
-        where: { id: requestId, status: { in: ["QUARANTINED", "FAILED"] } },
-        data: { status: "FAILED", lastError: message },
-      });
-      await audit(transaction, {
-        targetSubmissionId: object.targetSubmissionId,
-        submissionId: object.submissionId ?? undefined,
-        purgeRequestId: requestId,
-        actorId,
-        action: "PURGE_DELETE_FAILED",
-        authorizationId,
-        reason,
-        storageKey: object.storageKey,
-        outcome: message,
-      });
-      return { attempted: true, failed: true };
+    } catch {
+      // DELETE_PENDING remains the durable, non-recoverable retry signal.
     }
-  }, { timeout: 60_000 });
+    return { attempted: true, failed: true };
+  }
+}
+
+async function processPurgeObject(
+  requestId: string,
+  objectId: string,
+  actorId: string,
+  reason: string,
+  authorizationId: string,
+  dependencies: SubmissionRetentionDependencies,
+): Promise<PurgeObjectProcessingResult> {
+  const attempt = await preparePurgeObjectAttempt(
+    requestId,
+    objectId,
+    actorId,
+    reason,
+    authorizationId,
+    dependencies,
+  );
+  if (!attempt) return { attempted: false, failed: false };
+  return confirmPurgeObjectAttempt(
+    attempt,
+    actorId,
+    reason,
+    authorizationId,
+    dependencies,
+  );
 }
 
 async function completeSubmissionPurge(
@@ -926,6 +1040,7 @@ export async function finalizeSubmissionPurge(
   dependencies: SubmissionRetentionDependencies = {},
 ) {
   assertCleanupEnabled(dependencies);
+  const authorizationId = requireExplicitAuthorizationId(options.authorizationId);
   const reason = requireReason(options.reason);
   const database = databaseOf(dependencies);
   const now = nowOf(dependencies);
@@ -954,10 +1069,6 @@ export async function finalizeSubmissionPurge(
     }
   });
 
-  const authorizationId = requireAuthorizationId(
-    options.authorizationId,
-    resultAuthorizationId(requestId),
-  );
   const request = await database.submissionPurgeRequest.findUniqueOrThrow({
     where: { id: requestId },
     include: { objects: { orderBy: { storageKey: "asc" } } },

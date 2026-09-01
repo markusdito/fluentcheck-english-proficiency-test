@@ -20,6 +20,7 @@ let approveSubmissionPurge: typeof import("../../src/service/submissionRetention
 let cancelSubmissionPurge: typeof import("../../src/service/submissionRetention.service.js")["cancelSubmissionPurge"];
 let finalizeSubmissionPurge: typeof import("../../src/service/submissionRetention.service.js")["finalizeSubmissionPurge"];
 let RetentionCleanupDisabledError: typeof import("../../src/service/submissionRetention.service.js")["RetentionCleanupDisabledError"];
+let RetentionOperationError: typeof import("../../src/service/submissionRetention.service.js")["RetentionOperationError"];
 let SubmissionPurgeNotEligibleError: typeof import("../../src/service/submissionRetention.service.js")["SubmissionPurgeNotEligibleError"];
 let inventoryPromptMedia: typeof import("../../src/service/promptMediaCleanup.service.js")["inventoryPromptMedia"];
 let runPromptMediaCleanup: typeof import("../../src/service/promptMediaCleanup.service.js")["runPromptMediaCleanup"];
@@ -53,6 +54,7 @@ before(async () => {
     cancelSubmissionPurge,
     finalizeSubmissionPurge,
     RetentionCleanupDisabledError,
+    RetentionOperationError,
     SubmissionPurgeNotEligibleError,
   } = await import("../../src/service/submissionRetention.service.js"));
   ({ inventoryPromptMedia, runPromptMediaCleanup } = await import(
@@ -364,6 +366,50 @@ test("purge storage failures remain visible and retryable until absence is confi
   assert.ok(await prisma.retentionAuditEvent.count({ where: { targetSubmissionId: fixture.submission.id, action: "PURGE_COMPLETED" } }));
 });
 
+test("purge finalization requires explicit authorization before storage access", async () => {
+  const fixture = await createPurgeFixture();
+  const request = await requestSubmissionPurge(
+    fixture.submission.id,
+    fixture.requester.id,
+    { reason: "Remove abandoned attempt" },
+    { database: prisma, now: () => new Date("2026-01-01T00:00:00.000Z") },
+  );
+  await approveSubmissionPurge(
+    request.id,
+    fixture.approver.id,
+    { reason: "Independent approval" },
+    { database: prisma, now: () => new Date("2026-01-01T00:00:00.000Z") },
+  );
+
+  let deletes = 0;
+  await assert.rejects(
+    finalizeSubmissionPurge(
+      request.id,
+      fixture.approver.id,
+      { reason: "Finalize without change record" },
+      {
+        database: prisma,
+        enabled: true,
+        now: () => new Date("2026-02-01T00:00:00.000Z"),
+        storage: {
+          deleteObject: async (): Promise<StorageDeleteConfirmation> => {
+            deletes += 1;
+            return { outcome: "DELETED" };
+          },
+        },
+      },
+    ),
+    (error: unknown) =>
+      error instanceof RetentionOperationError &&
+      error.code === "AUTHORIZATION_REQUIRED",
+  );
+  assert.equal(deletes, 0);
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).retentionStatus,
+    "QUARANTINED",
+  );
+});
+
 test("already absent Answer media crosses the irreversible boundary as MISSING", async () => {
   const fixture = await createPurgeFixture();
   const request = await requestSubmissionPurge(
@@ -381,7 +427,7 @@ test("already absent Answer media crosses the irreversible boundary as MISSING",
   const finalized = await finalizeSubmissionPurge(
     request.id,
     fixture.approver.id,
-    { reason: "Finalize absent object" },
+    { reason: "Finalize absent object", authorizationId: "absence-check" },
     {
       database: prisma,
       enabled: true,
@@ -402,7 +448,7 @@ test("already absent Answer media crosses the irreversible boundary as MISSING",
       { reason: "Too late" },
       { database: prisma },
     ),
-    /Only an approved quarantined or failed purge/u,
+    /Only an approved quarantined purge can be recovered/u,
   );
 });
 
