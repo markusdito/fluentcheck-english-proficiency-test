@@ -537,6 +537,30 @@ test("restored incomplete or retired content remains outside test delivery", asy
   assert.equal(delivered.some((question) => question.id === retiredParent.id), false);
 });
 
+test("admin question listing is not limited to the legacy order-two position", async () => {
+  const created = await Promise.all(
+    (["PART_1", "PART_2", "PART_3"] as const).map((category) =>
+      prisma.question.create({
+        data: {
+          category,
+          order: nextPosition(),
+          createdById: adminId,
+          tasks: { create: { promptText: `${category} admin listing`, order: 1 } },
+        },
+      }),
+    ),
+  );
+
+  const response = await request("GET", "/questions");
+  assert.equal(response.status, 200);
+  const body = await response.json() as { data: QuestionResponse[] };
+  const returnedIds = new Set(body.data.map((question) => question.id));
+  assert.deepEqual(
+    created.map((question) => returnedIds.has(question.id)),
+    [true, true, true],
+  );
+});
+
 test("restoring a Task resumes delivery only under an active eligible Question", async () => {
   const order = nextPosition();
   const question = await prisma.question.create({

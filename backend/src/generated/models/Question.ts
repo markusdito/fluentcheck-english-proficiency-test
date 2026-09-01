@@ -296,6 +296,7 @@ export type QuestionWhereInput = {
   tasks?: Prisma.TaskListRelationFilter
   answers?: Prisma.AnswerListRelationFilter
   manifestEntries?: Prisma.ManifestEntryListRelationFilter
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectListRelationFilter
 }
 
 export type QuestionOrderByWithRelationInput = {
@@ -316,6 +317,7 @@ export type QuestionOrderByWithRelationInput = {
   tasks?: Prisma.TaskOrderByRelationAggregateInput
   answers?: Prisma.AnswerOrderByRelationAggregateInput
   manifestEntries?: Prisma.ManifestEntryOrderByRelationAggregateInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectOrderByRelationAggregateInput
 }
 
 export type QuestionWhereUniqueInput = Prisma.AtLeast<{
@@ -340,6 +342,7 @@ export type QuestionWhereUniqueInput = Prisma.AtLeast<{
   tasks?: Prisma.TaskListRelationFilter
   answers?: Prisma.AnswerListRelationFilter
   manifestEntries?: Prisma.ManifestEntryListRelationFilter
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectListRelationFilter
 }, "id" | "category_order">
 
 export type QuestionOrderByWithAggregationInput = {
@@ -399,6 +402,7 @@ export type QuestionCreateInput = {
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionUncheckedCreateInput = {
@@ -418,6 +422,7 @@ export type QuestionUncheckedCreateInput = {
   tasks?: Prisma.TaskUncheckedCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionUpdateInput = {
@@ -437,6 +442,7 @@ export type QuestionUpdateInput = {
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionUncheckedUpdateInput = {
@@ -456,6 +462,7 @@ export type QuestionUncheckedUpdateInput = {
   tasks?: Prisma.TaskUncheckedUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionCreateManyInput = {
@@ -672,6 +679,20 @@ export type QuestionUpdateOneRequiredWithoutTasksNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.QuestionUpdateToOneWithWhereWithoutTasksInput, Prisma.QuestionUpdateWithoutTasksInput>, Prisma.QuestionUncheckedUpdateWithoutTasksInput>
 }
 
+export type QuestionCreateNestedOneWithoutPromptMediaCleanupObjectsInput = {
+  create?: Prisma.XOR<Prisma.QuestionCreateWithoutPromptMediaCleanupObjectsInput, Prisma.QuestionUncheckedCreateWithoutPromptMediaCleanupObjectsInput>
+  connectOrCreate?: Prisma.QuestionCreateOrConnectWithoutPromptMediaCleanupObjectsInput
+  connect?: Prisma.QuestionWhereUniqueInput
+}
+
+export type QuestionUpdateOneRequiredWithoutPromptMediaCleanupObjectsNestedInput = {
+  create?: Prisma.XOR<Prisma.QuestionCreateWithoutPromptMediaCleanupObjectsInput, Prisma.QuestionUncheckedCreateWithoutPromptMediaCleanupObjectsInput>
+  connectOrCreate?: Prisma.QuestionCreateOrConnectWithoutPromptMediaCleanupObjectsInput
+  upsert?: Prisma.QuestionUpsertWithoutPromptMediaCleanupObjectsInput
+  connect?: Prisma.QuestionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.QuestionUpdateToOneWithWhereWithoutPromptMediaCleanupObjectsInput, Prisma.QuestionUpdateWithoutPromptMediaCleanupObjectsInput>, Prisma.QuestionUncheckedUpdateWithoutPromptMediaCleanupObjectsInput>
+}
+
 export type QuestionCreateNestedOneWithoutManifestEntriesInput = {
   create?: Prisma.XOR<Prisma.QuestionCreateWithoutManifestEntriesInput, Prisma.QuestionUncheckedCreateWithoutManifestEntriesInput>
   connectOrCreate?: Prisma.QuestionCreateOrConnectWithoutManifestEntriesInput
@@ -718,6 +739,7 @@ export type QuestionCreateWithoutCreatedByInput = {
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionUncheckedCreateWithoutCreatedByInput = {
@@ -736,6 +758,7 @@ export type QuestionUncheckedCreateWithoutCreatedByInput = {
   tasks?: Prisma.TaskUncheckedCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionCreateOrConnectWithoutCreatedByInput = {
@@ -799,6 +822,7 @@ export type QuestionCreateWithoutTasksInput = {
   createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionUncheckedCreateWithoutTasksInput = {
@@ -817,6 +841,7 @@ export type QuestionUncheckedCreateWithoutTasksInput = {
   deletedAt?: Date | string | null
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionCreateOrConnectWithoutTasksInput = {
@@ -851,6 +876,7 @@ export type QuestionUpdateWithoutTasksInput = {
   createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionUncheckedUpdateWithoutTasksInput = {
@@ -867,6 +893,99 @@ export type QuestionUncheckedUpdateWithoutTasksInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutQuestionNestedInput
+  manifestEntries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedUpdateManyWithoutSourceQuestionNestedInput
+}
+
+export type QuestionCreateWithoutPromptMediaCleanupObjectsInput = {
+  id?: string
+  category: $Enums.QuestionCategory
+  order: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  audioStorageKey?: string | null
+  audioMimeType?: string | null
+  audioSizeBytes?: number | null
+  audioUploadStatus?: $Enums.UploadStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
+  tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
+  manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
+}
+
+export type QuestionUncheckedCreateWithoutPromptMediaCleanupObjectsInput = {
+  id?: string
+  category: $Enums.QuestionCategory
+  order: number
+  preparationSeconds?: number
+  recordingSeconds?: number
+  createdById?: string | null
+  audioStorageKey?: string | null
+  audioMimeType?: string | null
+  audioSizeBytes?: number | null
+  audioUploadStatus?: $Enums.UploadStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  tasks?: Prisma.TaskUncheckedCreateNestedManyWithoutQuestionInput
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutQuestionInput
+  manifestEntries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutSourceQuestionInput
+}
+
+export type QuestionCreateOrConnectWithoutPromptMediaCleanupObjectsInput = {
+  where: Prisma.QuestionWhereUniqueInput
+  create: Prisma.XOR<Prisma.QuestionCreateWithoutPromptMediaCleanupObjectsInput, Prisma.QuestionUncheckedCreateWithoutPromptMediaCleanupObjectsInput>
+}
+
+export type QuestionUpsertWithoutPromptMediaCleanupObjectsInput = {
+  update: Prisma.XOR<Prisma.QuestionUpdateWithoutPromptMediaCleanupObjectsInput, Prisma.QuestionUncheckedUpdateWithoutPromptMediaCleanupObjectsInput>
+  create: Prisma.XOR<Prisma.QuestionCreateWithoutPromptMediaCleanupObjectsInput, Prisma.QuestionUncheckedCreateWithoutPromptMediaCleanupObjectsInput>
+  where?: Prisma.QuestionWhereInput
+}
+
+export type QuestionUpdateToOneWithWhereWithoutPromptMediaCleanupObjectsInput = {
+  where?: Prisma.QuestionWhereInput
+  data: Prisma.XOR<Prisma.QuestionUpdateWithoutPromptMediaCleanupObjectsInput, Prisma.QuestionUncheckedUpdateWithoutPromptMediaCleanupObjectsInput>
+}
+
+export type QuestionUpdateWithoutPromptMediaCleanupObjectsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
+  order?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  audioUploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
+  tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
+  manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
+}
+
+export type QuestionUncheckedUpdateWithoutPromptMediaCleanupObjectsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
+  order?: Prisma.IntFieldUpdateOperationsInput | number
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  audioUploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tasks?: Prisma.TaskUncheckedUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutSourceQuestionNestedInput
 }
@@ -887,6 +1006,7 @@ export type QuestionCreateWithoutManifestEntriesInput = {
   createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionUncheckedCreateWithoutManifestEntriesInput = {
@@ -905,6 +1025,7 @@ export type QuestionUncheckedCreateWithoutManifestEntriesInput = {
   deletedAt?: Date | string | null
   tasks?: Prisma.TaskUncheckedCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionCreateOrConnectWithoutManifestEntriesInput = {
@@ -939,6 +1060,7 @@ export type QuestionUpdateWithoutManifestEntriesInput = {
   createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionUncheckedUpdateWithoutManifestEntriesInput = {
@@ -957,6 +1079,7 @@ export type QuestionUncheckedUpdateWithoutManifestEntriesInput = {
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   tasks?: Prisma.TaskUncheckedUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionCreateWithoutAnswersInput = {
@@ -975,6 +1098,7 @@ export type QuestionCreateWithoutAnswersInput = {
   createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionUncheckedCreateWithoutAnswersInput = {
@@ -993,6 +1117,7 @@ export type QuestionUncheckedCreateWithoutAnswersInput = {
   deletedAt?: Date | string | null
   tasks?: Prisma.TaskUncheckedCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedCreateNestedManyWithoutSourceQuestionInput
 }
 
 export type QuestionCreateOrConnectWithoutAnswersInput = {
@@ -1027,6 +1152,7 @@ export type QuestionUpdateWithoutAnswersInput = {
   createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionUncheckedUpdateWithoutAnswersInput = {
@@ -1045,6 +1171,7 @@ export type QuestionUncheckedUpdateWithoutAnswersInput = {
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   tasks?: Prisma.TaskUncheckedUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionCreateManyCreatedByInput = {
@@ -1078,6 +1205,7 @@ export type QuestionUpdateWithoutCreatedByInput = {
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionUncheckedUpdateWithoutCreatedByInput = {
@@ -1096,6 +1224,7 @@ export type QuestionUncheckedUpdateWithoutCreatedByInput = {
   tasks?: Prisma.TaskUncheckedUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedUpdateManyWithoutSourceQuestionNestedInput
 }
 
 export type QuestionUncheckedUpdateManyWithoutCreatedByInput = {
@@ -1122,12 +1251,14 @@ export type QuestionCountOutputType = {
   tasks: number
   answers: number
   manifestEntries: number
+  promptMediaCleanupObjects: number
 }
 
 export type QuestionCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   tasks?: boolean | QuestionCountOutputTypeCountTasksArgs
   answers?: boolean | QuestionCountOutputTypeCountAnswersArgs
   manifestEntries?: boolean | QuestionCountOutputTypeCountManifestEntriesArgs
+  promptMediaCleanupObjects?: boolean | QuestionCountOutputTypeCountPromptMediaCleanupObjectsArgs
 }
 
 /**
@@ -1161,6 +1292,13 @@ export type QuestionCountOutputTypeCountManifestEntriesArgs<ExtArgs extends runt
   where?: Prisma.ManifestEntryWhereInput
 }
 
+/**
+ * QuestionCountOutputType without action
+ */
+export type QuestionCountOutputTypeCountPromptMediaCleanupObjectsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PromptMediaCleanupObjectWhereInput
+}
+
 
 export type QuestionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1180,6 +1318,7 @@ export type QuestionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   tasks?: boolean | Prisma.Question$tasksArgs<ExtArgs>
   answers?: boolean | Prisma.Question$answersArgs<ExtArgs>
   manifestEntries?: boolean | Prisma.Question$manifestEntriesArgs<ExtArgs>
+  promptMediaCleanupObjects?: boolean | Prisma.Question$promptMediaCleanupObjectsArgs<ExtArgs>
   _count?: boolean | Prisma.QuestionCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["question"]>
 
@@ -1239,6 +1378,7 @@ export type QuestionInclude<ExtArgs extends runtime.Types.Extensions.InternalArg
   tasks?: boolean | Prisma.Question$tasksArgs<ExtArgs>
   answers?: boolean | Prisma.Question$answersArgs<ExtArgs>
   manifestEntries?: boolean | Prisma.Question$manifestEntriesArgs<ExtArgs>
+  promptMediaCleanupObjects?: boolean | Prisma.Question$promptMediaCleanupObjectsArgs<ExtArgs>
   _count?: boolean | Prisma.QuestionCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type QuestionIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1255,6 +1395,7 @@ export type $QuestionPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     tasks: Prisma.$TaskPayload<ExtArgs>[]
     answers: Prisma.$AnswerPayload<ExtArgs>[]
     manifestEntries: Prisma.$ManifestEntryPayload<ExtArgs>[]
+    promptMediaCleanupObjects: Prisma.$PromptMediaCleanupObjectPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1668,6 +1809,7 @@ export interface Prisma__QuestionClient<T, Null = never, ExtArgs extends runtime
   tasks<T extends Prisma.Question$tasksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Question$tasksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   answers<T extends Prisma.Question$answersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Question$answersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AnswerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   manifestEntries<T extends Prisma.Question$manifestEntriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Question$manifestEntriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ManifestEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  promptMediaCleanupObjects<T extends Prisma.Question$promptMediaCleanupObjectsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Question$promptMediaCleanupObjectsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PromptMediaCleanupObjectPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2199,6 +2341,30 @@ export type Question$manifestEntriesArgs<ExtArgs extends runtime.Types.Extension
   take?: number
   skip?: number
   distinct?: Prisma.ManifestEntryScalarFieldEnum | Prisma.ManifestEntryScalarFieldEnum[]
+}
+
+/**
+ * Question.promptMediaCleanupObjects
+ */
+export type Question$promptMediaCleanupObjectsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PromptMediaCleanupObject
+   */
+  select?: Prisma.PromptMediaCleanupObjectSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PromptMediaCleanupObject
+   */
+  omit?: Prisma.PromptMediaCleanupObjectOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PromptMediaCleanupObjectInclude<ExtArgs> | null
+  where?: Prisma.PromptMediaCleanupObjectWhereInput
+  orderBy?: Prisma.PromptMediaCleanupObjectOrderByWithRelationInput | Prisma.PromptMediaCleanupObjectOrderByWithRelationInput[]
+  cursor?: Prisma.PromptMediaCleanupObjectWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PromptMediaCleanupObjectScalarFieldEnum | Prisma.PromptMediaCleanupObjectScalarFieldEnum[]
 }
 
 /**

@@ -12,6 +12,13 @@ import {
   getSettings,
   listSubmissions,
   updateSettings,
+  requestPurge,
+  approvePurge,
+  cancelPurge,
+  finalizePurge,
+  getPurgeRequest,
+  addRetentionHold,
+  releaseHold,
 } from "../controllers/admin.controller.js";
 
 const router = Router();
@@ -24,6 +31,13 @@ router.get("/users/:id/role-transition-preview", getRoleTransitionPreview);
 router.put("/users/:id/role", updateUserRole);
 router.get("/examiners", getExaminers);
 router.post("/submissions/:id/assign", assignSubmission);
+router.post("/submissions/:id/purge-request", requestPurge);
+router.post("/submissions/:id/retention-holds", addRetentionHold);
+router.get("/submissions/purge-requests/:id", getPurgeRequest);
+router.post("/submissions/purge-requests/:id/approve", approvePurge);
+router.post("/submissions/purge-requests/:id/cancel", cancelPurge);
+router.post("/submissions/purge-requests/:id/finalize", finalizePurge);
+router.post("/retention-holds/:id/release", releaseHold);
 router.get("/submissions", listSubmissions);
 router.get("/submissions/:id", getSubmission);
 router.get("/stats", getStats);

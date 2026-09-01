@@ -56,27 +56,110 @@ enum ScoringSystem {
   RUBRIC_6
 }
 
+enum SubmissionRetentionStatus {
+  RETAINED
+  QUARANTINED
+  PURGED
+}
+
+enum SubmissionPurgeRequestStatus {
+  REQUESTED
+  QUARANTINED
+  FAILED
+  CANCELLED
+  COMPLETED
+}
+
+enum SubmissionPurgeObjectKind {
+  ANSWER_MEDIA
+}
+
+enum SubmissionPurgeObjectStatus {
+  QUARANTINED
+  DELETE_PENDING
+  DELETED
+  MISSING
+  FAILED
+  CANCELLED
+}
+
+enum RetentionHoldType {
+  LEGAL
+  DISPUTE
+  PAYMENT
+  SCORING_REVIEW
+  RECOVERY
+  CERTIFICATE
+  ADMIN
+}
+
+enum PromptMediaCleanupRunMode {
+  QUARANTINE
+  FINALIZE
+}
+
+enum PromptMediaCleanupRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum PromptMediaCleanupObjectStatus {
+  QUARANTINED
+  DELETE_PENDING
+  DELETED
+  FAILED
+  SKIPPED_REFERENCED
+  MISSING
+}
+
+enum RetentionAuditAction {
+  RETENTION_HOLD_CREATED
+  RETENTION_HOLD_RELEASED
+  PURGE_REQUESTED
+  PURGE_APPROVED
+  PURGE_CANCELLED
+  PURGE_RECOVERED
+  PURGE_DELETE_ATTEMPTED
+  PURGE_DELETE_CONFIRMED
+  PURGE_DELETE_FAILED
+  PURGE_COMPLETED
+  PROMPT_CLEANUP_AUTHORIZED
+  PROMPT_CLEANUP_QUARANTINED
+  PROMPT_CLEANUP_SKIPPED
+  PROMPT_CLEANUP_DELETE_ATTEMPTED
+  PROMPT_CLEANUP_DELETE_CONFIRMED
+  PROMPT_CLEANUP_DELETE_FAILED
+  PROMPT_CLEANUP_ALREADY_ABSENT
+}
+
 // ---------------- MODELS ----------------
 
 model User {
-  id        String    @id @default(uuid()) @db.Uuid
-  username  String    @unique
-  email     String
-  normalizedEmail String @unique
-  password  String? // nullable for provider-only accounts; local passwords are bcrypt hashes
-  googleSubject String? @unique // Google's stable subject; null for local-only accounts
-  role      Role      @default(STUDENT)
-  createdAt DateTime  @default(now()) @db.Timestamptz()
-  updatedAt DateTime  @updatedAt @db.Timestamptz()
-  deletedAt DateTime? @db.Timestamptz() // soft delete: account deactivated, history preserved
+  id              String    @id @default(uuid()) @db.Uuid
+  username        String    @unique
+  email           String
+  normalizedEmail String    @unique
+  password        String? // nullable for provider-only accounts; local passwords are bcrypt hashes
+  googleSubject   String?   @unique // Google's stable subject; null for local-only accounts
+  role            Role      @default(STUDENT)
+  createdAt       DateTime  @default(now()) @db.Timestamptz()
+  updatedAt       DateTime  @updatedAt @db.Timestamptz()
+  deletedAt       DateTime? @db.Timestamptz() // soft delete: account deactivated, history preserved
 
-  submissions      Submission[]
-  startIntents      SubmissionStartIntent[]
-  assignments      ExaminerAssignment[]
-  reassignmentsFrom ExaminerAssignmentReassignment[] @relation("ReassignmentPreviousExaminer")
-  reassignmentsTo   ExaminerAssignmentReassignment[] @relation("ReassignmentNewExaminer")
-  reassignmentsActed ExaminerAssignmentReassignment[] @relation("ReassignmentActingAdmin")
-  questionsCreated Question[]
+  submissions            Submission[]
+  startIntents           SubmissionStartIntent[]
+  assignments            ExaminerAssignment[]
+  reassignmentsFrom      ExaminerAssignmentReassignment[] @relation("ReassignmentPreviousExaminer")
+  reassignmentsTo        ExaminerAssignmentReassignment[] @relation("ReassignmentNewExaminer")
+  reassignmentsActed     ExaminerAssignmentReassignment[] @relation("ReassignmentActingAdmin")
+  questionsCreated       Question[]
+  retentionHoldsCreated  SubmissionRetentionHold[]        @relation("RetentionHoldCreatedBy")
+  retentionHoldsReleased SubmissionRetentionHold[]        @relation("RetentionHoldReleasedBy")
+  purgeRequestsRequested SubmissionPurgeRequest[]         @relation("PurgeRequestRequester")
+  purgeRequestsApproved  SubmissionPurgeRequest[]         @relation("PurgeRequestApprover")
+  retentionAuditEvents   RetentionAuditEvent[]
+  promptMediaCleanupRuns PromptMediaCleanupRun[]
 
   @@index([role])
 }
@@ -93,16 +176,17 @@ model GoogleOAuthState {
 }
 
 model Question {
-  id                 String           @id @default(uuid()) @db.Uuid
-  category           QuestionCategory
-  order              Int
-  preparationSeconds Int              @default(30)
-  recordingSeconds   Int              @default(120)
-  createdById        String?          @db.Uuid
-  createdBy          User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  tasks              Task[]
-  answers            Answer[]
-  manifestEntries    ManifestEntry[]
+  id                        String                     @id @default(uuid()) @db.Uuid
+  category                  QuestionCategory
+  order                     Int
+  preparationSeconds        Int                        @default(30)
+  recordingSeconds          Int                        @default(120)
+  createdById               String?                    @db.Uuid
+  createdBy                 User?                      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  tasks                     Task[]
+  answers                   Answer[]
+  manifestEntries           ManifestEntry[]
+  promptMediaCleanupObjects PromptMediaCleanupObject[]
 
   // Recorded prompt audio lives in Cloudflare R2 / S3 — DB stores metadata only
   audioStorageKey   String?
@@ -119,14 +203,14 @@ model Question {
 }
 
 model Task {
-  id         String    @id @default(uuid()) @db.Uuid
-  questionId String    @db.Uuid
-  question   Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
-  promptText String // sub-prompt answered within the question's single video
-  order      Int
-  createdAt  DateTime  @default(now()) @db.Timestamptz()
-  updatedAt  DateTime  @updatedAt @db.Timestamptz()
-  deletedAt  DateTime? @db.Timestamptz()
+  id            String         @id @default(uuid()) @db.Uuid
+  questionId    String         @db.Uuid
+  question      Question       @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  promptText    String // sub-prompt answered within the question's single video
+  order         Int
+  createdAt     DateTime       @default(now()) @db.Timestamptz()
+  updatedAt     DateTime       @updatedAt @db.Timestamptz()
+  deletedAt     DateTime?      @db.Timestamptz()
   manifestTasks ManifestTask[]
 
   @@unique([questionId, order], where: { deletedAt: null })
@@ -135,24 +219,164 @@ model Task {
 }
 
 model Submission {
-  id              String               @id @default(uuid()) @db.Uuid
-  studentId       String               @db.Uuid
-  student         User                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  status          SubmissionStatus     @default(IN_PROGRESS)
-  scoringSystem   ScoringSystem        @default(RUBRIC_6)
-  paymentRequired Boolean              @default(true)
-  answers         Answer[]
-  manifest        SubmissionManifest?
-  payments        Payment[]
-  assignments     ExaminerAssignment[]
-  certificate     Certificate?
-  startIntent     SubmissionStartIntent?
-  createdAt       DateTime             @default(now()) @db.Timestamptz()
-  updatedAt       DateTime             @updatedAt @db.Timestamptz()
+  id                   String                    @id @default(uuid()) @db.Uuid
+  studentId            String                    @db.Uuid
+  student              User                      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  status               SubmissionStatus          @default(IN_PROGRESS)
+  retentionStatus      SubmissionRetentionStatus @default(RETAINED)
+  scoringSystem        ScoringSystem             @default(RUBRIC_6)
+  paymentRequired      Boolean                   @default(true)
+  answers              Answer[]
+  manifest             SubmissionManifest?
+  payments             Payment[]
+  assignments          ExaminerAssignment[]
+  certificate          Certificate?
+  startIntent          SubmissionStartIntent?
+  retentionHolds       SubmissionRetentionHold[]
+  purgeRequests        SubmissionPurgeRequest[]
+  purgeObjects         SubmissionPurgeObject[]
+  createdAt            DateTime                  @default(now()) @db.Timestamptz()
+  updatedAt            DateTime                  @updatedAt @db.Timestamptz()
+  retentionAuditEvents RetentionAuditEvent[]
 
   @@index([studentId, status])
   @@index([studentId, createdAt, id])
   @@index([status])
+  @@index([retentionStatus, status])
+}
+
+model SubmissionRetentionHold {
+  id                 String            @id @default(uuid()) @db.Uuid
+  targetSubmissionId String            @db.Uuid
+  submissionId       String?           @db.Uuid
+  submission         Submission?       @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  type               RetentionHoldType
+  reason             String
+  createdById        String            @db.Uuid
+  createdBy          User              @relation("RetentionHoldCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  releasedById       String?           @db.Uuid
+  releasedBy         User?             @relation("RetentionHoldReleasedBy", fields: [releasedById], references: [id], onDelete: Restrict)
+  createdAt          DateTime          @default(now()) @db.Timestamptz()
+  releasedAt         DateTime?         @db.Timestamptz()
+
+  @@index([submissionId, releasedAt])
+  @@index([targetSubmissionId, releasedAt])
+}
+
+model SubmissionPurgeRequest {
+  id                 String                       @id @default(uuid()) @db.Uuid
+  targetSubmissionId String                       @db.Uuid
+  submissionId       String?                      @db.Uuid
+  submission         Submission?                  @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  requestedById      String                       @db.Uuid
+  requestedBy        User                         @relation("PurgeRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedById       String?                      @db.Uuid
+  approvedBy         User?                        @relation("PurgeRequestApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  status             SubmissionPurgeRequestStatus
+  reason             String
+  policyVersion      String
+  requestedAt        DateTime                     @default(now()) @db.Timestamptz()
+  approvedAt         DateTime?                    @db.Timestamptz()
+  quarantineUntil    DateTime?                    @db.Timestamptz()
+  completedAt        DateTime?                    @db.Timestamptz()
+  lastError          String?
+  objects            SubmissionPurgeObject[]
+  auditEvents        RetentionAuditEvent[]
+  createdAt          DateTime                     @default(now()) @db.Timestamptz()
+  updatedAt          DateTime                     @updatedAt @db.Timestamptz()
+
+  @@index([targetSubmissionId, status])
+  @@index([submissionId, status])
+}
+
+model SubmissionPurgeObject {
+  id                 String                      @id @default(uuid()) @db.Uuid
+  requestId          String                      @db.Uuid
+  request            SubmissionPurgeRequest      @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  targetSubmissionId String                      @db.Uuid
+  submissionId       String?                     @db.Uuid
+  submission         Submission?                 @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  kind               SubmissionPurgeObjectKind
+  storageKey         String
+  bucket             String
+  status             SubmissionPurgeObjectStatus
+  attemptCount       Int                         @default(0)
+  quarantineUntil    DateTime?                   @db.Timestamptz()
+  lastError          String?
+  deletedAt          DateTime?                   @db.Timestamptz()
+  createdAt          DateTime                    @default(now()) @db.Timestamptz()
+  updatedAt          DateTime                    @updatedAt @db.Timestamptz()
+
+  @@unique([requestId, storageKey])
+  @@index([storageKey, status])
+  @@index([targetSubmissionId, status])
+}
+
+model PromptMediaCleanupRun {
+  id              String                      @id @default(uuid()) @db.Uuid
+  mode            PromptMediaCleanupRunMode
+  actorId         String                      @db.Uuid
+  actor           User                        @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  authorizationId String
+  reason          String
+  policyVersion   String
+  status          PromptMediaCleanupRunStatus
+  completedAt     DateTime?                   @db.Timestamptz()
+  objects         PromptMediaCleanupObject[]
+  auditEvents     RetentionAuditEvent[]
+  createdAt       DateTime                    @default(now()) @db.Timestamptz()
+
+  @@index([mode, status, createdAt])
+}
+
+model PromptMediaCleanupObject {
+  id                     String                         @id @default(uuid()) @db.Uuid
+  sourceQuestionId       String                         @db.Uuid
+  sourceQuestion         Question                       @relation(fields: [sourceQuestionId], references: [id], onDelete: Restrict)
+  storageKey             String                         @unique
+  bucket                 String
+  answerReferenceCount   Int                            @default(0)
+  manifestReferenceCount Int                            @default(0)
+  referenceSnapshot      Json?
+  eligibilityReason      String
+  status                 PromptMediaCleanupObjectStatus
+  lastRunId              String
+  lastRun                PromptMediaCleanupRun          @relation(fields: [lastRunId], references: [id], onDelete: Restrict)
+  quarantineUntil        DateTime?                      @db.Timestamptz()
+  attemptCount           Int                            @default(0)
+  lastError              String?
+  deletedAt              DateTime?                      @db.Timestamptz()
+  createdAt              DateTime                       @default(now()) @db.Timestamptz()
+  updatedAt              DateTime                       @updatedAt @db.Timestamptz()
+
+  @@index([status, quarantineUntil])
+  @@index([sourceQuestionId, status])
+}
+
+model RetentionAuditEvent {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  targetSubmissionId String?                 @db.Uuid
+  submissionId       String?                 @db.Uuid
+  submission         Submission?             @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  purgeRequestId     String?                 @db.Uuid
+  purgeRequest       SubmissionPurgeRequest? @relation(fields: [purgeRequestId], references: [id], onDelete: SetNull)
+  cleanupRunId       String?                 @db.Uuid
+  cleanupRun         PromptMediaCleanupRun?  @relation(fields: [cleanupRunId], references: [id], onDelete: SetNull)
+  actorId            String                  @db.Uuid
+  actor              User                    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action             RetentionAuditAction
+  authorizationId    String
+  policyVersion      String
+  reason             String
+  storageKey         String?
+  outcome            String?
+  metadata           Json?
+  createdAt          DateTime                @default(now()) @db.Timestamptz()
+
+  @@index([targetSubmissionId, createdAt])
+  @@index([purgeRequestId, createdAt])
+  @@index([cleanupRunId, createdAt])
+  @@index([storageKey, createdAt])
 }
 
 model SubmissionStartIntent {
@@ -179,22 +403,22 @@ model SubmissionManifest {
 }
 
 model ManifestEntry {
-  id               String             @id @default(uuid()) @db.Uuid
-  manifestId       String             @db.Uuid
-  submissionId     String             @db.Uuid
-  manifest         SubmissionManifest @relation(fields: [manifestId, submissionId], references: [id, submissionId], onDelete: Restrict)
-  category         QuestionCategory
-  deliveryPosition Int
-  preparationSeconds Int @default(0)
-  recordingSeconds   Int @default(0)
-  promptMediaStorageKey String @default("")
-  promptMediaMimeType  String @default("")
-  promptMediaSizeBytes Int @default(0)
-  sourceQuestionId String             @db.Uuid
-  sourceQuestion   Question           @relation(fields: [sourceQuestionId], references: [id], onDelete: Restrict)
-  tasks            ManifestTask[]
-  answers          Answer[]
-  createdAt        DateTime           @default(now()) @db.Timestamptz()
+  id                    String             @id @default(uuid()) @db.Uuid
+  manifestId            String             @db.Uuid
+  submissionId          String             @db.Uuid
+  manifest              SubmissionManifest @relation(fields: [manifestId, submissionId], references: [id, submissionId], onDelete: Restrict)
+  category              QuestionCategory
+  deliveryPosition      Int
+  preparationSeconds    Int                @default(0)
+  recordingSeconds      Int                @default(0)
+  promptMediaStorageKey String             @default("")
+  promptMediaMimeType   String             @default("")
+  promptMediaSizeBytes  Int                @default(0)
+  sourceQuestionId      String             @db.Uuid
+  sourceQuestion        Question           @relation(fields: [sourceQuestionId], references: [id], onDelete: Restrict)
+  tasks                 ManifestTask[]
+  answers               Answer[]
+  createdAt             DateTime           @default(now()) @db.Timestamptz()
 
   @@unique([id, submissionId])
   @@unique([id, sourceQuestionId])
@@ -211,7 +435,7 @@ model ManifestTask {
   sourceTaskId     String        @db.Uuid
   sourceTask       Task          @relation(fields: [sourceTaskId, sourceQuestionId], references: [id, questionId], onDelete: Restrict)
   deliveredOrder   Int
-  deliveredText    String @default("")
+  deliveredText    String        @default("")
   createdAt        DateTime      @default(now()) @db.Timestamptz()
 
   @@unique([manifestEntryId, sourceTaskId])
@@ -227,24 +451,24 @@ model AppSettings {
 }
 
 model Answer {
-  id           String     @id @default(uuid()) @db.Uuid
-  submissionId String     @db.Uuid
-  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  id              String         @id @default(uuid()) @db.Uuid
+  submissionId    String         @db.Uuid
+  submission      Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   questionId      String?        @db.Uuid
   question        Question?      @relation(fields: [questionId], references: [id], onDelete: Restrict)
   manifestEntryId String?        @db.Uuid
   manifestEntry   ManifestEntry? @relation(fields: [manifestEntryId, submissionId], references: [id, submissionId], onDelete: Restrict)
 
   // Video lives in Cloudflare R2 / S3 — DB stores metadata only
-  storageKey      String
-  bucket          String?
-  mimeType        String?
-  sizeBytes       Int?
-  durationSeconds Int?
-  uploadStatus    UploadStatus @default(PENDING)
-  verifiedAt      DateTime?    @db.Timestamptz()
+  storageKey       String
+  bucket           String?
+  mimeType         String?
+  sizeBytes        Int?
+  durationSeconds  Int?
+  uploadStatus     UploadStatus @default(PENDING)
+  verifiedAt       DateTime?    @db.Timestamptz()
   observedMimeType String?
-  proofVersion    Int?
+  proofVersion     Int?
 
   scores    Score[]
   createdAt DateTime @default(now()) @db.Timestamptz()
@@ -278,17 +502,17 @@ model Payment {
 }
 
 model ExaminerAssignment {
-  id           String           @id @default(uuid()) @db.Uuid
-  submissionId String           @db.Uuid
-  submission   Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  examinerId   String           @db.Uuid
-  examiner     User             @relation(fields: [examinerId], references: [id], onDelete: Restrict)
-  slot         Int // 1 or 2 — populated by the atomic assignment-set operation
-  status       AssignmentStatus @default(ASSIGNED)
-  scores       Score[]
+  id                  String                           @id @default(uuid()) @db.Uuid
+  submissionId        String                           @db.Uuid
+  submission          Submission                       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  examinerId          String                           @db.Uuid
+  examiner            User                             @relation(fields: [examinerId], references: [id], onDelete: Restrict)
+  slot                Int // 1 or 2 — populated by the atomic assignment-set operation
+  status              AssignmentStatus                 @default(ASSIGNED)
+  scores              Score[]
   reassignmentHistory ExaminerAssignmentReassignment[]
-  createdAt    DateTime         @default(now()) @db.Timestamptz()
-  updatedAt    DateTime         @updatedAt @db.Timestamptz()
+  createdAt           DateTime                         @default(now()) @db.Timestamptz()
+  updatedAt           DateTime                         @updatedAt @db.Timestamptz()
 
   // exactly 2 rows per submission — enforced transactionally at creation
   @@unique([submissionId, examinerId])

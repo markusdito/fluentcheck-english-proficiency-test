@@ -23,7 +23,14 @@ export async function initializeTest(): Promise<InitializedTest> {
     if (!(error instanceof ApiError) || error.statusCode !== 409) throw error;
     try {
       initialized = await resumeActiveSubmission();
-    } catch {
+    } catch (resumeError) {
+      if (
+        resumeError instanceof ApiError &&
+        resumeError.statusCode === 503 &&
+        resumeError.code === "ASSESSMENT_UNAVAILABLE"
+      ) {
+        throw resumeError;
+      }
       // Preserve the original conflict when there is no resumable attempt
       // (for example, an idempotency key belongs to a different account).
       throw error;

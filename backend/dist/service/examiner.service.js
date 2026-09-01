@@ -39,10 +39,13 @@ function selectRandomCandidates(eligibleExaminerIds) {
 async function readExistingAssignmentSet(tx, submissionId) {
     const submission = await tx.submission.findUnique({
         where: { id: submissionId },
-        select: { status: true },
+        select: { status: true, retentionStatus: true },
     });
     if (!submission) {
         throw new AssignmentSetError("SUBMISSION_NOT_FOUND", "Submission not found");
+    }
+    if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
+        throw new AssignmentSetError("NOT_ASSIGNMENT_READY", "Submission is not Assignment-ready");
     }
     const assignments = await tx.examinerAssignment.findMany({
         where: { submissionId },
@@ -111,12 +114,13 @@ export async function createExaminerAssignmentSet(submissionId, options = {}) {
                 }
                 const submission = await tx.submission.findUnique({
                     where: { id: submissionId },
-                    select: { status: true },
+                    select: { status: true, retentionStatus: true },
                 });
                 if (!submission) {
                     throw new AssignmentSetError("SUBMISSION_NOT_FOUND", "Submission not found");
                 }
-                if (!ASSIGNMENT_READY_STATUSES.includes(submission.status)) {
+                if ((submission.retentionStatus && submission.retentionStatus !== "RETAINED") ||
+                    !ASSIGNMENT_READY_STATUSES.includes(submission.status)) {
                     throw new AssignmentSetError("NOT_ASSIGNMENT_READY", "Submission is not Assignment-ready");
                 }
                 const eligible = await tx.user.findMany({
@@ -146,7 +150,11 @@ export async function createExaminerAssignmentSet(submissionId, options = {}) {
                 // Conditionally claim the Assignment-ready submission. Only the
                 // winning claim inserts the assignment set and enters scoring.
                 const claim = await tx.submission.updateMany({
-                    where: { id: submissionId, status: "PAID" },
+                    where: {
+                        id: submissionId,
+                        status: "PAID",
+                        retentionStatus: "RETAINED",
+                    },
                     data: { status: "SCORING" },
                 });
                 if (claim.count !== 1) {
@@ -208,7 +216,7 @@ export async function createExaminerAssignmentSet(submissionId, options = {}) {
  */
 export async function getExaminerAssignments(examinerId) {
     const assignments = await prisma.examinerAssignment.findMany({
-        where: { examinerId },
+        where: { examinerId, submission: { retentionStatus: "RETAINED" } },
         orderBy: { createdAt: "desc" },
         include: {
             submission: {
@@ -305,6 +313,10 @@ export async function getExaminerAssignmentDetail(assignmentId, examinerId) {
     }
     if (assignment.examinerId !== examinerId) {
         throw new Error("Unauthorized");
+    }
+    if (assignment.submission.retentionStatus &&
+        assignment.submission.retentionStatus !== "RETAINED") {
+        throw new Error("Submission is not available");
     }
     const manifest = assignment.submission.manifest;
     if (manifest && manifest.version !== 1)
@@ -406,6 +418,13 @@ export async function startExaminerAssignment(assignmentId, examinerId) {
         });
         if (!assignment || assignment.submissionId !== submissionId) {
             throw new ScoringFinalizationError("ASSIGNMENT_NOT_FOUND", "Assignment not found");
+        }
+        const submission = await tx.submission.findUnique({
+            where: { id: submissionId },
+            select: { retentionStatus: true },
+        });
+        if (!submission || submission.retentionStatus !== "RETAINED") {
+            throw new ScoringFinalizationError("INVALID_LIFECYCLE", "Submission is not available");
         }
         if (assignment.examinerId !== examinerId) {
             throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
@@ -527,6 +546,7 @@ async function finalizeExaminerScoring(assignmentId, examinerId, scores) {
             where: { id: submissionId },
             select: {
                 status: true,
+                retentionStatus: true,
                 scoringSystem: true,
                 answers: { select: { id: true } },
             },
@@ -554,6 +574,9 @@ async function finalizeExaminerScoring(assignmentId, examinerId, scores) {
         const assignment = assignments.find(({ id }) => id === assignmentId);
         if (!submission || !assignment) {
             throw new ScoringFinalizationError("ASSIGNMENT_NOT_FOUND", "Assignment not found");
+        }
+        if (submission.retentionStatus !== "RETAINED") {
+            throw new ScoringFinalizationError("INVALID_LIFECYCLE", "Submission is not available");
         }
         if (assignment.examinerId !== examinerId) {
             throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
@@ -632,6 +655,7 @@ export async function saveExaminerScore(assignmentId, examinerId, score) {
                 submission: {
                     select: {
                         scoringSystem: true,
+                        retentionStatus: true,
                         answers: {
                             where: { id: score.answerId },
                             select: { id: true },
@@ -642,6 +666,9 @@ export async function saveExaminerScore(assignmentId, examinerId, score) {
         });
         if (!assignment || assignment.submissionId !== submissionId) {
             throw new ScoringFinalizationError("ASSIGNMENT_NOT_FOUND", "Assignment not found");
+        }
+        if (assignment.submission.retentionStatus !== "RETAINED") {
+            throw new ScoringFinalizationError("INVALID_LIFECYCLE", "Submission is not available");
         }
         if (assignment.examinerId !== examinerId) {
             throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");

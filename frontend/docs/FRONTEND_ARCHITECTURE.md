@@ -315,8 +315,8 @@ Focused tests that protect the current frontend contracts include:
 | --- | --- |
 | Session and API boundary | frontend/hooks/useSession.test.tsx; implementation: frontend/lib/api.ts, frontend/lib/auth.ts |
 | Manifest initialization and resume | frontend/lib/test-initialization.test.ts |
-| Recording transitions | frontend/lib/recording-state-machine.test.ts |
-| Upload transitions | frontend/lib/recording-upload-state.test.ts |
+| Recording transitions | frontend/lib/recording-state-machine.test.ts, frontend/hooks/useRecording.test.tsx, frontend/app/test/[testId]/page.test.tsx |
+| Upload transitions | frontend/lib/recording-upload-state.test.ts, frontend/lib/rate-limit-flow.test.ts, frontend/app/test/[testId]/page.test.tsx |
 | Media and examiner presentation | frontend/components/media/LazyAnswerMedia.test.tsx, frontend/components/examiner/VideoReviewer.test.tsx |
 | Auth controls | frontend/components/auth/AuthForms.test.tsx, frontend/components/auth/GoogleAuthButton.test.tsx |
 | Dashboard/admin routes | frontend/app/dashboard/page.test.tsx, frontend/lib/dashboard-api.test.ts, frontend/app/admin/questions/page.test.tsx, frontend/app/admin/submissions/[submissionId]/page.test.tsx |

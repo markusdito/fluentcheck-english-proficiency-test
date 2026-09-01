@@ -74,3 +74,107 @@ export const ScoringSystem = {
 } as const
 
 export type ScoringSystem = (typeof ScoringSystem)[keyof typeof ScoringSystem]
+
+
+export const SubmissionRetentionStatus = {
+  RETAINED: 'RETAINED',
+  QUARANTINED: 'QUARANTINED',
+  PURGED: 'PURGED'
+} as const
+
+export type SubmissionRetentionStatus = (typeof SubmissionRetentionStatus)[keyof typeof SubmissionRetentionStatus]
+
+
+export const SubmissionPurgeRequestStatus = {
+  REQUESTED: 'REQUESTED',
+  QUARANTINED: 'QUARANTINED',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+  COMPLETED: 'COMPLETED'
+} as const
+
+export type SubmissionPurgeRequestStatus = (typeof SubmissionPurgeRequestStatus)[keyof typeof SubmissionPurgeRequestStatus]
+
+
+export const SubmissionPurgeObjectKind = {
+  ANSWER_MEDIA: 'ANSWER_MEDIA'
+} as const
+
+export type SubmissionPurgeObjectKind = (typeof SubmissionPurgeObjectKind)[keyof typeof SubmissionPurgeObjectKind]
+
+
+export const SubmissionPurgeObjectStatus = {
+  QUARANTINED: 'QUARANTINED',
+  DELETE_PENDING: 'DELETE_PENDING',
+  DELETED: 'DELETED',
+  MISSING: 'MISSING',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
+} as const
+
+export type SubmissionPurgeObjectStatus = (typeof SubmissionPurgeObjectStatus)[keyof typeof SubmissionPurgeObjectStatus]
+
+
+export const RetentionHoldType = {
+  LEGAL: 'LEGAL',
+  DISPUTE: 'DISPUTE',
+  PAYMENT: 'PAYMENT',
+  SCORING_REVIEW: 'SCORING_REVIEW',
+  RECOVERY: 'RECOVERY',
+  CERTIFICATE: 'CERTIFICATE',
+  ADMIN: 'ADMIN'
+} as const
+
+export type RetentionHoldType = (typeof RetentionHoldType)[keyof typeof RetentionHoldType]
+
+
+export const PromptMediaCleanupRunMode = {
+  QUARANTINE: 'QUARANTINE',
+  FINALIZE: 'FINALIZE'
+} as const
+
+export type PromptMediaCleanupRunMode = (typeof PromptMediaCleanupRunMode)[keyof typeof PromptMediaCleanupRunMode]
+
+
+export const PromptMediaCleanupRunStatus = {
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+} as const
+
+export type PromptMediaCleanupRunStatus = (typeof PromptMediaCleanupRunStatus)[keyof typeof PromptMediaCleanupRunStatus]
+
+
+export const PromptMediaCleanupObjectStatus = {
+  QUARANTINED: 'QUARANTINED',
+  DELETE_PENDING: 'DELETE_PENDING',
+  DELETED: 'DELETED',
+  FAILED: 'FAILED',
+  SKIPPED_REFERENCED: 'SKIPPED_REFERENCED',
+  MISSING: 'MISSING'
+} as const
+
+export type PromptMediaCleanupObjectStatus = (typeof PromptMediaCleanupObjectStatus)[keyof typeof PromptMediaCleanupObjectStatus]
+
+
+export const RetentionAuditAction = {
+  RETENTION_HOLD_CREATED: 'RETENTION_HOLD_CREATED',
+  RETENTION_HOLD_RELEASED: 'RETENTION_HOLD_RELEASED',
+  PURGE_REQUESTED: 'PURGE_REQUESTED',
+  PURGE_APPROVED: 'PURGE_APPROVED',
+  PURGE_CANCELLED: 'PURGE_CANCELLED',
+  PURGE_RECOVERED: 'PURGE_RECOVERED',
+  PURGE_DELETE_ATTEMPTED: 'PURGE_DELETE_ATTEMPTED',
+  PURGE_DELETE_CONFIRMED: 'PURGE_DELETE_CONFIRMED',
+  PURGE_DELETE_FAILED: 'PURGE_DELETE_FAILED',
+  PURGE_COMPLETED: 'PURGE_COMPLETED',
+  PROMPT_CLEANUP_AUTHORIZED: 'PROMPT_CLEANUP_AUTHORIZED',
+  PROMPT_CLEANUP_QUARANTINED: 'PROMPT_CLEANUP_QUARANTINED',
+  PROMPT_CLEANUP_SKIPPED: 'PROMPT_CLEANUP_SKIPPED',
+  PROMPT_CLEANUP_DELETE_ATTEMPTED: 'PROMPT_CLEANUP_DELETE_ATTEMPTED',
+  PROMPT_CLEANUP_DELETE_CONFIRMED: 'PROMPT_CLEANUP_DELETE_CONFIRMED',
+  PROMPT_CLEANUP_DELETE_FAILED: 'PROMPT_CLEANUP_DELETE_FAILED',
+  PROMPT_CLEANUP_ALREADY_ABSENT: 'PROMPT_CLEANUP_ALREADY_ABSENT'
+} as const
+
+export type RetentionAuditAction = (typeof RetentionAuditAction)[keyof typeof RetentionAuditAction]

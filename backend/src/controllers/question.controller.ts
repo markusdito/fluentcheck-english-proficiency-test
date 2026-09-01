@@ -2,7 +2,6 @@ import type { Request, Response } from "express";
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
 import {
-  retrieveQuestions,
   retrieveAdminQuestions,
   retrieveTestQuestions,
   createQuestion as createQuestionService,
@@ -23,6 +22,19 @@ import {
   createQuestionAudioViewUrlFromMetadata,
 } from "../service/upload.service.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
+import {
+  ManifestEvidenceUnavailableError,
+} from "../service/submissionManifestDelivery.service.js";
+
+function sendAssessmentUnavailable(res: Response) {
+  res.setHeader("Retry-After", "5");
+  res.status(503).json({
+    error: "Assessment unavailable",
+    code: "ASSESSMENT_UNAVAILABLE",
+    retryable: true,
+    retryAfterSeconds: 5,
+  });
+}
 
 function handleQuestionAudioError(res: Response, error: unknown) {
   const message = error instanceof Error ? error.message : "Internal server error";
@@ -99,7 +111,7 @@ export async function getQuestionAudioUrl(req: Request, res: Response) {
  */
 export async function getTestQuestions(req: Request, res: Response) {
   try {
-    const questions = await retrieveTestQuestions(2);
+    const questions = await retrieveTestQuestions();
     const data = await buildTestQuestionDelivery(
       questions,
       createQuestionAudioViewUrlFromMetadata,
@@ -107,6 +119,14 @@ export async function getTestQuestions(req: Request, res: Response) {
 
     res.status(200).json({ status: "success", data });
   } catch (error) {
+    if (error instanceof ManifestEvidenceUnavailableError) {
+      console.error("Test question delivery unavailable", {
+        code: "ASSESSMENT_UNAVAILABLE",
+        diagnostics: error.diagnostics,
+      });
+      sendAssessmentUnavailable(res);
+      return;
+    }
     console.error("Error fetching test questions:", error);
     res.status(500).json({ error: "Failed to fetch test questions" });
   }
@@ -143,7 +163,7 @@ function handleQuestionError(res: Response, error: unknown) {
 
 export async function getQuestions(req: Request, res: Response) {
   try {
-    const questions = await retrieveQuestions(2);
+    const questions = await retrieveAdminQuestions();
     res.status(200).json({
       status: "success",
       data: questions,

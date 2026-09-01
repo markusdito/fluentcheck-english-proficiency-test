@@ -245,32 +245,50 @@ export async function createIpaymuCheckout(
     throw new Error("Invalid iPaymu payment configuration");
   }
 
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
+  const paymentId = crypto.randomUUID();
+  const merchantReference = `FC-PAY-${paymentId}`;
+  const payment = await prisma.$transaction(async (tx) => {
+    // Purge approval takes the same row lock. A checkout either creates its
+    // pending payment before quarantine (making purge ineligible) or observes
+    // the quarantined state and is refused.
+    await tx.$queryRaw`
+      SELECT "id" FROM "Submission" WHERE "id" = ${submissionId} FOR UPDATE
+    `;
+    const submission = await tx.submission.findFirst({
+      where: { id: submissionId, retentionStatus: "RETAINED" },
+      include: {
+        student: {
+          select: { username: true, email: true },
+        },
+      },
+    });
+
+    if (!submission) throw new Error("Submission not found");
+    if (submission.studentId !== userId) throw new Error("Unauthorized");
+    if (!submission.paymentRequired || submission.status !== "AWAITING_PAYMENT") {
+      throw new Error("Submission is not awaiting payment");
+    }
+
+    return tx.payment.create({
+      data: {
+        id: paymentId,
+        submissionId,
+        amount,
+        currency,
+        provider: "ipaymu",
+        merchantReference,
+        status: "PENDING",
+      },
+      select: { id: true },
+    });
+  });
+
+  const submission = await prisma.submission.findFirstOrThrow({
+    where: { id: submissionId, retentionStatus: "RETAINED" },
     include: {
       student: {
         select: { username: true, email: true },
       },
-    },
-  });
-
-  if (!submission) throw new Error("Submission not found");
-  if (submission.studentId !== userId) throw new Error("Unauthorized");
-  if (!submission.paymentRequired || submission.status !== "AWAITING_PAYMENT") {
-    throw new Error("Submission is not awaiting payment");
-  }
-
-  const paymentId = crypto.randomUUID();
-  const merchantReference = `FC-PAY-${paymentId}`;
-  const payment = await prisma.payment.create({
-    data: {
-      id: paymentId,
-      submissionId,
-      amount,
-      currency,
-      provider: "ipaymu",
-      merchantReference,
-      status: "PENDING",
     },
   });
 
@@ -322,8 +340,11 @@ export async function createIpaymuCheckout(
       );
     }
     if (classification.outcome === "REJECTED") {
-      await prisma.payment.update({
-        where: { id: payment.id },
+      await prisma.payment.updateMany({
+        where: {
+          id: payment.id,
+          submission: { retentionStatus: "RETAINED" },
+        },
         data: { status: "FAILED" },
       });
       throw new IpaymuCheckoutError(
@@ -332,8 +353,11 @@ export async function createIpaymuCheckout(
       );
     }
 
-    await prisma.payment.update({
-      where: { id: payment.id },
+    await prisma.payment.updateMany({
+      where: {
+        id: payment.id,
+        submission: { retentionStatus: "RETAINED" },
+      },
       data: { providerSessionId: classification.providerSessionId },
     });
 
@@ -367,9 +391,13 @@ export async function processIpaymuNotification(
   const merchantReference = resolveMerchantReference(body);
   const payment = await prisma.payment.findUnique({
     where: { merchantReference },
+    include: { submission: { select: { retentionStatus: true } } },
   });
   if (!payment || payment.provider !== "ipaymu") {
     throw new IpaymuCallbackError("Unknown iPaymu Merchant reference");
+  }
+  if (payment.submission.retentionStatus !== "RETAINED") {
+    throw new IpaymuCallbackError("Submission is not available");
   }
 
   const outcome = callbackOutcome(body);
@@ -379,9 +407,18 @@ export async function processIpaymuNotification(
   if (outcome === "PENDING") return;
 
   if (outcome === "FAILED") {
-    await prisma.payment.updateMany({
-      where: { id: payment.id, status: "PENDING" },
-      data: { status: "FAILED" },
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id" FROM "Submission" WHERE "id" = ${payment.submissionId} FOR UPDATE
+      `;
+      await tx.payment.updateMany({
+        where: {
+          id: payment.id,
+          status: "PENDING",
+          submission: { retentionStatus: "RETAINED" },
+        },
+        data: { status: "FAILED" },
+      });
     });
     return;
   }
@@ -389,10 +426,21 @@ export async function processIpaymuNotification(
   let shouldAssignExaminers = false;
   try {
     shouldAssignExaminers = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id" FROM "Submission" WHERE "id" = ${payment.submissionId} FOR UPDATE
+      `;
+      const currentSubmission = await tx.submission.findUniqueOrThrow({
+        where: { id: payment.submissionId },
+        select: { retentionStatus: true },
+      });
+      if (currentSubmission.retentionStatus !== "RETAINED") {
+        throw new IpaymuCallbackError("Submission is not available");
+      }
       const paymentTransition = await tx.payment.updateMany({
         where: {
           id: payment.id,
           status: { in: ["PENDING", "FAILED"] },
+          submission: { retentionStatus: "RETAINED" },
         },
         data: {
           status: "PAID",
@@ -424,6 +472,7 @@ export async function processIpaymuNotification(
         where: {
           id: payment.submissionId,
           status: "AWAITING_PAYMENT",
+          retentionStatus: "RETAINED",
         },
         data: { status: "PAID" },
       });

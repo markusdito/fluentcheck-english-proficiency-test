@@ -37,6 +37,7 @@ rejection, and the final error handler.
 | Manifest creation and delivery | backend/src/service/manifestSubmissionInitialization.service.ts, backend/src/service/submissionManifest.service.ts, backend/src/service/submissionManifestDelivery.service.ts |
 | Payments | backend/src/routes/payment.routes.ts, backend/src/controllers/payment.controller.ts, backend/src/service/payment.service.ts, backend/src/service/ipaymu.protocol.ts |
 | Examiner assignment and scoring | backend/src/routes/examiner.routes.ts, backend/src/routes/admin.routes.ts, backend/src/controllers/examiner.controller.ts, backend/src/service/examiner.service.ts, backend/src/service/admin.service.ts |
+| Submission retention and Prompt-media cleanup | backend/src/routes/admin.routes.ts, backend/src/controllers/admin.controller.ts, backend/src/service/submissionRetention.service.ts, backend/src/service/promptMediaCleanup.service.ts, backend/src/service/retentionStorage.service.ts |
 | Persistence contract | backend/prisma/schema.prisma and backend/prisma/migrations |
 | Scoring rules | backend/src/utils/scoring.ts |
 
@@ -73,6 +74,14 @@ does not prove that a later browser request will play the object.
 | SCORING | Exactly two Examiner assignments exist and at least one remains incomplete. |
 | SCORED | Both assignments have been finalized with complete valid Scores. |
 | CERTIFIED | Schema-supported status; no current backend service or route issues a Certificate or performs this transition. |
+
+### Retention status
+
+| Status | Meaning and current transition |
+| --- | --- |
+| RETAINED | Normal application access. Every new Submission starts here. |
+| QUARANTINED | A dual-control purge has been approved; student, examiner, and ordinary administrator evidence access is blocked during the 30-day recovery window. |
+| PURGED | The purge has crossed its irreversible boundary after every captured Answer-media deletion was confirmed by storage; the Submission row is then removed and its audit remains. |
 
 The reachable primary path is IN_PROGRESS to AWAITING_PAYMENT to PAID to
 SCORING to SCORED. An open Submission can instead become ABANDONED. If
@@ -259,6 +268,27 @@ All administrator routes require an authenticated ADMIN account.
 <!-- route: POST /api/admin/submissions/:id/assign | source=backend/src/routes/admin.routes.ts -->
 | POST | /api/admin/submissions/:id/assign | ADMIN | Creates or retries the atomic two-slot assignment set. |
 
+<!-- route: POST /api/admin/submissions/:id/purge-request | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/submissions/:id/purge-request | ADMIN | Requests a policy-eligible Submission purge and records the requester and reason. |
+
+<!-- route: POST /api/admin/submissions/:id/retention-holds | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/submissions/:id/retention-holds | ADMIN | Creates an auditable hold that blocks purge eligibility. |
+
+<!-- route: GET /api/admin/submissions/purge-requests/:id | source=backend/src/routes/admin.routes.ts -->
+| GET | /api/admin/submissions/purge-requests/:id | ADMIN | Reads purge status, captured object identities, and audit-linked outcomes. |
+
+<!-- route: POST /api/admin/submissions/purge-requests/:id/approve | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/submissions/purge-requests/:id/approve | ADMIN | Approves a purge through independent dual control and enters the 30-day quarantine. |
+
+<!-- route: POST /api/admin/submissions/purge-requests/:id/cancel | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/submissions/purge-requests/:id/cancel | ADMIN | Recovers a quarantined purge before storage deletion begins. |
+
+<!-- route: POST /api/admin/submissions/purge-requests/:id/finalize | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/submissions/purge-requests/:id/finalize | ADMIN | Explicitly finalizes a due purge after storage confirms every captured Answer-media deletion. |
+
+<!-- route: POST /api/admin/retention-holds/:id/release | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/retention-holds/:id/release | ADMIN | Releases an existing hold with an immutable audit event. |
+
 <!-- route: GET /api/admin/submissions | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/submissions | ADMIN | Lists submissions for administration. |
 
@@ -303,6 +333,8 @@ The answer flow has three server-visible stages:
 
 Only confirmation records UPLOADED, observed MIME, proof version 1, and
 verifiedAt. The backend ignores client-supplied size and duration as evidence.
+Concurrent confirmations of the same pending object converge on the one
+verified Answer; a late confirmer replays the committed verified state.
 The current path does not use Multer, a server-side FormData upload, a 500 MB
 limit, or an automatic three-attempt retry loop. A failed browser upload must
 be retried by obtaining a new recording in the current frontend.
@@ -383,9 +415,12 @@ branches. They are not reconstructed from a current Question bank. New
 student Submissions use the manifest contract.
 
 The administrator question delivery endpoints and the frontend legacy
-question-fetch helper remain transitional compatibility surfaces. They should
-not be used as evidence that the manifest flow is absent, and they should not
-be removed as part of a documentation-only change.
+question-fetch helper remain transitional compatibility surfaces. The active
+administrator list is not restricted to the historical order-two position,
+while the `/test` route remains a transitional administrator-only delivery
+surface. These endpoints should not be used as evidence that the manifest flow
+is absent, and they should not be removed as part of a documentation-only
+change.
 
 Certificate is a schema-supported concept and read models can expose existing
 certificate fields, but this repository currently has no certificate issuance
@@ -404,13 +439,15 @@ Focused tests that protect the main contracts include:
 | Contract | Focused tests |
 | --- | --- |
 | Manifest selection, snapshots, and persistence | backend/test/integration/manifestSubmissionInitialization.test.ts, backend/test/integration/submissionManifestPersistence.test.ts, backend/test/submissionManifestDelivery.test.ts |
-| Verified answer upload evidence | backend/test/integration/submissionCompletion.test.ts, backend/test/uploadManifest.test.ts |
+| Verified answer upload evidence | backend/test/integration/answerUploadIntegrity.test.ts, backend/test/integration/submissionCompletion.test.ts, backend/test/uploadManifest.test.ts |
+| Legacy question-list and delivery boundaries | backend/test/integration/questionLifecycle.test.ts, backend/test/question-management.test.ts, backend/test/integration/manifestSubmissionInitialization.test.ts |
 | Payment attempts and callback outcomes | backend/test/integration/payment.test.ts, backend/test/payment.test.ts |
 | Exactly-two assignment slots and retry | backend/test/integration/examinerAssignmentSet.test.ts, backend/test/integration/examinerAssignmentSlots.test.ts, backend/test/integration/adminAssignmentRecovery.test.ts |
 | Scoring lifecycle and replay | backend/test/integration/examinerScoringCompletion.test.ts, backend/test/scoring.test.ts |
 | Auth identity and active account | backend/test/integration/authCurrentAccount.test.ts, backend/test/integration/authRateLimit.test.ts |
 | Login persistence modes | backend/test/integration/rememberMe.test.ts, frontend/components/auth/AuthForms.test.tsx |
 | Rate-limit behavior | backend/test/integration/nonAuthRateLimit.test.ts, backend/test/rateLimitStore.test.ts |
+| Retention, purge, audit, and Prompt-media cleanup | backend/test/integration/submissionRetention.test.ts, backend/test/promptMediaCleanup.test.ts |
 
 When a route or lifecycle source changes, update this document and run
 node scripts/check-architecture-docs.mjs. The human review checklist is in

@@ -59,15 +59,45 @@ describe("frontend rate-limit flow contract", () => {
           status: "IN_PROGRESS",
           manifestId: "manifest-1",
           version: 1,
-          entries: [],
+          entries: ["PART_1", "PART_2", "PART_3"].map((category, index) => ({
+            id: `entry-${index + 1}`,
+            category,
+            deliveryPosition: index + 1,
+            preparationSeconds: 30,
+            recordingSeconds: 60,
+            promptMediaMimeType: "audio/webm",
+            promptMediaSizeBytes: 42,
+            promptMediaUrl: `https://storage.example/prompt-${index + 1}`,
+            tasks: [{ order: 1, promptText: `Prompt ${index + 1}` }],
+          })),
         },
       }))
       .mockResolvedValueOnce(jsonResponse({
         status: "success",
         data: {
-          presignedUrl: "https://storage.example/answer",
+          presignedUrl: "https://storage.example/answer-1",
           storageKey: "answers/answer-1.webm",
           answerId: "answer-1",
+        },
+      }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(noContentResponse())
+      .mockResolvedValueOnce(jsonResponse({
+        status: "success",
+        data: {
+          presignedUrl: "https://storage.example/answer-2",
+          storageKey: "answers/answer-2.webm",
+          answerId: "answer-2",
+        },
+      }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(noContentResponse())
+      .mockResolvedValueOnce(jsonResponse({
+        status: "success",
+        data: {
+          presignedUrl: "https://storage.example/answer-3",
+          storageKey: "answers/answer-3.webm",
+          answerId: "answer-3",
         },
       }))
       .mockResolvedValueOnce(new Response(null, { status: 200 }))
@@ -101,16 +131,18 @@ describe("frontend rate-limit flow contract", () => {
       password: "correct-password",
     });
     const initialized = await initializeSubmission("start-key-1");
-    const presigned = await getPresignedUrl(
-      initialized.submissionId,
-      "entry-1",
-      "video/webm",
-    );
-    await uploadToR2(presigned.presignedUrl, recording);
-    await confirmUpload(initialized.submissionId, "entry-1", {
-      sizeBytes: recording.size,
-      durationSeconds: 12,
-    });
+    for (const entry of initialized.entries) {
+      const presigned = await getPresignedUrl(
+        initialized.submissionId,
+        entry.id,
+        "video/webm",
+      );
+      await uploadToR2(presigned.presignedUrl, recording);
+      await confirmUpload(initialized.submissionId, entry.id, {
+        sizeBytes: recording.size,
+        durationSeconds: 12,
+      });
+    }
     const payment = await paySubmission(initialized.submissionId);
     const status = await fetchSubmissionStatus(initialized.submissionId);
     await completeSubmission(initialized.submissionId);
@@ -133,7 +165,7 @@ describe("frontend rate-limit flow contract", () => {
     expect(initialized.submissionId).toBe("submission-1");
     expect(fetchMock.mock.calls[3][0]).toBe("/backend-api/uploads/presigned-url");
     expect(fetchMock.mock.calls[4]).toEqual([
-      "https://storage.example/answer",
+      "https://storage.example/answer-1",
       expect.objectContaining({
         method: "PUT",
         body: recording,
@@ -141,18 +173,24 @@ describe("frontend rate-limit flow contract", () => {
       }),
     ]);
     expect(fetchMock.mock.calls[5][0]).toBe("/backend-api/uploads/confirm");
-    expect(fetchMock.mock.calls[6][0]).toBe(
+    expect(fetchMock.mock.calls[6][0]).toBe("/backend-api/uploads/presigned-url");
+    expect(fetchMock.mock.calls[7][0]).toBe("https://storage.example/answer-2");
+    expect(fetchMock.mock.calls[8][0]).toBe("/backend-api/uploads/confirm");
+    expect(fetchMock.mock.calls[9][0]).toBe("/backend-api/uploads/presigned-url");
+    expect(fetchMock.mock.calls[10][0]).toBe("https://storage.example/answer-3");
+    expect(fetchMock.mock.calls[11][0]).toBe("/backend-api/uploads/confirm");
+    expect(fetchMock.mock.calls[12][0]).toBe(
       "/backend-api/payments/submissions/submission-1/pay",
     );
     expect(payment.merchantReference).toBe("FC-PAY-1");
-    expect(fetchMock.mock.calls[7][0]).toBe(
+    expect(fetchMock.mock.calls[13][0]).toBe(
       "/backend-api/submissions/submission-1/status",
     );
     expect(status.status).toBe("AWAITING_PAYMENT");
-    expect(fetchMock.mock.calls[8][0]).toBe(
+    expect(fetchMock.mock.calls[14][0]).toBe(
       "/backend-api/submissions/submission-1/complete",
     );
-    expect(fetchMock).toHaveBeenCalledTimes(9);
+    expect(fetchMock).toHaveBeenCalledTimes(15);
   });
 
   it.each([

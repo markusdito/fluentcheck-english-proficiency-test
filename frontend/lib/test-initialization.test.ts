@@ -64,4 +64,19 @@ describe("initializeTest", () => {
     expect(mocks.resumeActiveSubmission).toHaveBeenCalledOnce();
     expect(result.submissionId).toBe("resumed-submission");
   });
+
+  it("preserves a retryable resume failure instead of the stale conflict", async () => {
+    const { ApiError } = await import("@/lib/api");
+    mocks.initializeSubmission.mockRejectedValueOnce(new ApiError("An active Submission already exists", 409));
+    const unavailable = new ApiError(
+      "Assessment unavailable",
+      503,
+      undefined,
+      "ASSESSMENT_UNAVAILABLE",
+      true,
+    );
+    mocks.resumeActiveSubmission.mockRejectedValueOnce(unavailable);
+
+    await expect(initializeTest()).rejects.toBe(unavailable);
+  });
 });

@@ -1,8 +1,18 @@
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
-import { retrieveQuestions, retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, restoreQuestion as restoreQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, restoreTask as restoreTaskService, PositionConflictError, DuplicateTaskPositionError, } from "../service/question.service.js";
+import { retrieveAdminQuestions, retrieveTestQuestions, createQuestion as createQuestionService, updateQuestion as updateQuestionService, retireQuestion as retireQuestionService, restoreQuestion as restoreQuestionService, createTask as createTaskService, updateTask as updateTaskService, deleteTask as deleteTaskService, restoreTask as restoreTaskService, PositionConflictError, DuplicateTaskPositionError, } from "../service/question.service.js";
 import { createQuestionAudioPresignedUpload, confirmQuestionAudioUpload, createQuestionAudioViewUrl, createQuestionAudioViewUrlFromMetadata, } from "../service/upload.service.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
+import { ManifestEvidenceUnavailableError, } from "../service/submissionManifestDelivery.service.js";
+function sendAssessmentUnavailable(res) {
+    res.setHeader("Retry-After", "5");
+    res.status(503).json({
+        error: "Assessment unavailable",
+        code: "ASSESSMENT_UNAVAILABLE",
+        retryable: true,
+        retryAfterSeconds: 5,
+    });
+}
 function handleQuestionAudioError(res, error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     const status = message === "Question not found"
@@ -72,11 +82,19 @@ export async function getQuestionAudioUrl(req, res) {
  */
 export async function getTestQuestions(req, res) {
     try {
-        const questions = await retrieveTestQuestions(2);
+        const questions = await retrieveTestQuestions();
         const data = await buildTestQuestionDelivery(questions, createQuestionAudioViewUrlFromMetadata);
         res.status(200).json({ status: "success", data });
     }
     catch (error) {
+        if (error instanceof ManifestEvidenceUnavailableError) {
+            console.error("Test question delivery unavailable", {
+                code: "ASSESSMENT_UNAVAILABLE",
+                diagnostics: error.diagnostics,
+            });
+            sendAssessmentUnavailable(res);
+            return;
+        }
         console.error("Error fetching test questions:", error);
         res.status(500).json({ error: "Failed to fetch test questions" });
     }
@@ -104,7 +122,7 @@ function handleQuestionError(res, error) {
 }
 export async function getQuestions(req, res) {
     try {
-        const questions = await retrieveQuestions(2);
+        const questions = await retrieveAdminQuestions();
         res.status(200).json({
             status: "success",
             data: questions,

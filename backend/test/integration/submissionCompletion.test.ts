@@ -120,6 +120,24 @@ test("completion requires exact server proofs and is idempotent after the atomic
   assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "AWAITING_PAYMENT");
 });
 
+test("concurrent completion requests converge on one committed lifecycle transition", async () => {
+  const { student, submission, entries } = await fixture();
+  await provisionVerifiedAnswers(entries, submission.id);
+
+  const complete = () => fetch(`${baseUrl}/api/submissions/${submission.id}/complete`, {
+    method: "POST",
+    headers: { Cookie: cookie(student.id) },
+  });
+  const responses = await Promise.all([complete(), complete()]);
+
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 200]);
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: submission.id } })).status,
+    "AWAITING_PAYMENT",
+  );
+  assert.equal(await prisma.answer.count({ where: { submissionId: submission.id } }), entries.length);
+});
+
 test("pending or invalidated evidence leaves the submission in progress", async () => {
   const { student, submission, entries } = await fixture();
   for (const entry of entries) {

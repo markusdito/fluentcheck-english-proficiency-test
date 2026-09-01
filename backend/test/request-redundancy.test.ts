@@ -7,6 +7,7 @@ import {
 } from "../src/service/submission.service.js";
 import { assignExaminersToSubmission } from "../src/service/examiner.service.js";
 import { buildTestQuestionDelivery } from "../src/service/test-question-delivery.service.js";
+import { ManifestEvidenceUnavailableError } from "../src/service/submissionManifestDelivery.service.js";
 
 const restoreMethods: Array<() => void> = [];
 
@@ -188,6 +189,46 @@ test("combined test delivery signs uploaded prompts and never exposes storage ke
   assert.deepEqual(signedKeys, ["questions/question-1/prompt.mp3"]);
   assert.equal(data[0]?.audioUrl, "https://signed.example/prompt.mp3");
   assert.equal("audioStorageKey" in data[0]!, false);
+});
+
+test("combined test delivery fails closed and reports multiple signer failures", async () => {
+  await assert.rejects(
+    buildTestQuestionDelivery(
+      [1, 2, 3].map((index) => ({
+        id: `question-${index}`,
+        category: `PART_${index}`,
+        order: index,
+        preparationSeconds: 30,
+        recordingSeconds: 60,
+        audioUploadStatus: "UPLOADED",
+        audioStorageKey: `questions/question-${index}/prompt.mp3`,
+        audioMimeType: "audio/mpeg",
+        tasks: [{ id: `task-${index}`, promptText: "Introduce yourself", order: 1 }],
+      })),
+      async (storageKey) => {
+        if (storageKey.includes("question-1") || storageKey.includes("question-3")) {
+          throw new Error(`signer secret for ${storageKey}`);
+        }
+        return "https://signed.example/prompt.mp3";
+      },
+    ),
+    (error: unknown) => {
+      assert(error instanceof ManifestEvidenceUnavailableError);
+      assert.deepEqual(error.diagnostics, {
+        operation: "prompt-media-signing",
+        failureCount: 2,
+        failures: [
+          { entryId: "question-1", category: "PART_1", reason: "SIGNING_FAILED" },
+          { entryId: "question-3", category: "PART_3", reason: "SIGNING_FAILED" },
+        ],
+      });
+      assert.equal(JSON.stringify(error).includes("questions/question-1"), false);
+      assert.equal(JSON.stringify(error).includes("signer secret"), false);
+      assert.equal(error.message.includes("signer secret"), false);
+      assert.equal(error.stack?.includes("signer secret"), false);
+      return true;
+    },
+  );
 });
 
 test("assignment transaction returns additive assignment summaries", async () => {

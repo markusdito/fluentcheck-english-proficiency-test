@@ -35,6 +35,7 @@ export function useRecording(): UseRecordingReturn {
   const chunksRef = useRef<Blob[]>([]);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const maxDurationRef = useRef<number | undefined>(undefined);
+  const recordingGenerationRef = useRef(0);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -50,7 +51,43 @@ export function useRecording(): UseRecordingReturn {
     }
   }, [duration, state, stopRecording]);
 
+  useEffect(() => {
+    return () => {
+      recordingGenerationRef.current += 1;
+      const recorder = mediaRecorderRef.current;
+      mediaRecorderRef.current = null;
+
+      if (recorder && recorder.state !== "inactive") {
+        try {
+          recorder.stop();
+        } catch {
+          // The browser may already be tearing down the recorder during unmount.
+        }
+      }
+      if (durationRef.current) {
+        clearInterval(durationRef.current);
+        durationRef.current = null;
+      }
+      chunksRef.current = [];
+    };
+  }, []);
+
   const startRecording = useCallback((stream: MediaStream, maxDuration?: number) => {
+    const previousRecorder = mediaRecorderRef.current;
+    recordingGenerationRef.current += 1;
+    const generation = recordingGenerationRef.current;
+    mediaRecorderRef.current = null;
+    if (previousRecorder && previousRecorder.state !== "inactive") {
+      try {
+        previousRecorder.stop();
+      } catch {
+        // A recorder that is already stopping cannot be reused.
+      }
+    }
+    if (durationRef.current) {
+      clearInterval(durationRef.current);
+      durationRef.current = null;
+    }
     chunksRef.current = [];
     maxDurationRef.current = maxDuration;
     setBlob(null);
@@ -70,7 +107,9 @@ export function useRecording(): UseRecordingReturn {
       };
 
       recorder.onstop = () => {
+        if (recordingGenerationRef.current !== generation) return;
         const recordedBlob = new Blob(chunksRef.current, { type: mimeType });
+        mediaRecorderRef.current = null;
         if (recordedBlob.size === 0) {
           setError("Recording produced an empty video. Please try again.");
           setState("error");
@@ -85,6 +124,8 @@ export function useRecording(): UseRecordingReturn {
       };
 
       recorder.onerror = () => {
+        if (recordingGenerationRef.current !== generation) return;
+        mediaRecorderRef.current = null;
         setError("Recording failed due to an internal error.");
         setState("error");
         if (durationRef.current) {
@@ -107,6 +148,16 @@ export function useRecording(): UseRecordingReturn {
   }, []);
 
   const resetRecording = useCallback(() => {
+    recordingGenerationRef.current += 1;
+    const recorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    if (recorder && recorder.state !== "inactive") {
+      try {
+        recorder.stop();
+      } catch {
+        // Reset remains safe if the browser has already stopped recording.
+      }
+    }
     setState("idle");
     setBlob(null);
     setDuration(0);
@@ -116,6 +167,7 @@ export function useRecording(): UseRecordingReturn {
       clearInterval(durationRef.current);
       durationRef.current = null;
     }
+    maxDurationRef.current = undefined;
   }, []);
 
   return { state, blob, duration, error, startRecording, stopRecording, resetRecording };

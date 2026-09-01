@@ -1,6 +1,7 @@
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
 import { QuestionCategory } from "../generated/enums.js";
+import { lockPromptMediaStorageIdentity } from "./promptMediaLock.service.js";
 export class PositionConflictError extends Error {
     resource;
     coordinate;
@@ -128,7 +129,7 @@ export async function retrieveAdminQuestions(includeRetired = false) {
 /**
  * Retrieve only questions that are ready to be delivered to test takers.
  */
-export async function retrieveTestQuestions(order) {
+export async function retrieveTestQuestions() {
     const categories = [
         QuestionCategory.PART_1,
         QuestionCategory.PART_2,
@@ -138,7 +139,6 @@ export async function retrieveTestQuestions(order) {
         where: {
             deletedAt: null,
             category: { in: categories },
-            order,
             audioUploadStatus: "UPLOADED",
             tasks: { some: { deletedAt: null } },
         },
@@ -237,19 +237,22 @@ export async function updateQuestion(id, data) {
  * Retire a Question from future delivery without mutating retained evidence.
  */
 export async function retireQuestion(id) {
-    const existing = await prisma.question.findUnique({
-        where: { id },
-        select: { id: true, deletedAt: true },
-    });
-    if (!existing)
-        throw new Error("Question not found");
-    if (!existing.deletedAt) {
-        await prisma.question.updateMany({
-            where: { id, deletedAt: null },
-            data: { deletedAt: new Date() },
+    return prisma.$transaction(async (tx) => {
+        const existing = await tx.question.findUnique({
+            where: { id },
+            select: { id: true, deletedAt: true, audioStorageKey: true },
         });
-    }
-    return prisma.question.findUniqueOrThrow({ where: { id } });
+        if (!existing)
+            throw new Error("Question not found");
+        if (!existing.deletedAt) {
+            await lockPromptMediaStorageIdentity(tx, existing.audioStorageKey ?? "");
+            await tx.question.updateMany({
+                where: { id, deletedAt: null },
+                data: { deletedAt: new Date() },
+            });
+        }
+        return tx.question.findUniqueOrThrow({ where: { id } });
+    });
 }
 /**
  * Create a task under an active (non-deleted) question.

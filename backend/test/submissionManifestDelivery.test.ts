@@ -57,3 +57,69 @@ test("fails closed for unknown versions, incomplete snapshots, and non-HTTPS med
     /Prompt media unavailable/,
   );
 });
+
+test("reports one signing failure without exposing storage identity", async () => {
+  await assert.rejects(
+    buildManifestDelivery(manifest(), async (key) => {
+      if (key.includes("q-2")) throw new Error(`signer secret for ${key}`);
+      return `https://cdn.test/${key}`;
+    }),
+    (error: unknown) => {
+      assert(error instanceof ManifestEvidenceUnavailableError);
+      assert.deepEqual(error.diagnostics, {
+        operation: "prompt-media-signing",
+        failureCount: 1,
+        failures: [{
+          entryId: "entry-2",
+          category: "PART_2",
+          reason: "SIGNING_FAILED",
+        }],
+      });
+      assert.equal(JSON.stringify(error).includes("q-2"), false);
+      assert.equal(JSON.stringify(error).includes("signer secret"), false);
+      assert.equal(error.message.includes("signer secret"), false);
+      assert.equal(error.stack?.includes("signer secret"), false);
+      return true;
+    },
+  );
+});
+
+test("aggregates multiple signing failures without partial delivery", async () => {
+  await assert.rejects(
+    buildManifestDelivery(manifest(), async (key) => {
+      if (key.includes("q-1") || key.includes("q-3")) {
+        throw new Error("temporary signer failure");
+      }
+      return `https://cdn.test/${key}`;
+    }),
+    (error: unknown) => {
+      assert(error instanceof ManifestEvidenceUnavailableError);
+      assert.deepEqual(error.diagnostics, {
+        operation: "prompt-media-signing",
+        failureCount: 2,
+        failures: [
+          { entryId: "entry-1", category: "PART_1", reason: "SIGNING_FAILED" },
+          { entryId: "entry-3", category: "PART_3", reason: "SIGNING_FAILED" },
+        ],
+      });
+      return true;
+    },
+  );
+});
+
+test("a successful signer retry returns the complete manifest delivery", async () => {
+  const failedKeys = new Set<string>();
+  const signPromptMedia = async (key: string) => {
+    if (!failedKeys.has(key)) {
+      failedKeys.add(key);
+      throw new Error("temporary signer failure");
+    }
+    return `https://cdn.test/${key}`;
+  };
+
+  await assert.rejects(buildManifestDelivery(manifest(), signPromptMedia), ManifestEvidenceUnavailableError);
+  const result = await buildManifestDelivery(manifest(), signPromptMedia);
+
+  assert.equal(result.length, 3);
+  assert.deepEqual(result.map((entry) => entry.deliveryPosition), [1, 2, 3]);
+});
