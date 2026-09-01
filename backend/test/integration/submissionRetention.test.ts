@@ -222,6 +222,33 @@ test("purge approval requires dual control and creates a recoverable quarantine"
   assert.equal((await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).retentionStatus, "RETAINED");
 });
 
+test("retention audit events cannot be rewritten or removed", async () => {
+  const fixture = await createPurgeFixture();
+  const request = await requestSubmissionPurge(
+    fixture.submission.id,
+    fixture.requester.id,
+    { reason: "Audit immutability check" },
+    { database: prisma },
+  );
+  const event = await prisma.retentionAuditEvent.findFirstOrThrow({
+    where: { purgeRequestId: request.id },
+  });
+
+  await assert.rejects(
+    prisma.retentionAuditEvent.update({
+      where: { id: event.id },
+      data: { reason: "tampered" },
+    }),
+  );
+  await assert.rejects(
+    prisma.retentionAuditEvent.delete({ where: { id: event.id } }),
+  );
+  assert.equal(
+    (await prisma.retentionAuditEvent.findUniqueOrThrow({ where: { id: event.id } })).reason,
+    "Audit immutability check",
+  );
+});
+
 test("purge storage failures remain visible and retryable until absence is confirmed", async () => {
   const fixture = await createPurgeFixture();
   const request = await requestSubmissionPurge(fixture.submission.id, fixture.requester.id, { reason: "Remove abandoned attempt" }, { database: prisma, now: () => new Date("2026-01-01T00:00:00.000Z") });
@@ -309,4 +336,66 @@ test("Prompt-media cleanup quarantines and finalizes an unreferenced retired ide
   assert.equal(finalized.status, "COMPLETED");
   assert.equal(finalized.objects[0]?.status, "DELETED");
   assert.equal(deletes, 1);
+});
+
+test("Prompt-media quarantine rechecks references after the dry-run snapshot", async () => {
+  const fixture = await createPurgeFixture(false);
+  const cleanupQuestionId = crypto.randomUUID();
+  const cleanupQuestion = await prisma.question.create({
+    data: {
+      id: cleanupQuestionId,
+      category: "PART_1",
+      order: Math.floor(Math.random() * 1_000_000),
+      audioStorageKey: `questions/${cleanupQuestionId}/prompt.webm`,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 10,
+      audioUploadStatus: "UPLOADED",
+      tasks: { create: { promptText: "Prompt", order: 1 } },
+    },
+  });
+  await prisma.question.update({
+    where: { id: cleanupQuestion.id },
+    data: { deletedAt: new Date("2026-01-01T00:00:00.000Z") },
+  });
+
+  let injected = false;
+  let injectedAnswerId: string | undefined;
+  const result = await runPromptMediaCleanup(
+    "QUARANTINE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-recheck",
+      reason: "Reference race check",
+    },
+    {
+      database: prisma,
+      enabled: true,
+      inspectPromptMedia: async () => {
+        if (!injected) {
+          injected = true;
+          const answer = await prisma.answer.create({
+            data: {
+              submissionId: fixture.submission.id,
+              questionId: cleanupQuestion.id,
+              storageKey: `submissions/${fixture.submission.id}/answers/${crypto.randomUUID()}.webm`,
+              bucket: "retention-test-bucket",
+              mimeType: "video/webm",
+              uploadStatus: "UPLOADED",
+            },
+          });
+          injectedAnswerId = answer.id;
+        }
+        return { exists: true, contentLength: 10, contentType: "audio/webm" };
+      },
+    },
+  );
+
+  assert.equal(result.status, "COMPLETED");
+  assert.equal(result.objects[0]?.status, "SKIPPED_REFERENCED");
+  assert.match(result.objects[0]?.outcome ?? "", /Answer/u);
+  assert.ok(injectedAnswerId);
+  assert.equal(
+    await prisma.answer.count({ where: { id: injectedAnswerId } }),
+    1,
+  );
 });

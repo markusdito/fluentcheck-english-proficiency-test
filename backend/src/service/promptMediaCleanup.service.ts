@@ -459,7 +459,13 @@ async function quarantineCandidate(
       ? "QUARANTINED"
       : !storage.exists
         ? "Prompt media is already absent from storage"
-        : candidateReason(candidate);
+        : activeSourceQuestions > 0
+          ? "An active Question now uses this Prompt-media identity"
+          : references.answerReferences.length > 0
+            ? "A non-purged Answer references this Prompt media"
+            : references.manifestReferences.length > 0
+              ? "A non-purged Delivered prompt snapshot references this Prompt media"
+              : candidateReason(candidate);
     const snapshot = referenceSnapshotValue(references);
     const existing = await transaction.promptMediaCleanupObject.findUnique({
       where: { storageKey: candidate.storageKey },
