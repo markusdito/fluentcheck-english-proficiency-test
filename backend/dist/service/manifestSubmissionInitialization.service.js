@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { prisma } from "../config/db.js";
 import { createQuestionAudioViewUrlFromMetadata } from "./upload.service.js";
+import { lockPromptMediaStorageIdentity } from "./promptMediaLock.service.js";
 import { buildManifestDelivery, ManifestEvidenceUnavailableError, } from "./submissionManifestDelivery.service.js";
 const CATEGORIES = ["PART_1", "PART_2", "PART_3"];
 const INITIALIZATION_DEADLINE_MS = 10_000;
@@ -188,6 +189,13 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
             })),
         }, (key, mime) => withDeadline(signPromptMedia(key, mime), deadline));
         const result = await prisma.$transaction(async (tx) => {
+            // Lock all selected Prompt-media identities in a stable order before
+            // validating and creating the manifest references. This serializes
+            // initialization with retirement and cleanup without introducing a
+            // category-order deadlock between concurrent starts.
+            for (const item of [...prepared].sort((left, right) => left.question.audioStorageKey.localeCompare(right.question.audioStorageKey))) {
+                await lockPromptMediaStorageIdentity(tx, item.question.audioStorageKey);
+            }
             const submission = await tx.submission.create({
                 data: { studentId, status: "IN_PROGRESS" },
             });
@@ -294,7 +302,7 @@ export async function resumeManifestSubmission(studentId, dependencies = {}) {
     const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
     const deadline = dependencies.deadline ?? (dependencies.now ?? Date.now)() + INITIALIZATION_DEADLINE_MS;
     const submission = await prisma.submission.findFirst({
-        where: { studentId, status: "IN_PROGRESS" },
+        where: { studentId, status: "IN_PROGRESS", retentionStatus: "RETAINED" },
         orderBy: { createdAt: "desc" },
         include: {
             manifest: { include: { entries: { include: { tasks: true } } } },

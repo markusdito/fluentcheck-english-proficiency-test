@@ -1,6 +1,7 @@
 import {prisma} from "../config/db.js";
 import {Prisma} from "../generated/client.js";
 import {QuestionCategory} from "../generated/enums.js";
+import {lockPromptMediaStorageIdentity} from "./promptMediaLock.service.js";
 
 export class PositionConflictError extends Error {
   constructor(
@@ -287,19 +288,22 @@ export async function updateQuestion(id: string, data: UpdateQuestionInput) {
  * Retire a Question from future delivery without mutating retained evidence.
  */
 export async function retireQuestion(id: string) {
-  const existing = await prisma.question.findUnique({
-    where: {id},
-    select: {id: true, deletedAt: true},
-  });
-  if (!existing) throw new Error("Question not found");
-  if (!existing.deletedAt) {
-    await prisma.question.updateMany({
-      where: {id, deletedAt: null},
-      data: {deletedAt: new Date()},
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.question.findUnique({
+      where: {id},
+      select: {id: true, deletedAt: true, audioStorageKey: true},
     });
-  }
+    if (!existing) throw new Error("Question not found");
+    if (!existing.deletedAt) {
+      await lockPromptMediaStorageIdentity(tx, existing.audioStorageKey ?? "");
+      await tx.question.updateMany({
+        where: {id, deletedAt: null},
+        data: {deletedAt: new Date()},
+      });
+    }
 
-  return prisma.question.findUniqueOrThrow({where: {id}});
+    return tx.question.findUniqueOrThrow({where: {id}});
+  });
 }
 
 /**
