@@ -11,6 +11,7 @@ import {
 import {
   ActiveSubmissionConflictError,
   AssessmentUnavailableError,
+  AssessmentStartIntentClosedError,
   IdempotencyKeyConflictError,
   initializeManifestSubmission,
   resumeManifestSubmission,
@@ -46,11 +47,25 @@ export async function startSubmission(req: Request, res: Response) {
     });
   } catch (error) {
     if (error instanceof ActiveSubmissionConflictError) {
-      res.status(409).json({ error: error.message, submissionId: error.submissionId });
+      res.status(409).json({
+        error: error.message,
+        code: error.code,
+        retryable: true,
+        submissionId: error.submissionId,
+      });
       return;
     }
     if (error instanceof IdempotencyKeyConflictError) {
-      res.status(409).json({ error: error.message });
+      res.status(409).json({ error: error.message, code: error.code, retryable: false });
+      return;
+    }
+    if (error instanceof AssessmentStartIntentClosedError) {
+      res.status(409).json({
+        error: error.message,
+        code: error.code,
+        retryable: false,
+        submissionStatus: error.submissionStatus,
+      });
       return;
     }
     if (error instanceof AssessmentUnavailableError) {

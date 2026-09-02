@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, use, useRef, useReducer } from "react";
-import { useMediaDevices } from "@/hooks/useMediaDevices";
+import { useAssessmentStart } from "@/components/providers/AssessmentStartProvider";
 import { useRecording } from "@/hooks/useRecording";
 import { useCountdown } from "@/hooks/useCountdown";
 import { WebcamPreview } from "@/components/test/WebcamPreview";
@@ -9,8 +9,9 @@ import { PromptDisplay } from "@/components/test/PromptDisplay";
 import { RecordingTimer } from "@/components/test/RecordingTimer";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { completeSubmission } from "@/lib/test-api";
+import { abandonSubmission, completeSubmission } from "@/lib/test-api";
 import { initializeTest } from "@/lib/test-initialization";
+import { clearAssessmentStartIntent } from "@/lib/assessment-start-intent";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
 import {
@@ -21,7 +22,7 @@ import {
 } from "@/lib/recording-upload-state";
 import { entryMachinesReducer } from "@/lib/recording-state-machine";
 
-type TestPhase = "loading" | "preparation" | "recording" | "stopped" | "completed";
+type TestPhase = "loading" | "preparation" | "recording" | "stopped" | "media-paused" | "completed";
 
 type UploadState = Record<string, QuestionUploadState>;
 
@@ -29,10 +30,24 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { testId } = use(params);
 
-  // Stream management — hardware check already granted permissions
-  const { stream, requestPermissions, stopStream } = useMediaDevices();
-  const [streamReady, setStreamReady] = useState(false);
-  const [initError, setInitError] = useState(false);
+  // The authenticated app provider owns the single stream across the
+  // permission UI and this route. Assessment initialization waits for live
+  // camera and microphone tracks.
+  const {
+    stream,
+    requestPermissions,
+    stopStream,
+    mediaReady,
+    isVideoReady,
+    isAudioReady,
+    videoError,
+    audioError,
+    monitorError,
+    studentId,
+    sessionPending,
+    sessionError,
+    isLoading: mediaLoading,
+  } = useAssessmentStart();
 
   // Recording
   const { blob, duration: recDuration, error: recError, startRecording, stopRecording, resetRecording } = useRecording();
@@ -41,6 +56,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const [questions, setQuestions] = useState<Prompt[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [mediaRecoveryError, setMediaRecoveryError] = useState<string | null>(null);
+  const [abandonPending, setAbandonPending] = useState(false);
+  const [abandonError, setAbandonError] = useState<string | null>(null);
 
   // Question phase
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -81,14 +99,14 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const currentUploadStatus = currentQuestion ? getUploadStatus(uploadStates[currentQuestion.id]) : "idle";
   const recordingMutationPending = ["finalizing", "signing", "getting-url", "uploading", "verifying"].includes(currentUploadStatus);
 
-  // Fetch questions + create submission on mount
+  // Fetch questions + create/replay the Submission only after media is ready.
   useEffect(() => {
-    if (initCalled.current) return;
+    if (initCalled.current || sessionPending || !studentId || !mediaReady) return;
     initCalled.current = true;
 
     const init = async () => {
       try {
-        const initialized = await initializeTest();
+        const initialized = await initializeTest(studentId);
         setSubmissionId(initialized.submissionId);
         setQuestions(initialized.questions);
         setUploadStates(initializeUploadStates(
@@ -96,41 +114,50 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
           initialized.uploadedEntryIds,
         ));
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to initialize test";
+        const message = err instanceof Error ? err.message : "Failed to initialize Assessment";
         setFetchError(message);
       }
     };
 
     init();
-  }, []);
+  }, [mediaReady, sessionPending, studentId]);
 
   // Countdown for preparation
   const onPrepComplete = useCallback(() => {
-    if (stream && streamReady && phase === "preparation") {
+    if (stream && mediaReady && phase === "preparation") {
       startRecording(stream, currentQuestion?.recordingDuration);
       setPhase("recording");
     }
-  }, [stream, streamReady, phase, startRecording, currentQuestion]);
+  }, [stream, mediaReady, phase, startRecording, currentQuestion]);
 
   const prepCountdown = useCountdown(currentQuestion?.prepTime || 30, onPrepComplete);
 
-  useEffect(() => {
-    const initStream = async () => {
-      try {
-        const success = await requestPermissions();
-        setStreamReady(success);
-        if (!success) setInitError(true);
-      } catch {
-        setInitError(true);
-      }
-    };
-    initStream();
+  const handleRecoverMedia = useCallback(async () => {
+    setMediaRecoveryError(null);
+    const success = await requestPermissions();
+    if (!success) {
+      setMediaRecoveryError("Both a working camera and microphone are required to continue.");
+    }
+  }, [requestPermissions]);
 
-    return () => {
-      stopStream();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => {
+    if (!mediaReady && (phase === "preparation" || phase === "recording" || phase === "stopped")) {
+      prepCountdown.pause();
+      resetRecording();
+      // Media loss invalidates the pending blob-to-entry association.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPendingUploadTrigger(null);
+      // Media readiness is an external subscription boundary; pause the
+      // recording UI as soon as the coordinator reports track loss.
+      setPhase("media-paused");
+      setMediaRecoveryError(null);
+    }
+    if (mediaReady && phase === "media-paused") {
+      setMediaRecoveryError(null);
+      prepCountdown.reset();
+      setPhase("preparation");
+    }
+  }, [mediaReady, phase, prepCountdown, resetRecording]);
 
   // Guard: stop camera stream on any navigation away from the test page.
   useEffect(() => {
@@ -156,12 +183,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Transition from loading to preparation once questions and stream are ready
   useEffect(() => {
-    if (questions.length > 0 && streamReady && phase === "loading") {
+    if (questions.length > 0 && mediaReady && phase === "loading") {
       // This synchronizes two independently resolved external inputs.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPhase("preparation");
     }
-  }, [questions, streamReady, phase]);
+  }, [questions, mediaReady, phase]);
 
   // Audio questions start preparation when the prompt finishes. Questions
   // without audio start immediately so they cannot leave the test waiting.
@@ -311,7 +338,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const getUploadStatusText = (status: UploadStatus): string | null => uploadStatusLabel(status);
 
   const handleStartRecording = () => {
-    if (stream) {
+    if (stream && mediaReady) {
       prepCountdown.pause();
       startRecording(stream, currentQuestion?.recordingDuration);
       setPhase("recording");
@@ -349,19 +376,40 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   };
 
   const handleFinishTest = () => {
-    // Forcefully stop all media tracks synchronously
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
+    // The coordinator owns synchronous track cleanup and monitor teardown.
     stopStream();
     sessionStorage.removeItem("fluentcheck_hardware_passed");
     sessionStorage.removeItem("fluentcheck_hardware_video");
-    sessionStorage.removeItem("fluentcheck.assessment-start-key");
+    clearAssessmentStartIntent();
     window.location.href = "/dashboard";
   };
 
-  // Loading while questions are being fetched and stream initialises
-  if (phase === "loading" && !fetchError && !initError) {
+  const handleAbandonTest = async () => {
+    if (!submissionId || abandonPending || !window.confirm("Leave this Assessment? Your current Submission will be abandoned.")) {
+      return;
+    }
+    setAbandonPending(true);
+    setAbandonError(null);
+    try {
+      await abandonSubmission(submissionId);
+      clearAssessmentStartIntent();
+      stopStream();
+      window.location.href = "/dashboard";
+    } catch (error) {
+      setAbandonError(error instanceof Error ? error.message : "Could not abandon this Assessment.");
+    } finally {
+      setAbandonPending(false);
+    }
+  };
+
+  const mediaFailureMessage = [
+    videoError ? `Webcam: ${videoError}` : null,
+    audioError ? `Microphone: ${audioError}` : null,
+  ].filter((message): message is string => message !== null).join(" ") ||
+    "Enable camera and microphone access to begin.";
+
+  // Loading while the authenticated Student, media, and manifest are prepared.
+  if (phase === "loading" && !fetchError && !sessionError && (sessionPending || (Boolean(studentId) && mediaReady))) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-studio">
         <div className="text-center">
@@ -397,8 +445,25 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     );
   }
 
-  // Error acquiring stream — show retry with troubleshooting tips
-  if (initError) {
+  // Direct navigation or a full reload has no stream to inherit from the
+  // dashboard. Request it only from this explicit user action.
+  if (sessionError || (!sessionPending && !studentId)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
+        <div className="max-w-md text-center">
+          <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
+            Session unavailable
+          </h1>
+          <p className="mb-6 text-studio-text/70">Please sign in again before starting an Assessment.</p>
+          <Button variant="invert" size="lg" className="w-full" onClick={() => window.location.reload()}>
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "loading" && !mediaReady && !fetchError && !sessionPending && studentId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-studio p-4">
         <div className="max-w-md text-center">
@@ -406,24 +471,55 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             Camera & Microphone Required
           </h1>
           <p className="mb-6 text-studio-text/70">
-            This test needs access to your webcam and microphone to record your responses.
+            This Assessment needs access to your webcam and microphone to record your responses.
           </p>
           <div className="mb-6 border border-studio-rule bg-studio-panel p-4 text-left text-sm text-studio-text/70">
-            <p className="mb-2 font-medium text-studio-text/80">Troubleshooting tips:</p>
+            <p className="mb-2 font-medium text-studio-text/80">Hardware status:</p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Allow camera and microphone access in your browser settings</li>
-              <li>Make sure no other app is using your camera or mic</li>
-              <li>Try refreshing the page</li>
+              <li>Webcam: {isVideoReady ? "ready" : videoError || "not ready"}</li>
+              <li>Microphone: {isAudioReady ? "ready" : audioError || "not ready"}</li>
+              {monitorError && <li>Mic monitor: unavailable; capture can continue</li>}
             </ul>
           </div>
           <Button
             variant="invert"
             size="lg"
             className="w-full"
-            onClick={() => window.location.reload()}
+            onClick={() => void handleRecoverMedia()}
+            loading={mediaLoading}
+            disabled={mediaLoading}
           >
-            Try again
+            Enable camera and microphone
           </Button>
+          {mediaRecoveryError && <p className="mt-4 text-sm text-signal">{mediaRecoveryError}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "media-paused") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
+        <div className="max-w-md text-center">
+          <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
+            Camera or microphone disconnected
+          </h1>
+          <p className="mb-6 text-studio-text/70">
+            Your Submission is preserved. Reconnect both devices to repeat the current answer and continue.
+          </p>
+          <Button
+            variant="invert"
+            size="lg"
+            className="w-full"
+            onClick={() => void handleRecoverMedia()}
+            loading={mediaLoading}
+            disabled={mediaLoading}
+          >
+            Reconnect devices
+          </Button>
+          {(mediaRecoveryError || mediaFailureMessage) && (
+            <p className="mt-4 text-sm text-signal">{mediaRecoveryError || mediaFailureMessage}</p>
+          )}
         </div>
       </div>
     );
@@ -542,8 +638,19 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             );
           })}
         </div>
-        <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-studio-text/50">
-          Question {currentQuestionIndex + 1} of {totalQuestions}
+        <div className="flex items-center gap-4">
+          <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-studio-text/50">
+            Question {currentQuestionIndex + 1} of {totalQuestions}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleAbandonTest()}
+            disabled={abandonPending || phase === "recording" || recordingMutationPending}
+            loading={abandonPending}
+          >
+            Leave assessment
+          </Button>
         </div>
       </div>
 
@@ -643,6 +750,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                   {currentQuestion && getUploadError(uploadStates[currentQuestion.id])}
                 </p>
                 <p className="mt-2 text-xs">You can re-record this question and try again.</p>
+              </div>
+            )}
+
+            {abandonError && (
+              <div className="border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
+                Could not leave this Assessment: {abandonError}
               </div>
             )}
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Newsreader, Public_Sans, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { AssessmentStartProvider } from "@/components/providers/AssessmentStartProvider";
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -38,8 +39,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <QueryProvider>
-          {children}
-          <Toaster />
+          <AssessmentStartProvider>
+            {children}
+            <Toaster />
+          </AssessmentStartProvider>
         </QueryProvider>
       </body>
     </html>

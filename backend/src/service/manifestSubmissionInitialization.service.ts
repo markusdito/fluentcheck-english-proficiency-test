@@ -58,6 +58,9 @@ export interface AssessmentInitializationDependencies {
 }
 
 export class ActiveSubmissionConflictError extends Error {
+  readonly code = "ACTIVE_SUBMISSION_EXISTS";
+  readonly retryable = true;
+
   constructor(readonly submissionId: string) {
     super("An active Submission already exists");
     this.name = "ActiveSubmissionConflictError";
@@ -66,9 +69,23 @@ export class ActiveSubmissionConflictError extends Error {
 
 /** The same idempotency key cannot be used for another student's start intent. */
 export class IdempotencyKeyConflictError extends Error {
+  readonly code = "IDEMPOTENCY_KEY_CONFLICT";
+  readonly retryable = false;
+
   constructor() {
     super("Idempotency-Key is already associated with another student");
     this.name = "IdempotencyKeyConflictError";
+  }
+}
+
+/** A previously persisted start intent can no longer be replayed. */
+export class AssessmentStartIntentClosedError extends Error {
+  readonly code = "ASSESSMENT_START_INTENT_CLOSED";
+  readonly retryable = false;
+
+  constructor(readonly submissionStatus: string) {
+    super("Assessment start intent is closed");
+    this.name = "AssessmentStartIntentClosedError";
   }
 }
 
@@ -102,6 +119,18 @@ function withDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+
+async function findActiveSubmissionId(studentId: string): Promise<string | undefined> {
+  const active = await prisma.submission.findFirst({
+    where: {
+      studentId,
+      status: "IN_PROGRESS",
+      retentionStatus: "RETAINED",
+    },
+    select: { id: true },
+  });
+  return active?.id;
 }
 
 function isAssessmentInitializationUnavailable(error: unknown): boolean {
@@ -163,7 +192,8 @@ function observeInitializationFailure(
 ): void {
   if (
     error instanceof ActiveSubmissionConflictError ||
-    error instanceof IdempotencyKeyConflictError
+    error instanceof IdempotencyKeyConflictError ||
+    error instanceof AssessmentStartIntentClosedError
   ) {
     return;
   }
@@ -232,6 +262,9 @@ async function replayStartIntent(
   });
   if (!existingIntent) return undefined;
   if (existingIntent.studentId !== studentId) throw new IdempotencyKeyConflictError();
+  if (existingIntent.submission.status !== "IN_PROGRESS") {
+    throw new AssessmentStartIntentClosedError(existingIntent.submission.status);
+  }
   if (
     existingIntent.submission.retentionStatus &&
     existingIntent.submission.retentionStatus !== "RETAINED"
@@ -463,36 +496,40 @@ export async function initializeManifestSubmission(
         suppressFailureObservation: true,
       });
     }
-    if (error instanceof Error && error.message.includes("Submission_one_active_per_student_key")) {
-      const active = await prisma.submission.findFirst({
-        where: {
-          studentId,
-          status: "IN_PROGRESS",
-          retentionStatus: "RETAINED",
-        },
-        select: { id: true },
-      });
-      if (active) throw new ActiveSubmissionConflictError(active.id);
-    }
-    if (idempotencyKey && isUniqueViolation(error)) {
+    if (isUniqueViolation(error)) {
       // A concurrent request may have won the idempotency insert after the
       // initial lookup. Replay its committed result after the transaction rolls
       // back, preserving exactly one manifest for the key.
-      try {
-        const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
-        if (replay) return replay;
-      } catch (replayError) {
-        observeInitializationFailure(replayError, observeFailure, {
-          requestId,
-          startedAt,
-          now,
-        });
-        if (isAssessmentInitializationUnavailable(replayError)) {
-          throw new AssessmentUnavailableError();
+      if (idempotencyKey) {
+        try {
+          const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
+          if (replay) return replay;
+        } catch (replayError) {
+          observeInitializationFailure(replayError, observeFailure, {
+            requestId,
+            startedAt,
+            now,
+          });
+          if (
+            replayError instanceof IdempotencyKeyConflictError ||
+            replayError instanceof AssessmentStartIntentClosedError
+          ) {
+            throw replayError;
+          }
+          if (isAssessmentInitializationUnavailable(replayError)) {
+            throw new AssessmentUnavailableError();
+          }
+          throw replayError;
         }
-        throw replayError;
       }
-      throw new IdempotencyKeyConflictError();
+
+      // Prisma adapters may expose the single-active constraint as a generic
+      // P2002 without the database constraint name. Check the committed
+      // active row after replay lookup so concurrent starts converge to the
+      // same typed conflict instead of becoming a 500 or key conflict.
+      const activeId = await findActiveSubmissionId(studentId);
+      if (activeId) throw new ActiveSubmissionConflictError(activeId);
+      if (idempotencyKey) throw new IdempotencyKeyConflictError();
     }
     if (!dependencies.suppressFailureObservation) {
       observeInitializationFailure(error, observeFailure, {

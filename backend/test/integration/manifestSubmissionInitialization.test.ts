@@ -17,6 +17,8 @@ let initializeManifestSubmission: typeof import("../../src/service/manifestSubmi
 let resumeManifestSubmission: typeof import("../../src/service/manifestSubmissionInitialization.service.js").resumeManifestSubmission;
 let AssessmentUnavailableError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").AssessmentUnavailableError;
 let IdempotencyKeyConflictError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").IdempotencyKeyConflictError;
+let ActiveSubmissionConflictError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").ActiveSubmissionConflictError;
+let AssessmentStartIntentClosedError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").AssessmentStartIntentClosedError;
 let app: Express;
 let server: Server;
 let baseUrl: string;
@@ -39,7 +41,14 @@ before(async () => {
     timeout: 120_000,
   });
   ({ prisma, disconnectDB } = await import("../../src/config/db.js"));
-  ({ initializeManifestSubmission, resumeManifestSubmission, AssessmentUnavailableError, IdempotencyKeyConflictError } = await import("../../src/service/manifestSubmissionInitialization.service.js"));
+  ({
+    initializeManifestSubmission,
+    resumeManifestSubmission,
+    AssessmentUnavailableError,
+    IdempotencyKeyConflictError,
+    ActiveSubmissionConflictError,
+    AssessmentStartIntentClosedError,
+  } = await import("../../src/service/manifestSubmissionInitialization.service.js"));
   const { createApp } = await import("../../src/server.js");
   app = createApp();
   server = app.listen(0);
@@ -438,33 +447,38 @@ test("student prompt media is limited to the active submission manifest", async 
   assert.equal(JSON.stringify(payload).includes("storageKey"), false);
 });
 
-test("replaying an idempotency key converges on the same retained manifest", async () => {
+test("a closed idempotency key cannot replay an abandoned Submission", async () => {
   const student = await createStudent();
   const first = await initializeManifestSubmission(student.id, "replay-key", {
     chooseIndex: () => 0,
     signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
   });
-  await prisma.submission.update({ where: { id: first.submissionId }, data: { status: "ABANDONED" } });
-  const replayFailures: unknown[] = [];
+  const abandoned = await (await import("../../src/service/submission.service.js")).abandonSubmission(
+    first.submissionId,
+    student.id,
+  );
+  assert.equal(abandoned.status, "ABANDONED");
+  const repeated = await (await import("../../src/service/submission.service.js")).abandonSubmission(
+    first.submissionId,
+    student.id,
+  );
+  assert.equal(repeated.status, "ABANDONED");
+
   await assert.rejects(
     initializeManifestSubmission(student.id, "replay-key", {
       signPromptMedia: async () => {
-        throw new Error("signer unavailable");
+        throw new Error("closed intents must not sign prompt media");
       },
-      observeFailure: (event) => replayFailures.push(event),
     }),
-    AssessmentUnavailableError,
+    (error: unknown) => error instanceof AssessmentStartIntentClosedError && error.submissionStatus === "ABANDONED",
   );
-  assert.equal(replayFailures.length, 1);
-  assert.equal((replayFailures[0] as { failureCount: number }).failureCount, 3);
-  const replay = await initializeManifestSubmission(student.id, "replay-key", {
+
+  const fresh = await initializeManifestSubmission(student.id, "fresh-replay-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/replay/${encodeURIComponent(key)}`,
+    signPromptMedia: async (key) => `https://media.example/fresh/${encodeURIComponent(key)}`,
   });
-  assert.equal(replay.submissionId, first.submissionId);
-  assert.equal(replay.manifestId, first.manifestId);
-  assert.equal(replay.status, "ABANDONED");
-  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 1);
+  assert.notEqual(fresh.submissionId, first.submissionId);
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 2);
 });
 
 test("rejects reuse of an idempotency key by another student", async () => {
@@ -475,4 +489,20 @@ test("rejects reuse of an idempotency key by another student", async () => {
     }),
     IdempotencyKeyConflictError,
   );
+});
+
+test("classifies a concurrent different-key start as an active Submission conflict", async () => {
+  const student = await createStudent();
+  const start = (key: string) => initializeManifestSubmission(student.id, key, {
+    chooseIndex: () => 0,
+    signPromptMedia: async (storageKey) => `https://media.example/${encodeURIComponent(storageKey)}`,
+  });
+
+  const results = await Promise.allSettled([start("concurrent-key-a"), start("concurrent-key-b")]);
+  const fulfilled = results.filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof start>>> => result.status === "fulfilled");
+  const rejected = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+  assert.equal(fulfilled.length, 1);
+  assert.equal(rejected.length, 1);
+  assert.equal(rejected[0]?.reason instanceof ActiveSubmissionConflictError, true);
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id, status: "IN_PROGRESS" } }), 1);
 });

@@ -1,5 +1,9 @@
 import { initializeSubmission, resumeActiveSubmission } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
+import {
+  getOrCreateAssessmentStartIntent,
+  rotateAssessmentStartIntent,
+} from "@/lib/assessment-start-intent";
 import type { Prompt } from "@/types/test";
 
 export interface InitializedTest {
@@ -8,35 +12,7 @@ export interface InitializedTest {
   uploadedEntryIds: string[];
 }
 
-export async function initializeTest(): Promise<InitializedTest> {
-  const keyStorage = "fluentcheck.assessment-start-key";
-  const key = typeof window !== "undefined"
-    ? window.sessionStorage.getItem(keyStorage) ?? crypto.randomUUID()
-    : crypto.randomUUID();
-  if (typeof window !== "undefined") window.sessionStorage.setItem(keyStorage, key);
-  let initialized;
-  try {
-    initialized = await initializeSubmission(key);
-  } catch (error) {
-    // A new tab/session has no previous idempotency key. Recover the existing
-    // active attempt rather than presenting a dead-end 409 to the student.
-    if (!(error instanceof ApiError) || error.statusCode !== 409) throw error;
-    try {
-      initialized = await resumeActiveSubmission();
-    } catch (resumeError) {
-      if (
-        resumeError instanceof ApiError &&
-        resumeError.statusCode === 503 &&
-        resumeError.code === "ASSESSMENT_UNAVAILABLE"
-      ) {
-        throw resumeError;
-      }
-      // Preserve the original conflict when there is no resumable attempt
-      // (for example, an idempotency key belongs to a different account).
-      throw error;
-    }
-  }
-
+function mapInitializedTest(initialized: Awaited<ReturnType<typeof initializeSubmission>>): InitializedTest {
   return {
     submissionId: initialized.submissionId,
     uploadedEntryIds: initialized.uploadedEntryIds ?? [],
@@ -50,4 +26,61 @@ export async function initializeTest(): Promise<InitializedTest> {
       order: entry.deliveryPosition,
     })),
   };
+}
+
+function isActiveSubmissionConflict(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    error.statusCode === 409 &&
+    (error.code === "ACTIVE_SUBMISSION_EXISTS" || error.code === undefined)
+  );
+}
+
+function isClosedOrForeignStartIntent(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    error.statusCode === 409 &&
+    (error.code === "IDEMPOTENCY_KEY_CONFLICT" ||
+      error.code === "ASSESSMENT_START_INTENT_CLOSED")
+  );
+}
+
+async function resumeAfterConflict(originalError: ApiError): Promise<InitializedTest> {
+  try {
+    return mapInitializedTest(await resumeActiveSubmission());
+  } catch (resumeError) {
+    if (
+      resumeError instanceof ApiError &&
+      resumeError.statusCode === 503 &&
+      resumeError.code === "ASSESSMENT_UNAVAILABLE"
+    ) {
+      throw resumeError;
+    }
+    throw originalError;
+  }
+}
+
+export async function initializeTest(studentId: string): Promise<InitializedTest> {
+  let key = getOrCreateAssessmentStartIntent(studentId);
+  try {
+    return mapInitializedTest(await initializeSubmission(key));
+  } catch (error) {
+    if (isActiveSubmissionConflict(error)) {
+      return resumeAfterConflict(error);
+    }
+
+    if (isClosedOrForeignStartIntent(error)) {
+      key = rotateAssessmentStartIntent(studentId);
+      try {
+        return mapInitializedTest(await initializeSubmission(key));
+      } catch (retryError) {
+        if (isActiveSubmissionConflict(retryError)) {
+          return resumeAfterConflict(retryError);
+        }
+        throw retryError;
+      }
+    }
+
+    throw error;
+  }
 }

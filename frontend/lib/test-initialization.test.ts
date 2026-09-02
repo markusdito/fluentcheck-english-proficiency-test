@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initializeTest } from "@/lib/test-initialization";
 
 const mocks = vi.hoisted(() => ({
@@ -12,6 +12,11 @@ vi.mock("@/lib/test-api", () => ({
 }));
 
 describe("initializeTest", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    vi.clearAllMocks();
+  });
+
   it("uses one authoritative manifest-backed initialization request", async () => {
     mocks.initializeSubmission.mockResolvedValue({
       submissionId: "submission-1",
@@ -31,9 +36,14 @@ describe("initializeTest", () => {
       }],
     });
 
-    const initialization = await initializeTest();
+    const initialization = await initializeTest("student-1");
 
     expect(mocks.initializeSubmission).toHaveBeenCalledTimes(1);
+    expect(mocks.initializeSubmission).toHaveBeenCalledWith(expect.any(String));
+    expect(JSON.parse(window.sessionStorage.getItem("fluentcheck.assessment-start-key")!)).toEqual({
+      studentId: "student-1",
+      key: expect.any(String),
+    });
 
     expect(initialization).toEqual({
       submissionId: "submission-1",
@@ -59,7 +69,7 @@ describe("initializeTest", () => {
       entries: [],
     });
 
-    const result = await initializeTest();
+    const result = await initializeTest("student-1");
 
     expect(mocks.resumeActiveSubmission).toHaveBeenCalledOnce();
     expect(result.submissionId).toBe("resumed-submission");
@@ -77,6 +87,52 @@ describe("initializeTest", () => {
     );
     mocks.resumeActiveSubmission.mockRejectedValueOnce(unavailable);
 
-    await expect(initializeTest()).rejects.toBe(unavailable);
+    await expect(initializeTest("student-1")).rejects.toBe(unavailable);
+  });
+
+  it("rotates a stale start intent once after the server closes its Submission", async () => {
+    const { ApiError } = await import("@/lib/api");
+    const staleKey = JSON.stringify({ studentId: "student-1", key: "closed-key" });
+    window.sessionStorage.setItem("fluentcheck.assessment-start-key", staleKey);
+    mocks.initializeSubmission
+      .mockRejectedValueOnce(
+        new ApiError("Assessment start intent is closed", 409, undefined, "ASSESSMENT_START_INTENT_CLOSED"),
+      )
+      .mockResolvedValueOnce({
+        submissionId: "new-submission",
+        status: "IN_PROGRESS",
+        manifestId: "manifest-new",
+        version: 1,
+        entries: [],
+      });
+
+    const result = await initializeTest("student-1");
+
+    expect(result.submissionId).toBe("new-submission");
+    expect(mocks.initializeSubmission).toHaveBeenCalledTimes(2);
+    expect(mocks.initializeSubmission.mock.calls[0][0]).toBe("closed-key");
+    expect(mocks.initializeSubmission.mock.calls[1][0]).not.toBe("closed-key");
+    expect(JSON.parse(window.sessionStorage.getItem("fluentcheck.assessment-start-key")!)).toEqual({
+      studentId: "student-1",
+      key: mocks.initializeSubmission.mock.calls[1][0],
+    });
+  });
+
+  it("discards a key left by another signed-in student before initialization", async () => {
+    window.sessionStorage.setItem(
+      "fluentcheck.assessment-start-key",
+      JSON.stringify({ studentId: "student-2", key: "foreign-key" }),
+    );
+    mocks.initializeSubmission.mockResolvedValueOnce({
+      submissionId: "student-one-submission",
+      status: "IN_PROGRESS",
+      manifestId: "manifest-1",
+      version: 1,
+      entries: [],
+    });
+
+    await initializeTest("student-1");
+
+    expect(mocks.initializeSubmission).toHaveBeenCalledWith(expect.not.stringMatching(/^foreign-key$/));
   });
 });

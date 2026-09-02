@@ -199,7 +199,7 @@ to the student's retained non-IN_PROGRESS Submissions rather than being
 calculated from the current page.
 
 <!-- route: POST /api/submissions | source=backend/src/routes/submission.routes.ts -->
-| POST | /api/submissions | Authenticated, creation rate limits | Creates or replays a manifest-backed Submission using Idempotency-Key. |
+| POST | /api/submissions | Authenticated, creation rate limits | Creates or replays a manifest-backed Submission using Idempotency-Key; returns typed active-submission, closed-intent, or foreign-key conflicts. |
 
 <!-- route: GET /api/submissions/active | source=backend/src/routes/submission.routes.ts -->
 | GET | /api/submissions/active | Authenticated | Resumes the student's active IN_PROGRESS Submission. |
@@ -211,7 +211,7 @@ calculated from the current page.
 | GET | /api/submissions/:id/status | Authenticated owner | Returns the current Submission status. |
 
 <!-- route: POST /api/submissions/:id/abandon | source=backend/src/routes/submission.routes.ts -->
-| POST | /api/submissions/:id/abandon | Authenticated owner | Abandons an open Submission. |
+| POST | /api/submissions/:id/abandon | Authenticated owner | Explicitly abandons an open Submission under a row lock; repeated abandonment is an idempotent no-op and retained evidence is preserved. |
 
 <!-- route: GET /api/submissions/:id | source=backend/src/routes/submission.routes.ts -->
 | GET | /api/submissions/:id | Authenticated owner | Returns manifest-backed detail and authorized evidence URLs. |
@@ -312,9 +312,12 @@ POST /api/submissions requires an idempotency key from the client. The
 initialization service chooses one eligible Question per Required category,
 prepares prompt media, and creates the Submission, manifest, entries, and task
 snapshots in one bounded transaction. Eligibility is rechecked inside the
-transaction. A repeated key replays the same Submission; a key owned by a
-different student is rejected. An existing active Submission is resumed or
-reported as a conflict according to the service contract.
+transaction. A repeated key replays the same Submission only while it is
+IN_PROGRESS; a terminal or abandoned Submission returns
+ASSESSMENT_START_INTENT_CLOSED. A key owned by a different student returns
+IDEMPOTENCY_KEY_CONFLICT. An existing active Submission is resumed or
+reported as ACTIVE_SUBMISSION_EXISTS, including when a concurrent different
+key loses the database single-active race.
 
 If a complete manifest cannot be created, the service raises
 ASSESSMENT_UNAVAILABLE with a retryable response and Retry-After guidance.

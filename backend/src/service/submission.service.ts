@@ -276,29 +276,26 @@ export async function createSubmission(userId: string): Promise<{ id: string; st
 
 /** Explicitly abandon an in-progress attempt; the transition is terminal and idempotent. */
 export async function abandonSubmission(submissionId: string, userId: string) {
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-    select: { id: true, studentId: true, status: true, retentionStatus: true },
-  });
-  if (!submission) throw new Error("Submission not found");
-  if (submission.studentId !== userId) throw new Error("Unauthorized");
-  if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
-    throw new Error("Submission is not available");
-  }
-  if (submission.status === "ABANDONED") return submission;
-  if (submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
-  await prisma.submission.updateMany({
-    where: {
-      id: submissionId,
-      studentId: userId,
-      status: "IN_PROGRESS",
-      retentionStatus: "RETAINED",
-    },
-    data: { status: "ABANDONED" },
-  });
-  return prisma.submission.findUniqueOrThrow({
-    where: { id: submissionId },
-    select: { id: true, studentId: true, status: true, retentionStatus: true },
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Submission" WHERE "id" = ${submissionId}::uuid FOR UPDATE`;
+
+    const submission = await tx.submission.findUnique({
+      where: { id: submissionId },
+      select: { id: true, studentId: true, status: true, retentionStatus: true },
+    });
+    if (!submission) throw new Error("Submission not found");
+    if (submission.studentId !== userId) throw new Error("Unauthorized");
+    if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
+      throw new Error("Submission is not available");
+    }
+    if (submission.status === "ABANDONED") return submission;
+    if (submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
+
+    return tx.submission.update({
+      where: { id: submissionId, retentionStatus: "RETAINED" },
+      data: { status: "ABANDONED" },
+      select: { id: true, studentId: true, status: true, retentionStatus: true },
+    });
   });
 }
 
