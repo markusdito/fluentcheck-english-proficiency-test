@@ -12,6 +12,17 @@ interface PresignedUrlResult {
   answerId: string;
 }
 
+const DEFAULT_VIDEO_MIME_TYPE = "video/webm";
+
+/**
+ * Strip codec parameters from a recording MIME type before using it as the
+ * signed object content type. MIME parameters describe the encoding, while
+ * the upload contract uses the canonical media type.
+ */
+export function normalizeVideoMimeType(mimeType?: string | null): string {
+  return mimeType?.split(";", 1)[0]?.trim().toLowerCase() || DEFAULT_VIDEO_MIME_TYPE;
+}
+
 /**
  * Fetch a presigned PUT URL from the backend for direct upload to R2.
  */
@@ -23,7 +34,7 @@ export async function getPresignedUrl(
   const res = await api.post<{ status: string; data: PresignedUrlResponse }>("/uploads/presigned-url", {
     submissionId,
     manifestEntryId,
-    mimeType,
+    mimeType: normalizeVideoMimeType(mimeType),
   });
   return res.data;
 }
@@ -38,7 +49,7 @@ export async function uploadToR2(presignedUrl: string, blob: Blob): Promise<void
     body: blob,
     mode: "cors",
     headers: {
-      "Content-Type": blob.type || "video/webm",
+      "Content-Type": normalizeVideoMimeType(blob.type),
     },
   });
 

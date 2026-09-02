@@ -47,6 +47,41 @@ describe("frontend rate-limit flow contract", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
+  it("normalizes codec-qualified recorder MIME types for presign and R2 upload", async () => {
+    const recording = new Blob(["video"], { type: "video/webm;codecs=vp9,opus" });
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({
+        status: "success",
+        data: {
+          presignedUrl: "https://storage.example/answer-1",
+          storageKey: "answers/answer-1.webm",
+          answerId: "answer-1",
+        },
+      }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    const presigned = await getPresignedUrl(
+      "submission-1",
+      "entry-1",
+      recording.type,
+    );
+    await uploadToR2(presigned.presignedUrl, recording);
+
+    expectJsonRequest(0, "/uploads/presigned-url", {
+      submissionId: "submission-1",
+      manifestEntryId: "entry-1",
+      mimeType: "video/webm",
+    });
+    expect(fetchMock.mock.calls[1]).toEqual([
+      "https://storage.example/answer-1",
+      expect.objectContaining({
+        method: "PUT",
+        body: recording,
+        headers: { "Content-Type": "video/webm" },
+      }),
+    ]);
+  });
+
   it("keeps each browser flow within one request per action", async () => {
     const recording = new Blob(["video"], { type: "video/webm" });
     fetchMock
