@@ -385,19 +385,6 @@ export async function deleteTask(questionId: string, taskId: string) {
   });
 }
 
-async function retrieveAdminQuestion(id: string) {
-  const question = await prisma.question.findUnique({
-    where: {id},
-    include: {
-      tasks: {
-        orderBy: {order: "asc"},
-      },
-    },
-  });
-  if (!question) throw new Error("Question not found");
-  return question;
-}
-
 /** Restore a Question at its original position without changing child Tasks. */
 export async function restoreQuestion(id: string) {
   if (!isUuid(id)) throw new Error("Question not found");

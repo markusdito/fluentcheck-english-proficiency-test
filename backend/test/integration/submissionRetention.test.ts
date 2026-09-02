@@ -557,6 +557,20 @@ test("Prompt-media cleanup quarantines and finalizes an unreferenced retired ide
   assert.equal(finalized.status, "COMPLETED");
   assert.equal(finalized.objects[0]?.status, "DELETED");
   assert.equal(deletes, 1);
+
+  const repeated = await runPromptMediaCleanup(
+    "QUARANTINE",
+    {
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-repeat",
+      reason: "Verify idempotent cleanup replay",
+    },
+    dependencies,
+  );
+  assert.equal(repeated.status, "COMPLETED");
+  assert.equal(repeated.objects[0]?.status, "DELETED");
+  assert.equal(repeated.objects[0]?.outcome, "ALREADY_FINALIZED");
+  assert.equal(deletes, 1);
 });
 
 test("Prompt-media cleanup rejects a reference that waits behind finalization", async () => {

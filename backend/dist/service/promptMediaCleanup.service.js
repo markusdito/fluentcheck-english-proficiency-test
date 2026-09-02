@@ -253,6 +253,17 @@ async function quarantineCandidate(runId, candidate, options, dependencies) {
             return { storageKey: "", status: "MISSING", outcome: "NO_STORAGE_IDENTITY" };
         }
         await lockPromptMediaStorageIdentity(transaction, candidate.storageKey);
+        const existing = await transaction.promptMediaCleanupObject.findUnique({
+            where: { storageKey: candidate.storageKey },
+            select: { id: true, status: true },
+        });
+        if (existing?.status === "DELETED" || existing?.status === "MISSING") {
+            return {
+                storageKey: candidate.storageKey,
+                status: existing.status,
+                outcome: "ALREADY_FINALIZED",
+            };
+        }
         let storage;
         try {
             storage = await inspectionOf(dependencies)(candidate.storageKey, candidate.bucket);
@@ -335,40 +346,34 @@ async function quarantineCandidate(runId, candidate, options, dependencies) {
                             ? "A non-purged Delivered prompt snapshot references this Prompt media"
                             : candidateReason(candidate);
         const snapshot = referenceSnapshotValue(references);
-        const existing = await transaction.promptMediaCleanupObject.findUnique({
+        await transaction.promptMediaCleanupObject.upsert({
             where: { storageKey: candidate.storageKey },
-            select: { id: true, status: true },
+            update: {
+                sourceQuestionId: candidate.sourceQuestionId,
+                bucket: candidate.bucket,
+                answerReferenceCount: references.answerReferences.length,
+                manifestReferenceCount: references.manifestReferences.length,
+                referenceSnapshot: asJson(snapshot),
+                eligibilityReason: outcome,
+                status,
+                lastRunId: runId,
+                quarantineUntil: eligible ? quarantineUntil : null,
+                lastError: null,
+            },
+            create: {
+                id: randomUUID(),
+                sourceQuestionId: candidate.sourceQuestionId,
+                storageKey: candidate.storageKey,
+                bucket: candidate.bucket,
+                answerReferenceCount: references.answerReferences.length,
+                manifestReferenceCount: references.manifestReferences.length,
+                referenceSnapshot: asJson(snapshot),
+                eligibilityReason: outcome,
+                status,
+                lastRunId: runId,
+                quarantineUntil: eligible ? quarantineUntil : null,
+            },
         });
-        if (!existing || existing.status !== "DELETED") {
-            await transaction.promptMediaCleanupObject.upsert({
-                where: { storageKey: candidate.storageKey },
-                update: {
-                    sourceQuestionId: candidate.sourceQuestionId,
-                    bucket: candidate.bucket,
-                    answerReferenceCount: references.answerReferences.length,
-                    manifestReferenceCount: references.manifestReferences.length,
-                    referenceSnapshot: asJson(snapshot),
-                    eligibilityReason: outcome,
-                    status,
-                    lastRunId: runId,
-                    quarantineUntil: eligible ? quarantineUntil : null,
-                    lastError: null,
-                },
-                create: {
-                    id: randomUUID(),
-                    sourceQuestionId: candidate.sourceQuestionId,
-                    storageKey: candidate.storageKey,
-                    bucket: candidate.bucket,
-                    answerReferenceCount: references.answerReferences.length,
-                    manifestReferenceCount: references.manifestReferences.length,
-                    referenceSnapshot: asJson(snapshot),
-                    eligibilityReason: outcome,
-                    status,
-                    lastRunId: runId,
-                    quarantineUntil: eligible ? quarantineUntil : null,
-                },
-            });
-        }
         await audit(transaction, {
             actorId: options.actorId,
             action: eligible
