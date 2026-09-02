@@ -22,9 +22,13 @@ export class DuplicateTaskPositionError extends Error {
 }
 export class QuestionPromptMediaUnavailableError extends Error {
     storageKey;
-    constructor(storageKey) {
-        super(`Question cannot be restored after the irreversible Prompt-media cleanup boundary: ${storageKey}`);
+    cleanupStatus;
+    constructor(storageKey, cleanupStatus) {
+        super(cleanupStatus === "DELETED" || cleanupStatus === "MISSING"
+            ? `Question cannot be restored after the irreversible Prompt-media cleanup boundary: ${storageKey}`
+            : `Question cannot be restored while Prompt-media cleanup is unresolved (${cleanupStatus}): ${storageKey}`);
         this.storageKey = storageKey;
+        this.cleanupStatus = cleanupStatus;
         this.name = "QuestionPromptMediaUnavailableError";
     }
 }
@@ -357,8 +361,9 @@ export async function restoreQuestion(id) {
                     where: { storageKey: existing.audioStorageKey },
                     select: { status: true },
                 });
-                if (cleanupObject?.status === "DELETED" || cleanupObject?.status === "MISSING") {
-                    throw new QuestionPromptMediaUnavailableError(existing.audioStorageKey);
+                if (cleanupObject &&
+                    ["FAILED", "DELETE_PENDING", "DELETED", "MISSING"].includes(cleanupObject.status)) {
+                    throw new QuestionPromptMediaUnavailableError(existing.audioStorageKey, cleanupObject.status);
                 }
             }
             try {

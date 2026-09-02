@@ -470,6 +470,51 @@ test("Question restoration cannot revive media after cleanup crosses the irrever
   );
 });
 
+test("Question restoration waits for unresolved Prompt-media cleanup recovery", async () => {
+  const question = await createQuestion("PART_1", nextPosition());
+  const storageKey = `questions/${question.id}/prompt.webm`;
+  await prisma.question.update({
+    where: { id: question.id },
+    data: {
+      audioStorageKey: storageKey,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 10,
+      audioUploadStatus: "UPLOADED",
+      deletedAt: new Date("2026-01-01T00:00:00.000Z"),
+    },
+  });
+  const cleanupRun = await prisma.promptMediaCleanupRun.create({
+    data: {
+      mode: "FINALIZE",
+      actorId: adminId,
+      authorizationId: "cleanup-unresolved-state",
+      reason: "Prompt media deletion requires retry",
+      policyVersion: "2026-08-31",
+      status: "FAILED",
+    },
+  });
+  await prisma.promptMediaCleanupObject.create({
+    data: {
+      sourceQuestionId: question.id,
+      storageKey,
+      bucket: "question-lifecycle-test-bucket",
+      eligibilityReason: "Storage deletion failed",
+      status: "FAILED",
+      lastRunId: cleanupRun.id,
+      quarantineUntil: new Date("2026-02-01T00:00:00.000Z"),
+      lastError: "Storage unavailable",
+    },
+  });
+
+  const restore = await request("POST", `/questions/${question.id}/restore`);
+  assert.equal(restore.status, 409);
+  assert.match((await restore.json() as { error: string }).error, /Prompt-media cleanup is unresolved/u);
+  assert.notEqual(
+    (await prisma.question.findUniqueOrThrow({ where: { id: question.id }, select: { deletedAt: true } })).deletedAt,
+    null,
+  );
+});
+
 test("Task restoration is independent of its parent Question and ownership", async () => {
   const parent = await createQuestion("PART_3", nextPosition(), [
     { promptText: "Restore independently", order: 1 },

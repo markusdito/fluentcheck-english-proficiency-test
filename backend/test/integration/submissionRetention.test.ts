@@ -648,6 +648,101 @@ test("Prompt-media cleanup rejects a reference that waits behind finalization", 
   assert.equal(deletes, 1);
 });
 
+test("Prompt-media cleanup rejects manifest evidence writes for deleted media", async () => {
+  const fixture = await createPurgeFixture(false);
+  await prisma.question.update({
+    where: { id: fixture.question.id },
+    data: { deletedAt: new Date("2026-01-01T00:00:00.000Z") },
+  });
+  const entry = await prisma.manifestEntry.findFirstOrThrow({
+    where: {
+      submissionId: fixture.submission.id,
+      sourceQuestionId: fixture.question.id,
+    },
+    select: { id: true, sourceQuestionId: true },
+  });
+  const task = await prisma.task.findFirstOrThrow({
+    where: { questionId: fixture.question.id },
+    select: { id: true },
+  });
+  const cleanupRun = await prisma.promptMediaCleanupRun.create({
+    data: {
+      mode: "FINALIZE",
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-manifest-write",
+      reason: "Prompt media was deleted",
+      policyVersion: "2026-08-31",
+      status: "COMPLETED",
+    },
+  });
+  await prisma.promptMediaCleanupObject.create({
+    data: {
+      sourceQuestionId: fixture.question.id,
+      storageKey: fixture.question.audioStorageKey!,
+      bucket: "retention-test-bucket",
+      eligibilityReason: "No retained references",
+      status: "DELETED",
+      lastRunId: cleanupRun.id,
+    },
+  });
+
+  await assert.rejects(
+    prisma.manifestTask.create({
+      data: {
+        manifestEntryId: entry.id,
+        sourceQuestionId: entry.sourceQuestionId,
+        sourceTaskId: task.id,
+        deliveredOrder: 1,
+        deliveredText: "Prompt",
+      },
+    }),
+    /Prompt-media storage identity is reserved by cleanup/u,
+  );
+});
+
+test("Prompt-media cleanup rejects Answer relation updates to deleted media", async () => {
+  const fixture = await createPurgeFixture(false);
+  const cleanupQuestion = await createRetiredPromptQuestion();
+  const cleanupRun = await prisma.promptMediaCleanupRun.create({
+    data: {
+      mode: "FINALIZE",
+      actorId: fixture.requester.id,
+      authorizationId: "cleanup-answer-update",
+      reason: "Prompt media was deleted",
+      policyVersion: "2026-08-31",
+      status: "COMPLETED",
+    },
+  });
+  await prisma.promptMediaCleanupObject.create({
+    data: {
+      sourceQuestionId: cleanupQuestion.id,
+      storageKey: cleanupQuestion.audioStorageKey!,
+      bucket: "retention-test-bucket",
+      eligibilityReason: "No retained references",
+      status: "DELETED",
+      lastRunId: cleanupRun.id,
+    },
+  });
+  const answer = await prisma.answer.create({
+    data: {
+      submissionId: fixture.submission.id,
+      questionId: fixture.question.id,
+      storageKey: `submissions/${fixture.submission.id}/answers/${crypto.randomUUID()}.webm`,
+      bucket: "retention-test-bucket",
+      mimeType: "video/webm",
+      uploadStatus: "PENDING",
+    },
+  });
+
+  await assert.rejects(
+    prisma.answer.update({
+      where: { id: answer.id },
+      data: { questionId: cleanupQuestion.id },
+    }),
+    /Prompt-media storage identity is reserved by cleanup/u,
+  );
+});
+
 test("Prompt-media cleanup records failed deletion and retries after storage recovery", async () => {
   const fixture = await createPurgeFixture(false);
   await createRetiredPromptQuestion();
