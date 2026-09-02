@@ -1,6 +1,7 @@
 import { completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, abandonSubmission, InvalidDashboardCursorError, } from "../service/submission.service.js";
 import { ActiveSubmissionConflictError, AssessmentUnavailableError, IdempotencyKeyConflictError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
 import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
+import { getRequestId } from "../middleware/request-id.middleware.js";
 function sendAssessmentUnavailable(res) {
     res.setHeader("Retry-After", "5");
     res.status(503).json({
@@ -17,7 +18,7 @@ function sendAssessmentUnavailable(res) {
 export async function startSubmission(req, res) {
     try {
         const userId = req.user.id;
-        const submission = await initializeManifestSubmission(userId, req.header("Idempotency-Key") ?? undefined);
+        const submission = await initializeManifestSubmission(userId, req.header("Idempotency-Key") ?? undefined, { requestId: getRequestId(res) });
         res.status(201).json({
             status: "success",
             data: submission,
@@ -59,7 +60,9 @@ export async function abandonSubmissionById(req, res) {
 }
 export async function resumeActiveSubmission(req, res) {
     try {
-        const data = await resumeManifestSubmission(req.user.id);
+        const data = await resumeManifestSubmission(req.user.id, {
+            requestId: getRequestId(res),
+        });
         res.status(200).json({ status: "success", data });
     }
     catch (error) {

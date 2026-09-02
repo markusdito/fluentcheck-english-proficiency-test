@@ -17,6 +17,8 @@ export interface ManifestDeliveryEntry {
   promptMediaMimeType: string;
   promptMediaSizeBytes: number;
   tasks: ManifestDeliveryTask[];
+  /** Internal lineage used only to build sanitized failure diagnostics. */
+  sourceQuestionId?: string;
 }
 
 export interface ManifestDeliveryManifest {
@@ -40,12 +42,14 @@ export interface DeliveredManifestEntry {
 export type ManifestDeliveryFailureReason =
   | "SIGNING_FAILED"
   | "INVALID_SIGNED_URL"
-  | "MISSING_MEDIA_METADATA";
+  | "MISSING_MEDIA_METADATA"
+  | "DEADLINE_EXCEEDED";
 
 export interface ManifestDeliveryFailure {
   entryId: string;
   category: string;
   reason: ManifestDeliveryFailureReason;
+  questionId?: string;
 }
 
 export interface ManifestDeliveryDiagnostics {
@@ -61,6 +65,13 @@ export class ManifestEvidenceUnavailableError extends Error {
     super(message);
     this.name = "ManifestEvidenceUnavailableError";
     this.diagnostics = diagnostics;
+  }
+}
+
+export class PromptMediaPreparationTimeoutError extends Error {
+  constructor() {
+    super("Prompt media preparation deadline exceeded");
+    this.name = "PromptMediaPreparationTimeoutError";
   }
 }
 
@@ -150,13 +161,16 @@ export async function buildManifestDelivery(
           };
         }
         return { entry, promptMediaUrl };
-      } catch {
+      } catch (error) {
         return {
           entry,
           failure: {
             entryId: entry.id,
             category: entry.category,
-            reason: "SIGNING_FAILED" as const,
+            reason: error instanceof PromptMediaPreparationTimeoutError
+              ? "DEADLINE_EXCEEDED" as const
+              : "SIGNING_FAILED" as const,
+            ...(entry.sourceQuestionId ? { questionId: entry.sourceQuestionId } : {}),
           },
         };
       }

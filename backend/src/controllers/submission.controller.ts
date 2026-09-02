@@ -16,6 +16,7 @@ import {
   resumeManifestSubmission,
 } from "../service/manifestSubmissionInitialization.service.js";
 import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
+import { getRequestId } from "../middleware/request-id.middleware.js";
 
 function sendAssessmentUnavailable(res: Response) {
   res.setHeader("Retry-After", "5");
@@ -37,6 +38,7 @@ export async function startSubmission(req: Request, res: Response) {
     const submission = await initializeManifestSubmission(
       userId,
       req.header("Idempotency-Key") ?? undefined,
+      { requestId: getRequestId(res) },
     );
     res.status(201).json({
       status: "success",
@@ -79,7 +81,9 @@ export async function abandonSubmissionById(req: Request, res: Response) {
 
 export async function resumeActiveSubmission(req: Request, res: Response) {
   try {
-    const data = await resumeManifestSubmission(req.user!.id);
+    const data = await resumeManifestSubmission(req.user!.id, {
+      requestId: getRequestId(res),
+    });
     res.status(200).json({ status: "success", data });
   } catch (error) {
     if (error instanceof AssessmentUnavailableError && error.message !== "No active assessment") {

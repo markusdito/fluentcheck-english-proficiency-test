@@ -100,6 +100,24 @@ test("initialization selects one eligible question per category and persists a c
   assert.equal(await prisma.manifestTask.count({ where: { manifestEntry: { manifestId: result.manifestId } } }), 3);
 });
 
+test("a failed telemetry delivery cannot turn successful initialization into failure", async () => {
+  const student = await createStudent();
+  const result = await initializeManifestSubmission(student.id, "telemetry-success-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    observeAttempt: () => {
+      throw new Error("telemetry unavailable");
+    },
+    observeSuccess: () => {
+      throw new Error("telemetry unavailable");
+    },
+    observeFailure: () => {
+      throw new Error("telemetry unavailable");
+    },
+  });
+  assert.equal(result.entries.length, 3);
+});
+
 test("unavailable assessment persists no Submission", async () => {
   const student = await createStudent();
   const activeQuestionIds = (
@@ -125,7 +143,41 @@ test("unavailable assessment persists no Submission", async () => {
     AssessmentUnavailableError,
   );
   assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 0);
-  assert.deepEqual(failures, [{ classification: "PREPARATION", categoryCount: 3, failureCount: 1 }]);
+  assert.equal(failures.length, 1);
+  const failure = failures[0] as {
+    eventName: string;
+    classification: string;
+    internalReason: string;
+    requestId: string;
+    categoryCount: number;
+    failureCount: number;
+    failedQuestionIds: string[];
+    failedCategories: string[];
+    preparationDurationMs: number;
+  };
+  assert.deepEqual(
+    {
+      eventName: failure.eventName,
+      classification: failure.classification,
+      internalReason: failure.internalReason,
+      categoryCount: failure.categoryCount,
+      failureCount: failure.failureCount,
+      failedQuestionIds: failure.failedQuestionIds,
+      failedCategories: failure.failedCategories,
+    },
+    {
+      eventName: "submission_initialization_failed",
+      classification: "BANK",
+      internalReason: "QUESTION_BANK_INCOMPLETE",
+      categoryCount: 3,
+      failureCount: 1,
+      failedQuestionIds: [],
+      failedCategories: ["PART_1", "PART_2", "PART_3"],
+    },
+  );
+  assert.match(failure.requestId, /^[0-9a-f-]{36}$/u);
+  assert.equal(Number.isSafeInteger(failure.preparationDurationMs), true);
+  assert.equal(failure.preparationDurationMs >= 0, true);
 
   const response = await fetch(`${baseUrl}/api/submissions`, {
     method: "POST",
@@ -142,6 +194,19 @@ test("unavailable assessment persists no Submission", async () => {
     retryable: true,
     retryAfterSeconds: 5,
   });
+});
+
+test("a failed telemetry delivery cannot alter the stable unavailable response", async () => {
+  const student = await createStudent();
+  await assert.rejects(
+    initializeManifestSubmission(student.id, "telemetry-failure-key", {
+      observeFailure: () => {
+        throw new Error("telemetry unavailable");
+      },
+    }),
+    AssessmentUnavailableError,
+  );
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 0);
 });
 
 test("retries once when selected source evidence changes before persistence", async () => {
@@ -217,7 +282,16 @@ test("aggregates selected signing failures and retries the same start intent", a
   assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 0);
   assert.equal(await prisma.submissionStartIntent.count({ where: { idempotencyKey: "signing-retry-key" } }), 0);
   assert.equal(failures.length, 1);
-  assert.equal((failures[0] as { failureCount: number }).failureCount, 3);
+  const signingFailure = failures[0] as {
+    failureCount: number;
+    internalReason: string;
+    failedQuestionIds: string[];
+    failedCategories: string[];
+  };
+  assert.equal(signingFailure.failureCount, 3);
+  assert.equal(signingFailure.internalReason, "PROMPT_MEDIA_SIGNING_FAILED");
+  assert.equal(signingFailure.failedQuestionIds.length, 3);
+  assert.deepEqual(signingFailure.failedCategories, ["PART_1", "PART_2", "PART_3"]);
   assert.deepEqual(
     (failures[0] as { failedEntries: Array<{ category: string; reason: string }> }).failedEntries
       .map(({ category, reason }) => ({ category, reason })),
