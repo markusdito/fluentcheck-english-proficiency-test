@@ -57,6 +57,18 @@ test("cleanup CLI defaults to a read-only machine-readable inventory", async () 
   assert.equal(parsed.candidates[0]?.manifestReferences[0]?.id, "entry-1");
 });
 
+test("cleanup CLI human inventory includes the complete storage identity", async () => {
+  const output: string[] = [];
+  const exitCode = await runCleanupPromptMediaCli([], {
+    inventory: async () => inventory(),
+    writeOutput: (value) => output.push(value),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.match(output.join(""), /bucket=test-bucket key=questions\/question-1\/prompt\.webm/u);
+  assert.match(output.join(""), /Reason: A non-purged Delivered prompt snapshot references this Prompt media/u);
+});
+
 test("cleanup CLI requires explicit authorization fields for destructive modes", async () => {
   const errors: string[] = [];
   const exitCode = await runCleanupPromptMediaCli(["--execute", "--actor-id", "admin-1"], {

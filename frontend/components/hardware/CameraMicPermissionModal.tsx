@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useMediaDevices } from "@/hooks/useMediaDevices";
+import { useEffect, useRef } from "react";
+import { useAssessmentStart } from "@/components/providers/AssessmentStartProvider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,15 +22,17 @@ export function CameraMicPermissionModal({
     audioDevices,
     videoError,
     audioError,
+    monitorError,
+    isVideoReady,
+    isAudioReady,
+    mediaReady,
     isLoading,
     micLevel,
     requestPermissions,
     stopStream,
-  } = useMediaDevices();
+  } = useAssessmentStart();
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [permissionGranted, setPermissionGranted] = useState(false);
-  const hasRequestedRef = useRef(false);
 
   // Attach stream to video element
   useEffect(() => {
@@ -39,57 +41,22 @@ export function CameraMicPermissionModal({
     }
   }, [stream]);
 
-  // Attempt permissions on mount if modal is open
-  useEffect(() => {
-    if (!open) {
-      hasRequestedRef.current = false;
-      stopStream();
-      return;
-    }
-
-    if (hasRequestedRef.current) return;
-
-    hasRequestedRef.current = true;
-    let cancelled = false;
-    requestPermissions().then((granted) => {
-      if (!cancelled) {
-        setPermissionGranted(granted);
-      }
-    });
-    return () => {
-      cancelled = true;
-      hasRequestedRef.current = false;
-    };
-  }, [open, requestPermissions, stopStream]);
-
   const handleClose = () => {
-    hasRequestedRef.current = false;
-    setPermissionGranted(false);
     stopStream();
     onClose();
   };
 
   const handleComplete = () => {
-    hasRequestedRef.current = false;
-    setPermissionGranted(false);
-    stopStream();
     onComplete();
   };
 
-  const handleRetry = () => {
-    requestPermissions().then((granted) => {
-      setPermissionGranted(granted);
-    });
+  const handleRequest = () => {
+    void requestPermissions();
   };
 
-  const allChecksPassed =
-    open &&
-    permissionGranted &&
-    stream !== null &&
-    videoDevices.length > 0 &&
-    audioDevices.length > 0;
+  const allChecksPassed = open && mediaReady;
 
-  const hasActivePermission = open && permissionGranted && stream !== null;
+  const hasActivePermission = open && isAudioReady;
 
   if (!open) return null;
 
@@ -153,7 +120,7 @@ export function CameraMicPermissionModal({
           <StatusRow
             label="Webcam"
             status={
-              videoDevices.length > 0
+              isVideoReady
                 ? "success"
                 : videoError
                   ? "error"
@@ -162,15 +129,15 @@ export function CameraMicPermissionModal({
                     : "idle"
             }
             message={
-              videoDevices.length > 0
-                ? videoDevices[0].label || "Webcam detected"
-                : videoError || "No webcam found"
+              isVideoReady
+                ? videoDevices[0]?.label || "Webcam ready"
+                : videoError || "Click Enable camera and microphone"
             }
           />
           <StatusRow
             label="Microphone"
             status={
-              audioDevices.length > 0
+              isAudioReady
                 ? "success"
                 : audioError
                   ? "error"
@@ -179,9 +146,9 @@ export function CameraMicPermissionModal({
                     : "idle"
             }
             message={
-              audioDevices.length > 0
-                ? audioDevices[0].label || "Microphone detected"
-                : audioError || "No microphone found"
+              isAudioReady
+                ? audioDevices[0]?.label || "Microphone ready"
+                : audioError || "Click Enable camera and microphone"
             }
           />
 
@@ -220,7 +187,7 @@ export function CameraMicPermissionModal({
                     )}
                   >
                     {!hasActivePermission
-                      ? "Permissions not yet granted"
+                      ? "Microphone is not ready"
                       : micLevel > 5
                         ? "Microphone is picking up sound"
                         : "Waiting for audio input..."}
@@ -245,20 +212,26 @@ export function CameraMicPermissionModal({
         {/* Error / Retry */}
         {(videoError || audioError) && (
           <div className="mb-6 border border-signal/30 bg-signal/5 p-4 text-sm text-signal">
-            <p className="font-medium">Permission issues detected</p>
-            <p className="mt-1">
-              Allow camera and microphone access in your browser settings, then
-              click Retry.
-            </p>
+            <p className="font-medium">Hardware check needs attention</p>
+            <ul className="mt-1 space-y-1">
+              {videoError && <li>Webcam: {videoError}</li>}
+              {audioError && <li>Microphone: {audioError}</li>}
+            </ul>
             <Button
               variant="outline"
               size="sm"
               className="mt-3 border-signal/40 text-signal hover:bg-signal/10 hover:text-signal"
-              onClick={handleRetry}
+              onClick={handleRequest}
               loading={isLoading}
             >
               Retry
             </Button>
+          </div>
+        )}
+
+        {monitorError && (
+          <div className="mb-6 border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-600">
+            {monitorError}
           </div>
         )}
 
@@ -267,6 +240,16 @@ export function CameraMicPermissionModal({
           <Button variant="ghost" onClick={handleClose} disabled={isLoading}>
             Skip for now
           </Button>
+          {!mediaReady && !videoError && !audioError && (
+            <Button
+              variant="default"
+              onClick={handleRequest}
+              disabled={isLoading}
+              loading={isLoading}
+            >
+              Enable camera and microphone
+            </Button>
+          )}
           <Button
             variant="default"
             onClick={handleComplete}

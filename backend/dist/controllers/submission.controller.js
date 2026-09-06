@@ -1,6 +1,7 @@
 import { completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, abandonSubmission, InvalidDashboardCursorError, } from "../service/submission.service.js";
-import { ActiveSubmissionConflictError, AssessmentUnavailableError, IdempotencyKeyConflictError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
+import { ActiveSubmissionConflictError, AssessmentUnavailableError, AssessmentStartIntentClosedError, IdempotencyKeyConflictError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
 import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
+import { getRequestId } from "../middleware/request-id.middleware.js";
 function sendAssessmentUnavailable(res) {
     res.setHeader("Retry-After", "5");
     res.status(503).json({
@@ -17,7 +18,7 @@ function sendAssessmentUnavailable(res) {
 export async function startSubmission(req, res) {
     try {
         const userId = req.user.id;
-        const submission = await initializeManifestSubmission(userId, req.header("Idempotency-Key") ?? undefined);
+        const submission = await initializeManifestSubmission(userId, req.header("Idempotency-Key") ?? undefined, { requestId: getRequestId(res) });
         res.status(201).json({
             status: "success",
             data: submission,
@@ -25,11 +26,25 @@ export async function startSubmission(req, res) {
     }
     catch (error) {
         if (error instanceof ActiveSubmissionConflictError) {
-            res.status(409).json({ error: error.message, submissionId: error.submissionId });
+            res.status(409).json({
+                error: error.message,
+                code: error.code,
+                retryable: true,
+                submissionId: error.submissionId,
+            });
             return;
         }
         if (error instanceof IdempotencyKeyConflictError) {
-            res.status(409).json({ error: error.message });
+            res.status(409).json({ error: error.message, code: error.code, retryable: false });
+            return;
+        }
+        if (error instanceof AssessmentStartIntentClosedError) {
+            res.status(409).json({
+                error: error.message,
+                code: error.code,
+                retryable: false,
+                submissionStatus: error.submissionStatus,
+            });
             return;
         }
         if (error instanceof AssessmentUnavailableError) {
@@ -59,7 +74,9 @@ export async function abandonSubmissionById(req, res) {
 }
 export async function resumeActiveSubmission(req, res) {
     try {
-        const data = await resumeManifestSubmission(req.user.id);
+        const data = await resumeManifestSubmission(req.user.id, {
+            requestId: getRequestId(res),
+        });
         res.status(200).json({ status: "success", data });
     }
     catch (error) {

@@ -20,6 +20,18 @@ export class DuplicateTaskPositionError extends Error {
         this.name = "DuplicateTaskPositionError";
     }
 }
+export class QuestionPromptMediaUnavailableError extends Error {
+    storageKey;
+    cleanupStatus;
+    constructor(storageKey, cleanupStatus) {
+        super(cleanupStatus === "DELETED" || cleanupStatus === "MISSING"
+            ? `Question cannot be restored after the irreversible Prompt-media cleanup boundary: ${storageKey}`
+            : `Question cannot be restored while Prompt-media cleanup is unresolved (${cleanupStatus}): ${storageKey}`);
+        this.storageKey = storageKey;
+        this.cleanupStatus = cleanupStatus;
+        this.name = "QuestionPromptMediaUnavailableError";
+    }
+}
 function isUniqueViolation(error) {
     return ((error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") ||
         (typeof error === "object" &&
@@ -325,44 +337,57 @@ export async function deleteTask(questionId, taskId) {
         data: { deletedAt: new Date() },
     });
 }
-async function retrieveAdminQuestion(id) {
-    const question = await prisma.question.findUnique({
-        where: { id },
-        include: {
-            tasks: {
-                orderBy: { order: "asc" },
-            },
-        },
-    });
-    if (!question)
-        throw new Error("Question not found");
-    return question;
-}
 /** Restore a Question at its original position without changing child Tasks. */
 export async function restoreQuestion(id) {
     if (!isUuid(id))
         throw new Error("Question not found");
-    const existing = await prisma.question.findUnique({
-        where: { id },
-        select: { id: true, category: true, order: true, deletedAt: true },
-    });
-    if (!existing)
-        throw new Error("Question not found");
-    if (existing.deletedAt) {
-        try {
-            await prisma.question.update({
-                where: { id },
-                data: { deletedAt: null },
-            });
-        }
-        catch (error) {
-            if (isUniqueViolation(error)) {
-                throw questionPositionConflict(existing.category, existing.order);
+    return prisma.$transaction(async (transaction) => {
+        const existing = await transaction.question.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                category: true,
+                order: true,
+                audioStorageKey: true,
+                deletedAt: true,
+            },
+        });
+        if (!existing)
+            throw new Error("Question not found");
+        if (existing.deletedAt) {
+            await lockPromptMediaStorageIdentity(transaction, existing.audioStorageKey ?? "");
+            if (existing.audioStorageKey) {
+                const cleanupObject = await transaction.promptMediaCleanupObject.findUnique({
+                    where: { storageKey: existing.audioStorageKey },
+                    select: { status: true },
+                });
+                if (cleanupObject &&
+                    ["FAILED", "DELETE_PENDING", "DELETED", "MISSING"].includes(cleanupObject.status)) {
+                    throw new QuestionPromptMediaUnavailableError(existing.audioStorageKey, cleanupObject.status);
+                }
             }
-            throw error;
+            try {
+                await transaction.question.update({
+                    where: { id },
+                    data: { deletedAt: null },
+                });
+            }
+            catch (error) {
+                if (isUniqueViolation(error)) {
+                    throw questionPositionConflict(existing.category, existing.order);
+                }
+                throw error;
+            }
         }
-    }
-    return retrieveAdminQuestion(id);
+        return transaction.question.findUniqueOrThrow({
+            where: { id },
+            include: {
+                tasks: {
+                    orderBy: { order: "asc" },
+                },
+            },
+        });
+    });
 }
 /** Restore a Task at its original Question/order position independently. */
 export async function restoreTask(questionId, taskId) {

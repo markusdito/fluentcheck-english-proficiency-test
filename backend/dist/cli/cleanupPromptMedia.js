@@ -12,7 +12,7 @@ function formatHumanInventory(result) {
             ? candidate.reasons.join("; ")
             : "eligible for cleanup quarantine";
         return [
-            `${key} sourceQuestions=${candidate.sourceQuestionIds.join(",")}`,
+            `bucket=${candidate.bucket} key=${key} sourceQuestions=${candidate.sourceQuestionIds.join(",")}`,
             `  Answers: ${answerReferences}`,
             `  Manifest entries: ${manifestReferences}`,
             `  Eligible: ${candidate.eligible ? "yes" : "no"}`,

@@ -17,6 +17,8 @@ import adminRoutes from "./routes/admin.routes.js";
 import { createRateLimitConfig, RATE_LIMIT_POLICIES } from "./config/rate-limit.js";
 import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";
 import { RateLimitKeyUnavailableError, RateLimitStoreUnavailableError, createRateLimitRuntime, } from "./middleware/rate-limit.middleware.js";
+import { requestIdMiddleware } from "./middleware/request-id.middleware.js";
+import { flushAssessmentInitializationObservability, getAssessmentInitializationObservabilityConfig } from "./service/assessmentInitializationObservability.service.js";
 const REQUEST_BODY_LIMIT = "64kb";
 const URL_ENCODED_PARAMETER_LIMIT = 100;
 function isDedicatedRateLimitedRoute(request, googleAuthMounted) {
@@ -86,6 +88,7 @@ export const unhandledRequestError = (error, _req, res, _next) => {
 };
 export function createApp(dependencies = {}) {
     const app = express();
+    app.use(requestIdMiddleware);
     if (dependencies.rateLimit) {
         const rateLimitRuntime = createRateLimitRuntime(dependencies.rateLimit);
         app.locals.rateLimit = rateLimitRuntime;
@@ -125,11 +128,13 @@ export function createApp(dependencies = {}) {
 function closeServer(server, exitCode, rateLimitRuntime) {
     server.close(async () => {
         await rateLimitRuntime?.shutdown();
+        await flushAssessmentInitializationObservability();
         await disconnectDB();
         process.exit(exitCode);
     });
 }
 async function startServer() {
+    getAssessmentInitializationObservabilityConfig();
     const rateLimitConfig = createRateLimitConfig();
     const rateLimitStoreFactory = createConfiguredRateLimitStoreFactory(rateLimitConfig);
     const googleOAuthConfig = getGoogleOAuthConfig();

@@ -7,6 +7,12 @@ export class ManifestEvidenceUnavailableError extends Error {
         this.diagnostics = diagnostics;
     }
 }
+export class PromptMediaPreparationTimeoutError extends Error {
+    constructor() {
+        super("Prompt media preparation deadline exceeded");
+        this.name = "PromptMediaPreparationTimeoutError";
+    }
+}
 export function isValidPromptMediaUrl(value) {
     try {
         const url = new URL(value);
@@ -69,13 +75,16 @@ export async function buildManifestDelivery(manifest, signPromptMedia) {
             }
             return { entry, promptMediaUrl };
         }
-        catch {
+        catch (error) {
             return {
                 entry,
                 failure: {
                     entryId: entry.id,
                     category: entry.category,
-                    reason: "SIGNING_FAILED",
+                    reason: error instanceof PromptMediaPreparationTimeoutError
+                        ? "DEADLINE_EXCEEDED"
+                        : "SIGNING_FAILED",
+                    ...(entry.sourceQuestionId ? { questionId: entry.sourceQuestionId } : {}),
                 },
             };
         }

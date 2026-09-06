@@ -30,6 +30,8 @@ import {
   type RateLimitRuntime,
   type RateLimitRuntimeOptions,
 } from "./middleware/rate-limit.middleware.js";
+import { requestIdMiddleware } from "./middleware/request-id.middleware.js";
+import { flushAssessmentInitializationObservability, getAssessmentInitializationObservabilityConfig } from "./service/assessmentInitializationObservability.service.js";
 
 const REQUEST_BODY_LIMIT = "64kb";
 const URL_ENCODED_PARAMETER_LIMIT = 100;
@@ -135,6 +137,7 @@ export const unhandledRequestError: ErrorRequestHandler = (
 
 export function createApp(dependencies: AppDependencies = {}) {
   const app = express();
+  app.use(requestIdMiddleware);
   if (dependencies.rateLimit) {
     const rateLimitRuntime = createRateLimitRuntime(dependencies.rateLimit);
     app.locals.rateLimit = rateLimitRuntime;
@@ -197,12 +200,14 @@ function closeServer(
 ) {
   server.close(async () => {
     await rateLimitRuntime?.shutdown();
+    await flushAssessmentInitializationObservability();
     await disconnectDB();
     process.exit(exitCode);
   });
 }
 
 async function startServer() {
+  getAssessmentInitializationObservabilityConfig();
   const rateLimitConfig = createRateLimitConfig();
   const rateLimitStoreFactory =
     createConfiguredRateLimitStoreFactory(rateLimitConfig);

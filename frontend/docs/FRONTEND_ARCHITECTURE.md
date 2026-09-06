@@ -1,6 +1,6 @@
 # FluentCheck frontend architecture
 
-Status: current-state inventory, reviewed 2026-08-31.
+Status: current-state inventory, reviewed 2026-09-02.
 
 This document describes the Next.js App Router application as it exists in
 this repository. Source code and focused tests are authoritative. A statement
@@ -29,13 +29,13 @@ verified or whether a Submission is complete.
 
 | Area | Current source |
 | --- | --- |
-| Root layout, route styling, and brand tokens | frontend/app/layout.tsx, frontend/app/globals.css |
+| Root layout, authenticated start coordinator, route styling, and brand tokens | frontend/app/layout.tsx, frontend/components/providers/AssessmentStartProvider.tsx, frontend/app/globals.css |
 | Backend fetch boundary and errors | frontend/lib/api.ts |
 | Session query and redirect boundary | frontend/hooks/useSession.ts, frontend/lib/auth.ts |
 | Authentication forms and OAuth | frontend/components/auth, frontend/lib/google-auth.ts |
 | Dashboard and Submission display | frontend/app/dashboard/page.tsx, frontend/lib/dashboard-api.ts |
-| Assessment initialization | frontend/lib/test-initialization.ts, frontend/lib/test-api.ts |
-| Recording state and browser media | frontend/hooks/useRecording.ts, frontend/hooks/useMediaDevices.ts, frontend/lib/recording-state-machine.ts |
+| Assessment initialization and start intent | frontend/lib/test-initialization.ts, frontend/lib/assessment-start-intent.ts, frontend/lib/test-api.ts |
+| Recording state and browser media | frontend/hooks/useRecording.ts, frontend/hooks/useMediaDevices.ts, frontend/components/hardware/CameraMicPermissionModal.tsx, frontend/lib/recording-state-machine.ts |
 | Direct upload orchestration | frontend/lib/upload-api.ts, frontend/lib/recording-upload-state.ts |
 | Examiner experience | frontend/app/examiner/assignments/[assignmentId]/page.tsx, frontend/lib/examiner-api.ts, frontend/components/examiner |
 | Administrator experience | frontend/app/admin, frontend/lib/admin-api.ts, frontend/lib/question-form.ts |
@@ -79,7 +79,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /test/[testId] | source=frontend/app/test/[testId]/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /test/[testId] | Manifest-backed Assessment recording experience; the route parameter is navigation context, not a test-definition lookup key. |
+| /test/[testId] | Manifest-backed Assessment recording experience gated by coordinator-owned live camera and microphone capture; the route parameter is navigation context, not a test-definition lookup key. |
 
 <!-- page: /results/[submissionId] | source=frontend/app/results/[submissionId]/page.tsx -->
 | Route | Current behavior |
@@ -150,7 +150,7 @@ The higher-level modules are deliberately grouped by feature:
 | frontend/lib/auth.ts | Auth request helpers and account response types. |
 | frontend/lib/google-auth.ts | Google OAuth start/error handling. |
 | frontend/lib/dashboard-api.ts | Bounded dashboard Submission summary pages, cursor navigation, and detail/status queries. |
-| frontend/lib/test-initialization.ts | Idempotent manifest initialization and resume mapping. |
+| frontend/lib/test-initialization.ts | Idempotent manifest initialization, typed conflict recovery, and resume mapping. |
 | frontend/lib/test-api.ts | Submission lifecycle requests plus transitional question helpers. |
 | frontend/lib/upload-api.ts | Presign, direct PUT, and confirmation requests. |
 | frontend/lib/question-audio-api.ts | Administrator prompt-audio requests. |
@@ -168,20 +168,34 @@ Required category and one recorded Answer for each. The page displays the
 manifest entries returned by POST /submissions and does not build a question
 set from a client-side test definition.
 
-test-initialization.ts stores one idempotency key in sessionStorage for the
-browser attempt, sends it as Idempotency-Key, maps manifest entries to prompt
-display data, and falls back to GET /submissions/active after a conflict. A
-resume uses server-stored snapshots and already-uploaded entry identities.
+The authenticated AssessmentStartProvider owns one Capture stream and the
+current student's Assessment start intent across the dashboard permission UI
+and the test route. Camera and microphone permission requests happen only
+after an explicit user action. test-initialization.ts stores a
+`{studentId, key}` intent in per-tab sessionStorage, sends the key as
+Idempotency-Key, maps manifest entries to prompt display data, resumes an
+Active Submission after an active-submission conflict, and rotates the key
+once for a closed or foreign intent. A resume uses server-stored snapshots and
+already-uploaded entry identities.
+
+The coordinator treats live camera and microphone tracks as the readiness
+authority. Device enumeration and the optional microphone level monitor are
+informational; their failure does not invalidate capture. If a required track
+ends, the test page pauses and discards the current incomplete recording,
+preserving the Submission and prior verified Answers until both devices are
+recovered. An explicit abandon action calls the server lifecycle endpoint,
+clears the start intent, and releases the stream.
 
 The test page and its layout coordinate these visible phases:
 
 1. Loading or resuming a Submission.
-2. Preparing the browser and requesting camera/microphone permission.
+2. Preparing the coordinator and requesting camera/microphone permission from an explicit user action.
 3. Showing prompt audio and the webcam preview.
 4. Recording one response with MediaRecorder.
 5. Stopping and preparing the recorded Blob.
 6. Uploading and verifying the Answer.
-7. Advancing only after server confirmation, then completing the Submission.
+7. Pausing on required-track loss and recovering the same Submission when media is restored.
+8. Advancing only after server confirmation, then completing or explicitly abandoning the Submission.
 
 The dynamic testId segment is retained for navigation compatibility. Current
 initialization is keyed by the server-created Submission and manifest, not by
@@ -317,6 +331,7 @@ Focused tests that protect the current frontend contracts include:
 | Manifest initialization and resume | frontend/lib/test-initialization.test.ts |
 | Recording transitions | frontend/lib/recording-state-machine.test.ts, frontend/hooks/useRecording.test.tsx, frontend/app/test/[testId]/page.test.tsx |
 | Upload transitions | frontend/lib/recording-upload-state.test.ts, frontend/lib/rate-limit-flow.test.ts, frontend/app/test/[testId]/page.test.tsx |
+| Media readiness and coordinator ownership | frontend/hooks/useMediaDevices.test.tsx, frontend/components/hardware/CameraMicPermissionModal.test.tsx, frontend/app/test/[testId]/page.test.tsx |
 | Media and examiner presentation | frontend/components/media/LazyAnswerMedia.test.tsx, frontend/components/examiner/VideoReviewer.test.tsx |
 | Auth controls | frontend/components/auth/AuthForms.test.tsx, frontend/components/auth/GoogleAuthButton.test.tsx |
 | Dashboard/admin routes | frontend/app/dashboard/page.test.tsx, frontend/lib/dashboard-api.test.ts, frontend/app/admin/questions/page.test.tsx, frontend/app/admin/submissions/[submissionId]/page.test.tsx |

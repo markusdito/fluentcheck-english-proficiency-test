@@ -1,0 +1,15 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: Assessment initialization Loki
+    orgId: 1
+
+datasources:
+  - name: Loki
+    uid: assessment-initialization-loki
+    type: loki
+    access: proxy
+    isDefault: false
+    editable: false
+    jsonData:
+      maxLines: 1000

@@ -2,20 +2,27 @@ import { randomInt, randomUUID } from "node:crypto";
 import { prisma } from "../config/db.js";
 import { createQuestionAudioViewUrlFromMetadata } from "./upload.service.js";
 import { lockPromptMediaStorageIdentity } from "./promptMediaLock.service.js";
-import { buildManifestDelivery, ManifestEvidenceUnavailableError, } from "./submissionManifestDelivery.service.js";
+import { buildManifestDelivery, ManifestEvidenceUnavailableError, PromptMediaPreparationTimeoutError, } from "./submissionManifestDelivery.service.js";
+import { reportAssessmentInitializationAttempt, reportAssessmentInitializationFailure, reportAssessmentInitializationSuccess, } from "./assessmentInitializationObservability.service.js";
 const CATEGORIES = ["PART_1", "PART_2", "PART_3"];
 const INITIALIZATION_DEADLINE_MS = 10_000;
 export class AssessmentUnavailableError extends Error {
     code = "ASSESSMENT_UNAVAILABLE";
     retryable = true;
     retryAfterSeconds = 5;
-    constructor(message = "Assessment unavailable") {
+    internalReason;
+    failedCategories;
+    constructor(message = "Assessment unavailable", details = {}) {
         super(message);
         this.name = "AssessmentUnavailableError";
+        this.internalReason = details.internalReason ?? "UNKNOWN";
+        this.failedCategories = details.failedCategories ?? [];
     }
 }
 export class ActiveSubmissionConflictError extends Error {
     submissionId;
+    code = "ACTIVE_SUBMISSION_EXISTS";
+    retryable = true;
     constructor(submissionId) {
         super("An active Submission already exists");
         this.submissionId = submissionId;
@@ -24,9 +31,22 @@ export class ActiveSubmissionConflictError extends Error {
 }
 /** The same idempotency key cannot be used for another student's start intent. */
 export class IdempotencyKeyConflictError extends Error {
+    code = "IDEMPOTENCY_KEY_CONFLICT";
+    retryable = false;
     constructor() {
         super("Idempotency-Key is already associated with another student");
         this.name = "IdempotencyKeyConflictError";
+    }
+}
+/** A previously persisted start intent can no longer be replayed. */
+export class AssessmentStartIntentClosedError extends Error {
+    submissionStatus;
+    code = "ASSESSMENT_START_INTENT_CLOSED";
+    retryable = false;
+    constructor(submissionStatus) {
+        super("Assessment start intent is closed");
+        this.submissionStatus = submissionStatus;
+        this.name = "AssessmentStartIntentClosedError";
     }
 }
 class EligibilityConflictError extends Error {
@@ -38,9 +58,9 @@ class EligibilityConflictError extends Error {
 function withDeadline(promise, deadline) {
     const remaining = deadline - Date.now();
     if (remaining <= 0)
-        return Promise.reject(new AssessmentUnavailableError());
+        return Promise.reject(new PromptMediaPreparationTimeoutError());
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new AssessmentUnavailableError()), remaining);
+        const timer = setTimeout(() => reject(new PromptMediaPreparationTimeoutError()), remaining);
         promise.then((value) => {
             clearTimeout(timer);
             resolve(value);
@@ -50,36 +70,107 @@ function withDeadline(promise, deadline) {
         });
     });
 }
-export function reportAssessmentInitializationFailure(event) {
-    console.error("Assessment initialization failed", event);
-}
 function isUniqueViolation(error) {
     return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+async function findActiveSubmissionId(studentId) {
+    const active = await prisma.submission.findFirst({
+        where: {
+            studentId,
+            status: "IN_PROGRESS",
+            retentionStatus: "RETAINED",
+        },
+        select: { id: true },
+    });
+    return active?.id;
 }
 function isAssessmentInitializationUnavailable(error) {
     return (error instanceof AssessmentUnavailableError ||
         error instanceof ManifestEvidenceUnavailableError ||
         error instanceof EligibilityConflictError);
 }
-function observeInitializationFailure(error, observeFailure) {
+function safeDuration(now, startedAt) {
+    const duration = now() - startedAt;
+    return Number.isFinite(duration) && duration >= 0 ? Math.round(duration) : 0;
+}
+function failureReason(error, diagnostics) {
+    if (error instanceof EligibilityConflictError)
+        return "ELIGIBILITY_CONFLICT";
+    if (error instanceof AssessmentUnavailableError)
+        return error.internalReason;
+    const reasons = diagnostics?.failures.map((failure) => failure.reason) ?? [];
+    if (reasons.includes("DEADLINE_EXCEEDED")) {
+        return "INITIALIZATION_DEADLINE_EXCEEDED";
+    }
+    if (reasons.includes("INVALID_SIGNED_URL"))
+        return "PROMPT_MEDIA_INVALID_URL";
+    if (reasons.includes("MISSING_MEDIA_METADATA")) {
+        return "PROMPT_MEDIA_MISSING_METADATA";
+    }
+    if (reasons.includes("SIGNING_FAILED"))
+        return "PROMPT_MEDIA_SIGNING_FAILED";
+    return "UNKNOWN";
+}
+function failureClass(error, diagnostics) {
+    if (error instanceof EligibilityConflictError)
+        return "ELIGIBILITY_CONFLICT";
+    if (error instanceof AssessmentUnavailableError) {
+        if (error.internalReason === "QUESTION_BANK_INCOMPLETE")
+            return "BANK";
+        if (error.internalReason === "INITIALIZATION_DEADLINE_EXCEEDED")
+            return "TIMEOUT";
+        return "PREPARATION";
+    }
+    if (diagnostics?.failures.some((failure) => failure.reason === "DEADLINE_EXCEEDED")) {
+        return "TIMEOUT";
+    }
+    if (diagnostics)
+        return "PREPARATION";
+    return "UNKNOWN";
+}
+function observeInitializationFailure(error, observeFailure, context) {
     if (error instanceof ActiveSubmissionConflictError ||
-        error instanceof IdempotencyKeyConflictError) {
+        error instanceof IdempotencyKeyConflictError ||
+        error instanceof AssessmentStartIntentClosedError) {
         return;
     }
-    const classification = error instanceof EligibilityConflictError
-        ? "ELIGIBILITY_CONFLICT"
-        : error instanceof AssessmentUnavailableError || error instanceof ManifestEvidenceUnavailableError
-            ? "PREPARATION"
-            : "UNKNOWN";
     const diagnostics = error instanceof ManifestEvidenceUnavailableError
         ? error.diagnostics
         : undefined;
     try {
         observeFailure({
-            classification,
+            eventName: "submission_initialization_failed",
+            classification: failureClass(error, diagnostics),
+            internalReason: failureReason(error, diagnostics),
+            requestId: context.requestId,
             categoryCount: CATEGORIES.length,
             failureCount: diagnostics?.failureCount ?? 1,
+            failedQuestionIds: [...new Set(diagnostics?.failures
+                    .map((failure) => failure.questionId)
+                    .filter((questionId) => Boolean(questionId)) ?? [])],
+            failedCategories: [...new Set(diagnostics?.failures.map((failure) => failure.category) ??
+                    (error instanceof AssessmentUnavailableError ? error.failedCategories : []))],
+            preparationDurationMs: safeDuration(context.now, context.startedAt),
             ...(diagnostics ? { failedEntries: diagnostics.failures } : {}),
+        });
+    }
+    catch {
+        // Observability failures must never alter initialization behavior.
+    }
+}
+function observeAttempt(observer, requestId) {
+    try {
+        observer({ requestId });
+    }
+    catch {
+        // Observability failures must never alter initialization behavior.
+    }
+}
+function observeSuccess(observer, context) {
+    try {
+        observer({
+            requestId: context.requestId,
+            preparationDurationMs: safeDuration(context.now, context.startedAt),
         });
     }
     catch {
@@ -95,6 +186,9 @@ async function replayStartIntent(studentId, idempotencyKey, signPromptMedia, dea
         return undefined;
     if (existingIntent.studentId !== studentId)
         throw new IdempotencyKeyConflictError();
+    if (existingIntent.submission.status !== "IN_PROGRESS") {
+        throw new AssessmentStartIntentClosedError(existingIntent.submission.status);
+    }
     if (existingIntent.submission.retentionStatus &&
         existingIntent.submission.retentionStatus !== "RETAINED") {
         throw new AssessmentUnavailableError();
@@ -113,6 +207,7 @@ async function replayStartIntent(studentId, idempotencyKey, signPromptMedia, dea
             promptMediaStorageKey: entry.promptMediaStorageKey,
             promptMediaMimeType: entry.promptMediaMimeType,
             promptMediaSizeBytes: entry.promptMediaSizeBytes,
+            sourceQuestionId: entry.sourceQuestionId,
             tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
         })),
     };
@@ -123,13 +218,23 @@ async function replayStartIntent(studentId, idempotencyKey, signPromptMedia, dea
 export async function initializeManifestSubmission(studentId, idempotencyKey, dependencies = {}) {
     const chooseIndex = dependencies.chooseIndex ?? ((length) => randomInt(length));
     const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
-    const deadline = dependencies.deadline ?? (dependencies.now ?? Date.now)() + INITIALIZATION_DEADLINE_MS;
+    const now = dependencies.now ?? Date.now;
+    const startedAt = dependencies.startedAt ?? now();
+    const requestId = dependencies.requestId ?? randomUUID();
+    const deadline = dependencies.deadline ?? startedAt + INITIALIZATION_DEADLINE_MS;
     const observeFailure = dependencies.observeFailure ?? reportAssessmentInitializationFailure;
+    const observeAttemptCallback = dependencies.observeAttempt ?? reportAssessmentInitializationAttempt;
+    const observeSuccessCallback = dependencies.observeSuccess ?? reportAssessmentInitializationSuccess;
+    if (!dependencies.suppressAttemptObservation) {
+        observeAttempt(observeAttemptCallback, requestId);
+    }
     try {
         if (idempotencyKey) {
             const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
-            if (replay)
+            if (replay) {
+                observeSuccess(observeSuccessCallback, { requestId, startedAt, now });
                 return replay;
+            }
         }
         const active = await prisma.submission.findFirst({
             where: {
@@ -141,7 +246,7 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
         });
         if (active)
             throw new ActiveSubmissionConflictError(active.id);
-        const selected = await Promise.all(CATEGORIES.map(async (category) => {
+        const candidateSets = await Promise.all(CATEGORIES.map(async (category) => {
             const candidates = await prisma.question.findMany({
                 where: {
                     category,
@@ -160,17 +265,28 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                     },
                 },
             });
-            if (candidates.length === 0)
-                throw new AssessmentUnavailableError();
-            return candidates[chooseIndex(candidates.length)];
+            return { category, candidates };
         }));
+        const unavailableCategories = candidateSets
+            .filter(({ candidates }) => candidates.length === 0)
+            .map(({ category }) => category);
+        if (unavailableCategories.length > 0) {
+            throw new AssessmentUnavailableError("Assessment unavailable", {
+                internalReason: "QUESTION_BANK_INCOMPLETE",
+                failedCategories: unavailableCategories,
+            });
+        }
+        const selected = candidateSets.map(({ candidates }) => candidates[chooseIndex(candidates.length)]);
         const manifestId = randomUUID();
         const prepared = selected.map((question, index) => {
             if (!question.audioStorageKey ||
                 !question.audioMimeType ||
                 question.audioSizeBytes === null ||
                 question.audioSizeBytes <= 0) {
-                throw new AssessmentUnavailableError();
+                throw new AssessmentUnavailableError("Assessment unavailable", {
+                    internalReason: "PROMPT_MEDIA_MISSING_METADATA",
+                    failedCategories: [question.category],
+                });
             }
             return {
                 question,
@@ -190,6 +306,7 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 promptMediaStorageKey: item.question.audioStorageKey,
                 promptMediaMimeType: item.question.audioMimeType,
                 promptMediaSizeBytes: item.question.audioSizeBytes,
+                sourceQuestionId: item.question.id,
                 tasks: item.question.tasks.map((task) => ({
                     deliveredOrder: task.order,
                     deliveredText: task.promptText,
@@ -257,13 +374,15 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
             }
             return { submission, manifest };
         });
-        return {
+        const response = {
             submissionId: result.submission.id,
             status: result.submission.status,
             manifestId: result.manifest.id,
             version: result.manifest.version,
             entries: safe,
         };
+        observeSuccess(observeSuccessCallback, { requestId, startedAt, now });
+        return response;
     }
     catch (error) {
         if (error instanceof EligibilityConflictError && (dependencies.attempt ?? 0) < 2) {
@@ -271,39 +390,55 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 ...dependencies,
                 attempt: (dependencies.attempt ?? 0) + 1,
                 deadline,
+                requestId,
+                startedAt,
+                suppressAttemptObservation: true,
+                suppressFailureObservation: true,
             });
         }
-        if (error instanceof Error && error.message.includes("Submission_one_active_per_student_key")) {
-            const active = await prisma.submission.findFirst({
-                where: {
-                    studentId,
-                    status: "IN_PROGRESS",
-                    retentionStatus: "RETAINED",
-                },
-                select: { id: true },
-            });
-            if (active)
-                throw new ActiveSubmissionConflictError(active.id);
-        }
-        if (idempotencyKey && isUniqueViolation(error)) {
+        if (isUniqueViolation(error)) {
             // A concurrent request may have won the idempotency insert after the
             // initial lookup. Replay its committed result after the transaction rolls
             // back, preserving exactly one manifest for the key.
-            try {
-                const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
-                if (replay)
-                    return replay;
-            }
-            catch (replayError) {
-                observeInitializationFailure(replayError, observeFailure);
-                if (isAssessmentInitializationUnavailable(replayError)) {
-                    throw new AssessmentUnavailableError();
+            if (idempotencyKey) {
+                try {
+                    const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
+                    if (replay)
+                        return replay;
                 }
-                throw replayError;
+                catch (replayError) {
+                    observeInitializationFailure(replayError, observeFailure, {
+                        requestId,
+                        startedAt,
+                        now,
+                    });
+                    if (replayError instanceof IdempotencyKeyConflictError ||
+                        replayError instanceof AssessmentStartIntentClosedError) {
+                        throw replayError;
+                    }
+                    if (isAssessmentInitializationUnavailable(replayError)) {
+                        throw new AssessmentUnavailableError();
+                    }
+                    throw replayError;
+                }
             }
-            throw new IdempotencyKeyConflictError();
+            // Prisma adapters may expose the single-active constraint as a generic
+            // P2002 without the database constraint name. Check the committed
+            // active row after replay lookup so concurrent starts converge to the
+            // same typed conflict instead of becoming a 500 or key conflict.
+            const activeId = await findActiveSubmissionId(studentId);
+            if (activeId)
+                throw new ActiveSubmissionConflictError(activeId);
+            if (idempotencyKey)
+                throw new IdempotencyKeyConflictError();
         }
-        observeInitializationFailure(error, observeFailure);
+        if (!dependencies.suppressFailureObservation) {
+            observeInitializationFailure(error, observeFailure, {
+                requestId,
+                startedAt,
+                now,
+            });
+        }
         if (isAssessmentInitializationUnavailable(error)) {
             throw new AssessmentUnavailableError();
         }
@@ -312,7 +447,10 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
 }
 export async function resumeManifestSubmission(studentId, dependencies = {}) {
     const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
-    const deadline = dependencies.deadline ?? (dependencies.now ?? Date.now)() + INITIALIZATION_DEADLINE_MS;
+    const now = dependencies.now ?? Date.now;
+    const startedAt = dependencies.startedAt ?? now();
+    const requestId = dependencies.requestId ?? randomUUID();
+    const deadline = dependencies.deadline ?? startedAt + INITIALIZATION_DEADLINE_MS;
     const submission = await prisma.submission.findFirst({
         where: { studentId, status: "IN_PROGRESS", retentionStatus: "RETAINED" },
         orderBy: { createdAt: "desc" },
@@ -335,6 +473,7 @@ export async function resumeManifestSubmission(studentId, dependencies = {}) {
             promptMediaStorageKey: entry.promptMediaStorageKey,
             promptMediaMimeType: entry.promptMediaMimeType,
             promptMediaSizeBytes: entry.promptMediaSizeBytes,
+            sourceQuestionId: entry.sourceQuestionId,
             tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
         })),
     };
@@ -345,7 +484,7 @@ export async function resumeManifestSubmission(studentId, dependencies = {}) {
     catch (error) {
         if (!(error instanceof ManifestEvidenceUnavailableError))
             throw error;
-        observeInitializationFailure(error, dependencies.observeFailure ?? reportAssessmentInitializationFailure);
+        observeInitializationFailure(error, dependencies.observeFailure ?? reportAssessmentInitializationFailure, { requestId, startedAt, now });
         throw new AssessmentUnavailableError();
     }
     return {

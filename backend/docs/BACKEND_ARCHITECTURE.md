@@ -199,7 +199,7 @@ to the student's retained non-IN_PROGRESS Submissions rather than being
 calculated from the current page.
 
 <!-- route: POST /api/submissions | source=backend/src/routes/submission.routes.ts -->
-| POST | /api/submissions | Authenticated, creation rate limits | Creates or replays a manifest-backed Submission using Idempotency-Key. |
+| POST | /api/submissions | Authenticated, creation rate limits | Creates or replays a manifest-backed Submission using Idempotency-Key; returns typed active-submission, closed-intent, or foreign-key conflicts. |
 
 <!-- route: GET /api/submissions/active | source=backend/src/routes/submission.routes.ts -->
 | GET | /api/submissions/active | Authenticated | Resumes the student's active IN_PROGRESS Submission. |
@@ -211,7 +211,7 @@ calculated from the current page.
 | GET | /api/submissions/:id/status | Authenticated owner | Returns the current Submission status. |
 
 <!-- route: POST /api/submissions/:id/abandon | source=backend/src/routes/submission.routes.ts -->
-| POST | /api/submissions/:id/abandon | Authenticated owner | Abandons an open Submission. |
+| POST | /api/submissions/:id/abandon | Authenticated owner | Explicitly abandons an open Submission under a row lock; repeated abandonment is an idempotent no-op and retained evidence is preserved. |
 
 <!-- route: GET /api/submissions/:id | source=backend/src/routes/submission.routes.ts -->
 | GET | /api/submissions/:id | Authenticated owner | Returns manifest-backed detail and authorized evidence URLs. |
@@ -312,14 +312,23 @@ POST /api/submissions requires an idempotency key from the client. The
 initialization service chooses one eligible Question per Required category,
 prepares prompt media, and creates the Submission, manifest, entries, and task
 snapshots in one bounded transaction. Eligibility is rechecked inside the
-transaction. A repeated key replays the same Submission; a key owned by a
-different student is rejected. An existing active Submission is resumed or
-reported as a conflict according to the service contract.
+transaction. A repeated key replays the same Submission only while it is
+IN_PROGRESS; a terminal or abandoned Submission returns
+ASSESSMENT_START_INTENT_CLOSED. A key owned by a different student returns
+IDEMPOTENCY_KEY_CONFLICT. An existing active Submission is resumed or
+reported as ACTIVE_SUBMISSION_EXISTS, including when a concurrent different
+key loses the database single-active race.
 
 If a complete manifest cannot be created, the service raises
 ASSESSMENT_UNAVAILABLE with a retryable response and Retry-After guidance.
-It does not create a partial Submission. The frontend's /active route rebuilds
-the experience from stored snapshots.
+It does not create a partial Submission. Before returning, it emits one
+sanitized submission_initialization_failed event through the observability
+seam (assessmentInitializationObservability.service), which forwards the
+allowlisted fields to Grafana Cloud Loki on a best-effort basis; a telemetry
+failure never changes the response. Pending telemetry deliveries are flushed
+during graceful shutdown. The dashboard and alert rules live in ops/grafana,
+with the failure runbook at docs/runbooks/assessment-initialization-failures.md.
+The frontend's /active route rebuilds the experience from stored snapshots.
 
 ### Direct-to-R2 verified answers
 

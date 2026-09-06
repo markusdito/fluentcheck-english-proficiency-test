@@ -18,6 +18,42 @@ function createDevice(deviceId: string, kind: MediaDeviceKind, label: string): M
   return { deviceId, groupId: "", kind, label, toJSON: () => ({}) };
 }
 
+type TestTrack = MediaStreamTrack & {
+  end: () => void;
+};
+
+function createTrack(kind: "video" | "audio"): TestTrack {
+  let readyState: MediaStreamTrackState = "live";
+  let endedHandler: (() => void) | undefined;
+  const track = {
+    kind,
+    get readyState() {
+      return readyState;
+    },
+    stop: vi.fn(),
+    addEventListener: vi.fn((event: string, listener: () => void) => {
+      if (event === "ended") endedHandler = listener;
+    }),
+    removeEventListener: vi.fn(),
+    end: () => {
+      readyState = "ended";
+      endedHandler?.();
+    },
+  } as unknown as TestTrack;
+  return track;
+}
+
+function createStream(tracks: TestTrack[]): MediaStream {
+  return {
+    getTracks: () => tracks,
+    addTrack: (track: MediaStreamTrack) => tracks.push(track as TestTrack),
+    removeTrack: (track: MediaStreamTrack) => {
+      const index = tracks.indexOf(track as TestTrack);
+      if (index >= 0) tracks.splice(index, 1);
+    },
+  } as unknown as MediaStream;
+}
+
 function createAudioContextMock() {
   const source = {
     connect: vi.fn(),
@@ -137,8 +173,8 @@ describe("useMediaDevices", () => {
   });
 
   it("removes the device listener and stops the active stream on unmount", async () => {
-    const tracks = [{ stop: vi.fn() }, { stop: vi.fn() }];
-    const stream = { getTracks: () => tracks } as unknown as MediaStream;
+    const tracks = [createTrack("video"), createTrack("audio")];
+    const stream = createStream(tracks);
     getUserMedia.mockResolvedValue(stream);
     const audio = createAudioContextMock();
     installAudioContextMocks(audio);
@@ -161,14 +197,10 @@ describe("useMediaDevices", () => {
   });
 
   it("cleans the previous resource set before replacing it", async () => {
-    const firstTrack = { stop: vi.fn() };
-    const secondTrack = { stop: vi.fn() };
-    const firstStream = {
-      getTracks: () => [firstTrack],
-    } as unknown as MediaStream;
-    const secondStream = {
-      getTracks: () => [secondTrack],
-    } as unknown as MediaStream;
+    const firstTracks = [createTrack("video"), createTrack("audio")];
+    const secondTracks = [createTrack("video"), createTrack("audio")];
+    const firstStream = createStream(firstTracks);
+    const secondStream = createStream(secondTracks);
     getUserMedia.mockResolvedValueOnce(firstStream).mockResolvedValueOnce(secondStream);
 
     const firstAudio = createAudioContextMock();
@@ -187,12 +219,14 @@ describe("useMediaDevices", () => {
       await result.current.requestPermissions();
     });
 
-    expect(firstTrack.stop).toHaveBeenCalledOnce();
+    expect(firstTracks[0].stop).toHaveBeenCalledOnce();
+    expect(firstTracks[1].stop).toHaveBeenCalledOnce();
     expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
     expect(firstAudio.source.disconnect).toHaveBeenCalledOnce();
     expect(firstAudio.analyser.disconnect).toHaveBeenCalledOnce();
     expect(firstAudio.context.close).toHaveBeenCalledOnce();
-    expect(secondTrack.stop).not.toHaveBeenCalled();
+    expect(secondTracks[0].stop).not.toHaveBeenCalled();
+    expect(secondTracks[1].stop).not.toHaveBeenCalled();
     expect(result.current.stream).toBe(secondStream);
 
     callbacks.get(1)?.(0);
@@ -200,9 +234,7 @@ describe("useMediaDevices", () => {
   });
 
   it("deduplicates concurrent permission requests", async () => {
-    const stream = {
-      getTracks: () => [{ stop: vi.fn() }],
-    } as unknown as MediaStream;
+    const stream = createStream([createTrack("video"), createTrack("audio")]);
     const permissionRequest = createDeferred<MediaStream>();
     getUserMedia.mockReturnValue(permissionRequest.promise);
     installAudioContextMocks(createAudioContextMock());
@@ -228,11 +260,9 @@ describe("useMediaDevices", () => {
     expect(result.current.stream).toBe(stream);
   });
 
-  it("rolls back the stream when audio monitor setup fails", async () => {
-    const track = { stop: vi.fn() };
-    const stream = {
-      getTracks: () => [track],
-    } as unknown as MediaStream;
+  it("keeps capture available when optional audio monitoring setup fails", async () => {
+    const tracks = [createTrack("video"), createTrack("audio")];
+    const stream = createStream(tracks);
     getUserMedia.mockResolvedValue(stream);
 
     const audio = createAudioContextMock();
@@ -244,16 +274,18 @@ describe("useMediaDevices", () => {
     const { result } = renderHook(() => useMediaDevices());
 
     await act(async () => {
-      expect(await result.current.requestPermissions()).toBe(false);
+      expect(await result.current.requestPermissions()).toBe(true);
     });
 
-    expect(track.stop).toHaveBeenCalledOnce();
+    expect(tracks[0].stop).not.toHaveBeenCalled();
+    expect(tracks[1].stop).not.toHaveBeenCalled();
     expect(audio.source.disconnect).toHaveBeenCalledOnce();
     expect(audio.analyser.disconnect).not.toHaveBeenCalled();
     expect(audio.context.close).toHaveBeenCalledOnce();
-    expect(result.current.stream).toBeNull();
-    expect(result.current.videoError).toBe(
-      "An unexpected error occurred while accessing media devices.",
+    expect(result.current.stream).toBe(stream);
+    expect(result.current.mediaReady).toBe(true);
+    expect(result.current.monitorError).toBe(
+      "Microphone level monitoring is unavailable, but microphone capture can continue.",
     );
   });
 
@@ -268,10 +300,9 @@ describe("useMediaDevices", () => {
     });
     unmount();
 
-    const track = { stop: vi.fn() };
-    const stream = {
-      getTracks: () => [track],
-    } as unknown as MediaStream;
+    const track = createTrack("video");
+    const audioTrack = createTrack("audio");
+    const stream = createStream([track, audioTrack]);
     await act(async () => {
       permissionRequest.resolve(stream);
       await request;
@@ -301,10 +332,8 @@ describe("useMediaDevices", () => {
       secondPermission = result.current.requestPermissions();
     });
 
-    const firstTrack = { stop: vi.fn() };
-    const firstStream = {
-      getTracks: () => [firstTrack],
-    } as unknown as MediaStream;
+    const firstTrack = createTrack("video");
+    const firstStream = createStream([firstTrack, createTrack("audio")]);
     await act(async () => {
       firstRequest.resolve(firstStream);
       await firstPermission;
@@ -312,15 +341,79 @@ describe("useMediaDevices", () => {
 
     expect(firstTrack.stop).toHaveBeenCalledOnce();
 
-    const secondStream = {
-      getTracks: () => [{ stop: vi.fn() }],
-    } as unknown as MediaStream;
+    const secondStream = createStream([createTrack("video"), createTrack("audio")]);
     await act(async () => {
       secondRequest.resolve(secondStream);
       await secondPermission;
     });
 
     expect(result.current.stream).toBe(secondStream);
+  });
+
+  it("retries only a missing track and preserves the working track", async () => {
+    const videoTrack = createTrack("video");
+    const firstStream = createStream([videoTrack]);
+    const audioTrack = createTrack("audio");
+    const secondStream = createStream([audioTrack]);
+    getUserMedia.mockResolvedValueOnce(firstStream).mockResolvedValueOnce(secondStream);
+    installAudioContextMocks(createAudioContextMock());
+    installAnimationFrameMocks();
+
+    const { result } = renderHook(() => useMediaDevices());
+
+    await act(async () => {
+      expect(await result.current.requestPermissions()).toBe(false);
+    });
+    expect(result.current.isVideoReady).toBe(true);
+    expect(result.current.isAudioReady).toBe(false);
+
+    await act(async () => {
+      expect(await result.current.requestPermissions()).toBe(true);
+    });
+
+    expect(getUserMedia).toHaveBeenNthCalledWith(1, { video: true, audio: true });
+    expect(getUserMedia).toHaveBeenNthCalledWith(2, { video: false, audio: true });
+    expect(videoTrack.stop).not.toHaveBeenCalled();
+    expect(result.current.stream).toBe(firstStream);
+    expect(result.current.mediaReady).toBe(true);
+  });
+
+  it("treats live tracks as authoritative even when device enumeration is empty", async () => {
+    const stream = createStream([createTrack("video"), createTrack("audio")]);
+    getUserMedia.mockResolvedValue(stream);
+    installAudioContextMocks(createAudioContextMock());
+    installAnimationFrameMocks();
+
+    const { result } = renderHook(() => useMediaDevices());
+
+    await act(async () => {
+      expect(await result.current.requestPermissions()).toBe(true);
+    });
+
+    expect(result.current.videoDevices).toEqual([]);
+    expect(result.current.audioDevices).toEqual([]);
+    expect(result.current.mediaReady).toBe(true);
+  });
+
+  it("pauses readiness when a capture track ends", async () => {
+    const videoTrack = createTrack("video");
+    const audioTrack = createTrack("audio");
+    const stream = createStream([videoTrack, audioTrack]);
+    getUserMedia.mockResolvedValue(stream);
+    installAudioContextMocks(createAudioContextMock());
+    installAnimationFrameMocks();
+
+    const { result } = renderHook(() => useMediaDevices());
+    await act(async () => {
+      await result.current.requestPermissions();
+    });
+
+    act(() => videoTrack.end());
+
+    expect(result.current.isVideoReady).toBe(false);
+    expect(result.current.isAudioReady).toBe(true);
+    expect(result.current.mediaReady).toBe(false);
+    expect(result.current.videoError).toBe("Camera disconnected. Reconnect it and retry.");
   });
 
   it("cancels deferred device enumeration when unmounted", () => {

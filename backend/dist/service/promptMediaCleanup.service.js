@@ -253,6 +253,17 @@ async function quarantineCandidate(runId, candidate, options, dependencies) {
             return { storageKey: "", status: "MISSING", outcome: "NO_STORAGE_IDENTITY" };
         }
         await lockPromptMediaStorageIdentity(transaction, candidate.storageKey);
+        const existing = await transaction.promptMediaCleanupObject.findUnique({
+            where: { storageKey: candidate.storageKey },
+            select: { id: true, status: true },
+        });
+        if (existing?.status === "DELETED" || existing?.status === "MISSING") {
+            return {
+                storageKey: candidate.storageKey,
+                status: existing.status,
+                outcome: "ALREADY_FINALIZED",
+            };
+        }
         let storage;
         try {
             storage = await inspectionOf(dependencies)(candidate.storageKey, candidate.bucket);
@@ -335,40 +346,34 @@ async function quarantineCandidate(runId, candidate, options, dependencies) {
                             ? "A non-purged Delivered prompt snapshot references this Prompt media"
                             : candidateReason(candidate);
         const snapshot = referenceSnapshotValue(references);
-        const existing = await transaction.promptMediaCleanupObject.findUnique({
+        await transaction.promptMediaCleanupObject.upsert({
             where: { storageKey: candidate.storageKey },
-            select: { id: true, status: true },
+            update: {
+                sourceQuestionId: candidate.sourceQuestionId,
+                bucket: candidate.bucket,
+                answerReferenceCount: references.answerReferences.length,
+                manifestReferenceCount: references.manifestReferences.length,
+                referenceSnapshot: asJson(snapshot),
+                eligibilityReason: outcome,
+                status,
+                lastRunId: runId,
+                quarantineUntil: eligible ? quarantineUntil : null,
+                lastError: null,
+            },
+            create: {
+                id: randomUUID(),
+                sourceQuestionId: candidate.sourceQuestionId,
+                storageKey: candidate.storageKey,
+                bucket: candidate.bucket,
+                answerReferenceCount: references.answerReferences.length,
+                manifestReferenceCount: references.manifestReferences.length,
+                referenceSnapshot: asJson(snapshot),
+                eligibilityReason: outcome,
+                status,
+                lastRunId: runId,
+                quarantineUntil: eligible ? quarantineUntil : null,
+            },
         });
-        if (!existing || existing.status !== "DELETED") {
-            await transaction.promptMediaCleanupObject.upsert({
-                where: { storageKey: candidate.storageKey },
-                update: {
-                    sourceQuestionId: candidate.sourceQuestionId,
-                    bucket: candidate.bucket,
-                    answerReferenceCount: references.answerReferences.length,
-                    manifestReferenceCount: references.manifestReferences.length,
-                    referenceSnapshot: asJson(snapshot),
-                    eligibilityReason: outcome,
-                    status,
-                    lastRunId: runId,
-                    quarantineUntil: eligible ? quarantineUntil : null,
-                    lastError: null,
-                },
-                create: {
-                    id: randomUUID(),
-                    sourceQuestionId: candidate.sourceQuestionId,
-                    storageKey: candidate.storageKey,
-                    bucket: candidate.bucket,
-                    answerReferenceCount: references.answerReferences.length,
-                    manifestReferenceCount: references.manifestReferences.length,
-                    referenceSnapshot: asJson(snapshot),
-                    eligibilityReason: outcome,
-                    status,
-                    lastRunId: runId,
-                    quarantineUntil: eligible ? quarantineUntil : null,
-                },
-            });
-        }
         await audit(transaction, {
             actorId: options.actorId,
             action: eligible
@@ -388,44 +393,142 @@ async function quarantineCandidate(runId, candidate, options, dependencies) {
         return { storageKey: candidate.storageKey, status, outcome };
     });
 }
-async function finalizeCandidate(runId, object, options, dependencies) {
+async function preparePromptMediaDeleteAttempt(runId, object, options, dependencies) {
     const database = databaseOf(dependencies);
     const now = nowOf(dependencies);
+    return database.$transaction(async (transaction) => {
+        await lockPromptMediaStorageIdentity(transaction, object.storageKey);
+        const current = await transaction.promptMediaCleanupObject.findUniqueOrThrow({
+            where: { id: object.id },
+        });
+        if (["DELETED", "MISSING", "CANCELLED"].includes(current.status)) {
+            return {
+                result: {
+                    storageKey: object.storageKey,
+                    status: current.status,
+                    outcome: "ALREADY_FINALIZED",
+                },
+            };
+        }
+        if (!current.quarantineUntil ||
+            current.quarantineUntil.getTime() > now.getTime()) {
+            return {
+                result: {
+                    storageKey: object.storageKey,
+                    status: current.status,
+                    outcome: "QUARANTINE_ACTIVE",
+                },
+            };
+        }
+        const sourceQuestions = await transaction.question.findMany({
+            where: { audioStorageKey: object.storageKey },
+            select: { id: true, deletedAt: true },
+        });
+        const sourceQuestionIds = sourceQuestions.map((question) => question.id);
+        const activeSourceQuestions = sourceQuestions.filter((question) => question.deletedAt === null);
+        const references = await readReferences(transaction, object.storageKey, sourceQuestionIds.length > 0 ? sourceQuestionIds : [object.sourceQuestionId]);
+        if (sourceQuestions.length === 0 ||
+            activeSourceQuestions.length > 0 ||
+            references.answerReferences.length > 0 ||
+            references.manifestReferences.length > 0) {
+            await transaction.promptMediaCleanupObject.update({
+                where: { id: object.id },
+                data: {
+                    status: "SKIPPED_REFERENCED",
+                    answerReferenceCount: references.answerReferences.length,
+                    manifestReferenceCount: references.manifestReferences.length,
+                    referenceSnapshot: asJson(referenceSnapshotValue(references)),
+                    eligibilityReason: activeSourceQuestions.length > 0
+                        ? "An active Question now uses this Prompt-media identity"
+                        : sourceQuestions.length === 0
+                            ? "The retired source Question no longer exists"
+                            : "A non-purged Submission now references this Prompt media",
+                    lastRunId: runId,
+                    quarantineUntil: null,
+                },
+            });
+            await audit(transaction, {
+                actorId: options.actorId,
+                action: "PROMPT_CLEANUP_SKIPPED",
+                authorizationId: options.authorizationId,
+                reason: options.reason,
+                cleanupRunId: runId,
+                storageKey: object.storageKey,
+                outcome: "REFERENCE_RECHECK_BLOCKED",
+                metadata: referenceSnapshotValue(references),
+            });
+            return {
+                result: {
+                    storageKey: object.storageKey,
+                    status: "SKIPPED_REFERENCED",
+                    outcome: "REFERENCE_RECHECK_BLOCKED",
+                },
+            };
+        }
+        const pending = await transaction.promptMediaCleanupObject.update({
+            where: { id: current.id },
+            data: {
+                status: "DELETE_PENDING",
+                attemptCount: { increment: 1 },
+                lastRunId: runId,
+                lastError: null,
+            },
+        });
+        await audit(transaction, {
+            actorId: options.actorId,
+            action: "PROMPT_CLEANUP_DELETE_ATTEMPTED",
+            authorizationId: options.authorizationId,
+            reason: options.reason,
+            cleanupRunId: runId,
+            storageKey: object.storageKey,
+            outcome: "DELETE_REQUESTED",
+            metadata: { attemptCount: pending.attemptCount },
+        });
+        return {
+            attempt: {
+                id: current.id,
+                storageKey: object.storageKey,
+                bucket: object.bucket,
+            },
+        };
+    }, { maxWait: 60_000, timeout: 60_000 });
+}
+async function confirmPromptMediaDeleteAttempt(runId, attempt, options, dependencies) {
+    const database = databaseOf(dependencies);
     const storage = storageOf(dependencies);
     try {
         return await database.$transaction(async (transaction) => {
-            await lockPromptMediaStorageIdentity(transaction, object.storageKey);
+            await lockPromptMediaStorageIdentity(transaction, attempt.storageKey);
             const current = await transaction.promptMediaCleanupObject.findUniqueOrThrow({
-                where: { id: object.id },
+                where: { id: attempt.id },
             });
             if (["DELETED", "MISSING", "CANCELLED"].includes(current.status)) {
                 return {
-                    storageKey: object.storageKey,
+                    storageKey: attempt.storageKey,
                     status: current.status,
                     outcome: "ALREADY_FINALIZED",
                 };
             }
-            if (!current.quarantineUntil ||
-                current.quarantineUntil.getTime() > now.getTime()) {
+            if (current.status !== "DELETE_PENDING") {
                 return {
-                    storageKey: object.storageKey,
+                    storageKey: attempt.storageKey,
                     status: current.status,
-                    outcome: "QUARANTINE_ACTIVE",
+                    outcome: "DELETE_ATTEMPT_NOT_PENDING",
                 };
             }
             const sourceQuestions = await transaction.question.findMany({
-                where: { audioStorageKey: object.storageKey },
+                where: { audioStorageKey: attempt.storageKey },
                 select: { id: true, deletedAt: true },
             });
             const sourceQuestionIds = sourceQuestions.map((question) => question.id);
             const activeSourceQuestions = sourceQuestions.filter((question) => question.deletedAt === null);
-            const references = await readReferences(transaction, object.storageKey, sourceQuestionIds.length > 0 ? sourceQuestionIds : [object.sourceQuestionId]);
+            const references = await readReferences(transaction, attempt.storageKey, sourceQuestionIds.length > 0 ? sourceQuestionIds : [current.sourceQuestionId]);
             if (sourceQuestions.length === 0 ||
                 activeSourceQuestions.length > 0 ||
                 references.answerReferences.length > 0 ||
                 references.manifestReferences.length > 0) {
                 await transaction.promptMediaCleanupObject.update({
-                    where: { id: object.id },
+                    where: { id: attempt.id },
                     data: {
                         status: "SKIPPED_REFERENCED",
                         answerReferenceCount: references.answerReferences.length,
@@ -446,42 +549,23 @@ async function finalizeCandidate(runId, object, options, dependencies) {
                     authorizationId: options.authorizationId,
                     reason: options.reason,
                     cleanupRunId: runId,
-                    storageKey: object.storageKey,
+                    storageKey: attempt.storageKey,
                     outcome: "REFERENCE_RECHECK_BLOCKED",
                     metadata: referenceSnapshotValue(references),
                 });
                 return {
-                    storageKey: object.storageKey,
+                    storageKey: attempt.storageKey,
                     status: "SKIPPED_REFERENCED",
                     outcome: "REFERENCE_RECHECK_BLOCKED",
                 };
             }
-            const pending = await transaction.promptMediaCleanupObject.update({
-                where: { id: current.id },
-                data: {
-                    status: "DELETE_PENDING",
-                    attemptCount: { increment: 1 },
-                    lastRunId: runId,
-                    lastError: null,
-                },
-            });
-            await audit(transaction, {
-                actorId: options.actorId,
-                action: "PROMPT_CLEANUP_DELETE_ATTEMPTED",
-                authorizationId: options.authorizationId,
-                reason: options.reason,
-                cleanupRunId: runId,
-                storageKey: object.storageKey,
-                outcome: "DELETE_REQUESTED",
-                metadata: { attemptCount: pending.attemptCount },
-            });
             try {
-                // Keep the interactive transaction open while the exact storage
-                // identity is deleted and its absence is confirmed.
-                const confirmation = await storage.deleteObject(object.storageKey, object.bucket);
+                // DELETE_PENDING is committed before this transaction starts, so a
+                // process failure after storage deletion leaves a durable retry marker.
+                const confirmation = await storage.deleteObject(attempt.storageKey, attempt.bucket);
                 const missing = confirmation.outcome === "ALREADY_ABSENT";
                 await transaction.promptMediaCleanupObject.update({
-                    where: { id: current.id },
+                    where: { id: attempt.id },
                     data: {
                         status: missing ? "MISSING" : "DELETED",
                         deletedAt: missing ? null : nowOf(dependencies),
@@ -497,11 +581,11 @@ async function finalizeCandidate(runId, object, options, dependencies) {
                     authorizationId: options.authorizationId,
                     reason: options.reason,
                     cleanupRunId: runId,
-                    storageKey: object.storageKey,
+                    storageKey: attempt.storageKey,
                     outcome: confirmation.outcome,
                 });
                 return {
-                    storageKey: object.storageKey,
+                    storageKey: attempt.storageKey,
                     status: missing ? "MISSING" : "DELETED",
                     outcome: confirmation.outcome,
                 };
@@ -509,7 +593,7 @@ async function finalizeCandidate(runId, object, options, dependencies) {
             catch (error) {
                 const message = error instanceof Error ? error.message : "Storage deletion failed";
                 await transaction.promptMediaCleanupObject.update({
-                    where: { id: current.id },
+                    where: { id: attempt.id },
                     data: { status: "FAILED", lastError: message },
                 });
                 await audit(transaction, {
@@ -518,11 +602,11 @@ async function finalizeCandidate(runId, object, options, dependencies) {
                     authorizationId: options.authorizationId,
                     reason: options.reason,
                     cleanupRunId: runId,
-                    storageKey: object.storageKey,
+                    storageKey: attempt.storageKey,
                     outcome: message,
                 });
                 return {
-                    storageKey: object.storageKey,
+                    storageKey: attempt.storageKey,
                     status: "FAILED",
                     outcome: message,
                     error: message,
@@ -531,11 +615,38 @@ async function finalizeCandidate(runId, object, options, dependencies) {
         }, { maxWait: 60_000, timeout: 60_000 });
     }
     catch (error) {
+        const message = error instanceof Error ? error.message : "Cleanup confirmation failed";
+        return {
+            storageKey: attempt.storageKey,
+            status: "DELETE_PENDING",
+            outcome: "RETRY_REQUIRED",
+            error: message,
+        };
+    }
+}
+async function finalizeCandidate(runId, object, options, dependencies) {
+    try {
+        const prepared = await preparePromptMediaDeleteAttempt(runId, object, options, dependencies);
+        if ("result" in prepared)
+            return prepared.result;
+        return confirmPromptMediaDeleteAttempt(runId, prepared.attempt, options, dependencies);
+    }
+    catch (error) {
         const message = error instanceof Error ? error.message : "Cleanup finalization failed";
+        const database = databaseOf(dependencies);
         try {
-            await database.promptMediaCleanupObject.update({
-                where: { id: object.id },
-                data: { status: "FAILED", lastError: message, lastRunId: runId },
+            await database.$transaction(async (transaction) => {
+                await lockPromptMediaStorageIdentity(transaction, object.storageKey);
+                const current = await transaction.promptMediaCleanupObject.findUnique({
+                    where: { id: object.id },
+                    select: { status: true },
+                });
+                if (current && !["DELETED", "MISSING", "CANCELLED"].includes(current.status)) {
+                    await transaction.promptMediaCleanupObject.update({
+                        where: { id: object.id },
+                        data: { status: "FAILED", lastError: message, lastRunId: runId },
+                    });
+                }
             });
         }
         catch {
@@ -569,6 +680,8 @@ export async function runPromptMediaCleanup(mode, options, dependencies = {}) {
             for (const candidate of inventory.candidates) {
                 const result = await quarantineCandidate(runId, candidate, normalizedOptions, dependencies);
                 objects.push(result);
+                if (result.status === "FAILED")
+                    failed = true;
             }
         }
         else {
@@ -591,7 +704,7 @@ export async function runPromptMediaCleanup(mode, options, dependencies = {}) {
             for (const object of due) {
                 const result = await finalizeCandidate(runId, object, normalizedOptions, dependencies);
                 objects.push(result);
-                if (result.status === "FAILED")
+                if (result.status === "FAILED" || result.error)
                     failed = true;
             }
         }

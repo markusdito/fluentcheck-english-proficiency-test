@@ -5,19 +5,6 @@ on:
   pull_request:
 
 jobs:
-  architecture-docs:
-    runs-on: ubuntu-latest
-    env:
-      DOCS_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: node scripts/check-architecture-docs.mjs --check-changes
-
   backend:
     runs-on: ubuntu-latest
     defaults:

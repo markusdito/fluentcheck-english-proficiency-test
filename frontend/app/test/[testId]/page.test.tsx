@@ -10,11 +10,32 @@ const mocks = vi.hoisted(() => ({
   getPresignedUrl: vi.fn(),
   initializeTest: vi.fn(),
   requestPermissions: vi.fn(),
+  abandonSubmission: vi.fn(),
   resetRecording: vi.fn(),
   startRecording: vi.fn(),
   stopRecording: vi.fn(),
   stopStream: vi.fn(),
   uploadToR2: vi.fn(),
+  assessmentStart: {
+    audioDevices: [],
+    audioError: null,
+    audioErrorCode: null,
+    isAudioReady: true,
+    isLoading: false,
+    isMicActive: false,
+    isVideoReady: true,
+    mediaReady: true,
+    micLevel: 0,
+    monitorError: null,
+    requestPermissions: vi.fn(),
+    sessionError: null,
+    sessionPending: false,
+    student: null,
+    studentId: "student-1",
+    videoDevices: [],
+    videoError: null,
+    videoErrorCode: null,
+  },
   recording: {
     blob: null as Blob | null,
     duration: 0,
@@ -32,16 +53,12 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@/hooks/useMediaDevices", () => ({
-  useMediaDevices: () => ({
+vi.mock("@/components/providers/AssessmentStartProvider", () => ({
+  useAssessmentStart: () => ({
+    ...mocks.assessmentStart,
     stream: mocks.stream,
     requestPermissions: mocks.requestPermissions,
     stopStream: mocks.stopStream,
-    videoError: null,
-    audioError: null,
-    videoDevices: [],
-    audioDevices: [],
-    isLoading: false,
   }),
 }));
 
@@ -63,6 +80,7 @@ vi.mock("@/lib/test-initialization", () => ({
 }));
 
 vi.mock("@/lib/test-api", () => ({
+  abandonSubmission: mocks.abandonSubmission,
   completeSubmission: mocks.completeSubmission,
 }));
 
@@ -159,6 +177,14 @@ describe("TestPage recording and upload workflow", () => {
       uploadedEntryIds: [],
     });
     mocks.requestPermissions.mockResolvedValue(true);
+    Object.assign(mocks.assessmentStart, {
+      isAudioReady: true,
+      isVideoReady: true,
+      mediaReady: true,
+      sessionError: null,
+      sessionPending: false,
+      studentId: "student-1",
+    });
     mocks.uploadToR2.mockResolvedValue(undefined);
     mocks.recording.blob = null;
     mocks.recording.duration = 0;
@@ -292,5 +318,14 @@ describe("TestPage recording and upload workflow", () => {
     mocks.completeSubmission.mockResolvedValueOnce(undefined);
     await user.click(screen.getByRole("button", { name: "Retry submission" }));
     await waitFor(() => expect(mocks.completeSubmission).toHaveBeenCalledTimes(2));
+  });
+
+  it("does not leave an unauthenticated route in an infinite loading state", async () => {
+    Object.assign(mocks.assessmentStart, { studentId: null, mediaReady: false });
+
+    await renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Session unavailable" })).toBeInTheDocument();
+    expect(mocks.initializeTest).not.toHaveBeenCalled();
   });
 });
