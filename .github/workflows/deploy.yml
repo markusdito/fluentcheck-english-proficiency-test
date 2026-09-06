@@ -63,7 +63,6 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          script_stop: true
           script: |
             cd "${{ secrets.VPS_DEPLOY_DIR }}"
             chmod +x deploy.sh
