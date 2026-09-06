@@ -139,6 +139,12 @@ describe("backend production image", () => {
     assert.deepEqual(await response.json(), { message: "FluentCheck API" });
   });
 
+  it("serves the liveness endpoint", async () => {
+    const response = await fetch(`http://127.0.0.1:${backendPort}/api/health`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true });
+  });
+
   it("reaches the PostgreSQL database from inside the container", async () => {
     const result = await docker([
       "exec",
