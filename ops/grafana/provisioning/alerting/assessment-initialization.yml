@@ -4,6 +4,10 @@ apiVersion: 1
 # Both rules watch only production Prometheus-style Loki stream labels emitted
 # by the sanitized observability seam in the backend, so the rules identify the
 # affected service and environment in their labels and annotations.
+#
+# noDataState and execErrState are deliberately OK: an observability-platform
+# outage must degrade to silence, never page, mirroring the backend guarantee
+# that telemetry failure cannot change initialization behavior.
 groups:
   - orgId: 1
     name: assessment-initialization

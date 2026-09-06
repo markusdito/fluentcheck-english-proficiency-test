@@ -321,8 +321,14 @@ key loses the database single-active race.
 
 If a complete manifest cannot be created, the service raises
 ASSESSMENT_UNAVAILABLE with a retryable response and Retry-After guidance.
-It does not create a partial Submission. The frontend's /active route rebuilds
-the experience from stored snapshots.
+It does not create a partial Submission. Before returning, it emits one
+sanitized submission_initialization_failed event through the observability
+seam (assessmentInitializationObservability.service), which forwards the
+allowlisted fields to Grafana Cloud Loki on a best-effort basis; a telemetry
+failure never changes the response. Pending telemetry deliveries are flushed
+during graceful shutdown. The dashboard and alert rules live in ops/grafana,
+with the failure runbook at docs/runbooks/assessment-initialization-failures.md.
+The frontend's /active route rebuilds the experience from stored snapshots.
 
 ### Direct-to-R2 verified answers
 

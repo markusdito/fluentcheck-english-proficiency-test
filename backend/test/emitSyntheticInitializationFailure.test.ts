@@ -60,6 +60,31 @@ test("delivers a sanitized synthetic Prompt media preparation failure", async ()
   }
 });
 
+test("delivers one event per requested count with distinct request ids", async () => {
+  const deliveries: RecordedDelivery[] = [];
+  const exitCode = await runSyntheticInitializationFailureCli({
+    loadConfig: stubConfig,
+    createObserver: () => ({
+      reportFailure: (event) => deliveries.push({ config: stubConfig(), event }),
+      reportAttempt: () => undefined,
+      reportSuccess: () => undefined,
+      flush: async () => undefined,
+    }),
+    requestId: "synthetic-shared-request",
+    count: 3,
+    writeOutput: () => undefined,
+    writeError: () => undefined,
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(deliveries.length, 3);
+  const requestIds = deliveries.map((delivery) => delivery.event.requestId);
+  assert.equal(new Set(requestIds).size, 3, "burst events must not share a request id");
+  for (const requestId of requestIds) {
+    assert.match(requestId, /^synthetic-/u);
+  }
+});
+
 test("fails without a configured telemetry destination", async () => {
   const errors: string[] = [];
   const exitCode = await runSyntheticInitializationFailureCli({

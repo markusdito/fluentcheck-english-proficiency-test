@@ -44,9 +44,10 @@ attempts, failures, the failure rate, and the failure reason breakdown.
    production-equivalent environment:
    `npm run observability:synthetic-failure`. The script pushes one sanitized
    `PROMPT_MEDIA_PREPARATION_FAILED` event, which must appear on the dashboard
-   and trigger the warning rule within one evaluation interval. Do not use the
-   synthetic path to test the page rule against production paging; stop the
-   paging contact point or run it against staging for that.
+   and trigger the warning rule within one evaluation interval. Pass
+   `--count 3` to emit a three-event burst and observe the paging rule;
+   do that only against staging, or with the paging contact point detached
+   from production.
 
 ## Failure classification
 

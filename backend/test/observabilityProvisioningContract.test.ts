@@ -14,12 +14,8 @@ const FAILURE_SELECTOR =
 const PROMPT_MEDIA_SELECTOR =
   `{service="${SERVICE_NAME}", environment="${PRODUCTION_ENVIRONMENT}", event="PROMPT_MEDIA_PREPARATION_FAILED"}`;
 
-function toRepositoryPath(...segments: string[]): string {
-  return join(repoRoot, ...segments);
-}
-
 async function readRepositoryFile(...segments: string[]): Promise<string> {
-  return readFile(toRepositoryPath(...segments), "utf8");
+  return readFile(join(repoRoot, ...segments), "utf8");
 }
 
 interface AlertRule {
@@ -30,7 +26,7 @@ interface AlertRule {
   data: Array<{ model: { expr?: string } }>;
 }
 
-function parseAlertRule(rule: AlertRule): string {
+function serializeAlertRule(rule: AlertRule): string {
   return JSON.stringify(rule);
 }
 
@@ -115,7 +111,7 @@ test("provisions a warning alert for every production Prompt media preparation f
     "warning rule must count failure log lines",
   );
   assert.ok(
-    parseAlertRule(warning).includes('"type":"gte"') && parseAlertRule(warning).includes('"params":[1]'),
+    serializeAlertRule(warning).includes('"type":"gte"') && serializeAlertRule(warning).includes('"params":[1]'),
     "a single production failure must trigger the warning path",
   );
   assert.equal(warning.for, "0m", "the warning must not be delayed");
@@ -139,7 +135,7 @@ test("provisions a paging alert when at least three preparation failures occur w
   );
   assert.match(expressions, /\[5m\]/u, "paging rule must use a five-minute window");
   assert.ok(
-    parseAlertRule(page).includes('"params":[3]'),
+    serializeAlertRule(page).includes('"params":[3]'),
     "paging rule must fire at the third failure",
   );
   assert.equal(page.labels.severity, "critical");

@@ -11,6 +11,7 @@ export interface EmitSyntheticInitializationFailureCliDependencies {
   loadConfig?: () => AssessmentInitializationObservabilityConfig;
   createObserver?: (config: AssessmentInitializationObservabilityConfig) => AssessmentInitializationObserver;
   requestId?: string;
+  count?: number;
   writeOutput?: (value: string) => void;
   writeError?: (value: string) => void;
 }
@@ -41,6 +42,8 @@ export async function runSyntheticInitializationFailureCli(
   const writeOutput = dependencies.writeOutput ?? ((value: string) => console.log(value));
   const writeError = dependencies.writeError ?? ((value: string) => console.error(value));
   const loadConfig = dependencies.loadConfig ?? getAssessmentInitializationObservabilityConfig;
+  const describeDeliveryError = (error: unknown): string =>
+    `Telemetry delivery failed: ${error instanceof Error ? error.message : String(error)}`;
 
   let config: AssessmentInitializationObservabilityConfig;
   try {
@@ -59,30 +62,37 @@ export async function runSyntheticInitializationFailureCli(
     return 1;
   }
 
+  const count = dependencies.count ?? 1;
+  if (!Number.isSafeInteger(count) || count < 1) {
+    writeError("count must be a positive integer");
+    return 1;
+  }
+
   const observer =
     dependencies.createObserver?.(config) ??
     createAssessmentInitializationObserver({
       ...config,
       onDeliveryFailure: (error) => {
-        writeError(
-          `Telemetry delivery failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        writeError(describeDeliveryError(error));
       },
     });
 
-  const requestId = dependencies.requestId ?? `synthetic-${randomUUID()}`;
-  observer.reportFailure(syntheticFailureEvent(requestId));
+  const baseRequestId = dependencies.requestId ?? `synthetic-${randomUUID()}`;
+  const requestIds = count === 1
+    ? [baseRequestId]
+    : Array.from({ length: count }, (_, index) => `${baseRequestId}-${index + 1}`);
+  for (const requestId of requestIds) {
+    observer.reportFailure(syntheticFailureEvent(requestId));
+  }
 
   try {
     await observer.flush();
   } catch (error) {
-    writeError(
-      `Telemetry delivery failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    writeError(describeDeliveryError(error));
     return 1;
   }
 
-  writeOutput(`Delivered a synthetic PROMPT_MEDIA_PREPARATION_FAILED event (requestId: ${requestId}).`);
+  writeOutput(`Delivered ${count} synthetic PROMPT_MEDIA_PREPARATION_FAILED event(s) (requestIds: ${requestIds.join(", ")}).`);
   writeOutput("The dashboard should now show the failure and the warning alert path should fire.");
   return 0;
 }

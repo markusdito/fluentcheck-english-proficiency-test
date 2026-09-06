@@ -18,7 +18,10 @@ This directory is the monitoring surface on top of that stream:
 
 Both rules link to
 `docs/runbooks/assessment-initialization-failures.md`, which is the runbook
-referenced by `OBSERVABILITY_RUNBOOK_URL`.
+referenced by `OBSERVABILITY_RUNBOOK_URL`. If the runbook moves, update both
+the alert `runbook_url` annotations and `OBSERVABILITY_RUNBOOK_URL` together:
+the environment variable is the production startup gate, while the
+annotations are what the delivered alerts link to.
 
 ## Self-hosted Grafana
 
@@ -45,7 +48,8 @@ the `FluentCheck` folder. Restart Grafana; provisioning applies on boot.
 3. Configure the contact points and notification policy for your paging
    destination: route `severity=critical` to the paging integration
    (PagerDuty/Opsgenie) and `severity=warning` to the chat channel. Contact
-   points are deployment-specific and intentionally not provisioned here.
+   points are deployment-specific and intentionally not provisioned here —
+   until this step is done, the critical rule fires but pages nobody.
 
 ## Verify
 
