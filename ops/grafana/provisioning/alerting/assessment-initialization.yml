@@ -1,0 +1,161 @@
+apiVersion: 1
+
+# Grafana-managed alert rules for manifest-backed Submission initialization.
+# Both rules watch only production Prometheus-style Loki stream labels emitted
+# by the sanitized observability seam in the backend, so the rules identify the
+# affected service and environment in their labels and annotations.
+groups:
+  - orgId: 1
+    name: assessment-initialization
+    folder: FluentCheck
+    interval: 1m
+    rules:
+      # Warning: every production Prompt media preparation failure.
+      - uid: prompt-media-preparation-failed
+        title: PromptMediaPreparationFailed
+        condition: B
+        for: 0m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: >-
+            Prompt media preparation failed during assessment initialization in
+            service fluentcheck-backend (environment production). At least one
+            student initialization rolled back and returned the stable
+            ASSESSMENT_UNAVAILABLE response.
+          runbook_url: https://github.com/markusdito/fluentcheck-english-proficiency-test/blob/main/docs/runbooks/assessment-initialization-failures.md
+          dashboard_url: /d/assessment-initialization/assessment-initialization
+          service: fluentcheck-backend
+          environment: production
+        labels:
+          severity: warning
+          service: fluentcheck-backend
+          environment: production
+        data:
+          - refId: A
+            datasourceUid: assessment-initialization-loki
+            model:
+              datasource:
+                type: loki
+                uid: assessment-initialization-loki
+              editorMode: code
+              expr: sum(count_over_time({service="fluentcheck-backend", environment="production", event="PROMPT_MEDIA_PREPARATION_FAILED"}[1m]))
+              instant: true
+              intervalMs: 1000
+              legendFormat: __auto
+              maxDataPoints: 43200
+              queryType: instant
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: gte
+                  operator:
+                    type: and
+                  query:
+                    params: [B]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression:
+                conditions:
+                  - evaluator:
+                      params: [1]
+                      type: gte
+                    operator:
+                      type: and
+                    query:
+                      params: [B]
+                    reducer:
+                      params: []
+                      type: last
+                    type: query
+                datasource:
+                  type: __expr__
+                  uid: __expr__
+                type: threshold
+              intervalMs: 1000
+              maxDataPoints: 43200
+              type: threshold
+
+      # Page: at least three Prompt media preparation failures within five
+      # minutes indicates a systemic Prompt media problem, not an isolated one.
+      - uid: prompt-media-preparation-failure-burst
+        title: PromptMediaPreparationFailureBurst
+        condition: B
+        for: 0m
+        noDataState: OK
+        execErrState: OK
+        annotations:
+          summary: >-
+            Three or more Prompt media preparation failures within five minutes
+            in service fluentcheck-backend (environment production). Assessment
+            initialization is systematically unavailable to students.
+          runbook_url: https://github.com/markusdito/fluentcheck-english-proficiency-test/blob/main/docs/runbooks/assessment-initialization-failures.md
+          dashboard_url: /d/assessment-initialization/assessment-initialization
+          service: fluentcheck-backend
+          environment: production
+        labels:
+          severity: critical
+          service: fluentcheck-backend
+          environment: production
+        data:
+          - refId: A
+            datasourceUid: assessment-initialization-loki
+            model:
+              datasource:
+                type: loki
+                uid: assessment-initialization-loki
+              editorMode: code
+              expr: sum(count_over_time({service="fluentcheck-backend", environment="production", event="PROMPT_MEDIA_PREPARATION_FAILED"}[5m]))
+              instant: true
+              intervalMs: 1000
+              legendFormat: __auto
+              maxDataPoints: 43200
+              queryType: instant
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [3]
+                    type: gte
+                  operator:
+                    type: and
+                  query:
+                    params: [B]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression:
+                conditions:
+                  - evaluator:
+                      params: [3]
+                      type: gte
+                    operator:
+                      type: and
+                    query:
+                      params: [B]
+                    reducer:
+                      params: []
+                      type: last
+                    type: query
+                datasource:
+                  type: __expr__
+                  uid: __expr__
+                type: threshold
+              intervalMs: 1000
+              maxDataPoints: 43200
+              type: threshold
