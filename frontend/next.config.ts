@@ -32,6 +32,7 @@ export function resolveBackendUrl(rawUrl: string | undefined): string {
 const backendUrl = resolveBackendUrl(process.env.BACKEND_URL);
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   allowedDevOrigins: ["illusion-extinct-unripe.ngrok-free.dev"],
   async rewrites() {
     return [
