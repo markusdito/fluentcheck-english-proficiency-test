@@ -1,0 +1,48 @@
+# Production deployment topology for the VPS. Backend and frontend containers
+# only; PostgreSQL is external/managed and reached through DATABASE_URL in
+# backend.env.
+#
+# Image versions are pinned through the BACKEND_IMAGE / FRONTEND_IMAGE
+# variables in .env — deploy.sh rewrites them to immutable sha-<short> tags
+# before every `up`, so what runs is never the moving `latest` pointer.
+# The defaults below only exist for first-time manual bring-up.
+#
+# Ports bind to 127.0.0.1 only: the reverse proxy on the host terminates TLS
+# and forwards to 127.0.0.1:3000 (frontend) and 127.0.0.1:5001 (backend).
+# Containers are never exposed directly.
+#
+# BACKEND_URL is the public browser-facing backend origin (e.g.
+# https://example.com/backend-api or https://api.example.com). The frontend
+# entrypoint patches it into the Next.js rewrite manifest at startup.
+
+name: fluentcheck
+
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/markusdito/fluentcheck-backend:latest}
+    pull_policy: always
+    env_file: backend.env
+    ports:
+      - "127.0.0.1:5001:5001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/markusdito/fluentcheck-frontend:latest}
+    pull_policy: always
+    environment:
+      BACKEND_URL: ${BACKEND_URL:?BACKEND_URL must be set in .env}
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
