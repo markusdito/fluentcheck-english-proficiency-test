@@ -115,3 +115,61 @@ test("publishes a sanitized Prompt-media failure to the Loki HTTP seam", async (
     await stopReceiver(receiver.server);
   }
 });
+
+test("swallows a failed telemetry destination without rejecting flush", async () => {
+  const deliveryFailures: unknown[] = [];
+  const observer = createAssessmentInitializationObserver({
+    lokiUrl: "http://127.0.0.1:1",
+    serviceName: "fluentcheck-backend",
+    environment: "test",
+    runbookUrl: "https://runbooks.example/assessment-initialization",
+    requestTimeoutMs: 10,
+    fetchImplementation: async () => {
+      throw new Error("telemetry endpoint secret");
+    },
+    onDeliveryFailure: (error) => deliveryFailures.push(error),
+  });
+
+  observer.reportFailure({
+    eventName: "submission_initialization_failed",
+    classification: "PREPARATION",
+    internalReason: "PROMPT_MEDIA_SIGNING_FAILED",
+    requestId: "request-456",
+    failureCount: 1,
+    failedQuestionIds: [],
+    failedCategories: ["PART_2"],
+    preparationDurationMs: 10,
+    categoryCount: 3,
+  });
+  await observer.flush();
+
+  assert.equal(deliveryFailures.length, 1);
+  assert.equal(String(deliveryFailures[0]).includes("telemetry endpoint secret"), true);
+});
+
+test("publishes attempt and success events for dashboard denominators", async () => {
+  const bodies: string[] = [];
+  const observer = createAssessmentInitializationObserver({
+    lokiUrl: "http://telemetry.example",
+    serviceName: "fluentcheck-backend",
+    environment: "test",
+    runbookUrl: "https://runbooks.example/assessment-initialization",
+    requestTimeoutMs: 1_000,
+    fetchImplementation: async (_input, init) => {
+      bodies.push(String(init?.body));
+      return new Response(null, { status: 204 });
+    },
+  });
+
+  observer.reportAttempt({ requestId: "request-789" });
+  observer.reportSuccess({ requestId: "request-789", preparationDurationMs: 21 });
+  await observer.flush();
+
+  assert.deepEqual(
+    bodies.map((body) => {
+      const payload = JSON.parse(body) as { streams: Array<{ stream: Record<string, string> }> };
+      return payload.streams[0]?.stream.event;
+    }),
+    ["SUBMISSION_INITIALIZATION_ATTEMPTED", "SUBMISSION_INITIALIZATION_SUCCEEDED"],
+  );
+});
