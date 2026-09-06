@@ -20,6 +20,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY prisma ./prisma
+COPY prisma.config.ts ./
+COPY src/config/env.ts ./src/config/env.ts
 COPY --from=build /app/dist ./dist
 USER node
 EXPOSE 5001
