@@ -100,6 +100,9 @@ export function createApp(dependencies = {}) {
         maxAge: 86400,
     }));
     app.use(cookieParser());
+    app.get("/api/health", (_req, res) => {
+        res.json({ ok: true });
+    });
     const generalRateLimit = app.locals.rateLimit?.createLimiter(RATE_LIMIT_POLICIES.generalApi, undefined, {
         skip: (request) => isDedicatedRateLimitedRoute(request, dependencies.googleAuth !== undefined),
     });

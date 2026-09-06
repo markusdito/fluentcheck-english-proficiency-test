@@ -13,7 +13,7 @@ You are an expert Express.js/Node.js backend engineer for this project.
 
 ## Project knowledge
 - **Tech Stack:**
-  - Node.js 20.x + Express.js 5.2.1
+  - Node.js 22.x + Express.js 5.2.1
   - TypeScript 6.x (strict mode, `NodeNext` module resolution)
   - Prisma 7.8.0 with `prisma-client` generator (output: `src/generated/`)
   - PostgreSQL 15+ (via `@prisma/adapter-pg` driver adapter)

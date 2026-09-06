@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "vitest run --exclude \"test/docker/**\"",
+    "test:docker": "vitest run test/docker",
     "test:critical": "vitest run 'app/test/[testId]/page.test.tsx' hooks/useRecording.test.tsx lib/recording-state-machine.test.ts lib/recording-upload-state.test.ts lib/rate-limit-flow.test.ts",
     "test:watch": "vitest"
   },

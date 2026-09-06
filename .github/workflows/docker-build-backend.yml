@@ -1,0 +1,26 @@
+name: Docker build (backend)
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/docker-build-backend.yml"
+
+jobs:
+  backend-image:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Build image and run container smoke test
+        run: npm run test:docker

@@ -1,0 +1,72 @@
+# Deploys the exact images published by "Publish images" to the VPS.
+#
+# Triggered automatically after a successful publish on main, plus manual
+# dispatch to redeploy a commit without republishing images.
+#
+# Mechanics: copies docker-compose.prod.yml and deploy.sh from the repo into
+# the VPS deploy dir (secrets in .env / backend.env there are never touched
+# by CI beyond the two image variables deploy.sh rewrites), then runs
+# deploy.sh with the immutable sha-<short> tags of the commit being deployed.
+# deploy.sh handles migrations, health-gated cutover, and automatic rollback.
+#
+# Required secrets: VPS_HOST, VPS_USER, VPS_SSH_KEY (private key of a deploy
+# keypair whose public half is in the VPS's authorized_keys), VPS_PORT, and
+# VPS_DEPLOY_DIR (the directory holding docker-compose.prod.yml, .env, and
+# backend.env). See ops/deploy/README.md for the one-time VPS setup.
+name: Deploy to VPS
+
+on:
+  workflow_run:
+    workflows: [Publish images]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve commit to deploy
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            sha="${{ github.sha }}"
+          else
+            sha="${{ github.event.workflow_run.head_sha }}"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${sha:0:7}" >> "$GITHUB_OUTPUT"
+      - name: Copy deploy files to the VPS
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "ops/compose/docker-compose.prod.yml,ops/deploy/deploy.sh"
+          target: ${{ secrets.VPS_DEPLOY_DIR }}
+          strip_components: 2
+          overwrite: true
+      - name: Run deploy script
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script_stop: true
+          script: |
+            cd "${{ secrets.VPS_DEPLOY_DIR }}"
+            chmod +x deploy.sh
+            ./deploy.sh . \
+              ghcr.io/markusdito/fluentcheck-backend:sha-${{ steps.meta.outputs.short_sha }} \
+              ghcr.io/markusdito/fluentcheck-frontend:sha-${{ steps.meta.outputs.short_sha }}
