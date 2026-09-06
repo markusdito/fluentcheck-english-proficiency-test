@@ -48,6 +48,11 @@ for (const group of [
   }
 }
 writeFileSync(manifestPath, JSON.stringify(manifest));
+if (patched === 0) {
+  throw new Error(
+    "entrypoint: no absolute-URL rewrites found in routes-manifest.json; the BACKEND_URL rewrite contract changed",
+  );
+}
 console.log(`entrypoint: pointed ${patched} rewrite(s) at ${backendUrl}`);
 
 spawn("node", ["server.js"], { stdio: "inherit" }).on("exit", (code) => {

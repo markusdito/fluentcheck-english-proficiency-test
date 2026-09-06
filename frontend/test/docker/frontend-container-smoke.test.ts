@@ -44,9 +44,9 @@ describe("frontend production image", () => {
       timeout: 900_000,
     });
 
-    upstreamServer = http.createServer((_req, res) => {
+    upstreamServer = http.createServer((req, res) => {
       res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify({ from: "smoke-fake-backend", url: _req.url }));
+      res.end(JSON.stringify({ from: "smoke-fake-backend", url: req.url }));
     });
     await new Promise<void>((resolve) =>
       upstreamServer.listen(0, "0.0.0.0", resolve),
@@ -98,7 +98,7 @@ describe("frontend production image", () => {
   it("serves the app", async () => {
     const response = await fetch(`http://127.0.0.1:${frontendPort}/login`);
     expect(response.status).toBe(200);
-    expect(await response.text()).toContain("<");
+    expect(await response.text()).toContain("<!DOCTYPE");
   });
 
   it("uses the runtime BACKEND_URL for the backend-API rewrite", async () => {
