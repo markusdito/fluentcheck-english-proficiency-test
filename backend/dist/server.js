@@ -18,7 +18,7 @@ import { createRateLimitConfig, RATE_LIMIT_POLICIES } from "./config/rate-limit.
 import { createConfiguredRateLimitStoreFactory } from "./config/rateLimitStore.js";
 import { RateLimitKeyUnavailableError, RateLimitStoreUnavailableError, createRateLimitRuntime, } from "./middleware/rate-limit.middleware.js";
 import { requestIdMiddleware } from "./middleware/request-id.middleware.js";
-import { getAssessmentInitializationObservabilityConfig } from "./service/assessmentInitializationObservability.service.js";
+import { flushAssessmentInitializationObservability, getAssessmentInitializationObservabilityConfig } from "./service/assessmentInitializationObservability.service.js";
 const REQUEST_BODY_LIMIT = "64kb";
 const URL_ENCODED_PARAMETER_LIMIT = 100;
 function isDedicatedRateLimitedRoute(request, googleAuthMounted) {
@@ -128,6 +128,7 @@ export function createApp(dependencies = {}) {
 function closeServer(server, exitCode, rateLimitRuntime) {
     server.close(async () => {
         await rateLimitRuntime?.shutdown();
+        await flushAssessmentInitializationObservability();
         await disconnectDB();
         process.exit(exitCode);
     });

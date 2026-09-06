@@ -31,7 +31,7 @@ import {
   type RateLimitRuntimeOptions,
 } from "./middleware/rate-limit.middleware.js";
 import { requestIdMiddleware } from "./middleware/request-id.middleware.js";
-import { getAssessmentInitializationObservabilityConfig } from "./service/assessmentInitializationObservability.service.js";
+import { flushAssessmentInitializationObservability, getAssessmentInitializationObservabilityConfig } from "./service/assessmentInitializationObservability.service.js";
 
 const REQUEST_BODY_LIMIT = "64kb";
 const URL_ENCODED_PARAMETER_LIMIT = 100;
@@ -200,6 +200,7 @@ function closeServer(
 ) {
   server.close(async () => {
     await rateLimitRuntime?.shutdown();
+    await flushAssessmentInitializationObservability();
     await disconnectDB();
     process.exit(exitCode);
   });
