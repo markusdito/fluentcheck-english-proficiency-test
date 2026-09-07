@@ -385,7 +385,6 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   const requestPermissions = useCallback((requestedTarget?: MediaPermissionTarget): Promise<boolean> => {
     const inFlightRequest = inFlightRequestRef.current;
     if (inFlightRequest) return inFlightRequest;
-    if (!mountedRef.current) return Promise.resolve(false);
 
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
