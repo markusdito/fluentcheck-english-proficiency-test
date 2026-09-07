@@ -67,6 +67,20 @@ export class ActiveSubmissionConflictError extends Error {
   }
 }
 
+/** A previous Submission is still moving through payment and Examiner scoring. */
+export class SubmissionInReviewError extends Error {
+  readonly code = "SUBMISSION_IN_REVIEW";
+  readonly retryable = true;
+
+  constructor(readonly submissionId: string) {
+    super("A previous Submission is still in the review pipeline");
+    this.name = "SubmissionInReviewError";
+  }
+}
+
+/** Statuses between recording and scoring completion that block a new Assessment. */
+const REVIEW_PIPELINE_STATUSES = ["AWAITING_PAYMENT", "PAID", "SCORING"] as const;
+
 /** The same idempotency key cannot be used for another student's start intent. */
 export class IdempotencyKeyConflictError extends Error {
   readonly code = "IDEMPOTENCY_KEY_CONFLICT";
@@ -332,6 +346,15 @@ export async function initializeManifestSubmission(
       select: { id: true },
     });
     if (active) throw new ActiveSubmissionConflictError(active.id);
+    const inReview = await prisma.submission.findFirst({
+      where: {
+        studentId,
+        status: { in: [...REVIEW_PIPELINE_STATUSES] },
+        retentionStatus: "RETAINED",
+      },
+      select: { id: true },
+    });
+    if (inReview) throw new SubmissionInReviewError(inReview.id);
     const candidateSets = await Promise.all(
       CATEGORIES.map(async (category) => {
         const candidates = await prisma.question.findMany({

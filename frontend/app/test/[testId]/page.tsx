@@ -10,6 +10,7 @@ import { RecordingTimer } from "@/components/test/RecordingTimer";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { abandonSubmission, completeSubmission } from "@/lib/test-api";
+import { ApiError } from "@/lib/api";
 import { initializeTest } from "@/lib/test-initialization";
 import { clearAssessmentStartIntent } from "@/lib/assessment-start-intent";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
@@ -54,7 +55,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Questions state — fetched from backend
   const [questions, setQuestions] = useState<Prompt[]>([]);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<{
+    message: string;
+    isSubmissionConflict: boolean;
+  } | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [mediaRecoveryError, setMediaRecoveryError] = useState<string | null>(null);
   const [abandonPending, setAbandonPending] = useState(false);
@@ -114,8 +118,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
           initialized.uploadedEntryIds,
         ));
       } catch (err) {
+        const isSubmissionConflict = err instanceof ApiError && err.statusCode === 409;
         const message = err instanceof Error ? err.message : "Failed to initialize Assessment";
-        setFetchError(message);
+        setFetchError({ message, isSubmissionConflict });
       }
     };
 
@@ -139,6 +144,17 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       setMediaRecoveryError("Both a working camera and microphone are required to continue.");
     }
   }, [requestPermissions]);
+
+  // Media recovery gate: starting the assessment was the consent gesture, so
+  // request device access automatically instead of waiting for a click.
+  const autoRecoverRef = useRef(false);
+  useEffect(() => {
+    const gateVisible =
+      phase === "loading" && !mediaReady && !fetchError && !sessionPending && Boolean(studentId);
+    if (!gateVisible || autoRecoverRef.current || mediaLoading) return;
+    autoRecoverRef.current = true;
+    void handleRecoverMedia();
+  }, [phase, mediaReady, fetchError, sessionPending, studentId, mediaLoading, handleRecoverMedia]);
 
   useEffect(() => {
     if (!mediaReady && (phase === "preparation" || phase === "recording" || phase === "stopped")) {
@@ -378,8 +394,6 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const handleFinishTest = () => {
     // The coordinator owns synchronous track cleanup and monitor teardown.
     stopStream();
-    sessionStorage.removeItem("fluentcheck_hardware_passed");
-    sessionStorage.removeItem("fluentcheck_hardware_video");
     clearAssessmentStartIntent();
     window.location.href = "/dashboard";
   };
@@ -406,7 +420,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     videoError ? `Webcam: ${videoError}` : null,
     audioError ? `Microphone: ${audioError}` : null,
   ].filter((message): message is string => message !== null).join(" ") ||
-    "Enable camera and microphone access to begin.";
+    "Camera and microphone access is required to continue.";
 
   // Loading while the authenticated Student, media, and manifest are prepared.
   if (phase === "loading" && !fetchError && !sessionError && (sessionPending || (Boolean(studentId) && mediaReady))) {
@@ -428,17 +442,21 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
           <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
             Failed to load test
           </h1>
-          <p className="mb-2 text-studio-text/70">{fetchError}</p>
-          <p className="mb-6 text-sm text-studio-text/60">
-            Please check your connection and try again.
-          </p>
+          <p className="mb-2 text-studio-text/70">{fetchError.message}</p>
+          {!fetchError.isSubmissionConflict && (
+            <p className="mb-6 text-sm text-studio-text/60">
+              Please check your connection and try again.
+            </p>
+          )}
           <Button
             variant="invert"
             size="lg"
             className="w-full"
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              window.location.href = "/dashboard";
+            }}
           >
-            Try again
+            Return to dashboard
           </Button>
         </div>
       </div>
@@ -481,16 +499,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               {monitorError && <li>Mic monitor: unavailable; capture can continue</li>}
             </ul>
           </div>
-          <Button
-            variant="invert"
-            size="lg"
-            className="w-full"
-            onClick={() => void handleRecoverMedia()}
-            loading={mediaLoading}
-            disabled={mediaLoading}
-          >
-            Enable camera and microphone
-          </Button>
+          <p className="text-sm text-studio-text/50">
+            Requesting access to your camera and microphone…
+          </p>
           {mediaRecoveryError && <p className="mt-4 text-sm text-signal">{mediaRecoveryError}</p>}
         </div>
       </div>

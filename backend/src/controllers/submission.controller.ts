@@ -13,6 +13,7 @@ import {
   AssessmentUnavailableError,
   AssessmentStartIntentClosedError,
   IdempotencyKeyConflictError,
+  SubmissionInReviewError,
   initializeManifestSubmission,
   resumeManifestSubmission,
 } from "../service/manifestSubmissionInitialization.service.js";
@@ -47,6 +48,15 @@ export async function startSubmission(req: Request, res: Response) {
     });
   } catch (error) {
     if (error instanceof ActiveSubmissionConflictError) {
+      res.status(409).json({
+        error: error.message,
+        code: error.code,
+        retryable: true,
+        submissionId: error.submissionId,
+      });
+      return;
+    }
+    if (error instanceof SubmissionInReviewError) {
       res.status(409).json({
         error: error.message,
         code: error.code,

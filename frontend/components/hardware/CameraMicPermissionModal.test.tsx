@@ -133,8 +133,7 @@ describe("CameraMicPermissionModal", () => {
       </TestMediaProvider>,
     );
 
-    expect(getUserMedia).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Enable camera and microphone" }));
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Hardware check needs attention")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retry" }));
 
@@ -161,7 +160,7 @@ describe("CameraMicPermissionModal", () => {
     expect(audio.context.close).toHaveBeenCalledOnce();
   });
 
-  it("does not request permissions until the student explicitly enables them", async () => {
+  it("requests permissions automatically when the modal opens", async () => {
     const getUserMedia = vi.fn();
     const enumerateDevices = vi.fn().mockResolvedValue([
       { deviceId: "camera-1", kind: "videoinput", label: "Front camera" },
@@ -181,8 +180,6 @@ describe("CameraMicPermissionModal", () => {
         <CameraMicPermissionModal {...props} />
       </TestMediaProvider>,
     );
-    expect(getUserMedia).not.toHaveBeenCalled();
-    await userEvent.setup().click(screen.getByRole("button", { name: "Enable camera and microphone" }));
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
 
     firstRender.unmount();
@@ -193,14 +190,12 @@ describe("CameraMicPermissionModal", () => {
         <CameraMicPermissionModal {...props} />
       </TestMediaProvider>,
     );
-    expect(getUserMedia).toHaveBeenCalledOnce();
-    await userEvent.setup().click(screen.getByRole("button", { name: "Enable camera and microphone" }));
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
     expect(secondCapture.tracks[0].stop).not.toHaveBeenCalled();
     secondRender.unmount();
   });
 
-  it("requests once after an explicit click under Strict Mode", async () => {
+  it("requests once on open under Strict Mode", async () => {
     const getUserMedia = vi.fn();
     const enumerateDevices = vi.fn().mockResolvedValue([
       { deviceId: "camera-1", kind: "videoinput", label: "Front camera" },
@@ -223,8 +218,6 @@ describe("CameraMicPermissionModal", () => {
       </StrictMode>,
     );
 
-    expect(getUserMedia).not.toHaveBeenCalled();
-    await userEvent.setup().click(screen.getByRole("button", { name: "Enable camera and microphone" }));
     await waitFor(() => {
       expect(getUserMedia).toHaveBeenCalledOnce();
       expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
@@ -255,7 +248,6 @@ describe("CameraMicPermissionModal", () => {
         <CameraMicPermissionModal {...props} />
       </TestMediaProvider>,
     );
-    await userEvent.setup().click(screen.getByRole("button", { name: "Enable camera and microphone" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
     });
