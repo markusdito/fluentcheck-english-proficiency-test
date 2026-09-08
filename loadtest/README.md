@@ -125,6 +125,6 @@ number of seeded accounts.
 - Default volumes are deliberately small (≤4 VUs, ~4 req/s). Prod is live —
   run off-peak and increase gradually if at all.
 - Write-heavy paths (submission create/complete → scoring) are intentionally
-  excluded: they're per-account capped (5 submissions/h) and trigger real
+  excluded: they're per-account capped (30 submissions/h) and trigger real
   scoring/payment side effects in prod.
 - Only read paths are exercised: `/health`, `/auth/me`, `/submissions`.
