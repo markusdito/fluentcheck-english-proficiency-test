@@ -63,6 +63,22 @@ BASE_URL=https://fluentcheck.duckdns.org/backend-api k6 run loadtest/k6/read-str
 Accounts are matched by VU number (`VU 1` → `loadtest_001@…`), so seed at
 least as many accounts as peak VUs.
 
+Frontend stress — same ramp, but against the Next.js pages `/`, `/login`,
+`/dashboard` (run on your local machine, paste as one line):
+
+```
+FRONTEND_URL=https://fluentcheck.duckdns.org k6 run loadtest/k6/frontend-stress.js
+```
+
+k6 does not execute JavaScript, so the frontend test measures HTML shell
+delivery (nginx + Next.js SSR/static serving), not what a browser renders or
+how fast the page becomes interactive. For browser-side rendering quality,
+run Lighthouse (also from your local machine, paste as one line):
+
+```
+npx lighthouse https://fluentcheck.duckdns.org --output-path=stdout --only-categories=performance --quiet
+```
+
 ## Reading the results
 
 - `http_req_duration` `p(95)` is the headline number: 95% of requests finished
