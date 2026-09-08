@@ -161,7 +161,9 @@ const policyDefinitions = {
         name: "general-api",
         prefix: "fc:rate-limit:general-api",
         scope: "ip",
-        limit: 300,
+        // Env-overridable so single-IP load tests can raise the ceiling without a
+        // code change; production keeps the 300 req/min/IP default.
+        limit: env.RATE_LIMIT_GENERAL_API_LIMIT,
         windowMs: 60 * 1_000,
         failureMode: "fail-open",
     }),

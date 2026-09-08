@@ -333,14 +333,14 @@ test("protects payment checkout, Answer, question-audio, and Submission mutation
     );
     assert.equal(questionAudioBlocked.status, 429);
 
-    const creationStatuses = await statuses(6, () =>
+    const creationStatuses = await statuses(31, () =>
       fetch(`${url}/api/submissions`, {
         method: "POST",
         headers: { Cookie: cookie(student.id) },
       }),
     );
-    assert.equal(creationStatuses.slice(0, 5).every((status) => status !== 429), true);
-    assert.equal(creationStatuses[5], 429);
+    assert.equal(creationStatuses.slice(0, 30).every((status) => status !== 429), true);
+    assert.equal(creationStatuses[30], 429);
 
     const completionStatuses = await statuses(11, () =>
       fetch(`${url}/api/submissions/${crypto.randomUUID()}/complete`, {

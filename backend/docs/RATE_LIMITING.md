@@ -146,9 +146,9 @@ routes and routes without a dedicated policy use the general baseline.
   60 per 10 minutes per normalized IP;
 - question-audio presign and confirmation: 60 per hour per active account and
   120 per hour per normalized IP;
-- submission creation: 5 per hour per active account and 20 per hour per
+- submission creation: 30 per hour per active account and 120 per hour per
   normalized IP; and
-- submission completion: 10 per 15 minutes per active account and 30 per 15
+- submission completion: 10 per 15 minutes per active account and 120 per 15
   minutes per normalized IP.
 
 Authenticated policies are mounted after `verifyToken`, which resolves one
@@ -158,8 +158,8 @@ object-storage uploads, ordinary reads, idempotent submission initialization,
 and existing payment callback processing are otherwise unchanged.
 
 Google OAuth has a provider-neutral route adapter in
-`src/routes/google-auth.routes.ts`. It applies the 20-per-10-minute start and
-40-per-10-minute callback IP policies to handlers supplied by the OAuth
+`src/routes/google-auth.routes.ts`. It applies the 60-per-10-minute start and
+120-per-10-minute callback IP policies to handlers supplied by the OAuth
 implementation. The adapter does not add provider, PKCE, cookie, redirect, or
 account-linking behavior; the routes are mounted when the OAuth implementation
 from #56/#58 supplies those handlers.

@@ -481,18 +481,18 @@ test("keeps Google OAuth start and callback budgets independent", async () => {
 
   try {
     const startStatuses: number[] = [];
-    for (let attempt = 0; attempt < 21; attempt += 1) {
+    for (let attempt = 0; attempt < 61; attempt += 1) {
       startStatuses.push((await fetch(`${url}/api/auth/google/start`)).status);
     }
-    assert.equal(startStatuses.slice(0, 20).every((status) => status === 302), true);
-    assert.equal(startStatuses[20], 429);
+    assert.equal(startStatuses.slice(0, 60).every((status) => status === 302), true);
+    assert.equal(startStatuses[60], 429);
 
     const callbackStatuses: number[] = [];
-    for (let attempt = 0; attempt < 41; attempt += 1) {
+    for (let attempt = 0; attempt < 121; attempt += 1) {
       callbackStatuses.push((await fetch(`${url}/api/auth/google/callback`)).status);
     }
-    assert.equal(callbackStatuses.slice(0, 40).every((status) => status === 302), true);
-    assert.equal(callbackStatuses[40], 429);
+    assert.equal(callbackStatuses.slice(0, 120).every((status) => status === 302), true);
+    assert.equal(callbackStatuses[120], 429);
   } finally {
     await stop(server);
     await runtime.shutdown();

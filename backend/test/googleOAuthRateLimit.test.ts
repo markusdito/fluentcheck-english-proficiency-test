@@ -38,8 +38,8 @@ const client: GoogleOAuthClient = {
 };
 
 const OAUTH_ROUTE_CASES = [
-  { path: "start?returnTo=login", limit: 20 },
-  { path: "callback", limit: 40 },
+  { path: "start?returnTo=login", limit: 60 },
+  { path: "callback", limit: 120 },
 ] as const;
 
 function createTestGoogleAuthHandlers() {
@@ -110,16 +110,16 @@ test("Google start and callback use independent central thresholds", async () =>
   const { server, runtime, baseUrl } = await startOAuthApp();
 
   try {
-    const startStatuses = await requestStatuses(21, () =>
+    const startStatuses = await requestStatuses(61, () =>
       fetch(`${baseUrl}/api/auth/google/start?returnTo=login`, {
         redirect: "manual",
       }),
     );
     assert.equal(
-      startStatuses.slice(0, 20).every((status) => status === 302),
+      startStatuses.slice(0, 60).every((status) => status === 302),
       true,
     );
-    assert.equal(startStatuses[20], 429);
+    assert.equal(startStatuses[60], 429);
     const startBlocked = await fetch(
       `${baseUrl}/api/auth/google/start?returnTo=login`,
       { redirect: "manual" },
@@ -139,16 +139,16 @@ test("Google start and callback use independent central thresholds", async () =>
       assert.equal(startBlocked.headers.has(header), false);
     }
 
-    const callbackStatuses = await requestStatuses(41, () =>
+    const callbackStatuses = await requestStatuses(121, () =>
       fetch(`${baseUrl}/api/auth/google/callback`, {
         redirect: "manual",
       }),
     );
     assert.equal(
-      callbackStatuses.slice(0, 40).every((status) => status === 302),
+      callbackStatuses.slice(0, 120).every((status) => status === 302),
       true,
     );
-    assert.equal(callbackStatuses[40], 429);
+    assert.equal(callbackStatuses[120], 429);
     const blocked = await fetch(`${baseUrl}/api/auth/google/callback`, {
       redirect: "manual",
     });
@@ -184,8 +184,8 @@ test("Google OAuth policies preserve the central ten-minute contract", () => {
       },
     },
     {
-      start: { limit: 20, windowMs: 10 * 60 * 1_000 },
-      callback: { limit: 40, windowMs: 10 * 60 * 1_000 },
+      start: { limit: 60, windowMs: 10 * 60 * 1_000 },
+      callback: { limit: 120, windowMs: 10 * 60 * 1_000 },
     },
   );
   assert.notEqual(
@@ -282,7 +282,7 @@ test("trusted proxy boundaries ignore spoofed earlier forwarding hops", async ()
       302,
     );
 
-    for (let index = 0; index < 40; index += 1) {
+    for (let index = 0; index < 120; index += 1) {
       assert.equal(
         (await requestCallback("198.51.100.20, 203.0.113.99")).status,
         302,
@@ -308,7 +308,7 @@ test("resetting either central OAuth store key allows its route again", async ()
   });
 
   try {
-    for (let index = 0; index < 20; index += 1) {
+    for (let index = 0; index < 60; index += 1) {
       const response = await fetch(
         `${baseUrl}/api/auth/google/start?returnTo=login`,
         { redirect: "manual" },
@@ -331,10 +331,11 @@ test("resetting either central OAuth store key allows its route again", async ()
     );
     assert.equal(reset.status, 302);
 
-    const callbackStatuses = await requestStatuses(40, () =>
+    const callbackStatuses = await requestStatuses(121, () =>
       fetch(`${baseUrl}/api/auth/google/callback`, { redirect: "manual" }),
     );
-    assert.equal(callbackStatuses.every((status) => status === 302), true);
+    assert.equal(callbackStatuses.slice(0, 120).every((status) => status === 302), true);
+    assert.equal(callbackStatuses[120], 429);
     const callbackBlocked = await fetch(
       `${baseUrl}/api/auth/google/callback`,
       { redirect: "manual" },

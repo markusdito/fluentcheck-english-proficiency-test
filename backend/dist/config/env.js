@@ -1,5 +1,18 @@
 const DEFAULT_REMEMBERED_SESSION_SECONDS = 7 * 24 * 60 * 60;
+const DEFAULT_GENERAL_API_LIMIT = 300;
 const MAX_REMEMBERED_SESSION_SECONDS = Math.floor(Number.MAX_SAFE_INTEGER / 1000);
+function parsePositiveInteger(value, label, fallback) {
+    if (value === undefined || value.trim() === "")
+        return fallback;
+    if (!/^\d+$/u.test(value)) {
+        throw new Error(`${label} must be a positive integer`);
+    }
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+        throw new Error(`${label} must be a positive integer`);
+    }
+    return parsed;
+}
 function parseRememberedSessionSeconds(value) {
     if (value === undefined)
         return DEFAULT_REMEMBERED_SESSION_SECONDS;
@@ -33,6 +46,7 @@ export const env = {
     IPAYMU_CURRENCY: process.env.IPAYMU_CURRENCY ?? "IDR",
     FRONTEND_URL: process.env.FRONTEND_URL ?? "http://localhost:3000",
     RATE_LIMIT_HMAC_SECRET: process.env.RATE_LIMIT_HMAC_SECRET,
+    RATE_LIMIT_GENERAL_API_LIMIT: parsePositiveInteger(process.env.RATE_LIMIT_GENERAL_API_LIMIT, "RATE_LIMIT_GENERAL_API_LIMIT", DEFAULT_GENERAL_API_LIMIT),
     RATE_LIMIT_TRUST_PROXY: process.env.RATE_LIMIT_TRUST_PROXY,
     RATE_LIMIT_IPV6_SUBNET: process.env.RATE_LIMIT_IPV6_SUBNET,
     RATE_LIMIT_TOPOLOGY: process.env.RATE_LIMIT_TOPOLOGY,

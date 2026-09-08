@@ -5,3 +5,9 @@
 /.github
 /.idea
 /.playwright-mcp
+/.codex
+/.commandcode
+/frontend/.commandcode
+/.zcode
+__pycache__/
+
