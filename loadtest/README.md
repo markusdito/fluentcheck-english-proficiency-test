@@ -79,6 +79,31 @@ run Lighthouse (also from your local machine, paste as one line):
 npx lighthouse https://fluentcheck.duckdns.org --output-path=stdout --only-categories=performance --quiet
 ```
 
+## Scale stress (100+ users)
+
+`scale-stress.js` ramps to a configurable user count (default 100) and holds
+it — the same shape as `read-stress.js` but at real traffic scale. Run on your
+local machine, paste as one line:
+
+```
+BASE_URL=https://fluentcheck.duckdns.org/backend-api k6 run loadtest/k6/scale-stress.js
+```
+
+Two prerequisites:
+
+- **Raise the general API limit on the backend first** (`RATE_LIMIT_GENERAL_API_LIMIT=10000`
+  in the backend env, then redeploy). All VUs come from one source IP, and the
+  default 300 req/min/IP would 429 almost everything — you would be measuring
+  the rate limiter, not the app. Logins need no override: the 2-minute ramp
+  keeps them under the 120/min burst cap. Lower the env back to the default
+  after testing.
+- **Seed at least as many accounts as peak VUs**: `ACCOUNTS=100` (or
+  `TARGET_VUS`) in step 2. Accounts match VU numbers, so missing accounts fail
+  their VU's login.
+
+Scale further with `TARGET_VUS=200`, `500`, `1000` — each tier needs the same
+number of seeded accounts.
+
 ## Reading the results
 
 - `http_req_duration` `p(95)` is the headline number: 95% of requests finished
