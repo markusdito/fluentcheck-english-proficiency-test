@@ -8,6 +8,10 @@ FluentCheck manages English-proficiency assessments from a student's recorded su
 A student's complete assessment attempt, including its recorded answers and progression through payment, scoring, and certification.
 _Avoid_: Test, exam
 
+**Review-pipeline submission**:
+A Submission that has finished recording and is moving through payment and Examiner scoring without yet being Scored or Abandoned. A student cannot start a new Assessment while a Review-pipeline submission exists.
+_Avoid_: Active submission, submission being reviewed
+
 **Assessment**:
 The speaking experience in which a student receives one Question from each Required category and records one Answer for each.
 _Avoid_: Test, exam

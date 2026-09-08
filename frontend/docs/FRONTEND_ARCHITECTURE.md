@@ -170,9 +170,13 @@ set from a client-side test definition.
 
 The authenticated AssessmentStartProvider owns one Capture stream and the
 current student's Assessment start intent across the dashboard permission UI
-and the test route. Camera and microphone permission requests happen only
-after an explicit user action. test-initialization.ts stores a
-`{studentId, key}` intent in per-tab sessionStorage, sends the key as
+and the test route. Clicking "Start your assessment" is the explicit user
+action that consents to capture: the dashboard requests camera and microphone
+access automatically (blocking the start with a notice when a Review-pipeline
+submission exists in the student's history), and the test route re-requests
+automatically at its media gate without a separate enable button.
+test-initialization.ts stores a `{studentId, key}` intent in per-tab
+sessionStorage, sends the key as
 Idempotency-Key, maps manifest entries to prompt display data, resumes an
 Active Submission after an active-submission conflict, and rotates the key
 once for a closed or foreign intent. A resume uses server-stored snapshots and
@@ -189,7 +193,7 @@ clears the start intent, and releases the stream.
 The test page and its layout coordinate these visible phases:
 
 1. Loading or resuming a Submission.
-2. Preparing the coordinator and requesting camera/microphone permission from an explicit user action.
+2. Requesting camera/microphone access automatically from the student's start action.
 3. Showing prompt audio and the webcam preview.
 4. Recording one response with MediaRecorder.
 5. Stopping and preparing the recorded Blob.
@@ -252,8 +256,9 @@ separate current flow.
 
 Header, AccountMenu, Wordmark, Footer, and LandingAuthActions provide the
 shared shell and account navigation. Auth forms are LoginForm, SignupForm,
-GoogleAuthButton, and GoogleAuthError. CameraMicPermissionModal handles the
-browser permission explanation before recording.
+GoogleAuthButton, and GoogleAuthError. CameraMicPermissionModal presents the
+hardware readiness check (preview, device status, mic monitor) and requests
+browser permission automatically once the student starts an assessment.
 
 ### Assessment and media
 

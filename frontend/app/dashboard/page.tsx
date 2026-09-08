@@ -16,6 +16,15 @@ import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermiss
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScaleAwareScoreDisplay } from "@/components/results/ScaleAwareScoreDisplay";
 import { scoreMaximum } from "@/types/scoring";
 import { SubmissionStatus } from "@/components/ui/submission-status";
@@ -27,6 +36,7 @@ import { queryKeys } from "@/lib/query-keys";
 export default function DashboardPage() {
   const router = useRouter();
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showReviewPipelineNotice, setShowReviewPipelineNotice] = useState(false);
   const [historyCursors, setHistoryCursors] = useState<string[]>([]);
   const session = useSession({ required: true });
   const user = session.data;
@@ -94,6 +104,23 @@ export default function DashboardPage() {
   }
 
   const isExaminer = user?.role === "EXAMINER";
+
+  // The Active Submission (still recording) is excluded from the dashboard
+  // history and is resumed by the test route instead. A Review-pipeline
+  // submission (payment/scoring) is the newest history row and blocks a new
+  // Assessment start.
+  const REVIEW_PIPELINE_STATUSES = ["AWAITING_PAYMENT", "PAID", "SCORING"];
+  const hasReviewPipelineSubmission =
+    dashboard?.submissions.some((sub) => REVIEW_PIPELINE_STATUSES.includes(sub.status)) ??
+    false;
+
+  const handleStartAssessment = () => {
+    if (hasReviewPipelineSubmission) {
+      setShowReviewPipelineNotice(true);
+      return;
+    }
+    setShowPermissionModal(true);
+  };
 
   return (
     <div className="min-h-screen bg-paper">
@@ -191,7 +218,7 @@ export default function DashboardPage() {
                 variant="invert"
                 size="lg"
                 className="shrink-0"
-                onClick={() => setShowPermissionModal(true)}
+                onClick={handleStartAssessment}
               >
                 Start your assessment
               </Button>
@@ -266,7 +293,7 @@ export default function DashboardPage() {
                   <Button
                     className="mt-7"
                     size="lg"
-                    onClick={() => setShowPermissionModal(true)}
+                    onClick={handleStartAssessment}
                   >
                     Start your assessment
                   </Button>
@@ -325,6 +352,24 @@ export default function DashboardPage() {
           }}
         />
       )}
+
+      <AlertDialog
+        open={showReviewPipelineNotice}
+        onOpenChange={setShowReviewPipelineNotice}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Previous submission still being reviewed</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your previous submission is still moving through payment and scoring.
+              You can start a new assessment once it has been scored.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -33,6 +33,7 @@ export function CameraMicPermissionModal({
   } = useAssessmentStart();
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const autoRequestedRef = useRef(false);
 
   // Attach stream to video element
   useEffect(() => {
@@ -40,6 +41,18 @@ export function CameraMicPermissionModal({
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  // Starting the assessment is the consent gesture: request device access
+  // automatically instead of waiting for a separate enable click.
+  useEffect(() => {
+    if (!open) {
+      autoRequestedRef.current = false;
+      return;
+    }
+    if (autoRequestedRef.current || mediaReady || isLoading) return;
+    autoRequestedRef.current = true;
+    void requestPermissions();
+  }, [open, mediaReady, isLoading, requestPermissions]);
 
   const handleClose = () => {
     stopStream();
@@ -131,7 +144,7 @@ export function CameraMicPermissionModal({
             message={
               isVideoReady
                 ? videoDevices[0]?.label || "Webcam ready"
-                : videoError || "Click Enable camera and microphone"
+                : videoError || "Waiting for permission"
             }
           />
           <StatusRow
@@ -148,7 +161,7 @@ export function CameraMicPermissionModal({
             message={
               isAudioReady
                 ? audioDevices[0]?.label || "Microphone ready"
-                : audioError || "Click Enable camera and microphone"
+                : audioError || "Waiting for permission"
             }
           />
 
@@ -240,16 +253,6 @@ export function CameraMicPermissionModal({
           <Button variant="ghost" onClick={handleClose} disabled={isLoading}>
             Skip for now
           </Button>
-          {!mediaReady && !videoError && !audioError && (
-            <Button
-              variant="default"
-              onClick={handleRequest}
-              disabled={isLoading}
-              loading={isLoading}
-            >
-              Enable camera and microphone
-            </Button>
-          )}
           <Button
             variant="default"
             onClick={handleComplete}
