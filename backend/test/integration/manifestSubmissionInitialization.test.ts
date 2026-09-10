@@ -559,3 +559,265 @@ test("classifies a concurrent different-key start as an active Submission confli
   assert.equal(rejected[0]?.reason instanceof ActiveSubmissionConflictError, true);
   assert.equal(await prisma.submission.count({ where: { studentId: student.id, status: "IN_PROGRESS" } }), 1);
 });
+
+async function createUploadedBank(taskText: string) {
+  // The bank is shared across the whole test file; retire everything first so
+  // each new test binds deterministically to the questions it creates.
+  await prisma.question.updateMany({ data: { deletedAt: new Date() } });
+  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
+    await prisma.question.create({
+      data: {
+        category,
+        order: Math.floor(Math.random() * 1000000),
+        preparationSeconds: 20,
+        recordingSeconds: 60,
+        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+        audioMimeType: "audio/webm",
+        audioSizeBytes: 128,
+        audioUploadStatus: "UPLOADED",
+        tasks: { create: [{ promptText: `${category} ${taskText}`, order: 1 }] },
+      },
+    });
+  }
+}
+
+async function editBankTasks(manifestId: string, promptText: string) {
+  const entries = await prisma.manifestEntry.findMany({
+    where: { manifestId },
+    select: { sourceQuestionId: true },
+  });
+  await prisma.task.updateMany({
+    where: { questionId: { in: entries.map((entry) => entry.sourceQuestionId) } },
+    data: { promptText },
+  });
+}
+
+async function manifestTaskTexts(manifestId: string) {
+  const tasks = await prisma.manifestTask.findMany({
+    where: { manifestEntry: { manifestId } },
+    orderBy: { deliveredOrder: "asc" },
+    select: { deliveredText: true },
+  });
+  return tasks.map((task) => task.deliveredText);
+}
+
+test("a stale attempt is superseded so the next start delivers the edited question bank", async () => {
+  const student = await createStudent();
+  await createUploadedBank("original task");
+  const first = await initializeManifestSubmission(student.id, "universal-first-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.deepEqual(
+    await manifestTaskTexts(first.manifestId),
+    ["PART_1 original task", "PART_2 original task", "PART_3 original task"],
+  );
+
+  // The admin edits the universal bank after the student's empty attempt.
+  await editBankTasks(first.manifestId, "PART_X edited task");
+
+  const second = await initializeManifestSubmission(student.id, "universal-second-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.notEqual(second.submissionId, first.submissionId);
+  assert.deepEqual(
+    await manifestTaskTexts(second.manifestId),
+    ["PART_X edited task", "PART_X edited task", "PART_X edited task"],
+  );
+  assert.equal(
+    (await prisma.submission.findUnique({ where: { id: first.submissionId }, select: { status: true } }))?.status,
+    "ABANDONED",
+  );
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id, status: "IN_PROGRESS" } }), 1);
+});
+
+test("an unfinished attempt stays resumable while the question bank is unchanged", async () => {
+  const student = await createStudent();
+  await createUploadedBank("original task");
+  const first = await initializeManifestSubmission(student.id, "tied-first-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  const entry = await prisma.manifestEntry.findFirstOrThrow({ where: { manifestId: first.manifestId } });
+  await prisma.answer.create({
+    data: { submissionId: first.submissionId, manifestEntryId: entry.id, storageKey: `answers/${crypto.randomUUID()}.webm` },
+  });
+
+  await assert.rejects(
+    initializeManifestSubmission(student.id, "tied-second-key", {
+      chooseIndex: () => 0,
+      signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    }),
+    (error: unknown) => error instanceof ActiveSubmissionConflictError && error.submissionId === first.submissionId,
+  );
+  assert.equal(
+    (await prisma.submission.findUnique({ where: { id: first.submissionId }, select: { status: true } }))?.status,
+    "IN_PROGRESS",
+  );
+  const resumed = await resumeManifestSubmission(student.id, {
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.equal(resumed.submissionId, first.submissionId);
+  assert.deepEqual(
+    resumed.entries.flatMap((entry) => entry.tasks.map((task) => task.promptText)),
+    ["PART_1 original task", "PART_2 original task", "PART_3 original task"],
+  );
+});
+
+test("a retired question supersedes a partially answered attempt with the current bank", async () => {
+  const student = await createStudent();
+  await createUploadedBank("original task");
+  const first = await initializeManifestSubmission(student.id, "retired-first-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  const boundEntry = await prisma.manifestEntry.findFirstOrThrow({ where: { manifestId: first.manifestId } });
+  const retiredQuestionId = boundEntry.sourceQuestionId;
+  await prisma.answer.create({
+    data: {
+      submissionId: first.submissionId,
+      manifestEntryId: boundEntry.id,
+      storageKey: `answers/${crypto.randomUUID()}.webm`,
+    },
+  });
+
+  // The admin retires a delivered question and publishes its replacement.
+  await prisma.question.update({
+    where: { id: retiredQuestionId },
+    data: { deletedAt: new Date() },
+  });
+  await prisma.question.create({
+    data: {
+      category: boundEntry.category,
+      order: Math.floor(Math.random() * 1000000),
+      preparationSeconds: 20,
+      recordingSeconds: 60,
+      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 128,
+      audioUploadStatus: "UPLOADED",
+      tasks: { create: [{ promptText: "replacement task", order: 1 }] },
+    },
+  });
+
+  const second = await initializeManifestSubmission(student.id, "retired-second-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.notEqual(second.submissionId, first.submissionId);
+  const secondSources = await prisma.manifestEntry.findMany({
+    where: { manifestId: second.manifestId },
+    select: { sourceQuestionId: true },
+  });
+  assert.equal(secondSources.some((entry) => entry.sourceQuestionId === retiredQuestionId), false);
+  assert.equal(
+    (await prisma.submission.findUnique({ where: { id: first.submissionId }, select: { status: true } }))?.status,
+    "ABANDONED",
+  );
+  // The superseded attempt keeps its recorded evidence as retained history.
+  assert.equal(await prisma.answer.count({ where: { submissionId: first.submissionId } }), 1);
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id, status: "IN_PROGRESS" } }), 1);
+});
+
+test("a stale idempotent replay of an answer-less attempt delivers the edited bank", async () => {
+  const student = await createStudent();
+  await createUploadedBank("original task");
+  const first = await initializeManifestSubmission(student.id, "stale-replay-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+
+  await editBankTasks(first.manifestId, "PART_X edited task");
+
+  const replayed = await initializeManifestSubmission(student.id, "stale-replay-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.notEqual(replayed.submissionId, first.submissionId);
+  assert.deepEqual(
+    await manifestTaskTexts(replayed.manifestId),
+    ["PART_X edited task", "PART_X edited task", "PART_X edited task"],
+  );
+  const intent = await prisma.submissionStartIntent.findUniqueOrThrow({
+    where: { idempotencyKey: "stale-replay-key" },
+    select: { submissionId: true },
+  });
+  assert.equal(intent.submissionId, replayed.submissionId);
+  assert.equal(
+    (await prisma.submission.findUnique({ where: { id: first.submissionId }, select: { status: true } }))?.status,
+    "ABANDONED",
+  );
+});
+
+test("an unchanged bank replays the same attempt for a repeated start key", async () => {
+  const student = await createStudent();
+  await createUploadedBank("original task");
+  const first = await initializeManifestSubmission(student.id, "resume-replay-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  const replayed = await initializeManifestSubmission(student.id, "resume-replay-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.equal(replayed.submissionId, first.submissionId);
+  assert.equal(replayed.manifestId, first.manifestId);
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 1);
+});
+
+test("http start supersedes a stale unfinished attempt and active serves the edited bank", async () => {
+  const student = await createStudent();
+  await createUploadedBank("original task");
+  const cookie = `jwt=${jwt.sign({ id: student.id }, process.env.JWT_SECRET!)}`;
+  const start = (key: string) =>
+    fetch(`${baseUrl}/api/submissions`, {
+      method: "POST",
+      headers: { Cookie: cookie, "Idempotency-Key": key, "Content-Type": "application/json" },
+    });
+
+  const firstResponse = await start("http-stale-key");
+  assert.equal(firstResponse.status, 201);
+  const first = (await firstResponse.json()).data;
+  const boundEntry = await prisma.manifestEntry.findFirstOrThrow({ where: { manifestId: first.manifestId } });
+  // The student has already recorded one answer but has not finished the test.
+  await prisma.answer.create({
+    data: {
+      submissionId: first.submissionId,
+      manifestEntryId: boundEntry.id,
+      storageKey: `answers/${crypto.randomUUID()}.webm`,
+    },
+  });
+
+  // The admin retires a delivered question after the student already started.
+  await prisma.question.update({ where: { id: boundEntry.sourceQuestionId }, data: { deletedAt: new Date() } });
+  await prisma.question.create({
+    data: {
+      category: boundEntry.category,
+      order: Math.floor(Math.random() * 1000000),
+      preparationSeconds: 20,
+      recordingSeconds: 60,
+      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 128,
+      audioUploadStatus: "UPLOADED",
+      tasks: { create: [{ promptText: "replacement task", order: 1 }] },
+    },
+  });
+
+  const secondResponse = await start("http-stale-key-2");
+  assert.equal(secondResponse.status, 201);
+  const second = (await secondResponse.json()).data;
+  assert.notEqual(second.submissionId, first.submissionId);
+  const secondSources = await prisma.manifestEntry.findMany({
+    where: { manifestId: second.manifestId },
+    select: { sourceQuestionId: true },
+  });
+  assert.equal(secondSources.length, 3);
+  assert.equal(secondSources.some((entry) => entry.sourceQuestionId === boundEntry.sourceQuestionId), false);
+
+  const activeResponse = await fetch(`${baseUrl}/api/submissions/active`, { headers: { Cookie: cookie } });
+  assert.equal(activeResponse.status, 200);
+  assert.equal((await activeResponse.json()).data.submissionId, second.submissionId);
+});
+

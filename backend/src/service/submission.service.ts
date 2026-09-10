@@ -220,6 +220,10 @@ async function readDashboardHistoryPage(
     WHERE s."studentId" = ${userId}::uuid
       AND s."retentionStatus" = 'RETAINED'
       AND s."status" <> 'IN_PROGRESS'
+      AND (
+        s."status" <> 'ABANDONED'
+        OR EXISTS (SELECT 1 FROM "Answer" a WHERE a."submissionId" = s."id")
+      )
       ${cursorFilter}
     ORDER BY s."createdAt" DESC, s."id" DESC
     LIMIT ${limit + 1}
@@ -312,6 +316,9 @@ export async function getStudentDashboard(
     studentId: userId,
     retentionStatus: "RETAINED",
     status: { not: "IN_PROGRESS" },
+    // Abandoned attempts without recorded answers were superseded before the
+    // student made a Submission; they are history noise, not tests taken.
+    OR: [{ status: { not: "ABANDONED" } }, { answers: { some: {} } }],
   };
   const [totalTests, pageRowsWithExtra, rubricBest, legacyBest] = await Promise.all([
     prisma.submission.count({ where: baseWhere }),

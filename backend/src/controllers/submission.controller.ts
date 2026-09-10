@@ -42,6 +42,7 @@ export async function startSubmission(req: Request, res: Response) {
       req.header("Idempotency-Key") ?? undefined,
       { requestId: getRequestId(res) },
     );
+    res.setHeader("Cache-Control", "no-store");
     res.status(201).json({
       status: "success",
       data: submission,
@@ -109,6 +110,7 @@ export async function resumeActiveSubmission(req: Request, res: Response) {
     const data = await resumeManifestSubmission(req.user!.id, {
       requestId: getRequestId(res),
     });
+    res.setHeader("Cache-Control", "no-store");
     res.status(200).json({ status: "success", data });
   } catch (error) {
     if (error instanceof AssessmentUnavailableError && error.message !== "No active assessment") {
