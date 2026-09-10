@@ -12,8 +12,10 @@ When a new Submission is created, FluentCheck selects one Eligible question from
 
 - A new Submission has exactly one selected Question from each required category.
 - The required category set is explicitly `PART_1`, `PART_2`, and `PART_3`.
-- Selection is randomized among Eligible questions and is not recomputed during that Submission.
-- Selection is uniform within each required category.
+- `order` identifies a question set shared by every required category. Selection first chooses one order that has an Eligible Question in all three categories, then delivers that order's Question from each category, so one Submission never mixes orders across categories.
+- An order present in only a subset of categories is never delivered, even though its Questions remain active in the bank.
+- Selection is randomized among the orders common to every category and is not recomputed during that Submission.
+- Delivered Questions, and therefore their `order`, remain bound to the Submission; an unfinished attempt is only superseded when its bound Questions no longer match the current bank (retired, edited, or no longer sharing one order), otherwise it resumes unchanged.
 - Delivery and Submission initialization share one server-owned boundary.
 - Prompt media preparation for the three selected Questions completes before the final bounded database transaction. The transaction revalidates the selected sources and atomically persists the Submission and manifest; any preparation or revalidation failure creates nothing. This decision relies on preparation remaining local URL signing rather than a remote R2 availability probe.
 - An unavailable or incomplete question bank returns a stable domain `503` and creates no Submission.

@@ -28,6 +28,13 @@ function uniqueUsername(prefix: string) {
   return `${prefix.replace(/[^a-z0-9_]/giu, "_")}_${crypto.randomUUID().replaceAll("-", "")}`;
 }
 
+let sharedOrderCounter = 10_000_000;
+
+/** Next question-set order shared across every category. */
+function nextSharedOrder() {
+  return ++sharedOrderCounter;
+}
+
 before(async () => {
   container = await new PostgreSqlContainer("postgres:17-alpine").start();
   process.env.DATABASE_URL = container.getConnectionUri();
@@ -83,11 +90,12 @@ async function createStudent() {
 
 test("initialization selects one eligible question per category and persists a complete manifest", async () => {
   const student = await createStudent();
+  const order = nextSharedOrder();
   for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
     const question = await prisma.question.create({
       data: {
         category,
-        order: Math.floor(Math.random() * 1000000),
+        order,
         preparationSeconds: 20,
         recordingSeconds: 60,
         audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
@@ -223,11 +231,12 @@ test("a failed telemetry delivery cannot alter the stable unavailable response",
 test("retries once when selected source evidence changes before persistence", async () => {
   const student = await createStudent();
   const questionIds: string[] = [];
+  const order = nextSharedOrder();
   for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
     const question = await prisma.question.create({
       data: {
         category,
-        order: Math.floor(Math.random() * 1000000),
+        order,
         preparationSeconds: 20,
         recordingSeconds: 60,
         audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
@@ -259,12 +268,13 @@ test("retries once when selected source evidence changes before persistence", as
 
 test("aggregates selected signing failures and retries the same start intent", async () => {
   const student = await createStudent();
+  const order = nextSharedOrder();
   for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
     const storageKey = `questions/${crypto.randomUUID()}/prompt.webm`;
     await prisma.question.create({
       data: {
         category,
-        order: Math.floor(Math.random() * 1000000),
+        order,
         preparationSeconds: 20,
         recordingSeconds: 60,
         audioStorageKey: storageKey,
@@ -324,11 +334,12 @@ test("aggregates selected signing failures and retries the same start intent", a
 
 test("resume maps Prompt media signing failure to Assessment unavailable", async () => {
   const student = await createStudent();
+  const order = nextSharedOrder();
   for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
     await prisma.question.create({
       data: {
         category,
-        order: Math.floor(Math.random() * 1000000),
+        order,
         preparationSeconds: 20,
         recordingSeconds: 60,
         audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
@@ -381,7 +392,7 @@ test("student prompt media is limited to the active submission manifest", async 
   ] as const).map((category) => prisma.question.create({
     data: {
       category,
-      order: Math.floor(Math.random() * 1000000),
+      order: nextSharedOrder(),
       createdById: admin.id,
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
       audioMimeType: "audio/webm",
@@ -485,11 +496,12 @@ test("a closed idempotency key cannot replay an abandoned Submission", async () 
 
 test("blocks a new start while a previous Submission is in the review pipeline", async () => {
   const student = await createStudent();
+  const order = nextSharedOrder();
   for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
     await prisma.question.create({
       data: {
         category,
-        order: Math.floor(Math.random() * 1000000),
+        order,
         preparationSeconds: 20,
         recordingSeconds: 60,
         audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
@@ -560,24 +572,31 @@ test("classifies a concurrent different-key start as an active Submission confli
   assert.equal(await prisma.submission.count({ where: { studentId: student.id, status: "IN_PROGRESS" } }), 1);
 });
 
-async function createUploadedBank(taskText: string) {
+/**
+ * Create one question per category for each given order. `order` identifies a
+ * question set shared across categories, so every order here exists in all
+ * three categories unless a test deliberately omits one.
+ */
+async function createUploadedBank(taskText: string, orders: number[] = [nextSharedOrder()]) {
   // The bank is shared across the whole test file; retire everything first so
   // each new test binds deterministically to the questions it creates.
   await prisma.question.updateMany({ data: { deletedAt: new Date() } });
-  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
-    await prisma.question.create({
-      data: {
-        category,
-        order: Math.floor(Math.random() * 1000000),
-        preparationSeconds: 20,
-        recordingSeconds: 60,
-        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 128,
-        audioUploadStatus: "UPLOADED",
-        tasks: { create: [{ promptText: `${category} ${taskText}`, order: 1 }] },
-      },
-    });
+  for (const order of orders) {
+    for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
+      await prisma.question.create({
+        data: {
+          category,
+          order,
+          preparationSeconds: 20,
+          recordingSeconds: 60,
+          audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+          audioMimeType: "audio/webm",
+          audioSizeBytes: 128,
+          audioUploadStatus: "UPLOADED",
+          tasks: { create: [{ promptText: `${category} ${taskText}`, order: 1 }] },
+        },
+      });
+    }
   }
 }
 
@@ -600,6 +619,96 @@ async function manifestTaskTexts(manifestId: string) {
   });
   return tasks.map((task) => task.deliveredText);
 }
+
+async function manifestSourceOrders(manifestId: string) {
+  const entries = await prisma.manifestEntry.findMany({
+    where: { manifestId },
+    select: { sourceQuestion: { select: { order: true } } },
+  });
+  return entries.map((entry) => entry.sourceQuestion.order);
+}
+
+test("delivery uses one shared order across every category", async () => {
+  const firstOrder = ++sharedOrderCounter;
+  const secondOrder = ++sharedOrderCounter;
+  await createUploadedBank("bank task", [firstOrder, secondOrder]);
+
+  const lowest = await initializeManifestSubmission((await createStudent()).id, "shared-order-low-key", {
+    chooseIndex: () => 0,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.deepEqual(await manifestSourceOrders(lowest.manifestId), [firstOrder, firstOrder, firstOrder]);
+
+  const highest = await initializeManifestSubmission((await createStudent()).id, "shared-order-high-key", {
+    chooseIndex: (length) => length - 1,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.deepEqual(await manifestSourceOrders(highest.manifestId), [secondOrder, secondOrder, secondOrder]);
+});
+
+test("an order missing from any category is not eligible for delivery", async () => {
+  const commonOrder = ++sharedOrderCounter;
+  const partialOrder = ++sharedOrderCounter;
+  await createUploadedBank("bank task", [commonOrder]);
+  // Add a second order that exists in only two of the three categories.
+  for (const category of ["PART_1", "PART_2"] as const) {
+    await prisma.question.create({
+      data: {
+        category,
+        order: partialOrder,
+        preparationSeconds: 20,
+        recordingSeconds: 60,
+        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+        audioMimeType: "audio/webm",
+        audioSizeBytes: 128,
+        audioUploadStatus: "UPLOADED",
+        tasks: { create: [{ promptText: `${category} partial`, order: 1 }] },
+      },
+    });
+  }
+
+  // The highest index would pick partialOrder if a category-mixed set were
+  // allowed; only the common order is eligible, so it must be chosen instead.
+  const result = await initializeManifestSubmission((await createStudent()).id, "partial-order-key", {
+    chooseIndex: (length) => length - 1,
+    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  });
+  assert.deepEqual(
+    await manifestSourceOrders(result.manifestId),
+    [commonOrder, commonOrder, commonOrder],
+  );
+});
+
+test("no order shared by every category makes the assessment unavailable", async () => {
+  const student = await createStudent();
+  const firstOrder = ++sharedOrderCounter;
+  const secondOrder = ++sharedOrderCounter;
+  await createUploadedBank("bank task", [firstOrder]);
+  // Only PART_3 gets the second order, so no order spans all categories.
+  await prisma.question.updateMany({ where: { order: firstOrder, category: "PART_3" }, data: { deletedAt: new Date() } });
+  await prisma.question.create({
+    data: {
+      category: "PART_3",
+      order: secondOrder,
+      preparationSeconds: 20,
+      recordingSeconds: 60,
+      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 128,
+      audioUploadStatus: "UPLOADED",
+      tasks: { create: [{ promptText: "PART_3 second", order: 1 }] },
+    },
+  });
+
+  await assert.rejects(
+    initializeManifestSubmission(student.id, "no-common-order-key", {
+      chooseIndex: () => 0,
+      signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    }),
+    AssessmentUnavailableError,
+  );
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 0);
+});
 
 test("a stale attempt is superseded so the next start delivers the edited question bank", async () => {
   const student = await createStudent();
@@ -674,6 +783,10 @@ test("a retired question supersedes a partially answered attempt with the curren
   });
   const boundEntry = await prisma.manifestEntry.findFirstOrThrow({ where: { manifestId: first.manifestId } });
   const retiredQuestionId = boundEntry.sourceQuestionId;
+  const retiredQuestion = await prisma.question.findUniqueOrThrow({
+    where: { id: retiredQuestionId },
+    select: { order: true },
+  });
   await prisma.answer.create({
     data: {
       submissionId: first.submissionId,
@@ -682,7 +795,8 @@ test("a retired question supersedes a partially answered attempt with the curren
     },
   });
 
-  // The admin retires a delivered question and publishes its replacement.
+  // The admin retires a delivered question and publishes its replacement in
+  // the same order so that order remains available across every category.
   await prisma.question.update({
     where: { id: retiredQuestionId },
     data: { deletedAt: new Date() },
@@ -690,7 +804,7 @@ test("a retired question supersedes a partially answered attempt with the curren
   await prisma.question.create({
     data: {
       category: boundEntry.category,
-      order: Math.floor(Math.random() * 1000000),
+      order: retiredQuestion.order,
       preparationSeconds: 20,
       recordingSeconds: 60,
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
@@ -780,6 +894,10 @@ test("http start supersedes a stale unfinished attempt and active serves the edi
   assert.equal(firstResponse.status, 201);
   const first = (await firstResponse.json()).data;
   const boundEntry = await prisma.manifestEntry.findFirstOrThrow({ where: { manifestId: first.manifestId } });
+  const boundQuestion = await prisma.question.findUniqueOrThrow({
+    where: { id: boundEntry.sourceQuestionId },
+    select: { order: true },
+  });
   // The student has already recorded one answer but has not finished the test.
   await prisma.answer.create({
     data: {
@@ -789,12 +907,12 @@ test("http start supersedes a stale unfinished attempt and active serves the edi
     },
   });
 
-  // The admin retires a delivered question after the student already started.
+  // The admin retires a delivered question and replaces it in the same order.
   await prisma.question.update({ where: { id: boundEntry.sourceQuestionId }, data: { deletedAt: new Date() } });
   await prisma.question.create({
     data: {
       category: boundEntry.category,
-      order: Math.floor(Math.random() * 1000000),
+      order: boundQuestion.order,
       preparationSeconds: 20,
       recordingSeconds: 60,
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,

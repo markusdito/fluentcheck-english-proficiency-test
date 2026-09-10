@@ -158,7 +158,10 @@ async function activeManifestMatchesCurrentBank(submissionId: string): Promise<b
     where: { submissionId },
     include: { entries: { include: { tasks: { orderBy: { deliveredOrder: "asc" } } } } },
   });
-  if (!manifest) return false;
+  if (!manifest || manifest.entries.length !== CATEGORIES.length) return false;
+  // Delivery binds one shared order across every category. An attempt whose
+  // entries span different orders predates that rule and must be rebuilt.
+  const deliveredOrders = new Set<number>();
   for (const entry of manifest.entries) {
     const question = await prisma.question.findUnique({
       where: { id: entry.sourceQuestionId },
@@ -179,8 +182,9 @@ async function activeManifestMatchesCurrentBank(submissionId: string): Promise<b
     ) {
       return false;
     }
+    deliveredOrders.add(question.order);
   }
-  return true;
+  return deliveredOrders.size === 1;
 }
 
 function isAssessmentInitializationUnavailable(error: unknown): boolean {
@@ -434,7 +438,28 @@ export async function initializeManifestSubmission(
         failedCategories: unavailableCategories,
       });
     }
-    const selected = candidateSets.map(({ candidates }) => candidates[chooseIndex(candidates.length)]);
+    // `order` identifies a question set shared by every category. Delivery must
+    // use one order across all categories, never a mix, so choose a single
+    // order available in every category and take that order's question from each.
+    const ordersByCategory = new Map(
+      candidateSets.map(({ category, candidates }) => [
+        category,
+        new Map(candidates.map((question) => [question.order, question])),
+      ]),
+    );
+    const commonOrders = [...ordersByCategory.get(CATEGORIES[0])!.keys()]
+      .filter((order) => CATEGORIES.every((category) => ordersByCategory.get(category)!.has(order)))
+      .sort((left, right) => left - right);
+    if (commonOrders.length === 0) {
+      throw new AssessmentUnavailableError("Assessment unavailable", {
+        internalReason: "QUESTION_BANK_INCOMPLETE",
+        failedCategories: [...CATEGORIES],
+      });
+    }
+    const selectedOrder = commonOrders[chooseIndex(commonOrders.length)];
+    const selected = CATEGORIES.map(
+      (category) => ordersByCategory.get(category)!.get(selectedOrder)!,
+    );
 
     const manifestId = randomUUID();
     const prepared = selected.map((question, index) => {
