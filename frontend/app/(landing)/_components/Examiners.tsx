@@ -8,12 +8,12 @@ const navBtn =
 
 // ponytail: placeholder profiles from the design mockup; swap for real examiner data when available.
 const examiners = [
-  { name: "Dr. Anindya Rahmawati, M.A.", label: "Doctor Anindya Rahmawati", uni: "Universitas Indonesia" },
-  { name: "Dr. Samuel Wibowo, M.Ed.", label: "Doctor Samuel Wibowo", uni: "Universitas Gadjah Mada" },
-  { name: "Prof. Rina Kusumawati, Ph.D.", label: "Professor Rina Kusumawati", uni: "Institut Teknologi Bandung" },
-  { name: "Dr. Michael Tanuwijaya, M.Hum.", label: "Doctor Michael Tanuwijaya", uni: "Universitas Airlangga" },
-  { name: "Dr. Farah Azzahra, M.TESOL", label: "Doctor Farah Azzahra", uni: "University of Melbourne" },
-  { name: "Prof. David Hartono, Ph.D.", label: "Professor David Hartono", uni: "Australian National University" },
+  { name: "Dr. Anindya Rahmawati, M.A.", label: "Doctor Anindya Rahmawati", uni: "Sanata Dharma University" },
+  { name: "Dr. Samuel Wibowo, M.Ed.", label: "Doctor Samuel Wibowo", uni: "Sanata Dharma University" },
+  { name: "Prof. Rina Kusumawati, Ph.D.", label: "Professor Rina Kusumawati", uni: "Sanata Dharma University" },
+  { name: "Dr. Michael Tanuwijaya, M.Hum.", label: "Doctor Michael Tanuwijaya", uni: "Sanata Dharma University" },
+  { name: "Dr. Farah Azzahra, M.TESOL", label: "Doctor Farah Azzahra", uni: "Sanata Dharma University" },
+  { name: "Prof. David Hartono, Ph.D.", label: "Professor David Hartono", uni: "Sanata Dharma University" },
 ];
 
 const pad = (i: number) => String(i).padStart(2, "0");
