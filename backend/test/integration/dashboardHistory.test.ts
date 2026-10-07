@@ -478,3 +478,37 @@ test("keeps dashboard query count constant as history grows", async () => {
   assert.ok(largeHistoryScoreQuery);
   assert.equal(JSON.parse(largeHistoryScoreQuery.params).length, 2);
 });
+
+test("hides evidence-less abandoned attempts from history and totals", async () => {
+  const student = await createStudent();
+  const scored = (await createSubmission(student.id, "2026-05-02T00:00:00.000Z")).submission;
+  const emptyAbandoned = (await createSubmission(
+    student.id,
+    "2026-05-03T00:00:00.000Z",
+    "ABANDONED",
+  )).submission;
+  const evidenceAbandoned = (await createSubmission(
+    student.id,
+    "2026-05-01T00:00:00.000Z",
+    "ABANDONED",
+  )).submission;
+  const entry = await prisma.manifestEntry.findFirstOrThrow({
+    where: { submissionId: evidenceAbandoned.id },
+  });
+  await prisma.answer.create({
+    data: {
+      submissionId: evidenceAbandoned.id,
+      manifestEntryId: entry.id,
+      storageKey: `answers/${entry.id}.webm`,
+    },
+  });
+
+  const response = await dashboardRequest("/submissions?limit=10", student.id);
+  assert.equal(response.status, 200);
+  const data = (await response.json()).data;
+  assert.equal(data.totalTests, 2);
+  const historyIds = data.submissions.map((submission: { id: string }) => submission.id);
+  assert.ok(historyIds.includes(scored.id));
+  assert.ok(historyIds.includes(evidenceAbandoned.id));
+  assert.equal(historyIds.includes(emptyAbandoned.id), false);
+});

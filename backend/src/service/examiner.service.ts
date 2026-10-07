@@ -23,7 +23,7 @@ import type {
   AssignmentStatus,
   SubmissionStatus,
 } from "../generated/enums.js";
-import { ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY } from "./accountTransition.service.js";
+import { ACCOUNT_TRANSITION_ADVISORY_LOCK_KEY, isContention } from "./accountTransition.service.js";
 
 export interface ExaminerAssignmentSummary {
   id: string;
@@ -386,10 +386,7 @@ export async function createExaminerAssignmentSet(
       );
     } catch (error) {
       if (error instanceof AssignmentSetError) throw error;
-      const isContention =
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        (error.code === "P2034" || error.code === "P2024");
-      if (!isContention || attempt === ASSIGNMENT_SET_TRANSACTION_ATTEMPTS) {
+      if (!isContention(error) || attempt === ASSIGNMENT_SET_TRANSACTION_ATTEMPTS) {
         throw error;
       }
       lastContentionError = error;

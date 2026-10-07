@@ -43,7 +43,7 @@ export default function SignupPage() {
         <div className="flex flex-1 items-center justify-center px-8 py-10">
           <div className="w-full max-w-sm text-left">
             <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
-              FluentCheck · Speaking assessment
+              SpeakNusa · Speaking assessment
             </p>
             <h2 className="mt-5 font-display text-4xl font-medium leading-[1.04] tracking-tight text-ink">
               A certified band score, <em className="text-signal">on camera.</em>
@@ -86,7 +86,7 @@ export default function SignupPage() {
         </div>
 
         <p className="border-t border-rule px-8 py-5 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
-          © {new Date().getFullYear()} FluentCheck · English proficiency test
+          © {new Date().getFullYear()} SpeakNusa · English proficiency test
         </p>
       </aside>
 

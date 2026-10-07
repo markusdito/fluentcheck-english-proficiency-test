@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* ---- FluentCheck — "Examination Room" tokens ---- */
+  /* ---- SpeakNusa — "Examination Room" tokens ---- */
   --paper: #f4f5f2;      /* exam-paper white — page surface */
   --paper-raised: #ffffff;
   --ink: #1b2420;        /* green-black ink — text & primary actions */
@@ -151,6 +151,128 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ---- SpeakNusa landing tokens (prefixed sn- so they never shadow the shadcn contract) ---- */
+@theme {
+  --font-albert: var(--font-albert-sans), "Albert Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+
+  --color-sn-bg: oklch(99% 0.002 240);
+  --color-sn-surface: oklch(100% 0 0);
+  --color-sn-fg: #262626;
+  --color-sn-muted: #434343;
+  --color-sn-border: oklch(92% 0.005 250);
+  --color-sn-navy: #1a355c;
+  --color-sn-green: #42824e;
+  --color-sn-amber: #e1a82a;
+  --color-sn-clay: oklch(45% 0.12 40);
+  --color-sn-ink-green: oklch(45% 0.13 151);
+  --color-sn-ink-amber: oklch(45% 0.13 82);
+  --color-sn-field-navy: color-mix(in oklch, #1a355c 8%, white);
+  --color-sn-field-green: color-mix(in oklch, #42824e 10%, white);
+  --color-sn-field-amber: color-mix(in oklch, #e1a82a 13%, white);
+
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --animate-wash-drift: wash-drift 28s ease-in-out infinite alternate;
+  --animate-ga-drift: ga-drift var(--drift-dur, 14s) ease-in-out var(--drift-delay, 0s) infinite alternate;
+  --animate-ga-float: ga-float var(--float-dur, 7s) ease-in-out var(--float-delay, 0s) infinite alternate;
+  --animate-ga-sweep: ga-sweep 8s ease-in-out infinite;
+  --animate-ga-pulse: ga-pulse 1.4s ease-in-out infinite;
+  --animate-ga-bar: ga-bar var(--s) ease-in-out var(--d) infinite;
+  --animate-ga-prog: ga-prog 8s linear infinite;
+  --animate-ga-spin: ga-spin 40s linear infinite;
+  --animate-ga-pop: ga-pop 8s ease-in-out infinite;
+  --animate-ga-fill: ga-fill 8s ease-in-out calc(var(--i) * 0.22s) infinite backwards;
+  --animate-ga-check: ga-check 9s ease-in-out infinite;
+  --animate-ga-st: ga-st 9s ease-in-out calc(var(--k) * 3s) infinite backwards;
+  --animate-hw-wrap: hw-wrap 0.52s cubic-bezier(0.4, 0, 0.2, 1);
+
+  @keyframes wash-drift {
+    from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+    to { transform: translate3d(1.5%, 1.5%, 0) scale(1.06); }
+  }
+  @keyframes ga-drift {
+    from { transform: translate3d(-4%, -3%, 0) scale(1); }
+    to { transform: translate3d(5%, 4%, 0) scale(1.1); }
+  }
+  @keyframes ga-float {
+    from { translate: 0 calc(var(--u) * -5); }
+    to { translate: 0 calc(var(--u) * 5); }
+  }
+  @keyframes ga-sweep {
+    0%, 58% { transform: translateX(-130%); }
+    80%, 100% { transform: translateX(130%); }
+  }
+  @keyframes ga-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(0.6); opacity: 0.45; }
+  }
+  @keyframes ga-bar {
+    0%, 100% { transform: scaleY(var(--lo)); }
+    50% { transform: scaleY(var(--hi)); }
+  }
+  @keyframes ga-prog {
+    from { transform: scaleX(0.04); }
+    to { transform: scaleX(1); }
+  }
+  @keyframes ga-spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes ga-pop {
+    0%, 55%, 72%, 100% { transform: scale(1); }
+    62% { transform: scale(1.14); }
+  }
+  @keyframes ga-fill {
+    0% { transform: scaleX(0.04); }
+    32%, 88% { transform: scaleX(var(--t)); }
+    96%, 100% { transform: scaleX(0.04); }
+  }
+  @keyframes ga-check {
+    0%, 30% { stroke-dashoffset: 20; }
+    40%, 100% { stroke-dashoffset: 0; }
+  }
+  @keyframes ga-st {
+    0% { opacity: 0; transform: translateY(45%); }
+    5%, 29% { opacity: 1; transform: none; }
+    34%, 100% { opacity: 0; transform: translateY(-45%); }
+  }
+  @keyframes hw-wrap {
+    0%, 100% { opacity: 1; }
+    30%, 70% { opacity: 0; }
+  }
+}
+
+/* Soft colour washes behind the landing hero and CTA. Smoothstep stops avoid the visible edge
+   a linear fade leaves; a faint grain dithers 8-bit banding and is masked to the washes only. */
+@utility sn-wash-hero {
+  background:
+    var(--sn-grain),
+    radial-gradient(44% 58% at 70% 30%, var(--sn-ramp-green)),
+    radial-gradient(54% 54% at 16% 60%, var(--sn-ramp-navy));
+  background-size: 160px 160px, auto, auto;
+  mask-image:
+    radial-gradient(44% 58% at 70% 30%, #000, transparent 70%),
+    radial-gradient(54% 54% at 16% 60%, #000, transparent 70%);
+}
+@utility sn-wash-cta {
+  background:
+    var(--sn-grain),
+    radial-gradient(46% 42% at 86% 34%, var(--sn-ramp-navy)),
+    radial-gradient(50% 46% at 14% 66%, var(--sn-ramp-green));
+  background-size: 160px 160px, auto, auto;
+  mask-image:
+    radial-gradient(46% 42% at 86% 34%, #000, transparent 70%),
+    radial-gradient(50% 46% at 14% 66%, #000, transparent 70%);
+}
+
+:root {
+  --sn-wash-navy: color-mix(in oklch, var(--color-sn-navy) 7%, var(--color-sn-bg));
+  --sn-wash-green: color-mix(in oklch, var(--color-sn-green) 8%, var(--color-sn-bg));
+  --sn-ramp-navy: var(--sn-wash-navy) 0%, color-mix(in oklab, var(--sn-wash-navy) 94%, transparent) 10%, color-mix(in oklab, var(--sn-wash-navy) 80%, transparent) 20%, color-mix(in oklab, var(--sn-wash-navy) 60%, transparent) 30%, color-mix(in oklab, var(--sn-wash-navy) 39%, transparent) 40%, color-mix(in oklab, var(--sn-wash-navy) 20%, transparent) 50%, color-mix(in oklab, var(--sn-wash-navy) 6%, transparent) 60%, transparent 70%;
+  --sn-ramp-green: var(--sn-wash-green) 0%, color-mix(in oklab, var(--sn-wash-green) 94%, transparent) 10%, color-mix(in oklab, var(--sn-wash-green) 80%, transparent) 20%, color-mix(in oklab, var(--sn-wash-green) 60%, transparent) 30%, color-mix(in oklab, var(--sn-wash-green) 39%, transparent) 40%, color-mix(in oklab, var(--sn-wash-green) 20%, transparent) 50%, color-mix(in oklab, var(--sn-wash-green) 6%, transparent) 60%, transparent 70%;
+  --sn-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -264,55 +386,8 @@ body {
   }
 }
 
-/* Hero band-gauge draw-in */
-@keyframes gauge-fill {
-  from {
-    width: 0;
-  }
-}
-
 .animate-rise {
   animation: stamp-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* ---- Hero phrase slideshow ---- */
-
-/* Grid stacking keeps the title slot the width of its longest phrase. */
-.hero-phrase-stage {
-  display: inline-grid;
-  grid-template-columns: max-content;
-  grid-template-rows: 1.08em;
-  max-width: 100%;
-  height: 1.08em;
-  overflow: hidden;
-  vertical-align: baseline;
-}
-
-.hero-phrase {
-  grid-area: 1 / 1;
-  display: block;
-  white-space: nowrap;
-  animation: hero-phrase-slideshow 16s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-}
-
-@keyframes hero-phrase-slideshow {
-  0% {
-    opacity: 0;
-    transform: translateY(0.8em);
-  }
-  2%,
-  14% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  20% {
-    opacity: 0;
-    transform: translateY(-0.8em);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-0.8em);
-  }
 }
 
 /* ---- Form autofill ---- */
@@ -333,15 +408,5 @@ input:-webkit-autofill:focus {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-
-  .hero-phrase {
-    animation: none !important;
-    opacity: 0;
-    transform: none;
-  }
-
-  .hero-phrase:first-child {
-    opacity: 1;
   }
 }

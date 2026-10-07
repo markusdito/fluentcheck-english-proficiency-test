@@ -88,6 +88,7 @@ function ToNumberInput({
   label,
   required,
   disabled,
+  helperText,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -95,6 +96,7 @@ function ToNumberInput({
   label: string;
   required?: boolean;
   disabled?: boolean;
+  helperText?: string;
 }) {
   return (
     <FormField
@@ -107,6 +109,7 @@ function ToNumberInput({
       onChange={(e) => onChange(e.target.value)}
       required={required}
       disabled={disabled}
+      helperText={helperText}
     />
   );
 }
@@ -166,6 +169,7 @@ function QuestionFormFields({
           onChange={onOrder}
           required
           disabled={disabled}
+          helperText="Question set shared by all categories: a test uses one order in PART_1, PART_2 and PART_3 together, so each delivered order must exist in every category."
         />
         <ToNumberInput
           id={`${idPrefix}-preparationSeconds`}

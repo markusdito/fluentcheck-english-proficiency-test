@@ -154,7 +154,7 @@ export function ScoreCard({
         <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
           {pendingCount > 0
             ? `${pendingCount} answer${pendingCount === 1 ? "" : "s"} awaiting review`
-            : "Marked by the FluentCheck jury"}
+            : "Marked by the SpeakNusa jury"}
         </p>
       </div>
     </div>

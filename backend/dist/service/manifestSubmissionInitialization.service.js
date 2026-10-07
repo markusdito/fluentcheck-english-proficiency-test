@@ -29,6 +29,19 @@ export class ActiveSubmissionConflictError extends Error {
         this.name = "ActiveSubmissionConflictError";
     }
 }
+/** A previous Submission is still moving through payment and Examiner scoring. */
+export class SubmissionInReviewError extends Error {
+    submissionId;
+    code = "SUBMISSION_IN_REVIEW";
+    retryable = true;
+    constructor(submissionId) {
+        super("A previous Submission is still in the review pipeline");
+        this.submissionId = submissionId;
+        this.name = "SubmissionInReviewError";
+    }
+}
+/** Statuses between recording and scoring completion that block a new Assessment. */
+const REVIEW_PIPELINE_STATUSES = ["AWAITING_PAYMENT", "PAID", "SCORING"];
 /** The same idempotency key cannot be used for another student's start intent. */
 export class IdempotencyKeyConflictError extends Error {
     code = "IDEMPOTENCY_KEY_CONFLICT";
@@ -83,6 +96,43 @@ async function findActiveSubmissionId(studentId) {
         select: { id: true },
     });
     return active?.id;
+}
+/**
+ * An unfinished attempt may only be resumed while its manifest still matches
+ * the current universal question bank. Retirement or edits of a delivered
+ * Question make the attempt stale, so the next start supersedes it with a
+ * fresh manifest instead of serving outdated (possibly retired) questions.
+ */
+async function activeManifestMatchesCurrentBank(submissionId) {
+    const manifest = await prisma.submissionManifest.findFirst({
+        where: { submissionId },
+        include: { entries: { include: { tasks: { orderBy: { deliveredOrder: "asc" } } } } },
+    });
+    if (!manifest || manifest.entries.length !== CATEGORIES.length)
+        return false;
+    // Delivery binds one shared order across every category. An attempt whose
+    // entries span different orders predates that rule and must be rebuilt.
+    const deliveredOrders = new Set();
+    for (const entry of manifest.entries) {
+        const question = await prisma.question.findUnique({
+            where: { id: entry.sourceQuestionId },
+            include: { tasks: { where: { deletedAt: null }, orderBy: { order: "asc" } } },
+        });
+        if (!question || question.deletedAt || question.category !== entry.category ||
+            question.audioUploadStatus !== "UPLOADED" ||
+            question.audioStorageKey !== entry.promptMediaStorageKey ||
+            question.audioMimeType !== entry.promptMediaMimeType ||
+            question.audioSizeBytes !== entry.promptMediaSizeBytes ||
+            question.preparationSeconds !== entry.preparationSeconds ||
+            question.recordingSeconds !== entry.recordingSeconds ||
+            question.tasks.length !== entry.tasks.length || question.tasks.some((task, index) => task.id !== entry.tasks[index]?.sourceTaskId ||
+            task.promptText !== entry.tasks[index]?.deliveredText ||
+            task.order !== entry.tasks[index]?.deliveredOrder)) {
+            return false;
+        }
+        deliveredOrders.add(question.order);
+    }
+    return deliveredOrders.size === 1;
 }
 function isAssessmentInitializationUnavailable(error) {
     return (error instanceof AssessmentUnavailableError ||
@@ -195,6 +245,11 @@ async function replayStartIntent(studentId, idempotencyKey, signPromptMedia, dea
     }
     if (!existingIntent.submission.manifest)
         throw new AssessmentUnavailableError();
+    // A stale attempt (its bank was retired or edited) must not be replayed.
+    // Fall through so the fresh start supersedes it and re-points this
+    // idempotency key at a manifest built from the current question bank.
+    if (!(await activeManifestMatchesCurrentBank(existingIntent.submission.id)))
+        return undefined;
     const manifest = {
         id: existingIntent.submission.manifest.id,
         version: existingIntent.submission.manifest.version,
@@ -244,8 +299,24 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
             },
             select: { id: true },
         });
-        if (active)
+        if (active && (await activeManifestMatchesCurrentBank(active.id))) {
+            // The unfinished attempt still matches the current bank: the student may
+            // resume it, and its questions remain bound to their account.
             throw new ActiveSubmissionConflictError(active.id);
+        }
+        // A stale unfinished attempt (its delivered questions were retired or
+        // edited) is superseded inside the final transaction so this start binds
+        // the current universal question bank instead of outdated questions.
+        const inReview = await prisma.submission.findFirst({
+            where: {
+                studentId,
+                status: { in: [...REVIEW_PIPELINE_STATUSES] },
+                retentionStatus: "RETAINED",
+            },
+            select: { id: true },
+        });
+        if (inReview)
+            throw new SubmissionInReviewError(inReview.id);
         const candidateSets = await Promise.all(CATEGORIES.map(async (category) => {
             const candidates = await prisma.question.findMany({
                 where: {
@@ -276,7 +347,24 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 failedCategories: unavailableCategories,
             });
         }
-        const selected = candidateSets.map(({ candidates }) => candidates[chooseIndex(candidates.length)]);
+        // `order` identifies a question set shared by every category. Delivery must
+        // use one order across all categories, never a mix, so choose a single
+        // order available in every category and take that order's question from each.
+        const ordersByCategory = new Map(candidateSets.map(({ category, candidates }) => [
+            category,
+            new Map(candidates.map((question) => [question.order, question])),
+        ]));
+        const commonOrders = [...ordersByCategory.get(CATEGORIES[0]).keys()]
+            .filter((order) => CATEGORIES.every((category) => ordersByCategory.get(category).has(order)))
+            .sort((left, right) => left - right);
+        if (commonOrders.length === 0) {
+            throw new AssessmentUnavailableError("Assessment unavailable", {
+                internalReason: "QUESTION_BANK_INCOMPLETE",
+                failedCategories: [...CATEGORIES],
+            });
+        }
+        const selectedOrder = commonOrders[chooseIndex(commonOrders.length)];
+        const selected = CATEGORIES.map((category) => ordersByCategory.get(category).get(selectedOrder));
         const manifestId = randomUUID();
         const prepared = selected.map((question, index) => {
             if (!question.audioStorageKey ||
@@ -314,6 +402,18 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
             })),
         }, (key, mime) => withDeadline(signPromptMedia(key, mime), deadline));
         const result = await prisma.$transaction(async (tx) => {
+            // Supersede a stale unfinished attempt before creating its replacement:
+            // the partial unique index allows only one IN_PROGRESS Submission per
+            // student, and the row lock serializes against concurrent starts.
+            if (active) {
+                await tx.$queryRaw `SELECT "id" FROM "Submission" WHERE "id" = ${active.id}::uuid FOR UPDATE`;
+                const superseded = await tx.submission.updateMany({
+                    where: { id: active.id, studentId, status: "IN_PROGRESS", retentionStatus: "RETAINED" },
+                    data: { status: "ABANDONED" },
+                });
+                if (superseded.count === 0)
+                    throw new ActiveSubmissionConflictError(active.id);
+            }
             // Lock all selected Prompt-media identities in a stable order before
             // validating and creating the manifest references. This serializes
             // initialization with retirement and cleanup without introducing a
@@ -368,9 +468,17 @@ export async function initializeManifestSubmission(studentId, idempotencyKey, de
                 }
             }
             if (idempotencyKey) {
-                await tx.submissionStartIntent.create({
-                    data: { idempotencyKey, studentId, submissionId: submission.id },
+                // Re-point a stale intent from a superseded answer-less attempt at the
+                // new Submission so replaying the same key serves the fresh manifest.
+                const rebound = await tx.submissionStartIntent.updateMany({
+                    where: { idempotencyKey, studentId },
+                    data: { submissionId: submission.id },
                 });
+                if (rebound.count === 0) {
+                    await tx.submissionStartIntent.create({
+                        data: { idempotencyKey, studentId, submissionId: submission.id },
+                    });
+                }
             }
             return { submission, manifest };
         });
@@ -461,6 +569,11 @@ export async function resumeManifestSubmission(studentId, dependencies = {}) {
     });
     if (!submission?.manifest)
         throw new AssessmentUnavailableError("No active assessment");
+    // Never resume a stale unfinished attempt whose delivered Questions were
+    // retired or edited; the client must start again against the current bank.
+    if (!(await activeManifestMatchesCurrentBank(submission.id))) {
+        throw new AssessmentUnavailableError("No active assessment");
+    }
     const manifest = {
         id: submission.manifest.id,
         version: submission.manifest.version,

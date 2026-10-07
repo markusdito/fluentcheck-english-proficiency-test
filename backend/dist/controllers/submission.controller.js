@@ -1,5 +1,5 @@
 import { completeSubmission, getStudentDashboard, getSubmissionDetail, getSubmissionStatus, abandonSubmission, InvalidDashboardCursorError, } from "../service/submission.service.js";
-import { ActiveSubmissionConflictError, AssessmentUnavailableError, AssessmentStartIntentClosedError, IdempotencyKeyConflictError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
+import { ActiveSubmissionConflictError, AssessmentUnavailableError, AssessmentStartIntentClosedError, IdempotencyKeyConflictError, SubmissionInReviewError, initializeManifestSubmission, resumeManifestSubmission, } from "../service/manifestSubmissionInitialization.service.js";
 import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
 import { getRequestId } from "../middleware/request-id.middleware.js";
 function sendAssessmentUnavailable(res) {
@@ -19,6 +19,7 @@ export async function startSubmission(req, res) {
     try {
         const userId = req.user.id;
         const submission = await initializeManifestSubmission(userId, req.header("Idempotency-Key") ?? undefined, { requestId: getRequestId(res) });
+        res.setHeader("Cache-Control", "no-store");
         res.status(201).json({
             status: "success",
             data: submission,
@@ -26,6 +27,15 @@ export async function startSubmission(req, res) {
     }
     catch (error) {
         if (error instanceof ActiveSubmissionConflictError) {
+            res.status(409).json({
+                error: error.message,
+                code: error.code,
+                retryable: true,
+                submissionId: error.submissionId,
+            });
+            return;
+        }
+        if (error instanceof SubmissionInReviewError) {
             res.status(409).json({
                 error: error.message,
                 code: error.code,
@@ -77,6 +87,7 @@ export async function resumeActiveSubmission(req, res) {
         const data = await resumeManifestSubmission(req.user.id, {
             requestId: getRequestId(res),
         });
+        res.setHeader("Cache-Control", "no-store");
         res.status(200).json({ status: "success", data });
     }
     catch (error) {

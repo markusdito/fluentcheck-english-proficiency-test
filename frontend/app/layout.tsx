@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Newsreader, Public_Sans, Geist_Mono } from "next/font/google";
+import { Newsreader, Public_Sans, Geist_Mono, Albert_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AssessmentStartProvider } from "@/components/providers/AssessmentStartProvider";
@@ -16,13 +16,19 @@ const publicSans = Public_Sans({
   subsets: ["latin"],
 });
 
+const albertSans = Albert_Sans({
+  variable: "--font-albert-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "FluentCheck — English Proficiency Test",
+  title: "SpeakNusa · English speaking assessment",
   description:
     "Record video responses to expert-crafted prompts and get band scores from a jury of language professionals.",
 };
@@ -35,7 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${publicSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${newsreader.variable} ${publicSans.variable} ${geistMono.variable} ${albertSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <QueryProvider>

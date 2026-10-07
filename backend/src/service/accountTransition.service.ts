@@ -178,7 +178,8 @@ function userResult(
   };
 }
 
-function isContention(error: unknown): boolean {
+/** Serialization/deadlock contention that a fresh transaction attempt can resolve. */
+export function isContention(error: unknown): boolean {
   if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
   if (error.code === "P2034" || error.code === "P2024") return true;
 
