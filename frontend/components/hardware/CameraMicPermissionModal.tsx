@@ -93,7 +93,7 @@ export function CameraMicPermissionModal({
             Camera & Microphone
           </h2>
           <p className="mt-1.5 text-sm leading-6 text-ink-soft">
-            FluentCheck needs access to your webcam and microphone to record your
+            SpeakNusa needs access to your webcam and microphone to record your
             speaking responses. Please grant permissions when prompted.
           </p>
         </div>

@@ -28,11 +28,11 @@ const roleLabels: Record<SessionRole, { label: string; stamp: string }> = {
 
 const stubCopy: Record<SessionRole, string> = {
   STUDENT:
-    "Your candidate number on the FluentCheck record. Quote it in any correspondence with the jury.",
+    "Your candidate number on the SpeakNusa record. Quote it in any correspondence with the jury.",
   EXAMINER:
-    "Your examiner reference on the FluentCheck record. Quote it in any correspondence about your assignments.",
+    "Your examiner reference on the SpeakNusa record. Quote it in any correspondence about your assignments.",
   ADMIN:
-    "Your administrator reference on the FluentCheck record. Shown on audit entries you author.",
+    "Your administrator reference on the SpeakNusa record. Shown on audit entries you author.",
 };
 
 function formatDate(iso: string) {
@@ -164,7 +164,7 @@ export default function ProfilePage() {
           {/* Sheet header strip */}
           <div className="flex items-center justify-between gap-4 border-b border-rule px-5 py-3">
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-              FluentCheck · Speaking assessment
+              SpeakNusa · Speaking assessment
             </p>
             <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
               No. {candidateNumber(user.id)}

@@ -22,18 +22,18 @@ export function Wordmark({
       )}
       aria-hidden="true"
     >
-      F<i className="not-italic">C</i>
+      S<i className="not-italic">N</i>
     </span>
   );
 
   const title = (
     <span
       className={cn(
-        "font-display text-[19px] font-semibold leading-none tracking-tight",
+        "text-[19px] font-normal lowercase leading-none tracking-tight",
         dark ? "text-studio-text" : "text-ink",
       )}
     >
-      FluentCheck
+      <b className="font-bold">speak</b>nusa
     </span>
   );
 
@@ -41,7 +41,7 @@ export function Wordmark({
     <Link
       href={href}
       className={cn("flex items-center gap-2.5", className)}
-      aria-label="FluentCheck — home"
+      aria-label="SpeakNusa — home"
     >
       {mark}
       {iconOnly ? null : title}

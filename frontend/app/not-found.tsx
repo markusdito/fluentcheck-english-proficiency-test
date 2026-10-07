@@ -131,7 +131,7 @@ export default function NotFound() {
       <footer className="border-t border-rule">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-5 sm:px-6">
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">
-            FluentCheck · English proficiency test
+            SpeakNusa · English proficiency test
           </p>
           <p className="hidden text-xs text-ink-soft sm:block">
             Your assessment is still waiting for you.
