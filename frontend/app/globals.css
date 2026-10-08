@@ -411,3 +411,13 @@ input:-webkit-autofill:focus {
     scroll-behavior: auto !important;
   }
 }
+
+/* Same, opted into from Profile & settings (lib/preferences.ts). */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

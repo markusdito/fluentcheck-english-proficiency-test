@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, UserRound } from "lucide-react";
+import { LayoutGrid, LogOut, UserRound } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import {
   DropdownMenu,
@@ -22,7 +22,15 @@ function initials(name: string) {
 const item =
   "min-h-11 gap-3 rounded-[10px] px-3 py-2 text-[15px] font-medium text-sn-fg focus:bg-sn-fg/6 focus:text-sn-fg [&_svg]:size-[18px]!";
 
-export function StudentNav({ name, email, label = "Student" }: { name: string; email: string; label?: string }) {
+interface StudentNavProps {
+  name: string;
+  email: string;
+  label?: string;
+  /** Role home; admins land on /admin. */
+  homeHref?: string;
+}
+
+export function StudentNav({ name, email, label = "Student", homeHref = "/dashboard" }: StudentNavProps) {
   const queryClient = useQueryClient();
   return (
     <header className="sticky top-0 z-10 border-b border-sn-border bg-sn-bg/92 backdrop-blur-md">
@@ -49,9 +57,13 @@ export function StudentNav({ name, email, label = "Student" }: { name: string; e
               <span className="truncate text-[15px] font-semibold">{name}</span>
               <span className="truncate text-[13px] text-sn-muted">{email}</span>
             </div>
+            <DropdownMenuItem className={item} render={<Link href={homeHref} />}>
+              <LayoutGrid strokeWidth={1.6} aria-hidden="true" />
+              {homeHref === "/admin" ? "Admin panel" : "Dashboard"}
+            </DropdownMenuItem>
             <DropdownMenuItem className={item} render={<Link href="/profile" />}>
               <UserRound strokeWidth={1.6} aria-hidden="true" />
-              Profile
+              Profile &amp; settings
             </DropdownMenuItem>
             <DropdownMenuSeparator className="mx-0 my-2 bg-sn-border" />
             <DropdownMenuItem className={item} onClick={() => void signOut(queryClient)}>
