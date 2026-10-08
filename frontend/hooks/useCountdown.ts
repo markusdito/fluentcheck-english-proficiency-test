@@ -12,6 +12,12 @@ interface UseCountdownReturn {
   formatted: string;
 }
 
+const TICK_MS = 250;
+
+/**
+ * Countdown driven by a monotonic deadline (`performance.now()`), so throttled
+ * or delayed interval ticks never stretch the timer (PRD FR-3.6).
+ */
 export function useCountdown(
   initialSeconds: number,
   onComplete?: () => void
@@ -31,20 +37,19 @@ export function useCountdown(
 
   const start = useCallback(() => {
     clearTimer();
+    const deadline = performance.now() + initialSeconds * 1000;
     setSeconds(initialSeconds);
     setIsRunning(true);
     setIsComplete(false);
     hasCompletedRef.current = false;
     intervalRef.current = setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          clearTimer();
-          setIsRunning(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+      const remaining = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
+      setSeconds(remaining);
+      if (remaining === 0) {
+        clearTimer();
+        setIsRunning(false);
+      }
+    }, TICK_MS);
   }, [clearTimer, initialSeconds]);
 
   useEffect(() => {
