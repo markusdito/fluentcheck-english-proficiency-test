@@ -908,3 +908,23 @@ test("unknown assignments remain 404 and another Examiner remains unauthorized",
   assert.equal(unauthorizedSave.status, 403);
   assert.equal((await errorPayload(unauthorizedSave)).code, "UNAUTHORIZED");
 });
+
+test("examiner assignment list exposes the delivered Test Set", async () => {
+  const one = await createExaminer("one");
+  const two = await createExaminer("two");
+  const { submission } = await createScoringSubmission();
+  const [first] = await createAssignmentSet(submission.id, one, two);
+  const manifest = await prisma.submissionManifest.findUniqueOrThrow({
+    where: { submissionId: submission.id },
+  });
+
+  const response = await fetch(`${baseUrl}/api/examiner/assignments`, {
+    headers: { Cookie: examinerCookie(one.id) },
+  });
+  assert.equal(response.status, 200);
+  const body = await response.json() as {
+    data: Array<{ id: string; testSet: { id: string; code: string } | null }>;
+  };
+  const row = body.data.find((assignment) => assignment.id === first.id);
+  assert.deepEqual(row?.testSet, { id: manifest.testSetId, code: manifest.testSetCode });
+});
