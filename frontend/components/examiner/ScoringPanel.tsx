@@ -157,14 +157,9 @@ export function ScoringPanel({
       <div className="flex min-w-0 flex-col gap-7">
         {children}
         <section className={card} aria-labelledby="rubric-title">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 id="rubric-title" className={h3}>
-              Score {partLabel(answer.questionCategory)}
-            </h2>
-            <p className={meta}>
-              Answer {currentIndex + 1} of {answers.length}
-            </p>
-          </div>
+          <h2 id="rubric-title" className={h3}>
+            Score {partLabel(answer.questionCategory)}
+          </h2>
 
           {scoringSystem === "RUBRIC_6" ? (
             <div className="mt-5 grid gap-3.5 sm:grid-cols-2">

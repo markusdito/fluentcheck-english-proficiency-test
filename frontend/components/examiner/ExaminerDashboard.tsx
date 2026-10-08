@@ -87,7 +87,7 @@ export function ExaminerDashboard({ name, email, assignments }: ExaminerDashboar
         </p>
       </div>
 
-      <section aria-label="Queue summary" className="mt-10 grid gap-4 sm:grid-cols-2 min-[921px]:grid-cols-4">
+      <section aria-label="Queue summary" className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Tile tone="navy" icon={<ListTodo strokeWidth={1.5} />} value={count("open") + count("progress")} label="In my queue" />
         <Tile tone="amber" icon={<Clock3 strokeWidth={1.5} />} value={count("progress")} label="Scoring in progress" />
         <Tile tone="green" icon={<CircleCheck strokeWidth={1.5} />} value={count("done")} label="Completed by me" />
