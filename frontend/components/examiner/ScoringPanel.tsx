@@ -10,7 +10,7 @@ import {
   type ScoreSubmissionInput,
   type ScoringSystem,
 } from "@/types/scoring";
-import { card, focusRing, h3, meta, primaryButton, secondaryButton } from "@/components/student/styles";
+import { card, focusRing, h3, primaryButton, secondaryButton } from "@/components/student/styles";
 import { cn } from "@/lib/cn";
 import {
   AlertDialog,
