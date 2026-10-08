@@ -70,7 +70,7 @@ export default function AdminOverviewPage() {
         </p>
       </div>
 
-      <section aria-label="Status counts" className="mt-10 grid gap-4 sm:grid-cols-2 min-[921px]:grid-cols-4">
+      <section aria-label="Status counts" className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Tile label="In progress" value={String(byStatus.IN_PROGRESS ?? 0)} />
         <Tile label="Awaiting payment" value={String(byStatus.AWAITING_PAYMENT ?? 0)} />
         <Tile label="Pending grading" value={String(stats?.pendingGrading ?? 0)} />
