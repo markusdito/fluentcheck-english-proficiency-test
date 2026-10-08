@@ -48,8 +48,8 @@ vi.mock("@/components/layout/AccountMenu", () => ({
 vi.mock("@/components/hardware/CameraMicPermissionModal", () => ({
   CameraMicPermissionModal: () => null,
 }));
-vi.mock("@/components/examiner/AssignmentList", () => ({
-  AssignmentList: () => null,
+vi.mock("@/components/examiner/ExaminerDashboard", () => ({
+  ExaminerDashboard: () => null,
 }));
 vi.mock("@/components/results/ScaleAwareScoreDisplay", () => ({
   ScaleAwareScoreDisplay: () => null,

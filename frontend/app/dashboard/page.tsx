@@ -3,19 +3,18 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { CircleAlertIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   DASHBOARD_PAGE_SIZE,
   fetchDashboardStats,
   type DashboardStats,
 } from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
-import { AssignmentList } from "@/components/examiner/AssignmentList";
+import { ExaminerDashboard } from "@/components/examiner/ExaminerDashboard";
 import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermissionModal";
 import { StudentDashboard } from "@/components/student/StudentDashboard";
-import { Header } from "@/components/layout/Header";
-import { AccountMenu } from "@/components/layout/AccountMenu";
-import { Button } from "@/components/ui/button";
+import { PageState } from "@/components/student/PageShell";
+import { h3, primaryButton } from "@/components/student/styles";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ExaminerAssignmentSummary } from "@/types/examiner";
 import { useSession } from "@/hooks/useSession";
 import { queryKeys } from "@/lib/query-keys";
@@ -75,30 +73,23 @@ export default function DashboardPage() {
     user?.role === "ADMIN"
   ) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
-          <p className="text-sm text-ink-soft">Loading your dashboard…</p>
-        </div>
-      </div>
+      <PageState>
+        <Loader2 className="mx-auto size-8 animate-spin text-sn-muted" role="status" aria-label="Loading" />
+        <p className="mt-4 text-sm text-sn-muted">Loading your dashboard…</p>
+      </PageState>
     );
   }
 
   // Error state
   if (queryError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper p-4">
-        <div className="w-full max-w-sm">
-          <Alert variant="destructive" className="items-start">
-            <CircleAlertIcon />
-            <AlertTitle>Something went wrong</AlertTitle>
-            <AlertDescription>Failed to load your profile. Please try again.</AlertDescription>
-          </Alert>
-          <Button className="mt-4 w-full" size="lg" onClick={() => window.location.reload()}>
-            Try again
-          </Button>
-        </div>
-      </div>
+      <PageState>
+        <h1 className={h3}>Something went wrong</h1>
+        <p className="mt-2 text-[15px] text-sn-muted">Failed to load your dashboard. Please try again.</p>
+        <button type="button" className={`${primaryButton} mt-5 w-full`} onClick={() => window.location.reload()}>
+          Try again
+        </button>
+      </PageState>
     );
   }
 
@@ -179,47 +170,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-paper">
-      {/* Skip link */}
-      <a
-        href="#dashboard-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
-      >
-        Skip to dashboard content
-      </a>
-
-      <Header
-        logoHref="/"
-        actions={
-          <AccountMenu
-            name={user?.name}
-            email={user?.email}
-            isAdmin={false}
-          />
-        }
-      />
-
-      <main id="dashboard-content" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-        <div className="max-w-2xl">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
-            Examiner dashboard
-          </p>
-          <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
-            Review and score submissions
-          </h1>
-          <p className="mt-3 text-[15px] leading-7 text-ink-soft">
-            Welcome back{user?.name ? `, ${user.name}` : ""}. Submissions assigned to
-            you for scoring appear below.
-          </p>
-        </div>
-
-        <section className="mt-10">
-          <p className="mark">Assigned submissions</p>
-          <div className="mt-4">
-            <AssignmentList assignments={examinerAssignments} />
-          </div>
-        </section>
-      </main>
-    </div>
+    <ExaminerDashboard
+      name={user?.name ?? ""}
+      email={user?.email ?? ""}
+      assignments={examinerAssignments}
+    />
   );
 }
