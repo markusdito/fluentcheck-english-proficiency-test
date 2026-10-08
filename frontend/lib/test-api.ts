@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { ApiQuestion, TestQuestionWithAudio } from "@/types/test";
+import type { ApiQuestion, QuestionCategory, TestQuestionWithAudio, TestSetRef } from "@/types/test";
 
 interface QuestionsResponse {
   status: string;
@@ -7,7 +7,7 @@ interface QuestionsResponse {
 }
 
 /**
- * Fetch all active questions with their tasks, grouped or sorted by order.
+ * Fetch all active questions with their tasks.
  * GET /api/questions
  */
 export async function fetchQuestions(): Promise<ApiQuestion[]> {
@@ -39,9 +39,10 @@ export interface InitializedSubmission {
   status: string;
   manifestId: string;
   version: number;
+  testSet: TestSetRef | null;
   entries: Array<{
     id: string;
-    category: "PART_1" | "PART_2" | "PART_3";
+    category: QuestionCategory;
     deliveryPosition: number;
     preparationSeconds: number;
     recordingSeconds: number;

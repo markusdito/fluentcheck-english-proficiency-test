@@ -28,6 +28,7 @@ import { Loader2 } from "lucide-react";
 import { abandonSubmission, completeSubmission } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
 import { initializeTest } from "@/lib/test-initialization";
+import { slotLabel } from "@/lib/assessment-slots";
 import { clearAssessmentStartIntent } from "@/lib/assessment-start-intent";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
@@ -551,7 +552,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               const st = getUploadStatus(uploadStates[q.id]);
               return (
                 <div key={q.id} className="grid grid-cols-[1fr_auto] items-center gap-5 border-t border-sn-border py-5 first:border-t-0 first:pt-0">
-                  <h3 className="text-[17px] font-semibold">Question {i + 1}</h3>
+                  <h3 className="text-[17px] font-semibold">
+                    Question {i + 1} · {slotLabel(q.category)}
+                  </h3>
                   {st === "uploaded" ? (
                     <Pill tone="green">Uploaded</Pill>
                   ) : st === "error" ? (
@@ -615,6 +618,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         <div className="mb-5 flex flex-wrap items-center justify-between gap-5">
           <p id="stage-head" className={meta}>
             Question {currentQuestionIndex + 1} of {totalQuestions}
+            {currentQuestion && <> · {slotLabel(currentQuestion.category)}</>}
           </p>
           <div className="flex items-center gap-2" aria-label="Progress">
             {questions.map((q, i) => {

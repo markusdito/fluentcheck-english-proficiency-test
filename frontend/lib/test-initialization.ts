@@ -4,10 +4,11 @@ import {
   getOrCreateAssessmentStartIntent,
   rotateAssessmentStartIntent,
 } from "@/lib/assessment-start-intent";
-import type { Prompt } from "@/types/test";
+import type { Prompt, TestSetRef } from "@/types/test";
 
 export interface InitializedTest {
   submissionId: string;
+  testSet: TestSetRef | null;
   questions: Prompt[];
   uploadedEntryIds: string[];
 }
@@ -15,9 +16,11 @@ export interface InitializedTest {
 function mapInitializedTest(initialized: Awaited<ReturnType<typeof initializeSubmission>>): InitializedTest {
   return {
     submissionId: initialized.submissionId,
+    testSet: initialized.testSet ?? null,
     uploadedEntryIds: initialized.uploadedEntryIds ?? [],
     questions: initialized.entries.map((entry) => ({
       id: entry.id,
+      category: entry.category,
       audioUrl: entry.promptMediaUrl,
       tasks: entry.tasks.map((task) => task.promptText),
       task: entry.tasks.map((task) => task.promptText).join("\n"),

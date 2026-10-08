@@ -3,13 +3,14 @@ import { Pill } from "./StatusPill";
 import { card, h3, meta, primaryButton } from "./styles";
 
 const parts = [
-  { title: "Part 1 · Interview", body: "Short structured questions about familiar topics." },
-  { title: "Part 2 · Long turn", body: "One cue card. Plan during preparation, then speak at length." },
-  { title: "Part 3 · Discussion", body: "Broader questions that build on the Part 2 topic." },
+  { title: "Part 1 · Personal response", body: "Tasks 1A and 1B: two short answers about familiar topics, 45 seconds each." },
+  { title: "Part 2 · Monologue", body: "One cue card. Plan for a minute, then talk for 90 seconds." },
+  { title: "Part 3 · Decision-making", body: "Choose one of four options and explain why, in 90 seconds." },
+  { title: "Part 4 · Opinion", body: "Give and support your opinion on one question in 60 seconds." },
 ];
 
 const stats = [
-  { fig: "3", cap: "parts in a row" },
+  { fig: "4", cap: "parts in a row" },
   { fig: "2", cap: "examiners score it" },
   { fig: "1", cap: "sitting, start to end" },
 ];

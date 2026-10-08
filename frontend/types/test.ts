@@ -1,3 +1,13 @@
+import type { QuestionCategory } from "@/lib/assessment-slots";
+
+export type { QuestionCategory };
+
+/** The Test Set a Submission was delivered from; null for legacy Submissions. */
+export interface TestSetRef {
+  id: string;
+  code: string;
+}
+
 export interface ApiTask {
   id: string;
   promptText: string;
@@ -8,8 +18,8 @@ export type QuestionAudioStatus = "PENDING" | "UPLOADED" | "FAILED";
 
 export interface ApiQuestion {
   id: string;
-  category: "PART_1" | "PART_2" | "PART_3";
-  order: number;
+  category: QuestionCategory;
+  testSetId: string;
   preparationSeconds: number;
   recordingSeconds: number;
   audioStorageKey: string | null;
@@ -19,8 +29,8 @@ export interface ApiQuestion {
 
 export interface TestQuestionWithAudio {
   id: string;
-  category: "PART_1" | "PART_2" | "PART_3";
-  order: number;
+  category: QuestionCategory;
+  testSetId: string;
   preparationSeconds: number;
   recordingSeconds: number;
   audioUploadStatus: QuestionAudioStatus;
@@ -30,6 +40,7 @@ export interface TestQuestionWithAudio {
 
 export interface Prompt {
   id: string;
+  category: QuestionCategory;
   audioUrl: string | null;
   tasks: string[];
   task: string; // backward-compatible convenience — joined tasks
