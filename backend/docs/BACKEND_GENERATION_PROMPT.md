@@ -440,7 +440,7 @@ POST   /api/examiner/assignments/:id/scores   → Submit scores for all answers
    }
 3. Backend creates Score records (unique per assignmentId+answerId)
 4. Mark assignment as COMPLETED
-5. If both examiners complete → Submission: SCORED
+5. The Submission has exactly one examiner, so completing its assignment → Submission: SCORED
 ```
 
 **Score model constraints:**
@@ -460,12 +460,12 @@ GET    /api/results/:id/certificate → Get certificate PDF download URL
 **Result calculation:**
 ```
 For a SCORED submission:
-1. Fetch all Scores for the submission (from both examiners)
-2. Average per-answer scores: (examiner1Score + examiner2Score) / 2
-3. Calculate overall: average of all per-answer scores
-4. Create Certificate: { submissionId, finalScore, issuedAt: now() }
-5. Update Submission: SCORED → CERTIFIED
-6. Generate PDF certificate → upload to S3/R2 → update certificate.storageKey
+1. Fetch the Score from the submission's single examiner assignment
+2. The final band is the overall band the examiner entered; nothing is averaged
+   across examiners, answers, or criteria
+3. Create Certificate: { submissionId, finalScore, issuedAt: now() }
+4. Update Submission: SCORED → CERTIFIED
+5. Generate PDF certificate → upload to S3/R2 → update certificate.storageKey
 ```
 
 **Result response shape:**
@@ -592,18 +592,21 @@ User (STUDENT/EXAMINER/ADMIN)
  ├──→ ExaminerAssignment (1:N) — examiner grades many submissions
  └──→ Question (1:N, createdBy) — admin creates questions
 
-Question (PART_1/PART_2/PART_3)
+TestSet (A–F) — one Question per delivery slot
+ └──→ Question (1:N)
+
+Question (PART_1A/PART_1B/PART_2/PART_3/PART_4)
  ├──→ Task (1:N) — sub-prompts within the question
  └──→ Answer (1:N) — video responses from different students
 
 Submission (IN_PROGRESS → AWAITING_PAYMENT → PAID → SCORING → SCORED → CERTIFIED)
  ├──→ Answer (1:N) — one video per question
  ├──→ Payment (1:N) — payment attempts
- ├──→ ExaminerAssignment (1:N, exactly 2) — two examiners per submission
+ ├──→ ExaminerAssignment (exactly 1 active) — one examiner per submission
  └──→ Certificate (1:1) — final certificate
 
 Answer
- ├──→ Score (1:N) — scored by both examiners
+ ├──→ Score — scored by the submission's single examiner
  └── belongs to Submission + Question
 
 ExaminerAssignment (ASSIGNED → IN_PROGRESS → COMPLETED)

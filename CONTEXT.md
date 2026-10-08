@@ -185,23 +185,19 @@ A person authorized to independently score a Submission.
 _Avoid_: Jury, reviewer, marker
 
 **Assignment-capable account**:
-An active account authorized to work on an existing Examiner assignment. An `EXAMINER` and an `ADMIN` may be assignment-capable, but only an active `EXAMINER` is an Eligible examiner for a new Examiner assignment set.
+An active account authorized to work on an existing Examiner assignment. An `EXAMINER` and an `ADMIN` may be assignment-capable, but only an active `EXAMINER` is an Eligible examiner for a new Examiner assignment.
 _Avoid_: Eligible examiner when referring to existing assignment access
 
 **Eligible examiner**:
-An Examiner whose account is active and authorized when a new Examiner assignment set is committed.
+An Examiner whose account is active and authorized when a new Examiner assignment is committed.
 _Avoid_: Available examiner
 
 **Examiner assignment**:
-An obligation for one Examiner to independently score one Submission.
-_Avoid_: Review, grading task
-
-**Examiner assignment set**:
-Exactly two distinct Examiner assignments committed together for one Assignment-ready submission; neither Examiner has rank or priority.
-_Avoid_: Examiner pair, jury
+An obligation for one Examiner to score one Submission. Each Submission has exactly one active Examiner assignment, and its single Score is final: nothing is averaged across Examiners.
+_Avoid_: Review, grading task, Examiner assignment set, Examiner pair, jury
 
 **Assignment-ready submission**:
-A completed Submission whose payment requirement is satisfied or waived and which has not received an Examiner assignment set.
+A completed Submission whose payment requirement is satisfied or waived and which has not received an Examiner assignment.
 _Avoid_: Paid submission, unassigned submission
 
 **Payment reconciliation**:
@@ -217,7 +213,7 @@ An Examiner assignment in `ASSIGNED` or `IN_PROGRESS` status that is not yet a C
 _Avoid_: Pending grading, incomplete assignment
 
 **Examiner assignment reassignment**:
-An authorized transfer of an `ASSIGNED` Examiner assignment to another Eligible examiner while preserving its assignment identity and slot. Each transfer is recorded in immutable reassignment history.
+An authorized transfer of an `ASSIGNED` Examiner assignment to another Eligible examiner while preserving its assignment identity. Each transfer is recorded in immutable reassignment history.
 _Avoid_: Assignment replacement
 
 **Capability-removing transition**:
@@ -233,7 +229,7 @@ An immutable record of one Examiner assignment transfer, including the departing
 _Avoid_: Assignment audit note
 
 **Scoring finalization**:
-The authoritative domain operation that commits one Completed Examiner assignment and derives the owning Submission's scoring status from its complete Examiner assignment set.
+The authoritative domain operation that commits the Submission's Completed Examiner assignment and moves the Submission to `SCORED`.
 _Avoid_: score submission, grading completion
 
 **Score draft**:
