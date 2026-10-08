@@ -9,7 +9,7 @@ import { api, ApiError } from "@/lib/api";
 import { AuthField } from "@/components/auth/AuthField";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { GoogleAuthError } from "@/components/auth/GoogleAuthError";
-import { errorSummary, primaryButton, signInFormFill, textLink } from "@/components/auth/styles";
+import { errorSummary, primaryButton, signInButtonSpace, textLink } from "@/components/auth/styles";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { SessionUser } from "@/types/auth";
@@ -84,7 +84,7 @@ export function LoginForm() {
       <GoogleAuthError />
       <GoogleAuthButton returnTo="login" dividerLabel="or sign in with email" />
 
-      <form onSubmit={handleSubmit} noValidate aria-label="Login form" className={`gap-[18px] ${signInFormFill}`}>
+      <form onSubmit={handleSubmit} noValidate aria-label="Login form" className="grid gap-[18px]">
         {error && (
           <p role="alert" className={errorSummary}>
             {error}
@@ -138,7 +138,7 @@ export function LoginForm() {
           </Link>
         </div>
 
-        <div className="mt-auto">
+        <div className={signInButtonSpace}>
           <button type="submit" disabled={loading} aria-busy={loading || undefined} className={primaryButton}>
             {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
             <span>{loading ? "Signing in…" : "Sign in"}</span>

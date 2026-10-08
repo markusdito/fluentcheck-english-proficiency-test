@@ -14,6 +14,8 @@ export const primaryButton = `mt-1.5 inline-flex min-h-13 w-full items-center ju
 
 export const textLink = `inline-flex min-h-11 items-center px-0.5 text-sm font-semibold text-sn-fg underline decoration-sn-fg/30 underline-offset-3 transition-[text-decoration-color] duration-200 ease-standard hover:decoration-sn-fg ${focusRing}`;
 
-// Sign-in form fills the resting height of the sign-up form: fields stay packed under the title,
-// the submit button sits on the same line as sign-up's. ponytail: fixed px, update if sign-up fields change.
-export const signInFormFill = "flex min-h-[500px] flex-col";
+// Sign-up's form is 192px taller than sign-in's. Splitting that 192px (90 + 102, offsetting the switch margin) above the title and above the
+// submit button centres sign-in's content block while the switch and button stay on sign-up's lines,
+// so the sliding switch is smooth. ponytail: fixed px, update if sign-up fields change.
+export const signInTopSpace = "pt-[90px]";
+export const signInButtonSpace = "mt-[102px]";
