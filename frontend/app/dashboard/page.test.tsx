@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   fetchDashboardStats: vi.fn(),
   fetchExaminerAssignments: vi.fn(),
+  permissionModalOpen: false,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -46,7 +47,10 @@ vi.mock("@/components/layout/AccountMenu", () => ({
   AccountMenu: () => null,
 }));
 vi.mock("@/components/hardware/CameraMicPermissionModal", () => ({
-  CameraMicPermissionModal: () => null,
+  CameraMicPermissionModal: ({ open }: { open: boolean }) => {
+    mocks.permissionModalOpen = open;
+    return null;
+  },
 }));
 vi.mock("@/components/examiner/ExaminerDashboard", () => ({
   ExaminerDashboard: () => null,
@@ -151,6 +155,31 @@ describe("Dashboard request gating", () => {
       expect(mocks.fetchDashboardStats).toHaveBeenCalledTimes(3),
     );
     expect(mocks.fetchDashboardStats.mock.calls[2][0]).toEqual({ limit: 10 });
+  });
+
+  it("starts a new assessment while earlier submissions are in payment or scoring", async () => {
+    mocks.user = { ...baseUser, role: "STUDENT" };
+    mocks.permissionModalOpen = false;
+    mocks.fetchDashboardStats.mockReset().mockResolvedValue({
+      totalTests: 3,
+      bestScore: null,
+      submissions: ["AWAITING_PAYMENT", "PAID", "SCORING"].map((status, i) => ({
+        id: `submission-${i}`,
+        status,
+        score: null,
+        scoringSystem: "RUBRIC_6",
+        createdAt: `2026-01-0${i + 1}T00:00:00.000Z`,
+      })),
+      pagination: { limit: 10, hasMore: false, nextCursor: null },
+    });
+
+    renderDashboard();
+    const start = await screen.findByRole("button", { name: "Start speaking test" });
+    expect(start).toBeEnabled();
+    fireEvent.click(start);
+
+    await waitFor(() => expect(mocks.permissionModalOpen).toBe(true));
+    expect(screen.queryByText(/still being reviewed/i)).toBeNull();
   });
 
   it("requests only assignment data for examiners", async () => {
