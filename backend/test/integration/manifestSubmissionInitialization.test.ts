@@ -18,7 +18,6 @@ let resumeManifestSubmission: typeof import("../../src/service/manifestSubmissio
 let AssessmentUnavailableError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").AssessmentUnavailableError;
 let IdempotencyKeyConflictError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").IdempotencyKeyConflictError;
 let ActiveSubmissionConflictError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").ActiveSubmissionConflictError;
-let SubmissionInReviewError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").SubmissionInReviewError;
 let AssessmentStartIntentClosedError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").AssessmentStartIntentClosedError;
 let app: Express;
 let server: Server;
@@ -55,7 +54,6 @@ before(async () => {
     AssessmentUnavailableError,
     IdempotencyKeyConflictError,
     ActiveSubmissionConflictError,
-    SubmissionInReviewError,
     AssessmentStartIntentClosedError,
   } = await import("../../src/service/manifestSubmissionInitialization.service.js"));
   const { createApp } = await import("../../src/server.js");
@@ -494,7 +492,7 @@ test("a closed idempotency key cannot replay an abandoned Submission", async () 
   assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 2);
 });
 
-test("blocks a new start while a previous Submission is in the review pipeline", async () => {
+test("allows a new start while earlier Submissions are in payment or scoring", async () => {
   const student = await createStudent();
   const order = nextSharedOrder();
   for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
@@ -517,33 +515,31 @@ test("blocks a new start while a previous Submission is in the review pipeline",
     signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
   });
 
+  const ids = [first.submissionId];
   for (const status of ["AWAITING_PAYMENT", "PAID", "SCORING"] as const) {
     await prisma.submission.update({
-      where: { id: first.submissionId },
+      where: { id: ids[ids.length - 1] },
       data: { status },
     });
-    await assert.rejects(
-      initializeManifestSubmission(student.id, `review-key-${status}`, {
-        chooseIndex: () => 0,
-        signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
-      }),
-      (error: unknown) =>
-        error instanceof SubmissionInReviewError &&
-        error.code === "SUBMISSION_IN_REVIEW" &&
-        typeof error.submissionId === "string",
-    );
+    const next = await initializeManifestSubmission(student.id, `retake-key-${status}`, {
+      chooseIndex: () => 0,
+      signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    });
+    assert.ok(!ids.includes(next.submissionId));
+    ids.push(next.submissionId);
   }
 
-  // Once scored, the student may start again.
-  await prisma.submission.update({
-    where: { id: first.submissionId },
-    data: { status: "SCORED" },
-  });
-  const second = await initializeManifestSubmission(student.id, "pipeline-after-scored", {
-    chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
-  });
-  assert.notEqual(second.submissionId, first.submissionId);
+  // The latest start is IN_PROGRESS: another intent resumes it, never duplicates it.
+  await assert.rejects(
+    initializeManifestSubmission(student.id, "retake-while-active", {
+      chooseIndex: () => 0,
+      signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    }),
+    (error: unknown) =>
+      error instanceof ActiveSubmissionConflictError &&
+      error.submissionId === ids[ids.length - 1],
+  );
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 4);
 });
 
 test("rejects reuse of an idempotency key by another student", async () => {

@@ -172,8 +172,8 @@ The authenticated AssessmentStartProvider owns one Capture stream and the
 current student's Assessment start intent across the dashboard permission UI
 and the test route. Clicking "Start your assessment" is the explicit user
 action that consents to capture: the dashboard requests camera and microphone
-access automatically (blocking the start with a notice when a Review-pipeline
-submission exists in the student's history), and the test route re-requests
+access automatically (earlier Submissions still in payment or scoring never
+block a new start), and the test route re-requests
 automatically at its media gate without a separate enable button.
 test-initialization.ts stores a `{studentId, key}` intent in per-tab
 sessionStorage, sends the key as
