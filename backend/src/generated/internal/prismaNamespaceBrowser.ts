@@ -53,6 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   GoogleOAuthState: 'GoogleOAuthState',
+  TestSet: 'TestSet',
   Question: 'Question',
   Task: 'Task',
   Submission: 'Submission',
@@ -119,10 +120,20 @@ export const GoogleOAuthStateScalarFieldEnum = {
 export type GoogleOAuthStateScalarFieldEnum = (typeof GoogleOAuthStateScalarFieldEnum)[keyof typeof GoogleOAuthStateScalarFieldEnum]
 
 
+export const TestSetScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TestSetScalarFieldEnum = (typeof TestSetScalarFieldEnum)[keyof typeof TestSetScalarFieldEnum]
+
+
 export const QuestionScalarFieldEnum = {
   id: 'id',
   category: 'category',
-  order: 'order',
+  testSetId: 'testSetId',
   preparationSeconds: 'preparationSeconds',
   recordingSeconds: 'recordingSeconds',
   createdById: 'createdById',
@@ -292,6 +303,8 @@ export const SubmissionManifestScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
   version: 'version',
+  testSetId: 'testSetId',
+  testSetCode: 'testSetCode',
   createdAt: 'createdAt'
 } as const
 

@@ -4,6 +4,21 @@ export interface SubmissionManifestIdentity {
   version: number;
 }
 
+/** The Test Set a version 2 manifest was delivered from, as snapshotted. */
+export interface DeliveredTestSet {
+  id: string;
+  code: string;
+}
+
+/** Legacy (version 1) manifests and Legacy Submissions have no Test Set. */
+export function deliveredTestSet(
+  manifest: { testSetId: string | null; testSetCode: string | null } | null | undefined,
+): DeliveredTestSet | null {
+  return manifest?.testSetId && manifest.testSetCode
+    ? { id: manifest.testSetId, code: manifest.testSetCode }
+    : null;
+}
+
 export type SubmissionEvidence =
   | { kind: "LEGACY" }
   | { kind: "MANIFEST"; manifest: SubmissionManifestIdentity };

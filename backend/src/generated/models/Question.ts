@@ -27,14 +27,12 @@ export type AggregateQuestion = {
 }
 
 export type QuestionAvgAggregateOutputType = {
-  order: number | null
   preparationSeconds: number | null
   recordingSeconds: number | null
   audioSizeBytes: number | null
 }
 
 export type QuestionSumAggregateOutputType = {
-  order: number | null
   preparationSeconds: number | null
   recordingSeconds: number | null
   audioSizeBytes: number | null
@@ -43,7 +41,7 @@ export type QuestionSumAggregateOutputType = {
 export type QuestionMinAggregateOutputType = {
   id: string | null
   category: $Enums.QuestionCategory | null
-  order: number | null
+  testSetId: string | null
   preparationSeconds: number | null
   recordingSeconds: number | null
   createdById: string | null
@@ -59,7 +57,7 @@ export type QuestionMinAggregateOutputType = {
 export type QuestionMaxAggregateOutputType = {
   id: string | null
   category: $Enums.QuestionCategory | null
-  order: number | null
+  testSetId: string | null
   preparationSeconds: number | null
   recordingSeconds: number | null
   createdById: string | null
@@ -75,7 +73,7 @@ export type QuestionMaxAggregateOutputType = {
 export type QuestionCountAggregateOutputType = {
   id: number
   category: number
-  order: number
+  testSetId: number
   preparationSeconds: number
   recordingSeconds: number
   createdById: number
@@ -91,14 +89,12 @@ export type QuestionCountAggregateOutputType = {
 
 
 export type QuestionAvgAggregateInputType = {
-  order?: true
   preparationSeconds?: true
   recordingSeconds?: true
   audioSizeBytes?: true
 }
 
 export type QuestionSumAggregateInputType = {
-  order?: true
   preparationSeconds?: true
   recordingSeconds?: true
   audioSizeBytes?: true
@@ -107,7 +103,7 @@ export type QuestionSumAggregateInputType = {
 export type QuestionMinAggregateInputType = {
   id?: true
   category?: true
-  order?: true
+  testSetId?: true
   preparationSeconds?: true
   recordingSeconds?: true
   createdById?: true
@@ -123,7 +119,7 @@ export type QuestionMinAggregateInputType = {
 export type QuestionMaxAggregateInputType = {
   id?: true
   category?: true
-  order?: true
+  testSetId?: true
   preparationSeconds?: true
   recordingSeconds?: true
   createdById?: true
@@ -139,7 +135,7 @@ export type QuestionMaxAggregateInputType = {
 export type QuestionCountAggregateInputType = {
   id?: true
   category?: true
-  order?: true
+  testSetId?: true
   preparationSeconds?: true
   recordingSeconds?: true
   createdById?: true
@@ -242,7 +238,7 @@ export type QuestionGroupByArgs<ExtArgs extends runtime.Types.Extensions.Interna
 export type QuestionGroupByOutputType = {
   id: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds: number
   recordingSeconds: number
   createdById: string | null
@@ -281,7 +277,7 @@ export type QuestionWhereInput = {
   NOT?: Prisma.QuestionWhereInput | Prisma.QuestionWhereInput[]
   id?: Prisma.UuidFilter<"Question"> | string
   category?: Prisma.EnumQuestionCategoryFilter<"Question"> | $Enums.QuestionCategory
-  order?: Prisma.IntFilter<"Question"> | number
+  testSetId?: Prisma.UuidFilter<"Question"> | string
   preparationSeconds?: Prisma.IntFilter<"Question"> | number
   recordingSeconds?: Prisma.IntFilter<"Question"> | number
   createdById?: Prisma.UuidNullableFilter<"Question"> | string | null
@@ -292,6 +288,7 @@ export type QuestionWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Question"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Question"> | Date | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Question"> | Date | string | null
+  testSet?: Prisma.XOR<Prisma.TestSetScalarRelationFilter, Prisma.TestSetWhereInput>
   createdBy?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   tasks?: Prisma.TaskListRelationFilter
   answers?: Prisma.AnswerListRelationFilter
@@ -302,7 +299,7 @@ export type QuestionWhereInput = {
 export type QuestionOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
-  order?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
   createdById?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -313,6 +310,7 @@ export type QuestionOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  testSet?: Prisma.TestSetOrderByWithRelationInput
   createdBy?: Prisma.UserOrderByWithRelationInput
   tasks?: Prisma.TaskOrderByRelationAggregateInput
   answers?: Prisma.AnswerOrderByRelationAggregateInput
@@ -322,12 +320,12 @@ export type QuestionOrderByWithRelationInput = {
 
 export type QuestionWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  category_order?: Prisma.QuestionCategoryOrderCompoundUniqueInput
+  testSetId_category?: Prisma.QuestionTestSetIdCategoryCompoundUniqueInput
   AND?: Prisma.QuestionWhereInput | Prisma.QuestionWhereInput[]
   OR?: Prisma.QuestionWhereInput[]
   NOT?: Prisma.QuestionWhereInput | Prisma.QuestionWhereInput[]
   category?: Prisma.EnumQuestionCategoryFilter<"Question"> | $Enums.QuestionCategory
-  order?: Prisma.IntFilter<"Question"> | number
+  testSetId?: Prisma.UuidFilter<"Question"> | string
   preparationSeconds?: Prisma.IntFilter<"Question"> | number
   recordingSeconds?: Prisma.IntFilter<"Question"> | number
   createdById?: Prisma.UuidNullableFilter<"Question"> | string | null
@@ -338,17 +336,18 @@ export type QuestionWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Question"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Question"> | Date | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Question"> | Date | string | null
+  testSet?: Prisma.XOR<Prisma.TestSetScalarRelationFilter, Prisma.TestSetWhereInput>
   createdBy?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   tasks?: Prisma.TaskListRelationFilter
   answers?: Prisma.AnswerListRelationFilter
   manifestEntries?: Prisma.ManifestEntryListRelationFilter
   promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectListRelationFilter
-}, "id" | "category_order">
+}, "id" | "testSetId_category">
 
 export type QuestionOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
-  order?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
   createdById?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -372,7 +371,7 @@ export type QuestionScalarWhereWithAggregatesInput = {
   NOT?: Prisma.QuestionScalarWhereWithAggregatesInput | Prisma.QuestionScalarWhereWithAggregatesInput[]
   id?: Prisma.UuidWithAggregatesFilter<"Question"> | string
   category?: Prisma.EnumQuestionCategoryWithAggregatesFilter<"Question"> | $Enums.QuestionCategory
-  order?: Prisma.IntWithAggregatesFilter<"Question"> | number
+  testSetId?: Prisma.UuidWithAggregatesFilter<"Question"> | string
   preparationSeconds?: Prisma.IntWithAggregatesFilter<"Question"> | number
   recordingSeconds?: Prisma.IntWithAggregatesFilter<"Question"> | number
   createdById?: Prisma.UuidNullableWithAggregatesFilter<"Question"> | string | null
@@ -388,7 +387,6 @@ export type QuestionScalarWhereWithAggregatesInput = {
 export type QuestionCreateInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
   preparationSeconds?: number
   recordingSeconds?: number
   audioStorageKey?: string | null
@@ -398,6 +396,7 @@ export type QuestionCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  testSet: Prisma.TestSetCreateNestedOneWithoutQuestionsInput
   createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
@@ -408,7 +407,7 @@ export type QuestionCreateInput = {
 export type QuestionUncheckedCreateInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
   createdById?: string | null
@@ -428,7 +427,6 @@ export type QuestionUncheckedCreateInput = {
 export type QuestionUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -438,6 +436,7 @@ export type QuestionUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  testSet?: Prisma.TestSetUpdateOneRequiredWithoutQuestionsNestedInput
   createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
@@ -448,7 +447,7 @@ export type QuestionUpdateInput = {
 export type QuestionUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -468,7 +467,7 @@ export type QuestionUncheckedUpdateInput = {
 export type QuestionCreateManyInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
   createdById?: string | null
@@ -484,7 +483,6 @@ export type QuestionCreateManyInput = {
 export type QuestionUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -499,7 +497,7 @@ export type QuestionUpdateManyMutationInput = {
 export type QuestionUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -522,15 +520,15 @@ export type QuestionOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type QuestionCategoryOrderCompoundUniqueInput = {
+export type QuestionTestSetIdCategoryCompoundUniqueInput = {
+  testSetId: string
   category: $Enums.QuestionCategory
-  order: number
 }
 
 export type QuestionCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
-  order?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
@@ -544,7 +542,6 @@ export type QuestionCountOrderByAggregateInput = {
 }
 
 export type QuestionAvgOrderByAggregateInput = {
-  order?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
   audioSizeBytes?: Prisma.SortOrder
@@ -553,7 +550,7 @@ export type QuestionAvgOrderByAggregateInput = {
 export type QuestionMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
-  order?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
@@ -569,7 +566,7 @@ export type QuestionMaxOrderByAggregateInput = {
 export type QuestionMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   category?: Prisma.SortOrder
-  order?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
@@ -583,7 +580,6 @@ export type QuestionMinOrderByAggregateInput = {
 }
 
 export type QuestionSumOrderByAggregateInput = {
-  order?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
   audioSizeBytes?: Prisma.SortOrder
@@ -638,6 +634,48 @@ export type QuestionUncheckedUpdateManyWithoutCreatedByNestedInput = {
   connect?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
   update?: Prisma.QuestionUpdateWithWhereUniqueWithoutCreatedByInput | Prisma.QuestionUpdateWithWhereUniqueWithoutCreatedByInput[]
   updateMany?: Prisma.QuestionUpdateManyWithWhereWithoutCreatedByInput | Prisma.QuestionUpdateManyWithWhereWithoutCreatedByInput[]
+  deleteMany?: Prisma.QuestionScalarWhereInput | Prisma.QuestionScalarWhereInput[]
+}
+
+export type QuestionCreateNestedManyWithoutTestSetInput = {
+  create?: Prisma.XOR<Prisma.QuestionCreateWithoutTestSetInput, Prisma.QuestionUncheckedCreateWithoutTestSetInput> | Prisma.QuestionCreateWithoutTestSetInput[] | Prisma.QuestionUncheckedCreateWithoutTestSetInput[]
+  connectOrCreate?: Prisma.QuestionCreateOrConnectWithoutTestSetInput | Prisma.QuestionCreateOrConnectWithoutTestSetInput[]
+  createMany?: Prisma.QuestionCreateManyTestSetInputEnvelope
+  connect?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+}
+
+export type QuestionUncheckedCreateNestedManyWithoutTestSetInput = {
+  create?: Prisma.XOR<Prisma.QuestionCreateWithoutTestSetInput, Prisma.QuestionUncheckedCreateWithoutTestSetInput> | Prisma.QuestionCreateWithoutTestSetInput[] | Prisma.QuestionUncheckedCreateWithoutTestSetInput[]
+  connectOrCreate?: Prisma.QuestionCreateOrConnectWithoutTestSetInput | Prisma.QuestionCreateOrConnectWithoutTestSetInput[]
+  createMany?: Prisma.QuestionCreateManyTestSetInputEnvelope
+  connect?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+}
+
+export type QuestionUpdateManyWithoutTestSetNestedInput = {
+  create?: Prisma.XOR<Prisma.QuestionCreateWithoutTestSetInput, Prisma.QuestionUncheckedCreateWithoutTestSetInput> | Prisma.QuestionCreateWithoutTestSetInput[] | Prisma.QuestionUncheckedCreateWithoutTestSetInput[]
+  connectOrCreate?: Prisma.QuestionCreateOrConnectWithoutTestSetInput | Prisma.QuestionCreateOrConnectWithoutTestSetInput[]
+  upsert?: Prisma.QuestionUpsertWithWhereUniqueWithoutTestSetInput | Prisma.QuestionUpsertWithWhereUniqueWithoutTestSetInput[]
+  createMany?: Prisma.QuestionCreateManyTestSetInputEnvelope
+  set?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+  disconnect?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+  delete?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+  connect?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+  update?: Prisma.QuestionUpdateWithWhereUniqueWithoutTestSetInput | Prisma.QuestionUpdateWithWhereUniqueWithoutTestSetInput[]
+  updateMany?: Prisma.QuestionUpdateManyWithWhereWithoutTestSetInput | Prisma.QuestionUpdateManyWithWhereWithoutTestSetInput[]
+  deleteMany?: Prisma.QuestionScalarWhereInput | Prisma.QuestionScalarWhereInput[]
+}
+
+export type QuestionUncheckedUpdateManyWithoutTestSetNestedInput = {
+  create?: Prisma.XOR<Prisma.QuestionCreateWithoutTestSetInput, Prisma.QuestionUncheckedCreateWithoutTestSetInput> | Prisma.QuestionCreateWithoutTestSetInput[] | Prisma.QuestionUncheckedCreateWithoutTestSetInput[]
+  connectOrCreate?: Prisma.QuestionCreateOrConnectWithoutTestSetInput | Prisma.QuestionCreateOrConnectWithoutTestSetInput[]
+  upsert?: Prisma.QuestionUpsertWithWhereUniqueWithoutTestSetInput | Prisma.QuestionUpsertWithWhereUniqueWithoutTestSetInput[]
+  createMany?: Prisma.QuestionCreateManyTestSetInputEnvelope
+  set?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+  disconnect?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+  delete?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+  connect?: Prisma.QuestionWhereUniqueInput | Prisma.QuestionWhereUniqueInput[]
+  update?: Prisma.QuestionUpdateWithWhereUniqueWithoutTestSetInput | Prisma.QuestionUpdateWithWhereUniqueWithoutTestSetInput[]
+  updateMany?: Prisma.QuestionUpdateManyWithWhereWithoutTestSetInput | Prisma.QuestionUpdateManyWithWhereWithoutTestSetInput[]
   deleteMany?: Prisma.QuestionScalarWhereInput | Prisma.QuestionScalarWhereInput[]
 }
 
@@ -726,7 +764,6 @@ export type QuestionUpdateOneWithoutAnswersNestedInput = {
 export type QuestionCreateWithoutCreatedByInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
   preparationSeconds?: number
   recordingSeconds?: number
   audioStorageKey?: string | null
@@ -736,6 +773,7 @@ export type QuestionCreateWithoutCreatedByInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  testSet: Prisma.TestSetCreateNestedOneWithoutQuestionsInput
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
@@ -745,7 +783,7 @@ export type QuestionCreateWithoutCreatedByInput = {
 export type QuestionUncheckedCreateWithoutCreatedByInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
   audioStorageKey?: string | null
@@ -793,7 +831,7 @@ export type QuestionScalarWhereInput = {
   NOT?: Prisma.QuestionScalarWhereInput | Prisma.QuestionScalarWhereInput[]
   id?: Prisma.UuidFilter<"Question"> | string
   category?: Prisma.EnumQuestionCategoryFilter<"Question"> | $Enums.QuestionCategory
-  order?: Prisma.IntFilter<"Question"> | number
+  testSetId?: Prisma.UuidFilter<"Question"> | string
   preparationSeconds?: Prisma.IntFilter<"Question"> | number
   recordingSeconds?: Prisma.IntFilter<"Question"> | number
   createdById?: Prisma.UuidNullableFilter<"Question"> | string | null
@@ -806,10 +844,9 @@ export type QuestionScalarWhereInput = {
   deletedAt?: Prisma.DateTimeNullableFilter<"Question"> | Date | string | null
 }
 
-export type QuestionCreateWithoutTasksInput = {
+export type QuestionCreateWithoutTestSetInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
   preparationSeconds?: number
   recordingSeconds?: number
   audioStorageKey?: string | null
@@ -820,6 +857,71 @@ export type QuestionCreateWithoutTasksInput = {
   updatedAt?: Date | string
   deletedAt?: Date | string | null
   createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
+  tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
+  manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectCreateNestedManyWithoutSourceQuestionInput
+}
+
+export type QuestionUncheckedCreateWithoutTestSetInput = {
+  id?: string
+  category: $Enums.QuestionCategory
+  preparationSeconds?: number
+  recordingSeconds?: number
+  createdById?: string | null
+  audioStorageKey?: string | null
+  audioMimeType?: string | null
+  audioSizeBytes?: number | null
+  audioUploadStatus?: $Enums.UploadStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  tasks?: Prisma.TaskUncheckedCreateNestedManyWithoutQuestionInput
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutQuestionInput
+  manifestEntries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutSourceQuestionInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedCreateNestedManyWithoutSourceQuestionInput
+}
+
+export type QuestionCreateOrConnectWithoutTestSetInput = {
+  where: Prisma.QuestionWhereUniqueInput
+  create: Prisma.XOR<Prisma.QuestionCreateWithoutTestSetInput, Prisma.QuestionUncheckedCreateWithoutTestSetInput>
+}
+
+export type QuestionCreateManyTestSetInputEnvelope = {
+  data: Prisma.QuestionCreateManyTestSetInput | Prisma.QuestionCreateManyTestSetInput[]
+  skipDuplicates?: boolean
+}
+
+export type QuestionUpsertWithWhereUniqueWithoutTestSetInput = {
+  where: Prisma.QuestionWhereUniqueInput
+  update: Prisma.XOR<Prisma.QuestionUpdateWithoutTestSetInput, Prisma.QuestionUncheckedUpdateWithoutTestSetInput>
+  create: Prisma.XOR<Prisma.QuestionCreateWithoutTestSetInput, Prisma.QuestionUncheckedCreateWithoutTestSetInput>
+}
+
+export type QuestionUpdateWithWhereUniqueWithoutTestSetInput = {
+  where: Prisma.QuestionWhereUniqueInput
+  data: Prisma.XOR<Prisma.QuestionUpdateWithoutTestSetInput, Prisma.QuestionUncheckedUpdateWithoutTestSetInput>
+}
+
+export type QuestionUpdateManyWithWhereWithoutTestSetInput = {
+  where: Prisma.QuestionScalarWhereInput
+  data: Prisma.XOR<Prisma.QuestionUpdateManyMutationInput, Prisma.QuestionUncheckedUpdateManyWithoutTestSetInput>
+}
+
+export type QuestionCreateWithoutTasksInput = {
+  id?: string
+  category: $Enums.QuestionCategory
+  preparationSeconds?: number
+  recordingSeconds?: number
+  audioStorageKey?: string | null
+  audioMimeType?: string | null
+  audioSizeBytes?: number | null
+  audioUploadStatus?: $Enums.UploadStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  testSet: Prisma.TestSetCreateNestedOneWithoutQuestionsInput
+  createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
   promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectCreateNestedManyWithoutSourceQuestionInput
@@ -828,7 +930,7 @@ export type QuestionCreateWithoutTasksInput = {
 export type QuestionUncheckedCreateWithoutTasksInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
   createdById?: string | null
@@ -863,7 +965,6 @@ export type QuestionUpdateToOneWithWhereWithoutTasksInput = {
 export type QuestionUpdateWithoutTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -873,6 +974,7 @@ export type QuestionUpdateWithoutTasksInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  testSet?: Prisma.TestSetUpdateOneRequiredWithoutQuestionsNestedInput
   createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
@@ -882,7 +984,7 @@ export type QuestionUpdateWithoutTasksInput = {
 export type QuestionUncheckedUpdateWithoutTasksInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -901,7 +1003,6 @@ export type QuestionUncheckedUpdateWithoutTasksInput = {
 export type QuestionCreateWithoutPromptMediaCleanupObjectsInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
   preparationSeconds?: number
   recordingSeconds?: number
   audioStorageKey?: string | null
@@ -911,6 +1012,7 @@ export type QuestionCreateWithoutPromptMediaCleanupObjectsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  testSet: Prisma.TestSetCreateNestedOneWithoutQuestionsInput
   createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
@@ -920,7 +1022,7 @@ export type QuestionCreateWithoutPromptMediaCleanupObjectsInput = {
 export type QuestionUncheckedCreateWithoutPromptMediaCleanupObjectsInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
   createdById?: string | null
@@ -955,7 +1057,6 @@ export type QuestionUpdateToOneWithWhereWithoutPromptMediaCleanupObjectsInput = 
 export type QuestionUpdateWithoutPromptMediaCleanupObjectsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -965,6 +1066,7 @@ export type QuestionUpdateWithoutPromptMediaCleanupObjectsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  testSet?: Prisma.TestSetUpdateOneRequiredWithoutQuestionsNestedInput
   createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
@@ -974,7 +1076,7 @@ export type QuestionUpdateWithoutPromptMediaCleanupObjectsInput = {
 export type QuestionUncheckedUpdateWithoutPromptMediaCleanupObjectsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -993,7 +1095,6 @@ export type QuestionUncheckedUpdateWithoutPromptMediaCleanupObjectsInput = {
 export type QuestionCreateWithoutManifestEntriesInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
   preparationSeconds?: number
   recordingSeconds?: number
   audioStorageKey?: string | null
@@ -1003,6 +1104,7 @@ export type QuestionCreateWithoutManifestEntriesInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  testSet: Prisma.TestSetCreateNestedOneWithoutQuestionsInput
   createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutQuestionInput
@@ -1012,7 +1114,7 @@ export type QuestionCreateWithoutManifestEntriesInput = {
 export type QuestionUncheckedCreateWithoutManifestEntriesInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
   createdById?: string | null
@@ -1047,7 +1149,6 @@ export type QuestionUpdateToOneWithWhereWithoutManifestEntriesInput = {
 export type QuestionUpdateWithoutManifestEntriesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1057,6 +1158,7 @@ export type QuestionUpdateWithoutManifestEntriesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  testSet?: Prisma.TestSetUpdateOneRequiredWithoutQuestionsNestedInput
   createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
@@ -1066,7 +1168,7 @@ export type QuestionUpdateWithoutManifestEntriesInput = {
 export type QuestionUncheckedUpdateWithoutManifestEntriesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1085,7 +1187,6 @@ export type QuestionUncheckedUpdateWithoutManifestEntriesInput = {
 export type QuestionCreateWithoutAnswersInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
   preparationSeconds?: number
   recordingSeconds?: number
   audioStorageKey?: string | null
@@ -1095,6 +1196,7 @@ export type QuestionCreateWithoutAnswersInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  testSet: Prisma.TestSetCreateNestedOneWithoutQuestionsInput
   createdBy?: Prisma.UserCreateNestedOneWithoutQuestionsCreatedInput
   tasks?: Prisma.TaskCreateNestedManyWithoutQuestionInput
   manifestEntries?: Prisma.ManifestEntryCreateNestedManyWithoutSourceQuestionInput
@@ -1104,7 +1206,7 @@ export type QuestionCreateWithoutAnswersInput = {
 export type QuestionUncheckedCreateWithoutAnswersInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
   createdById?: string | null
@@ -1139,7 +1241,6 @@ export type QuestionUpdateToOneWithWhereWithoutAnswersInput = {
 export type QuestionUpdateWithoutAnswersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1149,6 +1250,7 @@ export type QuestionUpdateWithoutAnswersInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  testSet?: Prisma.TestSetUpdateOneRequiredWithoutQuestionsNestedInput
   createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
@@ -1158,7 +1260,7 @@ export type QuestionUpdateWithoutAnswersInput = {
 export type QuestionUncheckedUpdateWithoutAnswersInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1177,7 +1279,7 @@ export type QuestionUncheckedUpdateWithoutAnswersInput = {
 export type QuestionCreateManyCreatedByInput = {
   id?: string
   category: $Enums.QuestionCategory
-  order: number
+  testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
   audioStorageKey?: string | null
@@ -1192,7 +1294,6 @@ export type QuestionCreateManyCreatedByInput = {
 export type QuestionUpdateWithoutCreatedByInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1202,6 +1303,7 @@ export type QuestionUpdateWithoutCreatedByInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  testSet?: Prisma.TestSetUpdateOneRequiredWithoutQuestionsNestedInput
   tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
   manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
@@ -1211,7 +1313,7 @@ export type QuestionUpdateWithoutCreatedByInput = {
 export type QuestionUncheckedUpdateWithoutCreatedByInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1230,9 +1332,77 @@ export type QuestionUncheckedUpdateWithoutCreatedByInput = {
 export type QuestionUncheckedUpdateManyWithoutCreatedByInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
-  order?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  audioUploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+}
+
+export type QuestionCreateManyTestSetInput = {
+  id?: string
+  category: $Enums.QuestionCategory
+  preparationSeconds?: number
+  recordingSeconds?: number
+  createdById?: string | null
+  audioStorageKey?: string | null
+  audioMimeType?: string | null
+  audioSizeBytes?: number | null
+  audioUploadStatus?: $Enums.UploadStatus
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+}
+
+export type QuestionUpdateWithoutTestSetInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  audioUploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdBy?: Prisma.UserUpdateOneWithoutQuestionsCreatedNestedInput
+  tasks?: Prisma.TaskUpdateManyWithoutQuestionNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutQuestionNestedInput
+  manifestEntries?: Prisma.ManifestEntryUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUpdateManyWithoutSourceQuestionNestedInput
+}
+
+export type QuestionUncheckedUpdateWithoutTestSetInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  audioUploadStatus?: Prisma.EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tasks?: Prisma.TaskUncheckedUpdateManyWithoutQuestionNestedInput
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutQuestionNestedInput
+  manifestEntries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutSourceQuestionNestedInput
+  promptMediaCleanupObjects?: Prisma.PromptMediaCleanupObjectUncheckedUpdateManyWithoutSourceQuestionNestedInput
+}
+
+export type QuestionUncheckedUpdateManyWithoutTestSetInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
+  preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -1303,7 +1473,7 @@ export type QuestionCountOutputTypeCountPromptMediaCleanupObjectsArgs<ExtArgs ex
 export type QuestionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   category?: boolean
-  order?: boolean
+  testSetId?: boolean
   preparationSeconds?: boolean
   recordingSeconds?: boolean
   createdById?: boolean
@@ -1314,6 +1484,7 @@ export type QuestionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
+  testSet?: boolean | Prisma.TestSetDefaultArgs<ExtArgs>
   createdBy?: boolean | Prisma.Question$createdByArgs<ExtArgs>
   tasks?: boolean | Prisma.Question$tasksArgs<ExtArgs>
   answers?: boolean | Prisma.Question$answersArgs<ExtArgs>
@@ -1325,7 +1496,7 @@ export type QuestionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
 export type QuestionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   category?: boolean
-  order?: boolean
+  testSetId?: boolean
   preparationSeconds?: boolean
   recordingSeconds?: boolean
   createdById?: boolean
@@ -1336,13 +1507,14 @@ export type QuestionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
+  testSet?: boolean | Prisma.TestSetDefaultArgs<ExtArgs>
   createdBy?: boolean | Prisma.Question$createdByArgs<ExtArgs>
 }, ExtArgs["result"]["question"]>
 
 export type QuestionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   category?: boolean
-  order?: boolean
+  testSetId?: boolean
   preparationSeconds?: boolean
   recordingSeconds?: boolean
   createdById?: boolean
@@ -1353,13 +1525,14 @@ export type QuestionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
+  testSet?: boolean | Prisma.TestSetDefaultArgs<ExtArgs>
   createdBy?: boolean | Prisma.Question$createdByArgs<ExtArgs>
 }, ExtArgs["result"]["question"]>
 
 export type QuestionSelectScalar = {
   id?: boolean
   category?: boolean
-  order?: boolean
+  testSetId?: boolean
   preparationSeconds?: boolean
   recordingSeconds?: boolean
   createdById?: boolean
@@ -1372,8 +1545,9 @@ export type QuestionSelectScalar = {
   deletedAt?: boolean
 }
 
-export type QuestionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "category" | "order" | "preparationSeconds" | "recordingSeconds" | "createdById" | "audioStorageKey" | "audioMimeType" | "audioSizeBytes" | "audioUploadStatus" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["question"]>
+export type QuestionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "category" | "testSetId" | "preparationSeconds" | "recordingSeconds" | "createdById" | "audioStorageKey" | "audioMimeType" | "audioSizeBytes" | "audioUploadStatus" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["question"]>
 export type QuestionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  testSet?: boolean | Prisma.TestSetDefaultArgs<ExtArgs>
   createdBy?: boolean | Prisma.Question$createdByArgs<ExtArgs>
   tasks?: boolean | Prisma.Question$tasksArgs<ExtArgs>
   answers?: boolean | Prisma.Question$answersArgs<ExtArgs>
@@ -1382,15 +1556,18 @@ export type QuestionInclude<ExtArgs extends runtime.Types.Extensions.InternalArg
   _count?: boolean | Prisma.QuestionCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type QuestionIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  testSet?: boolean | Prisma.TestSetDefaultArgs<ExtArgs>
   createdBy?: boolean | Prisma.Question$createdByArgs<ExtArgs>
 }
 export type QuestionIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  testSet?: boolean | Prisma.TestSetDefaultArgs<ExtArgs>
   createdBy?: boolean | Prisma.Question$createdByArgs<ExtArgs>
 }
 
 export type $QuestionPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Question"
   objects: {
+    testSet: Prisma.$TestSetPayload<ExtArgs>
     createdBy: Prisma.$UserPayload<ExtArgs> | null
     tasks: Prisma.$TaskPayload<ExtArgs>[]
     answers: Prisma.$AnswerPayload<ExtArgs>[]
@@ -1400,7 +1577,7 @@ export type $QuestionPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     category: $Enums.QuestionCategory
-    order: number
+    testSetId: string
     preparationSeconds: number
     recordingSeconds: number
     createdById: string | null
@@ -1805,6 +1982,7 @@ readonly fields: QuestionFieldRefs;
  */
 export interface Prisma__QuestionClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  testSet<T extends Prisma.TestSetDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.TestSetDefaultArgs<ExtArgs>>): Prisma.Prisma__TestSetClient<runtime.Types.Result.GetResult<Prisma.$TestSetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   createdBy<T extends Prisma.Question$createdByArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Question$createdByArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   tasks<T extends Prisma.Question$tasksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Question$tasksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   answers<T extends Prisma.Question$answersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Question$answersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AnswerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -1841,7 +2019,7 @@ export interface Prisma__QuestionClient<T, Null = never, ExtArgs extends runtime
 export interface QuestionFieldRefs {
   readonly id: Prisma.FieldRef<"Question", 'String'>
   readonly category: Prisma.FieldRef<"Question", 'QuestionCategory'>
-  readonly order: Prisma.FieldRef<"Question", 'Int'>
+  readonly testSetId: Prisma.FieldRef<"Question", 'String'>
   readonly preparationSeconds: Prisma.FieldRef<"Question", 'Int'>
   readonly recordingSeconds: Prisma.FieldRef<"Question", 'Int'>
   readonly createdById: Prisma.FieldRef<"Question", 'String'>

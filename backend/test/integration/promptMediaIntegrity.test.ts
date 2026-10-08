@@ -12,6 +12,7 @@ import {
 import type { Express } from "express";
 import jwt from "jsonwebtoken";
 import type { PrismaClient } from "../../src/generated/client.js";
+import { SLOTS, createFixtureTestSet, manifestTestSetData } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -84,6 +85,7 @@ beforeEach(async () => {
   await prisma.submission.deleteMany();
   await prisma.task.deleteMany();
   await prisma.question.deleteMany();
+  await prisma.testSet.deleteMany();
   await prisma.user.deleteMany();
   await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "SubmissionManifest_v1_shape_check" AFTER INSERT OR UPDATE ON "SubmissionManifest" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
   await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "ManifestEntry_v1_shape_check" AFTER INSERT OR UPDATE OR DELETE ON "ManifestEntry" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
@@ -152,12 +154,13 @@ async function createRetirementFixture() {
       }),
     ]);
 
+  const testSet = await createFixtureTestSet(prisma, "PMI");
   const questionId = crypto.randomUUID();
   const question = await prisma.question.create({
     data: {
       id: questionId,
-      category: "PART_1",
-      order: 987_654,
+      category: "PART_1A",
+      testSetId: testSet.id,
       createdById: admin.id,
       audioStorageKey: `questions/${questionId}/prompt.webm`,
       audioMimeType: "audio/webm",
@@ -169,13 +172,27 @@ async function createRetirementFixture() {
     },
     include: { tasks: true },
   });
+  // The rest of the fixture Test Set fills the remaining four slots so every
+  // retained Submission is delivered from one complete Test Set.
+  const slotQuestions = new Map<string, typeof question>([["PART_1A", question]]);
+  for (const category of SLOTS.slice(1)) {
+    slotQuestions.set(category, await prisma.question.create({
+      data: {
+        category,
+        testSetId: testSet.id,
+        createdById: admin.id,
+        tasks: { create: { promptText: "Prompt", order: 1 } },
+      },
+      include: { tasks: true },
+    }));
+  }
   async function createSubmissionWithStatus(
     status: "IN_PROGRESS" | "AWAITING_PAYMENT" | "SCORING",
   ) {
     const submissionId = crypto.randomUUID();
     // The manifest shape trigger is deferred to commit, so the Submission and
-    // its complete version-1 manifest must be created in one transaction. The
-    // fixture's own question supplies the PART_1 entry so the answer can bind
+    // its complete version-2 manifest must be created in one transaction. The
+    // fixture's own question supplies the PART_1A entry so the answer can bind
     // to it, and each entry snapshots the question's prompt media metadata.
     return prisma.$transaction(async (tx: any) => {
       const submission = await tx.submission.create({
@@ -186,14 +203,11 @@ async function createRetirementFixture() {
         },
       });
       const manifest = await tx.submissionManifest.create({
-        data: { submissionId, version: 1 },
+        data: { submissionId, ...manifestTestSetData(testSet) },
       });
       let part1EntryId: string | null = null;
-      for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
-        const entryQuestion = category === "PART_1" ? question : await tx.question.create({
-          data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
-          include: { tasks: true },
-        });
+      for (const [index, category] of SLOTS.entries()) {
+        const entryQuestion = slotQuestions.get(category)!;
         const entry = await tx.manifestEntry.create({
           data: {
             manifestId: manifest.id,
@@ -216,7 +230,7 @@ async function createRetirementFixture() {
             deliveredText: sourceTask.promptText,
           },
         });
-        if (category === "PART_1") part1EntryId = entry.id;
+        if (category === "PART_1A") part1EntryId = entry.id;
       }
       await tx.answer.create({
         data: {
@@ -500,7 +514,7 @@ test("retirement during Prompt media inspection prevents confirmation mutation",
       data: {
         id: confirmationQuestionId,
         category: "PART_3",
-        order: 900_001,
+        testSetId: (await createFixtureTestSet(prisma, "PMI")).id,
         createdById: admin.id,
         audioStorageKey: confirmationStorageKey,
         audioMimeType: "audio/webm",
@@ -554,8 +568,10 @@ test("reconciliation reports every Retired Question Prompt media state without m
     data: userData(`reconciliation-student-${crypto.randomUUID()}`, "STUDENT"),
   });
 
+  // Retired Questions no longer hold an active slot, so they can share one Test Set.
+  const retiredTestSet = await createFixtureTestSet(prisma, "PMI");
+
   async function createRetiredQuestion(
-    order: number,
     metadata: {
       audioStorageKey?: string | null;
       audioMimeType?: string | null;
@@ -578,7 +594,7 @@ test("reconciliation reports every Retired Question Prompt media state without m
       data: {
         id: questionId,
         category: "PART_2",
-        order,
+        testSetId: retiredTestSet.id,
         createdById: operator.id,
         deletedAt: new Date("2026-08-25T00:00:00.000Z"),
         ...metadata,
@@ -587,7 +603,7 @@ test("reconciliation reports every Retired Question Prompt media state without m
     });
     if (submissionStatus) {
       // The manifest shape trigger is deferred to commit, so the Submission
-      // and its complete version-1 manifest must be created in one transaction.
+      // and its complete version-2 manifest must be created in one transaction.
       await prisma.$transaction(async (tx: any) => {
         const submission = await tx.submission.create({
           data: {
@@ -601,12 +617,13 @@ test("reconciliation reports every Retired Question Prompt media state without m
             },
           },
         });
+        const deliveredTestSet = await createFixtureTestSet(tx, "PMI");
         const manifest = await tx.submissionManifest.create({
-          data: { submissionId: submission.id, version: 1 },
+          data: { submissionId: submission.id, ...manifestTestSetData(deliveredTestSet) },
         });
-        for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+        for (const [index, category] of SLOTS.entries()) {
           const entryQuestion = await tx.question.create({
-            data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+            data: { category, testSetId: deliveredTestSet.id, tasks: { create: { promptText: "Prompt", order: 1 } } },
           });
           await tx.manifestEntry.create({
             data: {
@@ -625,7 +642,6 @@ test("reconciliation reports every Retired Question Prompt media state without m
   }
 
   const referencedPresent = await createRetiredQuestion(
-    1,
     {
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
       audioMimeType: "audio/webm",
@@ -635,7 +651,6 @@ test("reconciliation reports every Retired Question Prompt media state without m
     "IN_PROGRESS",
   );
   const referencedMissing = await createRetiredQuestion(
-    2,
     {
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
       audioMimeType: "audio/webm",
@@ -644,14 +659,13 @@ test("reconciliation reports every Retired Question Prompt media state without m
     },
     "CERTIFIED",
   );
-  const unreferencedPresent = await createRetiredQuestion(3, {
+  const unreferencedPresent = await createRetiredQuestion({
     audioStorageKey: `questions/${crypto.randomUUID()}/prompt.mp3`,
     audioMimeType: "audio/mpeg",
     audioSizeBytes: 3_072,
     audioUploadStatus: "UPLOADED",
   });
   const invalidMetadata = await createRetiredQuestion(
-    4,
     {
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
       audioMimeType: null,
@@ -660,9 +674,8 @@ test("reconciliation reports every Retired Question Prompt media state without m
     },
     "AWAITING_PAYMENT",
   );
-  const noMedia = await createRetiredQuestion(5, {});
+  const noMedia = await createRetiredQuestion({});
   const storageFailure = await createRetiredQuestion(
-    6,
     {
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.ogg`,
       audioMimeType: "audio/ogg",
@@ -672,7 +685,6 @@ test("reconciliation reports every Retired Question Prompt media state without m
     "PAID",
   );
   const inconsistentStorage = await createRetiredQuestion(
-    7,
     {
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.m4a`,
       audioMimeType: "audio/mp4",

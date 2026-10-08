@@ -205,7 +205,7 @@ export function Hero() {
           </h1>
           <p className={`${lead} mb-8`}>
             SpeakNusa is an English speaking assessment taken in the browser. Record video answers to
-            three timed prompts, then receive a one to six band from two independent human examiners.
+            five timed prompts across four parts, then receive a one to six band from two independent human examiners.
           </p>
           <div className="inline-flex flex-wrap items-center gap-3">
             {/* glass pill: contrast on the wrapper sharpens the blurred inner rims */}

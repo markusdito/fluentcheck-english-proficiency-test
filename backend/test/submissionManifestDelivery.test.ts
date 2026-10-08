@@ -9,10 +9,10 @@ import {
 function manifest(overrides: Partial<ManifestDeliveryManifest> = {}): ManifestDeliveryManifest {
   return {
     id: "manifest-1",
-    version: 1,
-    entries: ["PART_1", "PART_2", "PART_3"].map((category, index) => ({
+    version: 2,
+    entries: (["PART_1A", "PART_1B", "PART_2", "PART_3", "PART_4"] as const).map((category, index) => ({
       id: `entry-${index + 1}`,
-      category: category as "PART_1" | "PART_2" | "PART_3",
+      category,
       deliveryPosition: index + 1,
       preparationSeconds: 30,
       recordingSeconds: 120,
@@ -29,7 +29,7 @@ test("builds ordered delivery from immutable snapshot fields", async () => {
   const result = await buildManifestDelivery(manifest(), async (key) => `https://cdn.test/${key}`);
   assert.deepEqual(result[0], {
     id: "entry-1",
-    category: "PART_1",
+    category: "PART_1A",
     deliveryPosition: 1,
     preparationSeconds: 30,
     recordingSeconds: 120,
@@ -42,8 +42,13 @@ test("builds ordered delivery from immutable snapshot fields", async () => {
 
 test("fails closed for unknown versions, incomplete snapshots, and non-HTTPS media", async () => {
   await assert.rejects(
-    buildManifestDelivery(manifest({ version: 2 }), async () => "https://cdn.test/audio"),
+    buildManifestDelivery(manifest({ version: 3 }), async () => "https://cdn.test/audio"),
     ManifestEvidenceUnavailableError,
+  );
+  // Legacy three-slot manifests remain readable evidence but are never delivered.
+  await assert.rejects(
+    buildManifestDelivery(manifest({ version: 1 }), async () => "https://cdn.test/audio"),
+    /Unsupported manifest version/,
   );
   await assert.rejects(
     buildManifestDelivery(
@@ -51,6 +56,16 @@ test("fails closed for unknown versions, incomplete snapshots, and non-HTTPS med
       async () => "https://cdn.test/audio",
     ),
     /Incomplete manifest entries/,
+  );
+  await assert.rejects(
+    buildManifestDelivery(
+      manifest({
+        entries: manifest().entries.map((entry, index) =>
+          index < 2 ? { ...entry, deliveryPosition: 2 - index } : entry),
+      }),
+      async () => "https://cdn.test/audio",
+    ),
+    /Invalid manifest entry shape/,
   );
   await assert.rejects(
     buildManifestDelivery(manifest(), async () => "http://cdn.test/audio"),
@@ -71,7 +86,7 @@ test("reports one signing failure without exposing storage identity", async () =
         failureCount: 1,
         failures: [{
           entryId: "entry-2",
-          category: "PART_2",
+          category: "PART_1B",
           reason: "SIGNING_FAILED",
         }],
       });
@@ -98,8 +113,8 @@ test("aggregates multiple signing failures without partial delivery", async () =
         operation: "prompt-media-signing",
         failureCount: 2,
         failures: [
-          { entryId: "entry-1", category: "PART_1", reason: "SIGNING_FAILED" },
-          { entryId: "entry-3", category: "PART_3", reason: "SIGNING_FAILED" },
+          { entryId: "entry-1", category: "PART_1A", reason: "SIGNING_FAILED" },
+          { entryId: "entry-3", category: "PART_2", reason: "SIGNING_FAILED" },
         ],
       });
       return true;
@@ -120,6 +135,10 @@ test("a successful signer retry returns the complete manifest delivery", async (
   await assert.rejects(buildManifestDelivery(manifest(), signPromptMedia), ManifestEvidenceUnavailableError);
   const result = await buildManifestDelivery(manifest(), signPromptMedia);
 
-  assert.equal(result.length, 3);
-  assert.deepEqual(result.map((entry) => entry.deliveryPosition), [1, 2, 3]);
+  assert.equal(result.length, 5);
+  assert.deepEqual(result.map((entry) => entry.deliveryPosition), [1, 2, 3, 4, 5]);
+  assert.deepEqual(
+    result.map((entry) => entry.category),
+    ["PART_1A", "PART_1B", "PART_2", "PART_3", "PART_4"],
+  );
 });

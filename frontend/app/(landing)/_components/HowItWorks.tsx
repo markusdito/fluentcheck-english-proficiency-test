@@ -56,8 +56,8 @@ const steps: Step[] = [
   },
   {
     tone: "bg-sn-clay text-sn-bg",
-    title: "Record three parts",
-    desc: "Interview, long turn, and discussion. Each answer gets its own preparation time and recording window, and you can re-record a part while the session is open.",
+    title: "Record four parts",
+    desc: "Two short personal responses, a monologue, a decision-making task, and an opinion. Each answer gets its own preparation time and recording window, and you can re-record a part while the session is open.",
     icon: (
       <svg {...iconProps}>
         <circle cx="12" cy="12" r="8" />
@@ -67,9 +67,10 @@ const steps: Step[] = [
     panel: (
       <>
         <div className={lines}>
-          <div className={line}><span>Part 1</span><span>Interview</span></div>
-          <div className={line}><span>Part 2</span><span>Long turn</span></div>
-          <div className={line}><span>Part 3</span><span>Discussion</span></div>
+          <div className={line}><span>Part 1</span><span>Personal response</span></div>
+          <div className={line}><span>Part 2</span><span>Monologue</span></div>
+          <div className={line}><span>Part 3</span><span>Decision-making</span></div>
+          <div className={line}><span>Part 4</span><span>Opinion</span></div>
         </div>
         <p className="tabular-nums">Prep time · timed video</p>
       </>
@@ -88,7 +89,7 @@ const steps: Step[] = [
     panel: (
       <>
         <div className={lines}>
-          {["Part 1", "Part 2", "Part 3"].map((p) => (
+          {["Part 1", "Part 2", "Part 3", "Part 4"].map((p) => (
             <div key={p} className={line}>
               <span>{p}</span>
               <span className="inline-flex items-center gap-1 font-semibold"><Check />Verified</span>

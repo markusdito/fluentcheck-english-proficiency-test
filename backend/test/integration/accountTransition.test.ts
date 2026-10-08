@@ -13,6 +13,7 @@ import {
 import bcrypt from "bcryptjs";
 import type { Express } from "express";
 import type { Prisma, PrismaClient, Role } from "../../src/generated/client.js";
+import { SLOTS, createFixtureTestSet, manifestTestSetData } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -163,15 +164,16 @@ async function createManifestSubmission(
         paymentRequired: false,
       },
     });
+    const testSet = await createFixtureTestSet(tx, "ROLE");
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: submission.id, version: 1 },
+      data: { submissionId: submission.id, ...manifestTestSetData(testSet) },
     });
     const answers = [];
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
         data: {
           category,
-          order: Math.floor(Math.random() * 1_000_000),
+          testSetId: testSet.id,
           preparationSeconds: 30,
           recordingSeconds: 120,
         },

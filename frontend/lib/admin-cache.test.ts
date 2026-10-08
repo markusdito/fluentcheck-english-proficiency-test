@@ -12,6 +12,7 @@ describe("patchAssignedSubmissionPage", () => {
           studentName: "Student",
           studentEmail: "student@example.com",
           createdAt: "2026-01-01T00:00:00.000Z",
+          testSet: { id: "test-set-1", code: "A" },
           latestPayment: null,
           assignments: [],
         },

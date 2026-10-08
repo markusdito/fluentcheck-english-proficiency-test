@@ -1,6 +1,6 @@
 # Reuse active Question and Task positions after retirement
 
-Status: Accepted. Superseded in part by ADR-0018: the claim that "an incomplete restored Question is an active admin draft but is not eligible for assessment delivery" now applies only to missing Prompt media, not to the absence of Tasks.
+Status: Accepted. Superseded in part by ADR-0019, which moves a Question's Active position from category/order to Test Set/Delivery slot, and by ADR-0018: the claim that "an incomplete restored Question is an active admin draft but is not eligible for assessment delivery" now applies only to missing Prompt media, not to the absence of Tasks.
 
 FluentCheck treats Question and Task positions as unique only among active records. Retirement frees a position for a new record, while retired records remain retained and may share the same historical position. A replacement always receives a new identity.
 

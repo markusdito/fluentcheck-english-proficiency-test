@@ -3,6 +3,7 @@ import type {
   RubricBreakdown,
   ScoringSystem,
 } from "@/types/scoring";
+import type { TestSetRef } from "@/types/test";
 
 export const DASHBOARD_PAGE_SIZE = 10;
 
@@ -11,6 +12,7 @@ export interface SubmissionSummary {
   status: string;
   score: string | null;
   scoringSystem: ScoringSystem;
+  testSet: TestSetRef | null;
   createdAt: string;
 }
 
@@ -54,6 +56,7 @@ export interface SubmissionDetail {
   status: string;
   score: string | null;
   scoringSystem: ScoringSystem;
+  testSet: TestSetRef | null;
   rubric: RubricBreakdown | null;
   createdAt: string;
   answers: AnswerDetail[];

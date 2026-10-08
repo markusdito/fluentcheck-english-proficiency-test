@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { testSetLabel } from "@/lib/assessment-slots";
 import { ChevronRight } from "lucide-react";
 import type { SubmissionSummary } from "@/lib/dashboard-api";
 import { StatusPill } from "./StatusPill";
@@ -51,7 +52,11 @@ export function RecentCard({ subs }: { subs: SubmissionSummary[] }) {
             <div key={sub.id} className="flex items-start justify-between gap-5 border-t border-sn-border py-5">
               <div className="min-w-0">
                 <h4 className="mb-1 text-[17px] font-semibold tabular-nums">{formatDate(sub.createdAt)}</h4>
-                <p className="m-0 text-sm text-sn-muted">{scoreText(sub) ? `band ${scoreText(sub)}` : "no band"}</p>
+                <p className="m-0 text-sm text-sn-muted">
+                  {[testSetLabel(sub.testSet), scoreText(sub) ? `band ${scoreText(sub)}` : "no band"]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
               </div>
               <StatusPill status={sub.status} />
             </div>
@@ -75,6 +80,7 @@ export function ResultRow({ sub }: { sub: SubmissionSummary }) {
         <span className="text-[17px] font-semibold tabular-nums">{formatDate(sub.createdAt)}</span>
         <span className="text-sm text-sn-muted">
           {new Date(sub.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+          {sub.testSet && ` · ${testSetLabel(sub.testSet)}`}
         </span>
       </span>
       <span

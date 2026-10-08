@@ -15,6 +15,11 @@ import type {
   ScoringSystem,
   SubmissionStatus,
 } from "../../src/generated/enums.js";
+import {
+  SLOTS,
+  createFixtureTestSet,
+  manifestTestSetData,
+} from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -24,7 +29,6 @@ let disconnectDB: () => Promise<void>;
 let getStudentDashboard: typeof import("../../src/service/submission.service.js").getStudentDashboard;
 let server: Server;
 let baseUrl: string;
-let nextTestQuestionOrder = 1;
 
 async function migrateDatabase(databaseUrl: string) {
   await execFileAsync(
@@ -89,6 +93,7 @@ beforeEach(async () => {
   await prisma.submission.deleteMany();
   await prisma.task.deleteMany();
   await prisma.question.deleteMany();
+  await prisma.testSet.deleteMany();
   await prisma.user.deleteMany();
   await prisma.$executeRawUnsafe(
     'CREATE CONSTRAINT TRIGGER "SubmissionManifest_v1_shape_check" AFTER INSERT OR UPDATE ON "SubmissionManifest" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()',
@@ -146,15 +151,16 @@ async function createSubmission(
       SET "createdAt" = ${createdAt}::timestamptz
       WHERE "id" = ${submission.id}::uuid
     `;
+    const testSet = await createFixtureTestSet(tx, "DASH");
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: submission.id, version: 1 },
+      data: { submissionId: submission.id, ...manifestTestSetData(testSet) },
     });
     const entries = [];
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
         data: {
           category,
-          order: nextTestQuestionOrder++,
+          testSetId: testSet.id,
           tasks: { create: { promptText: "Prompt", order: 1 } },
         },
       });
@@ -168,7 +174,7 @@ async function createSubmission(
         },
       }));
     }
-    return { submission, entries };
+    return { submission, entries, testSet };
   });
 }
 
@@ -242,8 +248,10 @@ function dashboardRequest(path: string, userId: string) {
 
 test("returns a bounded summary page with deterministic cursor metadata", async () => {
   const student = await createStudent();
-  const newest = (await createSubmission(student.id, "2026-01-03T00:00:00.000Z")).submission;
-  const middle = (await createSubmission(student.id, "2026-01-02T00:00:00.000Z")).submission;
+  const newestFixture = await createSubmission(student.id, "2026-01-03T00:00:00.000Z");
+  const middleFixture = await createSubmission(student.id, "2026-01-02T00:00:00.000Z");
+  const newest = newestFixture.submission;
+  const middle = middleFixture.submission;
   await createSubmission(student.id, "2026-01-01T00:00:00.000Z");
   await createSubmission(
     student.id,
@@ -266,12 +274,20 @@ test("returns a bounded summary page with deterministic cursor metadata", async 
     nextCursor: firstPage.pagination.nextCursor,
   });
   assert.equal(typeof firstPage.pagination.nextCursor, "string");
+  assert.deepEqual(
+    firstPage.submissions.map((submission: { testSet: unknown }) => submission.testSet),
+    [
+      { id: newestFixture.testSet.id, code: newestFixture.testSet.code },
+      { id: middleFixture.testSet.id, code: middleFixture.testSet.code },
+    ],
+  );
   assert.deepEqual(Object.keys(firstPage.submissions[0]).sort(), [
     "createdAt",
     "id",
     "score",
     "scoringSystem",
     "status",
+    "testSet",
   ]);
 
   const secondResponse = await dashboardRequest(
@@ -394,7 +410,7 @@ test("computes global aggregates and dynamic page scores without detail collecti
     "SCORED",
     "RUBRIC_6",
   );
-  await addAnswerScores(dynamic, [[4, 6], [5, 5], [5, 6]]);
+  await addAnswerScores(dynamic, [[4, 6], [5, 5], [5, 6], [5, 5], [6, 5]]);
 
   const incomplete = await createSubmission(
     student.id,
@@ -420,7 +436,7 @@ test("computes global aggregates and dynamic page scores without detail collecti
   const summaries = new Map(
     data.submissions.map((submission: { id: string }) => [submission.id, submission]),
   );
-  assert.equal(summaries.get(dynamic.submission.id).score, "5.17");
+  assert.equal(summaries.get(dynamic.submission.id).score, "5.20");
   assert.equal(summaries.get(rubric.submission.id).score, "5.5");
   assert.equal(summaries.get(legacy.submission.id).score, "99");
   assert.equal(summaries.get(incomplete.submission.id).score, null);
@@ -430,6 +446,7 @@ test("computes global aggregates and dynamic page scores without detail collecti
     "score",
     "scoringSystem",
     "status",
+    "testSet",
   ]);
 });
 

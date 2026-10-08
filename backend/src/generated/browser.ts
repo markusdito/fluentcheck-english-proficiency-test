@@ -28,6 +28,11 @@ export type User = Prisma.UserModel
  */
 export type GoogleOAuthState = Prisma.GoogleOAuthStateModel
 /**
+ * Model TestSet
+ * 
+ */
+export type TestSet = Prisma.TestSetModel
+/**
  * Model Question
  * 
  */

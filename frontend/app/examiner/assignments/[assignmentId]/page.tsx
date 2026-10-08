@@ -1,5 +1,6 @@
 "use client";
 
+import { slotLabel } from "@/lib/assessment-slots";
 import { useEffect, useRef, useState, use } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -193,6 +194,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
       <dl className="mt-6 mb-10 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-6 gap-y-4">
         {[
           ["Candidate", assignment.studentName],
+          ["Test Set", assignment.testSet?.code ?? "—"],
           ["Assigned", formatDate(assignment.createdAt)],
           ["Answers", String(assignment.answers.length)],
           ["Total audio", totalSeconds ? `${Math.floor(totalSeconds / 60)} m ${totalSeconds % 60} s` : "—"],
@@ -231,7 +233,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
                     onClick={() => setCurrentQuestionIndex(i)}
                     className={`${secondaryButton} aria-pressed:border-sn-fg aria-pressed:bg-sn-fg/6`}
                   >
-                    {a.questionCategory.replace(/_/g, " ")}
+                    {slotLabel(a.questionCategory)}
                   </button>
                 ))}
               </div>

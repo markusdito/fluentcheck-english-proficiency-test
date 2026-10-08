@@ -19,6 +19,7 @@ export function AssignmentList({ assignments }: { assignments: ExaminerAssignmen
           <tr>
             <th scope="col" className={th}>Submission</th>
             <th scope="col" className={th}>Candidate</th>
+                  <th scope="col" className={th}>Test Set</th>
             <th scope="col" className={th}>Assigned</th>
             <th scope="col" className={th}>Status</th>
             <th scope="col" className={th}><span className="sr-only">Action</span></th>
@@ -29,6 +30,7 @@ export function AssignmentList({ assignments }: { assignments: ExaminerAssignmen
             <tr key={a.id} className={tr}>
               <td className={`${td} font-medium whitespace-nowrap tabular-nums`}>{submissionRef(a.submissionId)}</td>
               <td className={`${td} max-w-[24ch] truncate`}>{a.studentName}</td>
+                    <td className={`${td} whitespace-nowrap text-sn-muted`}>{a.testSet?.code ?? "—"}</td>
               <td className={`${td} whitespace-nowrap tabular-nums text-sn-muted`}>
                 {new Date(a.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
               </td>

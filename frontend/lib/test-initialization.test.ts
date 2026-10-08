@@ -22,10 +22,11 @@ describe("initializeTest", () => {
       submissionId: "submission-1",
       status: "IN_PROGRESS",
       manifestId: "manifest-1",
-      version: 1,
+      version: 2,
+      testSet: { id: "test-set-1", code: "A" },
       entries: [{
         id: "entry-1",
-        category: "PART_1",
+        category: "PART_1A",
         deliveryPosition: 1,
         preparationSeconds: 30,
         recordingSeconds: 60,
@@ -47,10 +48,12 @@ describe("initializeTest", () => {
 
     expect(initialization).toEqual({
       submissionId: "submission-1",
+      testSet: { id: "test-set-1", code: "A" },
       uploadedEntryIds: [],
       questions: [
         expect.objectContaining({
           id: "entry-1",
+          category: "PART_1A",
           audioUrl: "https://media.example/prompt.mp3",
           task: "Introduce yourself",
         }),

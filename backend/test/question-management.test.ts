@@ -27,7 +27,7 @@ afterEach(() => {
   for (const restore of restoreMethods.splice(0).reverse()) restore();
 });
 
-test("admin question retrieval includes drafts from every category and order", async () => {
+test("admin question retrieval includes drafts from every Test Set and slot", async () => {
   let query: Parameters<typeof prisma.question.findMany>[0];
   replaceMethod(
     prisma.question,
@@ -40,18 +40,9 @@ test("admin question retrieval includes drafts from every category and order", a
 
   await retrieveAdminQuestions();
 
-  assert.deepEqual(query!.where, {
-    deletedAt: null,
-    category: {
-      in: [
-        QuestionCategory.PART_1,
-        QuestionCategory.PART_2,
-        QuestionCategory.PART_3,
-      ],
-    },
-  });
-  assert.equal("audioUploadStatus" in query!.where!, false);
-  assert.equal("order" in query!.where!, false);
+  assert.deepEqual(query!.where, { deletedAt: null });
+  assert.equal(query!.select?.testSetId, true);
+  assert.deepEqual(query!.select?.testSet, { select: { id: true, code: true } });
 });
 
 test("admin question retrieval can include retired Questions and Tasks on request", async () => {
@@ -67,15 +58,7 @@ test("admin question retrieval can include retired Questions and Tasks on reques
 
   await retrieveAdminQuestions(true);
 
-  assert.deepEqual(query!.where, {
-    category: {
-      in: [
-        QuestionCategory.PART_1,
-        QuestionCategory.PART_2,
-        QuestionCategory.PART_3,
-      ],
-    },
-  });
+  assert.deepEqual(query!.where, {});
   assert.equal(query!.select?.deletedAt, true);
   assert.equal(query!.select?.tasks?.where, undefined);
   assert.equal(query!.select?.tasks?.select?.deletedAt, true);
@@ -87,8 +70,8 @@ test("Question restoration clears only the Question retirement state", async () 
   const retiredAt = new Date("2026-08-31T00:00:00.000Z");
   const restored = {
     id: questionId,
-    category: QuestionCategory.PART_1,
-    order: 1,
+    category: QuestionCategory.PART_1A,
+    testSetId: "00000000-0000-4000-8000-000000000003",
     deletedAt: null,
     tasks: [
       {
@@ -114,8 +97,8 @@ test("Question restoration clears only the Question retirement state", async () 
       if (args.select) {
         return {
           id: questionId,
-          category: QuestionCategory.PART_1,
-          order: 1,
+          category: QuestionCategory.PART_1A,
+          testSetId: "00000000-0000-4000-8000-000000000003",
           audioStorageKey: null,
           deletedAt: retiredAt,
         };
@@ -220,9 +203,11 @@ test("test question retrieval excludes drafts without confirmed audio", async ()
     deletedAt: null,
     category: {
       in: [
-        QuestionCategory.PART_1,
+        QuestionCategory.PART_1A,
+        QuestionCategory.PART_1B,
         QuestionCategory.PART_2,
         QuestionCategory.PART_3,
+        QuestionCategory.PART_4,
       ],
     },
     audioUploadStatus: "UPLOADED",

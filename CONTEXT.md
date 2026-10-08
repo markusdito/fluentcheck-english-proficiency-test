@@ -17,7 +17,7 @@ A Submission that has finished recording and is moving through payment and Exami
 _Avoid_: Active submission, submission being reviewed
 
 **Assessment**:
-The speaking experience in which a student receives one Question from each Required category and records one Answer for each.
+The speaking experience in which a student receives one Question for each Delivery slot from a single Test Set and records one Answer for each.
 _Avoid_: Test, exam
 
 **Assessment start intent**:
@@ -60,13 +60,17 @@ _Avoid_: Test question, exam question
 A sub-prompt belonging to a Question and answered within that Question's single recorded Answer.
 _Avoid_: Grading task, question assignment
 
-**Required category**:
-One of `PART_1`, `PART_2`, or `PART_3`; every new Submission contains exactly one selected Question from each Required category.
-_Avoid_: Test section, question group
+**Delivery slot**:
+One of `PART_1A`, `PART_1B`, `PART_2`, `PART_3`, or `PART_4`, delivered in that order; every new Submission contains exactly one selected Question per Delivery slot. Legacy `PART_1` data is `PART_1A`.
+_Avoid_: Test section, question group, Required category
 
-**Question set**:
-The Questions sharing one `order` across the Required categories; a Submission delivers one complete Question set and never mixes orders.
-_Avoid_: Question group, paper
+**Test Set**:
+A named group (for example "A") holding at most one active Question per Delivery slot. A Submission is delivered from exactly one Test Set and never mixes sets. Legacy question-set orders became Test Sets coded `LEGACY-<order>`.
+_Avoid_: Question set, order, paper
+
+**Deliverable Test Set**:
+A Test Set whose every Delivery slot holds an Eligible question; any other Test Set is a Draft and is never delivered.
+_Avoid_: Complete set, published set
 
 **Answer**:
 A student's recorded response to one Question within a Submission.
@@ -97,7 +101,7 @@ A Task withdrawn from future delivery while retaining its identity and relations
 _Avoid_: Deleted task, soft-deleted task
 
 **Active position**:
-The category/order coordinate of a Question or the Question/order coordinate of a Task. Only one active record may occupy a position; multiple retired records may share it over time.
+The Test Set/Delivery slot coordinate of a Question or the Question/order coordinate of a Task. Only one active record may occupy a position; multiple retired records may share it over time.
 _Avoid_: Permanent slot
 
 **Question replacement**:
@@ -145,7 +149,7 @@ An active Question whose Prompt media is not yet complete; it is administrativel
 _Avoid_: Incomplete question, unpublished question
 
 **Submission manifest**:
-An immutable record of the Questions selected, one per required category, their delivery order, and the Delivered prompt snapshots presented within one Submission. It remains authoritative even when the source Questions are later edited or retired.
+An immutable record of the Test Set delivered, the Questions selected from it (one per Delivery slot), their delivery order, and the Delivered prompt snapshots presented within one Submission. Version 1 manifests are legacy three-slot evidence with no Test Set; new Submissions use version 2. It remains authoritative even when the source Questions are later edited or retired.
 _Avoid_: Test configuration, question list
 
 **Assessment unavailable**:
@@ -189,12 +193,16 @@ An Examiner whose account is active and authorized when a new Examiner assignmen
 _Avoid_: Available examiner
 
 **Examiner assignment**:
-An obligation for one Examiner to independently score one Submission.
+An obligation for one Examiner to independently score one Submission with exactly one Score.
 _Avoid_: Review, grading task
 
 **Examiner assignment set**:
-Exactly two distinct Examiner assignments committed together for one Assignment-ready submission; neither Examiner has rank or priority.
+Exactly two distinct Examiner assignments committed together for one Assignment-ready submission; neither Examiner has rank or priority, and neither sees the other's Score.
 _Avoid_: Examiner pair, jury
+
+**Submission result**:
+The mean of the two Examiners' Scores: the overall band is the mean of their two overall bands, and each criterion band is the mean of their two bands for that criterion. It exists only once both Examiner assignments are completed.
+_Avoid_: Final score from one examiner, averaged answers
 
 **Assignment-ready submission**:
 A completed Submission whose payment requirement is satisfied or waived and which has not received an Examiner assignment set.
@@ -229,7 +237,7 @@ An immutable record of one Examiner assignment transfer, including the departing
 _Avoid_: Assignment audit note
 
 **Scoring finalization**:
-The authoritative domain operation that commits one Completed Examiner assignment and derives the owning Submission's scoring status from its complete Examiner assignment set.
+The authoritative domain operation that commits one Completed Examiner assignment and derives the owning Submission's scoring status from its complete Examiner assignment set: `SCORED` once both assignments are completed.
 _Avoid_: score submission, grading completion
 
 **Score draft**:

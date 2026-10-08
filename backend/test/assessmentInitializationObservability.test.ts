@@ -55,13 +55,13 @@ test("publishes a sanitized Prompt-media failure to the Loki HTTP seam", async (
     requestId: "request-123",
     failureCount: 2,
     failedQuestionIds: ["question-1"],
-    failedCategories: ["PART_1"],
+    failedCategories: ["PART_1A"],
     preparationDurationMs: 42,
-    categoryCount: 3,
+    categoryCount: 5,
     failedEntries: [
       {
         entryId: "entry-1",
-        category: "PART_1",
+        category: "PART_1A",
         reason: "SIGNING_FAILED",
         questionId: "question-1",
         storageKey: "questions/secret/prompt.webm",
@@ -101,7 +101,7 @@ test("publishes a sanitized Prompt-media failure to the Loki HTTP seam", async (
       requestId: "request-123",
       failureCount: 2,
       failedQuestionIds: ["question-1"],
-      failedCategories: ["PART_1"],
+      failedCategories: ["PART_1A"],
       failureClass: "PREPARATION",
       preparationDurationMs: 42,
     });
@@ -139,7 +139,7 @@ test("swallows a failed telemetry destination without rejecting flush", async ()
     failedQuestionIds: [],
     failedCategories: ["PART_2"],
     preparationDurationMs: 10,
-    categoryCount: 3,
+    categoryCount: 5,
   });
   await observer.flush();
 

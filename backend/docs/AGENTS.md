@@ -134,23 +134,24 @@ GET  /api/auth/me        → verifyToken middleware → fetch user by ID → ret
 - Passwords hashed with bcryptjs (10 salt rounds) — never store plaintext
 - `bcrypt.compare()` is async — always `await` it (missing await caused a critical bug where any password was accepted)
 
-**Database schema overview (8 models, 5 enums):**
+**Database schema overview (core models and enums):**
 
 | Model | Purpose | Key Relations |
 |-------|---------|---------------|
 | `User` | Student, examiner, or admin account | → Submission, → ExaminerAssignment, → Question |
-| `Question` | Speaking prompt (Part 1/2/3) | → Task, → Answer, ← User (createdBy) |
+| `TestSet` | Named set (A–F) holding one Question per delivery slot | → Question, → SubmissionManifest |
+| `Question` | Speaking prompt for one delivery slot of a Test Set | ← TestSet, → Task, → Answer, ← User (createdBy) |
 | `Task` | Sub-prompt within a question | ← Question |
 | `Submission` | One test attempt by a student | ← User, → Answer, → Payment, → ExaminerAssignment, → Certificate |
 | `Answer` | Video response to one question | ← Submission, ← Question, → Score |
 | `Payment` | Payment record for a submission | ← Submission |
-| `ExaminerAssignment` | Assigns examiner to grade a submission | ← Submission, ← User (examiner), → Score |
-| `Score` | Individual score given by an examiner | ← ExaminerAssignment, ← Answer |
+| `ExaminerAssignment` | Assigns one of the two examiners (slot 1 or 2) who score a submission | ← Submission, ← User (examiner), → Score |
+| `Score` | One examiner's score | ← ExaminerAssignment, ← Answer |
 | `Certificate` | Final certificate for a scored submission | ← Submission (1:1) |
 
 **Enums:**
 - `Role`: STUDENT, EXAMINER, ADMIN
-- `QuestionCategory`: PART_1, PART_2, PART_3
+- `QuestionCategory` (delivery slots): PART_1A, PART_1B, PART_2, PART_3, PART_4
 - `SubmissionStatus`: IN_PROGRESS → AWAITING_PAYMENT → PAID → SCORING → SCORED → CERTIFIED
 - `PaymentStatus`: PENDING, PAID, FAILED, REFUNDED
 - `AssignmentStatus`: ASSIGNED, IN_PROGRESS, COMPLETED
@@ -169,13 +170,13 @@ Payment:
   Submission: AWAITING_PAYMENT → PAID
 
 Examiner assignment:
-  Admin assigns 2 examiners → ExaminerAssignment: ASSIGNED (×2)
+  Admin assigns 2 examiners → ExaminerAssignment: ASSIGNED (×2, slots 1 and 2)
   Each examiner starts → AssignmentStatus: IN_PROGRESS
-  Each examiner submits Score per Answer → AssignmentStatus: COMPLETED
+  Each examiner submits one Score for the whole submission (4 criteria + overall band) → AssignmentStatus: COMPLETED
   Both complete → Submission: SCORING → SCORED
 
 Certification:
-  Final score calculated (average of examiner scores)
+  Final band = mean of the 2 examiners' overall bands; each criterion = mean of the 2 examiners' bands
   Certificate created → Submission: CERTIFIED
 ```
 

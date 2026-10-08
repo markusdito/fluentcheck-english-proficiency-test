@@ -5,7 +5,7 @@ const roles: { seat: string; title: string; body: string; label: string; tone: s
   {
     seat: "Student",
     title: "Record with a webcam and microphone",
-    body: "Finish three parts in about twenty minutes. Read one clear band with criterion feedback.",
+    body: "Finish four parts in about fifteen minutes. Read one clear band with criterion feedback.",
     label: "Student: microphone with a live input level meter",
     tone: "text-sn-navy [--art-field:var(--color-sn-field-navy)] [--art-glow:color-mix(in_oklch,var(--color-sn-navy)_70%,white)]",
     art: (

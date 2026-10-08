@@ -1,3 +1,4 @@
+import { isSupportedManifestVersion } from "./assessmentSlots.js";
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
 import { Role, SubmissionStatus } from "../generated/enums.js";
@@ -21,6 +22,8 @@ import {
 import {
   assertLegacyAnswerQuestion,
   assertLegacySubmissionEvidence,
+  deliveredTestSet,
+  type DeliveredTestSet,
 } from "./submissionManifest.service.js";
 import {
   previewAccountRoleTransition,
@@ -59,6 +62,7 @@ export async function listAdminSubmissions(params: ListSubmissionsParams) {
       where,
       include: {
         student: { select: { username: true, email: true } },
+        manifest: { select: { testSetId: true, testSetCode: true } },
         payments: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -91,6 +95,7 @@ export async function listAdminSubmissions(params: ListSubmissionsParams) {
     paymentRequired: submission.paymentRequired,
     studentName: submission.student.username,
     studentEmail: submission.student.email,
+    testSet: deliveredTestSet(submission.manifest),
     createdAt: submission.createdAt,
     latestPayment: submission.payments[0] ?? null,
     assignments: submission.assignments.map((a) => ({
@@ -121,6 +126,8 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         select: {
           id: true,
           version: true,
+          testSetId: true,
+          testSetCode: true,
           entries: {
             select: {
               id: true,
@@ -219,7 +226,7 @@ export async function getAdminSubmissionDetail(submissionId: string) {
     throw new Error("Submission not found");
   }
   const manifest = submission.manifest;
-  if (manifest && manifest.version !== 1) {
+  if (manifest && !isSupportedManifestVersion(manifest.version)) {
     throw new Error("Unsupported manifest version");
   }
   if (!manifest) assertLegacySubmissionEvidence(manifest);
@@ -329,6 +336,7 @@ export async function getAdminSubmissionDetail(submissionId: string) {
     status: submission.status,
     scoringSystem: submission.scoringSystem,
     paymentRequired: submission.paymentRequired,
+    testSet: deliveredTestSet(manifest),
     createdAt: submission.createdAt,
     updatedAt: submission.updatedAt,
     student: {

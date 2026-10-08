@@ -51,7 +51,7 @@ test("delivers a sanitized synthetic Prompt media preparation failure", async ()
   assert.equal(event.classification, "PREPARATION");
   assert.equal(event.internalReason, "PROMPT_MEDIA_SIGNING_FAILED");
   assert.equal(event.failureCount, 1);
-  assert.deepEqual(event.failedCategories, ["PART_1"]);
+  assert.deepEqual(event.failedCategories, ["PART_1A"]);
   assert.ok(output.join("\n").includes("synthetic-fixed-request"));
 
   const serialized = JSON.stringify(event);

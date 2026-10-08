@@ -19,9 +19,11 @@ export type Role = (typeof Role)[keyof typeof Role]
 
 
 export const QuestionCategory = {
-  PART_1: 'PART_1',
+  PART_1A: 'PART_1A',
+  PART_1B: 'PART_1B',
   PART_2: 'PART_2',
-  PART_3: 'PART_3'
+  PART_3: 'PART_3',
+  PART_4: 'PART_4'
 } as const
 
 export type QuestionCategory = (typeof QuestionCategory)[keyof typeof QuestionCategory]

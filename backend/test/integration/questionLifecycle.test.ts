@@ -12,6 +12,7 @@ import {
 import type { Express } from "express";
 import jwt from "jsonwebtoken";
 import type { PrismaClient } from "../../src/generated/client.js";
+import { SLOTS, createFixtureTestSet, type Slot } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 const TEST_PASSWORD_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
@@ -27,7 +28,10 @@ type TaskResponse = {
 type QuestionResponse = {
   id: string;
   category: string;
-  order: number;
+  testSetId: string;
+  testSet?: { id: string; code: string };
+  preparationSeconds: number;
+  recordingSeconds: number;
   deletedAt: string | null;
   tasks: TaskResponse[];
 };
@@ -39,7 +43,6 @@ let app: Express;
 let server: Server;
 let baseUrl: string;
 let adminId: string;
-let positionCounter = 100_000;
 
 async function migrateDatabase(databaseUrl: string) {
   await execFileAsync(
@@ -103,11 +106,6 @@ function cookieFor(userId = adminId) {
   return `jwt=${jwt.sign({ id: userId }, process.env.JWT_SECRET!)}`;
 }
 
-function nextPosition() {
-  positionCounter += 1;
-  return positionCounter;
-}
-
 async function request(
   method: string,
   path: string,
@@ -132,14 +130,19 @@ async function requestAs(
   });
 }
 
+
+function newTestSet() {
+  return createFixtureTestSet(prisma, "QL");
+}
+
 async function createQuestion(
-  category: "PART_1" | "PART_2" | "PART_3",
-  order: number,
+  category: Slot,
+  testSetId: string,
   tasks: Array<{ promptText: string; order: number }> = [],
 ) {
   const response = await request("POST", "/questions", {
     category,
-    order,
+    testSetId,
     tasks,
   });
   const body = await response.json() as { data?: QuestionResponse; error?: string };
@@ -154,23 +157,121 @@ async function listQuestions(includeRetired = false) {
   return (await response.json() as { data: QuestionResponse[] }).data;
 }
 
+function eligibleQuestionData(category: Slot, testSetId: string, promptText: string) {
+  return {
+    category,
+    testSetId,
+    createdById: adminId,
+    audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+    audioMimeType: "audio/webm",
+    audioSizeBytes: 1_024,
+    audioUploadStatus: "UPLOADED" as const,
+    tasks: { create: { promptText, order: 1 } },
+  };
+}
+
+test("Question creation without timings applies the slot defaults", async () => {
+  const testSet = await newTestSet();
+  const expected: Record<Slot, [number, number]> = {
+    PART_1A: [10, 45],
+    PART_1B: [10, 45],
+    PART_2: [60, 90],
+    PART_3: [60, 90],
+    PART_4: [15, 60],
+  };
+  for (const slot of SLOTS) {
+    const created = await createQuestion(slot, testSet.id);
+    assert.equal(created.testSetId, testSet.id);
+    assert.deepEqual(
+      [created.preparationSeconds, created.recordingSeconds],
+      expected[slot],
+      slot,
+    );
+  }
+
+  const overridden = await createQuestion("PART_4", (await newTestSet()).id);
+  assert.deepEqual([overridden.preparationSeconds, overridden.recordingSeconds], [15, 60]);
+  const explicitResponse = await request("POST", "/questions", {
+    category: "PART_2",
+    testSetId: (await newTestSet()).id,
+    preparationSeconds: 30,
+    recordingSeconds: 120,
+  });
+  assert.equal(explicitResponse.status, 201);
+  const explicit = (await explicitResponse.json() as { data: QuestionResponse }).data;
+  assert.deepEqual([explicit.preparationSeconds, explicit.recordingSeconds], [30, 120]);
+
+  const listed = (await listQuestions()).filter((question) => question.testSetId === testSet.id);
+  assert.deepEqual(listed.map((question) => question.category), [...SLOTS]);
+  assert.ok(listed.every((question) =>
+    question.testSet?.id === testSet.id && question.testSet.code === testSet.code));
+});
+
+test("a second active Question in the same Test Set slot returns 409", async () => {
+  const testSet = await newTestSet();
+  const first = await createQuestion("PART_1B", testSet.id);
+
+  const duplicate = await request("POST", "/questions", {
+    category: "PART_1B",
+    testSetId: testSet.id,
+  });
+  assert.equal(duplicate.status, 409);
+  assert.match(
+    (await duplicate.json() as { error: string }).error,
+    new RegExp(`Question position ${testSet.id}/PART_1B`),
+  );
+
+  // The same slot in another Test Set, and another slot in this Test Set, are free.
+  await createQuestion("PART_1B", (await newTestSet()).id);
+  await createQuestion("PART_1A", testSet.id);
+
+  assert.deepEqual(
+    (await prisma.question.findMany({
+      where: { testSetId: testSet.id, category: "PART_1B", deletedAt: null },
+      select: { id: true },
+    })).map((row) => row.id),
+    [first.id],
+  );
+});
+
+test("Question creation with an unknown Test Set returns 404", async () => {
+  for (const testSetId of [crypto.randomUUID(), "not-a-test-set"]) {
+    const response = await request("POST", "/questions", {
+      category: "PART_3",
+      testSetId,
+    });
+    assert.equal(response.status, 404, testSetId);
+    assert.equal((await response.json() as { error: string }).error, "Test Set not found");
+  }
+
+  const missing = await request("POST", "/questions", { category: "PART_3" });
+  assert.equal(missing.status, 400);
+
+  const question = await createQuestion("PART_3", (await newTestSet()).id);
+  const move = await request("PUT", `/questions/${question.id}`, {
+    testSetId: crypto.randomUUID(),
+  });
+  assert.equal(move.status, 404);
+  assert.equal((await move.json() as { error: string }).error, "Test Set not found");
+});
+
 test("retiring a Question releases its position and preserves replacement history", async () => {
-  const order = nextPosition();
-  const original = await createQuestion("PART_1", order, [
+  const testSet = await newTestSet();
+  const original = await createQuestion("PART_1A", testSet.id, [
     { promptText: "Original prompt", order: 1 },
   ]);
 
   const retirement = await request("DELETE", `/questions/${original.id}`);
   assert.equal(retirement.status, 200);
 
-  const replacement = await createQuestion("PART_1", order, [
+  const replacement = await createQuestion("PART_1A", testSet.id, [
     { promptText: "Replacement prompt", order: 1 },
   ]);
   assert.notEqual(replacement.id, original.id);
 
   const retiredView = await listQuestions(true);
   const records = retiredView.filter(
-    (question) => question.category === "PART_1" && question.order === order,
+    (question) => question.category === "PART_1A" && question.testSetId === testSet.id,
   );
   assert.equal(records.length, 2);
   assert.equal(records.find((question) => question.id === original.id)?.deletedAt !== null, true);
@@ -181,7 +282,7 @@ test("retiring a Question releases its position and preserves replacement histor
 });
 
 test("retiring a Task releases its Question/order position for repeated replacements", async () => {
-  const question = await createQuestion("PART_2", nextPosition(), [
+  const question = await createQuestion("PART_2", (await newTestSet()).id, [
     { promptText: "First task", order: 1 },
   ]);
   const firstTask = question.tasks[0]!;
@@ -229,24 +330,28 @@ test("retiring a Task releases its Question/order position for repeated replacem
 });
 
 test("active Question and Task conflicts return 409 without changing existing records", async () => {
-  const questionOrder = nextPosition();
-  const first = await createQuestion("PART_3", questionOrder, [
+  const occupiedSet = await newTestSet();
+  const first = await createQuestion("PART_3", occupiedSet.id, [
     { promptText: "Stable task", order: 1 },
   ]);
   const duplicateQuestion = await request("POST", "/questions", {
     category: "PART_3",
-    order: questionOrder,
+    testSetId: occupiedSet.id,
   });
   assert.equal(duplicateQuestion.status, 409);
-  assert.match((await duplicateQuestion.json()).error, /Question position PART_3\//);
+  assert.match((await duplicateQuestion.json()).error, /Question position [0-9a-f-]+\/PART_3/);
 
-  const second = await createQuestion("PART_3", nextPosition());
+  const second = await createQuestion("PART_3", (await newTestSet()).id);
   const moveConflict = await request("PUT", `/questions/${second.id}`, {
     category: "PART_3",
-    order: questionOrder,
+    testSetId: occupiedSet.id,
   });
   assert.equal(moveConflict.status, 409);
-  assert.match((await moveConflict.json()).error, /Question position PART_3\//);
+  assert.match((await moveConflict.json()).error, new RegExp(`Question position ${occupiedSet.id}/PART_3`));
+  assert.notEqual(
+    (await prisma.question.findUniqueOrThrow({ where: { id: second.id }, select: { testSetId: true } })).testSetId,
+    occupiedSet.id,
+  );
 
   const duplicateTask = await request(
     "POST",
@@ -279,15 +384,15 @@ test("active Question and Task conflicts return 409 without changing existing re
 });
 
 test("concurrent Question creation at one active position admits exactly one record", async () => {
-  const order = nextPosition();
+  const testSet = await newTestSet();
   const responses = await Promise.all([
     request("POST", "/questions", {
-      category: "PART_1",
-      order,
+      category: "PART_1A",
+      testSetId: testSet.id,
     }),
     request("POST", "/questions", {
-      category: "PART_1",
-      order,
+      category: "PART_1A",
+      testSetId: testSet.id,
     }),
   ]);
   const bodies = await Promise.all(
@@ -301,19 +406,19 @@ test("concurrent Question creation at one active position admits exactly one rec
   assert.equal(bodies.filter((body) => body.data !== undefined).length, 1);
   assert.equal(
     await prisma.question.count({
-      where: { category: "PART_1", order, deletedAt: null },
+      where: { category: "PART_1A", testSetId: testSet.id, deletedAt: null },
     }),
     1,
   );
 });
 
 test("concurrent Question updates at one active position admit exactly one winner", async () => {
-  const first = await createQuestion("PART_1", nextPosition());
-  const second = await createQuestion("PART_1", nextPosition());
-  const targetOrder = nextPosition();
+  const first = await createQuestion("PART_1A", (await newTestSet()).id);
+  const second = await createQuestion("PART_1A", (await newTestSet()).id);
+  const target = await newTestSet();
   const responses = await Promise.all([
-    request("PUT", `/questions/${first.id}`, { order: targetOrder }),
-    request("PUT", `/questions/${second.id}`, { order: targetOrder }),
+    request("PUT", `/questions/${first.id}`, { testSetId: target.id }),
+    request("PUT", `/questions/${second.id}`, { testSetId: target.id }),
   ]);
   const bodies = await Promise.all(
     responses.map((response) => response.json() as Promise<{ data?: QuestionResponse; error?: string }>),
@@ -326,17 +431,17 @@ test("concurrent Question updates at one active position admit exactly one winne
   assert.equal(bodies.filter((body) => body.data !== undefined).length, 1);
   assert.equal(
     await prisma.question.count({
-      where: { category: "PART_1", order: targetOrder, deletedAt: null },
+      where: { category: "PART_1A", testSetId: target.id, deletedAt: null },
     }),
     1,
   );
 });
 
 test("concurrent Question restoration admits one original identity at a free position", async () => {
-  const order = nextPosition();
-  const first = await createQuestion("PART_2", order);
+  const testSet = await newTestSet();
+  const first = await createQuestion("PART_2", testSet.id);
   assert.equal((await request("DELETE", `/questions/${first.id}`)).status, 200);
-  const second = await createQuestion("PART_2", order);
+  const second = await createQuestion("PART_2", testSet.id);
   assert.equal((await request("DELETE", `/questions/${second.id}`)).status, 200);
 
   const responses = await Promise.all([
@@ -354,23 +459,23 @@ test("concurrent Question restoration admits one original identity at a free pos
   assert.equal(bodies.filter((body) => body.data !== undefined).length, 1);
   assert.equal(
     await prisma.question.count({
-      where: { category: "PART_2", order, deletedAt: null },
+      where: { category: "PART_2", testSetId: testSet.id, deletedAt: null },
     }),
     1,
   );
   assert.equal(
     await prisma.question.count({
-      where: { category: "PART_2", order },
+      where: { category: "PART_2", testSetId: testSet.id },
     }),
     2,
   );
 });
 
 test("nested Question creation is atomic when a Task position conflicts", async () => {
-  const order = nextPosition();
+  const testSet = await newTestSet();
   const response = await request("POST", "/questions", {
-    category: "PART_1",
-    order,
+    category: "PART_1A",
+    testSetId: testSet.id,
     tasks: [
       { promptText: "Duplicate one", order: 1 },
       { promptText: "Duplicate two", order: 1 },
@@ -381,14 +486,14 @@ test("nested Question creation is atomic when a Task position conflicts", async 
 
   const records = await listQuestions(true);
   assert.equal(
-    records.some((question) => question.category === "PART_1" && question.order === order),
+    records.some((question) => question.testSetId === testSet.id),
     false,
   );
 });
 
 test("Question restoration is exact, idempotent, and conflict-safe", async () => {
-  const order = nextPosition();
-  const original = await createQuestion("PART_2", order, [
+  const testSet = await newTestSet();
+  const original = await createQuestion("PART_2", testSet.id, [
     { promptText: "Keep this child retired", order: 1 },
   ]);
   const originalTask = original.tasks[0]!;
@@ -398,13 +503,13 @@ test("Question restoration is exact, idempotent, and conflict-safe", async () =>
   );
   assert.equal((await request("DELETE", `/questions/${original.id}`)).status, 200);
 
-  const replacement = await createQuestion("PART_2", order);
+  const replacement = await createQuestion("PART_2", testSet.id);
   const occupiedRestore = await request("POST", `/questions/${original.id}/restore`);
   assert.equal(occupiedRestore.status, 409);
 
   const unchangedRows = await prisma.question.findMany({
     where: { id: { in: [original.id, replacement.id] } },
-    select: { id: true, category: true, order: true, deletedAt: true },
+    select: { id: true, category: true, testSetId: true, deletedAt: true },
   });
   assert.equal(unchangedRows.find((row) => row.id === original.id)?.deletedAt !== null, true);
   assert.equal(unchangedRows.find((row) => row.id === replacement.id)?.deletedAt, null);
@@ -415,7 +520,7 @@ test("Question restoration is exact, idempotent, and conflict-safe", async () =>
   const restoredData = (await restored.json() as { data: QuestionResponse }).data;
   assert.equal(restoredData.id, original.id);
   assert.equal(restoredData.category, "PART_2");
-  assert.equal(restoredData.order, order);
+  assert.equal(restoredData.testSetId, testSet.id);
   assert.equal(restoredData.tasks[0]?.id, originalTask.id);
   assert.notEqual(restoredData.tasks[0]?.deletedAt, null);
 
@@ -426,7 +531,7 @@ test("Question restoration is exact, idempotent, and conflict-safe", async () =>
 });
 
 test("Question restoration cannot revive media after cleanup crosses the irreversible boundary", async () => {
-  const question = await createQuestion("PART_3", nextPosition());
+  const question = await createQuestion("PART_3", (await newTestSet()).id);
   const storageKey = `questions/${question.id}/prompt.webm`;
   await prisma.question.update({
     where: { id: question.id },
@@ -471,7 +576,7 @@ test("Question restoration cannot revive media after cleanup crosses the irrever
 });
 
 test("Question restoration waits for unresolved Prompt-media cleanup recovery", async () => {
-  const question = await createQuestion("PART_1", nextPosition());
+  const question = await createQuestion("PART_1A", (await newTestSet()).id);
   const storageKey = `questions/${question.id}/prompt.webm`;
   await prisma.question.update({
     where: { id: question.id },
@@ -516,7 +621,7 @@ test("Question restoration waits for unresolved Prompt-media cleanup recovery", 
 });
 
 test("Task restoration is independent of its parent Question and ownership", async () => {
-  const parent = await createQuestion("PART_3", nextPosition(), [
+  const parent = await createQuestion("PART_3", (await newTestSet()).id, [
     { promptText: "Restore independently", order: 1 },
   ]);
   const task = parent.tasks[0]!;
@@ -535,7 +640,7 @@ test("Task restoration is independent of its parent Question and ownership", asy
   );
   assert.equal((await listQuestions()).some((question) => question.id === parent.id), false);
 
-  const conflictParent = await createQuestion("PART_1", nextPosition(), [
+  const conflictParent = await createQuestion("PART_1A", (await newTestSet()).id, [
     { promptText: "Old task", order: 1 },
   ]);
   const oldTask = conflictParent.tasks[0]!;
@@ -596,45 +701,41 @@ test("Question and Task restoration remain restricted to administrators", async 
 });
 
 test("restored incomplete or retired content remains outside test delivery", async () => {
-  const deliveryOrder = nextPosition();
-  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
+  const deliverySet = await newTestSet();
+  for (const category of SLOTS) {
     await prisma.question.create({
-      data: {
-        category,
-        order: deliveryOrder,
-        createdById: adminId,
-        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 1_024,
-        audioUploadStatus: "UPLOADED",
-        tasks: { create: { promptText: "Eligible task", order: 1 } },
-      },
+      data: eligibleQuestionData(category, deliverySet.id, "Eligible task"),
     });
   }
 
-  const incomplete = await createQuestion("PART_1", nextPosition());
+  const incomplete = await createQuestion("PART_1A", (await newTestSet()).id);
   assert.equal((await request("DELETE", `/questions/${incomplete.id}`)).status, 200);
   assert.equal((await request("POST", `/questions/${incomplete.id}/restore`)).status, 200);
 
-  const retiredParent = await createQuestion("PART_2", nextPosition(), [
+  const retiredParent = await createQuestion("PART_2", (await newTestSet()).id, [
     { promptText: "Parent retired", order: 1 },
   ]);
   assert.equal((await request("DELETE", `/questions/${retiredParent.id}`)).status, 200);
 
   const { retrieveTestQuestions } = await import("../../src/service/question.service.js");
-  const delivered = await retrieveTestQuestions(deliveryOrder);
-  assert.deepEqual(delivered.map((question) => question.category).sort(), ["PART_1", "PART_2", "PART_3"]);
+  const delivered = await retrieveTestQuestions();
+  assert.deepEqual(
+    delivered
+      .filter((question) => question.testSetId === deliverySet.id)
+      .map((question) => question.category),
+    [...SLOTS],
+  );
   assert.equal(delivered.some((question) => question.id === incomplete.id), false);
   assert.equal(delivered.some((question) => question.id === retiredParent.id), false);
 });
 
-test("admin question listing is not limited to the legacy order-two position", async () => {
+test("admin question listing spans every Test Set and slot", async () => {
   const created = await Promise.all(
-    (["PART_1", "PART_2", "PART_3"] as const).map((category) =>
+    SLOTS.map(async (category) =>
       prisma.question.create({
         data: {
           category,
-          order: nextPosition(),
+          testSetId: (await newTestSet()).id,
           createdById: adminId,
           tasks: { create: { promptText: `${category} admin listing`, order: 1 } },
         },
@@ -648,30 +749,21 @@ test("admin question listing is not limited to the legacy order-two position", a
   const returnedIds = new Set(body.data.map((question) => question.id));
   assert.deepEqual(
     created.map((question) => returnedIds.has(question.id)),
-    [true, true, true],
+    SLOTS.map(() => true),
   );
 });
 
 test("restoring a Task resumes delivery only under an active eligible Question", async () => {
-  const order = nextPosition();
+  const testSet = await newTestSet();
   const question = await prisma.question.create({
-    data: {
-      category: "PART_3",
-      order,
-      createdById: adminId,
-      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-      audioMimeType: "audio/webm",
-      audioSizeBytes: 1_024,
-      audioUploadStatus: "UPLOADED",
-      tasks: { create: { promptText: "Restored delivery task", order: 1 } },
-    },
+    data: eligibleQuestionData("PART_3", testSet.id, "Restored delivery task"),
     include: { tasks: true },
   });
   const task = question.tasks[0]!;
 
   assert.equal((await request("DELETE", `/questions/${question.id}/tasks/${task.id}`)).status, 200);
   const { retrieveTestQuestions } = await import("../../src/service/question.service.js");
-  const withoutTask = await retrieveTestQuestions(order);
+  const withoutTask = await retrieveTestQuestions();
   assert.equal(withoutTask.some((item) => item.id === question.id), false);
 
   const restored = await request(
@@ -692,7 +784,7 @@ test("restoring a Task resumes delivery only under an active eligible Question",
   assert.equal(repeatedBody.id, task.id);
   assert.equal(repeatedBody.order, task.order);
 
-  const withTask = await retrieveTestQuestions(order);
+  const withTask = await retrieveTestQuestions();
   assert.deepEqual(
     withTask.find((item) => item.id === question.id)?.tasks.map((item) => item.id),
     [task.id],

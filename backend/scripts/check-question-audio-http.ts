@@ -6,6 +6,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "../src/config/db.js";
 import { env } from "../src/config/env.js";
 import { createQuestion, retireQuestion } from "../src/service/question.service.js";
+import { createTestSet } from "../src/service/testSet.service.js";
 import { QuestionCategory } from "../src/generated/enums.js";
 
 let failures = 0;
@@ -107,9 +108,10 @@ async function main() {
     check("video mimeType → 400", badMime.status === 400);
 
     // 3. Confirm-before-upload → 500
+    const testSet = await createTestSet(`AUDIO-HTTP-${crypto.randomUUID().slice(0, 8)}`);
     question = await createQuestion(admin.id, {
-      category: QuestionCategory.PART_1,
-      order: 200000 + Math.floor(Math.random() * 100000),
+      category: QuestionCategory.PART_1A,
+      testSetId: testSet.id,
       tasks: [],
     });
     const presign1 = await call(base, "POST", "/questions/audio/presigned-url", adminTok, {

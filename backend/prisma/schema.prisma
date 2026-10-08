@@ -16,10 +16,14 @@ enum Role {
   ADMIN
 }
 
+// One delivery slot per recorded Answer (PRD §3.1). Legacy PART_1 data was
+// renamed to PART_1A; legacy Submissions keep their 3-entry version 1 manifest.
 enum QuestionCategory {
-  PART_1
+  PART_1A
+  PART_1B
   PART_2
   PART_3
+  PART_4
 }
 
 enum SubmissionStatus {
@@ -175,10 +179,22 @@ model GoogleOAuthState {
   @@index([expiresAt])
 }
 
+// A Test Set holds exactly one active Question per delivery slot. A Submission
+// is delivered from one Test Set and never mixes sets.
+model TestSet {
+  id        String               @id @default(uuid()) @db.Uuid
+  code      String               @unique // short label shown with every score, e.g. "A"
+  questions Question[]
+  manifests SubmissionManifest[]
+  createdAt DateTime             @default(now()) @db.Timestamptz()
+  updatedAt DateTime             @updatedAt @db.Timestamptz()
+}
+
 model Question {
   id                        String                     @id @default(uuid()) @db.Uuid
   category                  QuestionCategory
-  order                     Int
+  testSetId                 String                     @db.Uuid
+  testSet                   TestSet                    @relation(fields: [testSetId], references: [id], onDelete: Restrict)
   preparationSeconds        Int                        @default(30)
   recordingSeconds          Int                        @default(120)
   createdById               String?                    @db.Uuid
@@ -198,7 +214,7 @@ model Question {
   updatedAt DateTime  @updatedAt @db.Timestamptz()
   deletedAt DateTime? @db.Timestamptz() // retire a question without breaking historical answers
 
-  @@unique([category, order], where: { deletedAt: null })
+  @@unique([testSetId, category], where: { deletedAt: null })
   @@index([category])
 }
 
@@ -395,11 +411,15 @@ model SubmissionManifest {
   id           String          @id @default(uuid()) @db.Uuid
   submissionId String          @unique @db.Uuid
   submission   Submission      @relation(fields: [submissionId], references: [id], onDelete: Restrict)
-  version      Int
+  version      Int // 1 = legacy 3-slot delivery, 2 = 5-slot Test Set delivery
+  testSetId    String?         @db.Uuid // required for version 2; null on legacy manifests
+  testSet      TestSet?        @relation(fields: [testSetId], references: [id], onDelete: Restrict)
+  testSetCode  String? // Test Set code as delivered; later renames never rewrite history
   entries      ManifestEntry[]
   createdAt    DateTime        @default(now()) @db.Timestamptz()
 
   @@unique([id, submissionId])
+  @@index([testSetId])
 }
 
 model ManifestEntry {

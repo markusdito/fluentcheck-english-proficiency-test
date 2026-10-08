@@ -13,7 +13,7 @@ interface TestQuestionTask {
 export interface TestQuestionRecord {
   id: string;
   category: string;
-  order: number;
+  testSetId: string;
   preparationSeconds: number;
   recordingSeconds: number;
   audioUploadStatus: string;
@@ -95,7 +95,7 @@ export async function buildTestQuestionDelivery(
     return {
       id: question.id,
       category: question.category,
-      order: question.order,
+      testSetId: question.testSetId,
       preparationSeconds: question.preparationSeconds,
       recordingSeconds: question.recordingSeconds,
       audioUploadStatus: question.audioUploadStatus,

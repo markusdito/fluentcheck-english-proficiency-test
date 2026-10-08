@@ -1,5 +1,7 @@
 # Bind question selection to a Submission manifest
 
+Status: Accepted. Superseded in part by ADR-0019: the Required categories are now the five Delivery slots, and a Test Set replaces the shared `order`.
+
 When a new Submission is created, FluentCheck selects one Eligible question from each required category and atomically stores that selection and its Delivered prompt snapshots in an immutable Submission manifest. Submission creation returns the bound delivery, so the student flow cannot observe one question set while recording Answers against another; an incomplete question bank cannot produce a partially initialized Submission.
 
 ## Considered Options

@@ -2,6 +2,7 @@ import {prisma} from "../config/db.js";
 import {Prisma} from "../generated/client.js";
 import {QuestionCategory} from "../generated/enums.js";
 import {lockPromptMediaStorageIdentity} from "./promptMediaLock.service.js";
+import {ASSESSMENT_SLOTS, SLOT_DEFAULT_TIMING} from "./assessmentSlots.js";
 
 export class PositionConflictError extends Error {
   constructor(
@@ -19,6 +20,13 @@ export class DuplicateTaskPositionError extends Error {
   constructor(readonly order: number) {
     super(`Task order ${order} is duplicated in the requested Question`);
     this.name = "DuplicateTaskPositionError";
+  }
+}
+
+export class TestSetNotFoundError extends Error {
+  constructor() {
+    super("Test Set not found");
+    this.name = "TestSetNotFoundError";
   }
 }
 
@@ -70,8 +78,8 @@ function duplicateTaskOrder(tasks: CreateTaskInput[] | undefined) {
   return undefined;
 }
 
-function questionPositionConflict(category: QuestionCategory, order: number) {
-  return new PositionConflictError("Question", `${category}/${order}`);
+function questionPositionConflict(testSetId: string, category: QuestionCategory) {
+  return new PositionConflictError("Question", `${testSetId}/${category}`);
 }
 
 function taskPositionConflict(questionId: string, order: number) {
@@ -84,6 +92,15 @@ function isUuid(value: string) {
   );
 }
 
+async function assertTestSetExists(testSetId: string) {
+  if (!isUuid(testSetId)) throw new TestSetNotFoundError();
+  const testSet = await prisma.testSet.findUnique({
+    where: {id: testSetId},
+    select: {id: true},
+  });
+  if (!testSet) throw new TestSetNotFoundError();
+}
+
 export interface CreateTaskInput {
   promptText: string;
   order: number;
@@ -91,7 +108,7 @@ export interface CreateTaskInput {
 
 export interface CreateQuestionInput {
   category: QuestionCategory;
-  order: number;
+  testSetId: string;
   preparationSeconds?: number;
   recordingSeconds?: number;
   tasks?: CreateTaskInput[];
@@ -99,7 +116,7 @@ export interface CreateQuestionInput {
 
 export interface UpdateQuestionInput {
   category?: QuestionCategory;
-  order?: number;
+  testSetId?: string;
   preparationSeconds?: number;
   recordingSeconds?: number;
 }
@@ -110,61 +127,18 @@ export interface UpdateTaskInput {
 }
 
 /**
- * Retrieve one random question per category (PART_1, PART_2, PART_3)
- * with their tasks, sorted by order.
- */
-export async function retrieveQuestions(order: number) {
-  const categories = [
-    QuestionCategory.PART_1,
-    QuestionCategory.PART_2,
-    QuestionCategory.PART_3,
-  ];
-
-  // Fetch all non-deleted questions across the three categories
-  return prisma.question.findMany({
-    where: {deletedAt: null, category: {in: categories}, order: order},
-    select: {
-      id: true,
-      category: true,
-      order: true,
-      preparationSeconds: true,
-      recordingSeconds: true,
-      audioStorageKey: true,
-      audioMimeType: true,
-      audioUploadStatus: true,
-      tasks: {
-        where: {deletedAt: null},
-        orderBy: {order: "asc"},
-        select: {
-          id: true,
-          promptText: true,
-          order: true,
-        },
-      },
-    },
-  });
-}
-
-/**
  * Retrieve every active question for the admin question bank.
  * Draft questions are intentionally included so admins can finish their audio.
  */
 export async function retrieveAdminQuestions(includeRetired = false) {
-  const categories = [
-    QuestionCategory.PART_1,
-    QuestionCategory.PART_2,
-    QuestionCategory.PART_3,
-  ];
-
   return prisma.question.findMany({
-    where: includeRetired
-      ? {category: {in: categories}}
-      : {deletedAt: null, category: {in: categories}},
-    orderBy: [{category: "asc"}, {order: "asc"}],
+    where: includeRetired ? {} : {deletedAt: null},
+    orderBy: [{testSet: {code: "asc"}}, {category: "asc"}],
     select: {
       id: true,
       category: true,
-      order: true,
+      testSetId: true,
+      testSet: {select: {id: true, code: true}},
       preparationSeconds: true,
       recordingSeconds: true,
       audioStorageKey: true,
@@ -191,23 +165,18 @@ export async function retrieveAdminQuestions(includeRetired = false) {
  * Retrieve only questions that are ready to be delivered to test takers.
  */
 export async function retrieveTestQuestions() {
-  const categories = [
-    QuestionCategory.PART_1,
-    QuestionCategory.PART_2,
-    QuestionCategory.PART_3,
-  ];
-
   return prisma.question.findMany({
     where: {
       deletedAt: null,
-      category: {in: categories},
+      category: {in: [...ASSESSMENT_SLOTS]},
       audioUploadStatus: "UPLOADED",
       tasks: {some: {deletedAt: null}},
     },
+    orderBy: [{testSet: {code: "asc"}}, {category: "asc"}],
     select: {
       id: true,
       category: true,
-      order: true,
+      testSetId: true,
       preparationSeconds: true,
       recordingSeconds: true,
       audioStorageKey: true,
@@ -235,19 +204,23 @@ export async function createQuestion(userId: string, data: CreateQuestionInput) 
     throw new DuplicateTaskPositionError(duplicateOrder);
   }
 
+  await assertTestSetExists(data.testSetId);
+  const defaults = SLOT_DEFAULT_TIMING[data.category];
+
   try {
     return await prisma.question.create({
       data: {
         category: data.category,
-        order: data.order,
-        preparationSeconds: data.preparationSeconds ?? 30,
-        recordingSeconds: data.recordingSeconds ?? 120,
+        testSetId: data.testSetId,
+        preparationSeconds: data.preparationSeconds ?? defaults.preparationSeconds,
+        recordingSeconds: data.recordingSeconds ?? defaults.recordingSeconds,
         createdById: userId,
         tasks: data.tasks?.length
           ? {create: data.tasks.map((task) => ({promptText: task.promptText, order: task.order}))}
           : undefined,
       },
       include: {
+        testSet: {select: {id: true, code: true}},
         tasks: {
           where: {deletedAt: null},
           orderBy: {order: "asc"},
@@ -259,7 +232,7 @@ export async function createQuestion(userId: string, data: CreateQuestionInput) 
     if (isTaskPositionViolation(error)) {
       throw new DuplicateTaskPositionError(duplicateTaskOrder(data.tasks) ?? 0);
     }
-    throw questionPositionConflict(data.category, data.order);
+    throw questionPositionConflict(data.testSetId, data.category);
   }
 }
 
@@ -269,20 +242,22 @@ export async function createQuestion(userId: string, data: CreateQuestionInput) 
 export async function updateQuestion(id: string, data: UpdateQuestionInput) {
   const existing = await prisma.question.findUnique({
     where: {id},
-    select: {id: true, category: true, order: true, deletedAt: true},
+    select: {id: true, category: true, testSetId: true, deletedAt: true},
   });
   if (!existing || existing.deletedAt) throw new Error("Question not found");
+  if (data.testSetId !== undefined) await assertTestSetExists(data.testSetId);
 
   try {
     return await prisma.question.update({
       where: {id},
       data: {
         ...(data.category !== undefined && {category: data.category}),
-        ...(data.order !== undefined && {order: data.order}),
+        ...(data.testSetId !== undefined && {testSetId: data.testSetId}),
         ...(data.preparationSeconds !== undefined && {preparationSeconds: data.preparationSeconds}),
         ...(data.recordingSeconds !== undefined && {recordingSeconds: data.recordingSeconds}),
       },
       include: {
+        testSet: {select: {id: true, code: true}},
         tasks: {
           where: {deletedAt: null},
           orderBy: {order: "asc"},
@@ -292,8 +267,8 @@ export async function updateQuestion(id: string, data: UpdateQuestionInput) {
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
     throw questionPositionConflict(
+      data.testSetId ?? existing.testSetId,
       data.category ?? existing.category,
-      data.order ?? existing.order,
     );
   }
 }
@@ -400,7 +375,7 @@ export async function restoreQuestion(id: string) {
       select: {
         id: true,
         category: true,
-        order: true,
+        testSetId: true,
         audioStorageKey: true,
         deletedAt: true,
       },
@@ -433,7 +408,7 @@ export async function restoreQuestion(id: string) {
         });
       } catch (error) {
         if (isUniqueViolation(error)) {
-          throw questionPositionConflict(existing.category, existing.order);
+          throw questionPositionConflict(existing.testSetId, existing.category);
         }
         throw error;
       }
@@ -442,6 +417,7 @@ export async function restoreQuestion(id: string) {
     return transaction.question.findUniqueOrThrow({
       where: {id},
       include: {
+        testSet: {select: {id: true, code: true}},
         tasks: {
           orderBy: {order: "asc"},
         },

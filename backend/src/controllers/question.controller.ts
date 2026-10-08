@@ -15,6 +15,7 @@ import {
   PositionConflictError,
   DuplicateTaskPositionError,
   QuestionPromptMediaUnavailableError,
+  TestSetNotFoundError,
 } from "../service/question.service.js";
 import {
   createQuestionAudioPresignedUpload,
@@ -140,6 +141,8 @@ function isQuestionCategory(value: unknown): value is QuestionCategory {
   );
 }
 
+const CATEGORY_ERROR = `Category must be one of ${Object.values(QuestionCategory).join(", ")}`;
+
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
@@ -151,6 +154,10 @@ function handleQuestionError(res: Response, error: unknown) {
     error instanceof QuestionPromptMediaUnavailableError
   ) {
     res.status(409).json({ error: error.message });
+    return;
+  }
+  if (error instanceof TestSetNotFoundError) {
+    res.status(404).json({ error: error.message });
     return;
   }
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -201,14 +208,14 @@ export async function restoreQuestion(req: Request, res: Response) {
 
 export async function createQuestion(req: Request, res: Response) {
   try {
-    const { category, order, preparationSeconds, recordingSeconds, tasks } = req.body;
+    const { category, testSetId, preparationSeconds, recordingSeconds, tasks } = req.body;
 
     if (!isQuestionCategory(category)) {
-      res.status(400).json({ error: "Category must be one of PART_1, PART_2 or PART_3" });
+      res.status(400).json({ error: CATEGORY_ERROR });
       return;
     }
-    if (!isNonNegativeInteger(order)) {
-      res.status(400).json({ error: "order is required and must be a non-negative integer" });
+    if (typeof testSetId !== "string" || testSetId === "") {
+      res.status(400).json({ error: "testSetId is required" });
       return;
     }
     if (preparationSeconds !== undefined && !isNonNegativeInteger(preparationSeconds)) {
@@ -238,7 +245,7 @@ export async function createQuestion(req: Request, res: Response) {
 
     const question = await createQuestionService(req.user!.id, {
       category,
-      order,
+      testSetId,
       preparationSeconds,
       recordingSeconds,
       tasks: tasks?.map((task: {promptText: string; order: number}) => ({
@@ -256,14 +263,14 @@ export async function createQuestion(req: Request, res: Response) {
 export async function updateQuestion(req: Request, res: Response) {
   try {
     const id = req.params.id as string;
-    const { category, order, preparationSeconds, recordingSeconds } = req.body;
+    const { category, testSetId, preparationSeconds, recordingSeconds } = req.body;
 
     if (category !== undefined && !isQuestionCategory(category)) {
-      res.status(400).json({ error: "Category must be one of PART_1, PART_2 or PART_3" });
+      res.status(400).json({ error: CATEGORY_ERROR });
       return;
     }
-    if (order !== undefined && !isNonNegativeInteger(order)) {
-      res.status(400).json({ error: "order must be a non-negative integer" });
+    if (testSetId !== undefined && (typeof testSetId !== "string" || testSetId === "")) {
+      res.status(400).json({ error: "testSetId must be a non-empty string" });
       return;
     }
     if (preparationSeconds !== undefined && !isNonNegativeInteger(preparationSeconds)) {
@@ -277,7 +284,7 @@ export async function updateQuestion(req: Request, res: Response) {
 
     const question = await updateQuestionService(id, {
       category,
-      order,
+      testSetId,
       preparationSeconds,
       recordingSeconds,
     });

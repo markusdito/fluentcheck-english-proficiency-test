@@ -1,6 +1,6 @@
 # PRD: SpeakNusa English Speaking Test (CEFR B1 · Audio Answers + Webcam Proctoring + Human Examiner Scoring)
 
-Version: 0.3.0 (draft)
+Version: 0.3.1 (draft)
 Status: Draft for review
 Owner: SpeakNusa product
 Source repo: FluentCheck (`fluentcheck-english-proficiency-test`)
@@ -11,14 +11,14 @@ Last updated: 2026-10-08
 
 - **Test structure** (0.2.0, revised in 0.3.0): Part 1/2/3 replaced by **4 Parts** from the CEFR B1 spec. Part 1 has 2 Tasks (1A, 1B), each with its own recording; Parts 2, 3 and 4 have one recording each (**5 audio tracks** per Submission). Six equivalent **Test Sets (A–F)** with fixed content and timing.
 - **Retake** (0.2.0): a student may start a new Assessment while an earlier Submission is still `AWAITING_PAYMENT`, `PAID` or `SCORING`. The review-pipeline block and its warning are removed.
-- **Scoring** (0.2.0): one score for the whole Submission instead of one per Answer. A single Examiner scores the 4 criteria once and enters the overall band directly. Nothing is averaged.
+- **Scoring** (0.2.0, revised in 0.3.1): one Score for the whole Submission per Examiner instead of one per Answer. **2 Examiners** score each Submission independently: each enters the 4 criteria and the overall band once. The Submission result is the **mean of the 2 Examiners' Scores**.
 - **Strict exam flow** (0.3.0): recording starts automatically when preparation ends and stops automatically when speaking time ends, then advances. One take per Task: no preview, no re-record.
 - **Webcam proctoring** (0.3.0): the webcam records continuously in the background for integrity, with informed consent. Video is never scored. Camera is required again.
 - **Practice item** (0.3.0): one unscored sample task before Part 1.
 - **Prompt audio** (0.3.0): each prompt audio may be played at most 2 times.
 - **Technical failure** (0.3.0): a failure during speaking time saves the partial recording and flags it for manual review instead of scoring zero.
 - **Retention** (0.3.0): audio and webcam recordings are kept only for the scoring period, then deleted (UU PDP).
-- **Webcam footage for examiners** (0.3.0): the assigned Examiner sees the webcam footage next to the audio on their dashboard.
+- **Webcam footage for examiners** (0.3.0): both assigned Examiners see the webcam footage next to the audio on their dashboard.
 - **Flagged Submissions** (0.3.0): a confirmed technical-failure or integrity flag voids the Submission and gives the student a free retake.
 - **Resume vs abandon** (0.3.0): resume exists only for unexpected network loss while the test page stays open. Leaving the page on purpose (close, refresh, navigate away) abandons the Submission.
 
@@ -43,7 +43,7 @@ On every candidate-facing screen the spec's placeholder "CEFR B1 Speaking Test" 
 ### 1.1 Goals
 
 1. Let a student complete a full speaking assessment in ~15 minutes with a browser, headset microphone and webcam.
-2. Guarantee every submitted audio answer is playable by the assigned examiner, and every technical failure is flagged rather than silently scored.
+2. Guarantee every submitted audio answer is playable by both assigned examiners, and every technical failure is flagged rather than silently scored.
 3. Produce a defensible 1–6 human score with criterion-level feedback.
 4. Deter cheating (off-screen notes, translation tools) through continuous webcam proctoring.
 5. Keep the recording-to-result pipeline operable by a small admin/examiner team, and delete recordings once scoring is done.
@@ -62,8 +62,8 @@ On every candidate-facing screen the spec's placeholder "CEFR B1 Speaking Test" 
 | Role | Needs |
 | --- | --- |
 | **Student** (high school student / graduate) | Clear consent and system check, a practice item, clear prompts with text + audio, automatic timed recording, confidence every track was uploaded, understandable 1–6 result, free to retake at any time. |
-| **Examiner** | Queue of assigned submissions, reliable audio playback, webcam footage of the candidate next to the audio, one rubric entry per Submission (4 criteria + overall band, 1.0–6.0), written feedback, a way to raise integrity concerns, no-edit after completion. |
-| **Admin** | Test Set + prompt audio management, payment control / waiver, examiner assignment (1 Examiner per Submission), reassignment, confirming or dismissing technical-failure and integrity flags, reconciliation, retention. |
+| **Examiner** | Queue of assigned submissions, reliable audio playback, webcam footage of the candidate next to the audio, one independent rubric entry per Submission (4 criteria + overall band, 1.0–6.0), never seeing the other Examiner's Score, written feedback, a way to raise integrity concerns, no-edit after completion. |
+| **Admin** | Test Set + prompt audio management, payment control / waiver, examiner assignment (2 Examiners per Submission), reassignment, confirming or dismissing technical-failure and integrity flags, reconciliation, retention. |
 
 Role model follows the existing system: `STUDENT`, `EXAMINER`, `ADMIN`. JWT in HTTP-only cookies, role-gated routes.
 
@@ -138,7 +138,7 @@ Test Sets A–F must be **piloted** to verify equal difficulty before launch. Un
    4. Recording **stops automatically** when speaking time ends and the test **advances** to the next slot. No preview, no re-record.
 7. After the last slot, the **completion screen** confirms *"All 5 audio tracks successfully recorded and uploaded"*, shows the **Submission Reference ID** and status *"Saved for Evaluation"*.
 8. Payment step if required (iPaymu checkout) or waiver path. Every Submission, including a retake, needs its own payment or waiver, except a free retake granted after a void (FR-2.8). A Submission that already carries a flag from the test goes to flag review before payment, so the student is never charged for a Submission that will be voided.
-9. Wait for scoring → result report with the 4 criterion bands, the overall band and examiner comments. If a flag is confirmed instead, the student sees the Submission as **Voided** with the reason and a **Retake for free** action.
+9. Wait for scoring → result report with the 4 criterion bands and the overall band (each the mean of the 2 Examiners) and examiner comments. If a flag is confirmed instead, the student sees the Submission as **Voided** with the reason and a **Retake for free** action.
 10. If the network drops mid-test, the page shows "Connection lost — reconnecting" and pauses; once back online the test resumes at the next unfinished slot (FR-2.7).
 11. Leaving the test page on purpose (closing the tab, refreshing, navigating away) **abandons** the Submission. Explicit **Abandonment** is also available while `IN_PROGRESS`. Both preserve retained evidence and allow a later Assessment start.
 
@@ -149,11 +149,11 @@ Test Sets A–F must be **piloted** to verify equal difficulty before launch. Un
 3. Listen to the whole Submission and enter **one Score draft** for it: 4 criterion bands + overall band + optional comment. The draft is mutable until completion.
 4. If the footage or audio shows cheating (off-screen notes outside Part 2 prep, translation tools, another person helping), the Examiner raises an **integrity concern** with a timestamp and note. This pauses the assignment until an Admin confirms or dismisses it.
 5. **Complete assignment**: allowed only when the Score has all 4 criteria and the overall band. Completion is terminal and idempotent; repeating completion is a no-op.
-6. Exactly **1 Examiner assignment** scores each Submission.
+6. Exactly **2 Examiner assignments** score each Submission. The 2 Examiners work independently, have no rank, and never see each other's Score.
 
 ### 4.3 Admin
 
-Manage users/roles, Test Sets A–F + prompt audio + Part 3 option icons, payment requirement toggle + waiver, examiner assignment (1 Examiner per Submission), reassignment of untouched `ASSIGNED` work, confirming or dismissing technical-failure and integrity flags (with access to the audio and webcam footage), payment reconciliation, retention holds / purge requests.
+Manage users/roles, Test Sets A–F + prompt audio + Part 3 option icons, payment requirement toggle + waiver, examiner assignment (2 Examiners per Submission), reassignment of untouched `ASSIGNED` work, confirming or dismissing technical-failure and integrity flags (with access to the audio and webcam footage), payment reconciliation, retention holds / purge requests.
 
 ## 5. Functional requirements
 
@@ -200,7 +200,7 @@ Manage users/roles, Test Sets A–F + prompt audio + Part 3 option icons, paymen
 - FR-4.3 A small self-view and "camera recording" indicator stay visible during the test.
 - FR-4.4 If the camera stream drops mid-test, the test continues (audio answers take priority), and the Submission is flagged for **integrity review** with the gap recorded.
 - FR-4.5 Upload uses the same direct-to-storage path as audio (FR-5), in chunks so a disconnect does not lose the whole recording. The recording carries slot markers (start/stop time of each audio track) so it can be synced to the audio.
-- FR-4.6 The webcam footage is shown on the **assigned Examiner's** scoring screen, next to the audio tracks, via time-limited signed URLs. Admins can also view it when reviewing a flag. No one else (other Examiners, the student) can view it. Every view is audited.
+- FR-4.6 The webcam footage is shown on the **assigned Examiners'** scoring screens, next to the audio tracks, via time-limited signed URLs. Admins can also view it when reviewing a flag. No one else (other Examiners, the student) can view it. Every view is audited.
 - FR-4.7 The Examiner can raise an **integrity concern** from the footage with a timestamp and note. It flags the Submission for Admin review (FR-2.9).
 
 ### FR-5 Upload & verification
@@ -228,19 +228,19 @@ Manage users/roles, Test Sets A–F + prompt audio + Part 3 option icons, paymen
 ### FR-8 Examiner assignment
 
 - FR-8.1 Assignment-ready = recording complete + no open flag + payment satisfied/waived + no assignment yet.
-- FR-8.2 Assignment commits **exactly 1 active Examiner** per Submission.
+- FR-8.2 Assignment commits **exactly 2 distinct active Examiners** per Submission together (fixed, non-ranked slots 1 and 2). Too few eligible Examiners leaves the Submission unassigned; there is no one-Examiner intermediate state.
 - FR-8.3 Only untouched `ASSIGNED` assignments may be reassigned (new eligible examiner, same assignment identity, immutable history). `IN_PROGRESS` work stays with its examiner.
 - FR-8.4 Role/account transitions that would strand work (e.g. examiner → student, deactivation) are **capability-removing transitions** and must be blocked or migrated with admin audit.
 
 ### FR-9 Scoring & results (rubric 1–6)
 
-- FR-9.1 Each Submission receives **one Score** covering all 4 Parts. Answers are not scored individually.
-- FR-9.2 The Score has 4 criteria — **pronunciation, fluency, vocabulary, grammar** — plus an **overall band** entered by the Examiner.
+- FR-9.1 Each Examiner gives each Submission **one Score** covering all 4 Parts, so a scored Submission has exactly **2 Scores**. Answers are not scored individually.
+- FR-9.2 Each Score has 4 criteria — **pronunciation, fluency, vocabulary, grammar** — plus an **overall band** entered by that Examiner.
 - FR-9.3 Each criterion and the overall band is a **half-band value 1.0–6.0** (`1.0, 1.5, …, 5.5, 6.0`). Anything else is rejected with a per-field message.
-- FR-9.4 The overall band is the Examiner's own judgement of the whole Submission. It is **not** derived from the criteria; the server stores it as entered and does not average anything.
-- FR-9.5 Submission result = the single Score: its overall band and its 4 criterion bands, shown as entered.
-- FR-9.6 **Scoring finalization** commits the completed assignment and moves the Submission from `SCORING` to `SCORED`.
-- FR-9.7 Result report shows: overall band, 4 criterion bands, written feedback, Test Set, date, submission reference. No per-Answer breakdown and no examiner identity. Raw audio is not downloadable by the student in v1.
+- FR-9.4 Each overall band is that Examiner's own judgement of the whole Submission. It is **not** derived from that Examiner's criteria; the server stores it as entered.
+- FR-9.5 Submission result = the **mean of the 2 Scores**: overall band = mean of the 2 overall bands, and each criterion band = mean of the 2 Examiners' bands for that criterion. Means are not rounded to a half-band and are shown to 2 decimal places (e.g. 4.5 and 5.0 → 4.75).
+- FR-9.6 **Scoring finalization** commits each completed assignment. The Submission stays `SCORING` after the first and moves to `SCORED` when both are completed.
+- FR-9.7 Result report shows: overall band and 4 criterion bands (the 2-Examiner means), written feedback from both Examiners, Test Set, date, submission reference. No per-Answer breakdown, no individual Examiner Scores, and no examiner identity. Raw audio is not downloadable by the student in v1.
 - FR-9.8 Scoring system tag: `RUBRIC_6` (v1). Legacy `LEGACY_100` records remain readable but are never written for new SpeakNusa submissions. Submissions scored under 0.1.0 (per-Answer Scores from 2 Examiners) remain readable with their original aggregation.
 - FR-9.9 A Submission with an open technical-failure or integrity flag cannot be scored. The Admin either **dismisses** the flag (false alarm, e.g. a brief camera glitch with complete audio; scoring continues) or **confirms** it, which voids the Submission with a free retake (FR-2.9). Confirmed flags are never scored "as-is".
 
@@ -268,24 +268,27 @@ Scoring rules for examiners:
 
 1. Score what you hear. No penalty for accent alone — only intelligibility.
 2. Listen to all 5 tracks before scoring. Each band reflects the whole Submission, not one Part.
-3. Watch the webcam footage alongside the audio. Raise an integrity concern for off-screen notes outside Part 2 preparation, translation tools, or outside help; do not lower bands as a penalty for suspected cheating.
-4. Silent / empty / unplayable audio must be flagged to admin, never scored 1. Score 1 only for genuinely assessed minimal speech.
-5. The Score needs all 4 criteria + the overall band + optional comment. Incomplete rubrics cannot be submitted.
-6. The overall band is your holistic judgement of the Submission. It does not have to equal the average of the 4 criteria.
-7. Half-bands are encouraged (e.g. 4.5) when the sample sits between anchors.
-8. Comments must reference observable behavior ("Part 2 monologue lost cohesion after 40 s") not traits ("bad English").
+3. Score independently: you never see the other Examiner's Score, and your Score is averaged with theirs.
+4. Watch the webcam footage alongside the audio. Raise an integrity concern for off-screen notes outside Part 2 preparation, translation tools, or outside help; do not lower bands as a penalty for suspected cheating.
+5. Silent / empty / unplayable audio must be flagged to admin, never scored 1. Score 1 only for genuinely assessed minimal speech.
+6. The Score needs all 4 criteria + the overall band + optional comment. Incomplete rubrics cannot be submitted.
+7. The overall band is your holistic judgement of the Submission. It does not have to equal the average of the 4 criteria.
+8. Half-bands are encouraged (e.g. 4.5) when the sample sits between anchors.
+9. Comments must reference observable behavior ("Part 2 monologue lost cohesion after 40 s") not traits ("bad English").
 
 ## 7. Result calculation (normative)
 
 Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 
 - `isValidRubricBand(v)`: number, finite, `1 ≤ v ≤ 6`, `v * 2` integer. Applies to each criterion and to the overall band.
-- One Score per Submission: 4 criterion bands + `overall`, all entered by the Examiner.
-- Submission `score` = the Score's `overall`, as entered.
-- Submission `rubric` breakdown = the Score's 4 criterion bands, as entered.
-- No aggregation step: no mean across Answers, criteria or Examiners.
-- With 5 Answers × 1 Examiner = **1 Score** (4 criterion marks + 1 overall band) in the standard case.
-- Backend must reject: missing criterion, missing overall band, out-of-range / non-half-band value, more than one Score per assignment, a second assignment on the same Submission, completion without a complete Score, or finalization while a technical-failure / integrity flag is unresolved.
+- One Score per Examiner assignment, and exactly 2 assignments per Submission: each Score has 4 criterion bands + `overall`, all entered by that Examiner.
+- Submission `score` = `mean(score₁.overall, score₂.overall)`.
+- Submission `rubric` breakdown = for each criterion `c`, `mean(score₁[c], score₂[c])`.
+- The only aggregation is the mean across the 2 Examiners. No mean across Answers; an Examiner's overall band is never derived from their criteria.
+- Means are kept unrounded and displayed to 2 decimal places.
+- With 5 Answers × 2 Examiners = **2 Scores** (each 4 criterion marks + 1 overall band) in the standard case.
+- A result is shown only when both assignments are completed; one completed Score is never shown on its own.
+- Backend must reject: missing criterion, missing overall band, out-of-range / non-half-band value, more than one Score per assignment, a third assignment (or a duplicate Examiner) on the same Submission, completion without a complete Score, or finalization while a technical-failure / integrity flag is unresolved.
 
 ## 8. Non-functional requirements
 
@@ -297,7 +300,7 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 | Timing accuracy | Auto-start / auto-stop within ±250 ms of the countdown; countdowns driven by a monotonic clock, not by `setInterval` drift. |
 | Performance | Presigned-URL issuance p95 < 300 ms; prompt audio start latency < 1 s on broadband; examiner audio seek responsive. |
 | Upload reliability | Successful upload rate > 99%; resume/retry on transient network loss; partial recordings preserved on failure; `FAILED` state always actionable. |
-| Privacy & security | Informed consent before any capture; media streams never leave the device except the recorded uploads; signed URLs short-lived; no media in logs; webcam footage limited to the assigned Examiner + Admins, every view audited; deletion after the scoring period per UU PDP. |
+| Privacy & security | Informed consent before any capture; media streams never leave the device except the recorded uploads; signed URLs short-lived; no media in logs; webcam footage limited to the assigned Examiners + Admins, every view audited; deletion after the scoring period per UU PDP. |
 | Availability | "Assessment unavailable" path distinct from generic 500s; admin alert on persistent Test Set gaps. |
 | Accessibility | WCAG 2.2 AA for test + scoring screens; keyboard-complete; timed steps announced to assistive tech. |
 
@@ -309,7 +312,7 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 - Time-to-score (submission → `SCORED`), examiner completion time, reassignment rate, flag-resolution time.
 - Void rate by cause (technical failure, camera drop, examiner integrity concern), flag dismissal rate, free-retake usage.
 - Network-loss resume rate vs deliberate-exit abandonment rate.
-- Score distribution per Test Set (input to piloting) and per Examiner — flag drift.
+- Score distribution per Test Set (input to piloting) and per Examiner — flag drift. Gap between the 2 Examiners' overall bands per Submission — flag inconsistent pairs.
 - Retake rate and number of Submissions per student in the review pipeline at once.
 - Payment conversion + reconciliation backlog.
 - Retention compliance: recordings past their deletion date (target 0).
@@ -318,7 +321,7 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 
 1. **M1 — Test flow**: consent, system check (mic + camera + identity), practice item, 5-slot strict auto-record flow, prompt replay limit, presigned upload, verified answers, completion screen.
 2. **M2 — Proctoring & failures**: continuous webcam recording, webcam footage on the examiner scoring screen, partial-recording capture, network-loss resume, deliberate-exit abandon, flags, admin confirm/dismiss, void + free retake credit.
-3. **M3 — Pipeline**: payment/waiver, single-examiner assignment, whole-Submission scoring UI with rubric validation, unblocked retakes.
+3. **M3 — Pipeline**: payment/waiver, 2-examiner assignment, whole-Submission scoring UI per Examiner with the 2-Examiner mean on the report with rubric validation, unblocked retakes.
 4. **M4 — Content & results**: Test Sets A–F seeded, result report, admin queues, telemetry.
 5. **M5 — Hardening**: Safari playback fallback, retention/deletion automation, load + failure injection, Test Set piloting.
 
@@ -335,7 +338,8 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 9. Safari WebM playback: client transcode to MP4/AAC on upload vs server transcode vs WAV fallback recording?
 10. Certificate issuance (`CERTIFIED`) in v1 or report-only?
 11. Payment amount / currency default (current backend default `IDR`) and waiver policy for launch?
-12. Should there be any limit on how many Submissions one student can have in the review pipeline at once, or on retake frequency?
+12. When the 2 Examiners' overall bands differ a lot (e.g. by 1.5 bands or more), should a third Examiner adjudicate instead of averaging?
+13. Should there be any limit on how many Submissions one student can have in the review pipeline at once, or on retake frequency?
 
 ## 12. Acceptance criteria (v1)
 
@@ -346,15 +350,15 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 - [ ] A connection or audio failure during speaking time produces a saved partial recording flagged for manual review, never an automatic zero.
 - [ ] A network drop with the page still open pauses the test and resumes at the next unfinished slot; closing, refreshing or navigating away abandons the Submission.
 - [ ] A confirmed flag voids the Submission, and the student's next Submission skips payment; a dismissed flag returns the Submission to the normal flow.
-- [ ] Webcam records continuously during the test; footage appears on the assigned Examiner's scoring screen synced to the audio, is also viewable by Admins, is hidden from everyone else, and every view is audited.
+- [ ] Webcam records continuously during the test; footage appears on both assigned Examiners' scoring screens synced to the audio, is also viewable by Admins, is hidden from everyone else, and every view is audited.
 - [ ] A camera drop mid-test does not stop the test and flags the Submission for integrity review.
 - [ ] Zero submissions reach examiners with unplayable, unflagged audio.
 - [ ] Examiner cannot submit an incomplete or out-of-range rubric; completed work is immutable.
-- [ ] Every scored submission has exactly 1 completed assignment with 4 criterion bands and an Examiner-entered overall band; no averaged values are stored or shown.
+- [ ] Every scored submission has exactly 2 completed assignments, each with one Score of 4 criterion bands and an Examiner-entered overall band; the result shows the mean of the 2 Scores per criterion and overall.
 - [ ] Student can start a new Assessment while an earlier Submission is `AWAITING_PAYMENT`, `PAID` or `SCORING`, with no warning; both Submissions reach `SCORED` independently.
 - [ ] Payment-required and waived paths both reach scoring.
 - [ ] Audio and webcam recordings are deleted after the scoring period through hold → quarantine → audited deletion.
 
 ---
 
-*Implementation notes: backend scoring helpers live in `backend/src/utils/scoring.ts` (`validateRubricValues`, `calculateRubricOverall`, `averageRubrics`, `aggregateStoredScores`); the averaging helpers are replaced by single-Score validation. Question categories `PART_1`/`PART_2`/`PART_3` in `backend/prisma/schema.prisma` become the 5 slots in §3.1, and Question set `order` becomes Test Set A–F. The retake block lives in `frontend/app/dashboard/page.tsx` (`REVIEW_PIPELINE_STATUSES`) and the matching backend start check. The existing video recording hook `frontend/hooks/useRecording.ts` is the starting point for the webcam proctoring stream; answers need an audio-only variant. Data model in `backend/prisma/schema.prisma` (`Submission`, `Answer`, `ExaminerAssignment`, `Score`, `ScoringSystem.RUBRIC_6`).*
+*Implementation notes: backend scoring helpers live in `backend/src/utils/scoring.ts` (`validateRubricValues`, `calculateRubricOverall`, `averageRubrics`, `aggregateStoredScores`); per-Answer averaging is replaced by one Score per assignment, averaged across the 2 Examiners. The 5 slots in §3.1 and Test Sets are implemented (#165, ADR-0019), and retakes during the review pipeline are allowed (#164). Examiner assignment already enforces 2 fixed slots in `backend/src/service/examiner.service.ts` (ADR-0008); #177 moves scoring from per-Answer Scores to one Score per assignment. The existing video recording hook `frontend/hooks/useRecording.ts` is the starting point for the webcam proctoring stream; answers need an audio-only variant. Data model in `backend/prisma/schema.prisma` (`Submission`, `Answer`, `ExaminerAssignment`, `Score`, `ScoringSystem.RUBRIC_6`).*

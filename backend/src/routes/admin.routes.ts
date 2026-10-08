@@ -20,6 +20,11 @@ import {
   addRetentionHold,
   releaseHold,
 } from "../controllers/admin.controller.js";
+import {
+  createTestSet,
+  getTestSets,
+  renameTestSet,
+} from "../controllers/testSet.controller.js";
 
 const router = Router();
 
@@ -41,6 +46,9 @@ router.post("/retention-holds/:id/release", releaseHold);
 router.get("/submissions", listSubmissions);
 router.get("/submissions/:id", getSubmission);
 router.get("/stats", getStats);
+router.get("/test-sets", getTestSets);
+router.post("/test-sets", createTestSet);
+router.put("/test-sets/:id", renameTestSet);
 router.get("/settings", getSettings);
 router.put("/settings", updateSettings);
 

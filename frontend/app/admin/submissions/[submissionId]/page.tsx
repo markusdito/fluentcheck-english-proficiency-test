@@ -1,5 +1,6 @@
 "use client";
 
+import { slotLabel } from "@/lib/assessment-slots";
 import { use } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -106,6 +107,12 @@ export default function AdminSubmissionDetailPage({
           <dt className={meta}>Created</dt>
           <dd className="mt-2 text-[15px] tabular-nums">
             {formatDateTime(submission.createdAt)}
+          </dd>
+        </div>
+        <div className="border-b border-sn-border px-5 py-4 sm:border-b-0">
+          <dt className={meta}>Test Set</dt>
+          <dd className="mt-2 text-[15px]">
+            {submission.testSet?.code ?? "Legacy (none)"}
           </dd>
         </div>
         <div className="px-5 py-4">
@@ -262,7 +269,7 @@ export default function AdminSubmissionDetailPage({
                 <header className="flex flex-wrap items-start justify-between gap-4 border-b border-sn-border px-5 py-4">
                   <div className="min-w-0">
                     <p className="text-[13px] uppercase tracking-[0.04em] text-sn-muted">
-                      Question {index + 1} · {answer.questionCategory.replace(/_/g, " ")}
+                      Question {index + 1} · {slotLabel(answer.questionCategory)}
                     </p>
                     {answer.tasks.length > 0 && (
                       <ol className="mt-2 space-y-1">

@@ -1,3 +1,4 @@
+import { ASSESSMENT_SLOTS, CURRENT_MANIFEST_VERSION, isSupportedManifestVersion } from "./assessmentSlots.js";
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
@@ -5,6 +6,8 @@ import { getAppSettings } from "./settings.service.js";
 import {
   assertLegacyAnswerQuestion,
   assertLegacySubmissionEvidence,
+  deliveredTestSet,
+  type DeliveredTestSet,
 } from "./submissionManifest.service.js";
 import {
   createQuestionAudioViewUrlFromMetadata,
@@ -51,6 +54,7 @@ export interface DashboardData {
     status: string;
     score: string | null;
     scoringSystem: ScoringSystemValue;
+    testSet: DeliveredTestSet | null;
     createdAt: Date;
   }>;
   pagination: {
@@ -72,6 +76,8 @@ interface DashboardHistoryRow {
   createdAt: Date;
   createdAtCursor: string;
   certificateFinalScore: unknown | null;
+  testSetId: string | null;
+  testSetCode: string | null;
 }
 
 interface DynamicDashboardScoreRow {
@@ -214,9 +220,12 @@ async function readDashboardHistoryPage(
         s."createdAt" AT TIME ZONE 'UTC',
         'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'
       ) AS "createdAtCursor",
-      c."finalScore" AS "certificateFinalScore"
+      c."finalScore" AS "certificateFinalScore",
+      m."testSetId",
+      m."testSetCode"
     FROM "Submission" AS s
     LEFT JOIN "Certificate" AS c ON c."submissionId" = s."id"
+    LEFT JOIN "SubmissionManifest" AS m ON m."submissionId" = s."id"
     WHERE s."studentId" = ${userId}::uuid
       AND s."retentionStatus" = 'RETAINED'
       AND s."status" <> 'IN_PROGRESS'
@@ -247,6 +256,7 @@ export interface SubmissionDetail {
   status: string;
   score: string | null;
   scoringSystem: ScoringSystemValue;
+  testSet: DeliveredTestSet | null;
   rubric: RubricBreakdown | null;
   createdAt: Date;
   answers: AnswerDetail[];
@@ -357,6 +367,7 @@ export async function getStudentDashboard(
         dynamicScores.get(submission.id) ??
         null,
       scoringSystem: submission.scoringSystem,
+      testSet: deliveredTestSet(submission),
       createdAt: submission.createdAt,
     })),
     pagination: {
@@ -383,6 +394,8 @@ export async function getSubmissionDetail(
         select: {
           id: true,
           version: true,
+          testSetId: true,
+          testSetCode: true,
           entries: {
             select: {
               id: true,
@@ -435,7 +448,7 @@ export async function getSubmissionDetail(
   if (submission.retentionStatus && submission.retentionStatus !== "RETAINED") {
     throw new Error("Submission is not available");
   }
-  if (submission.manifest && submission.manifest.version !== 1) {
+  if (submission.manifest && !isSupportedManifestVersion(submission.manifest.version)) {
     throw new Error("Unsupported manifest version");
   }
   if (!submission.manifest) assertLegacySubmissionEvidence(submission.manifest);
@@ -538,6 +551,7 @@ export async function getSubmissionDetail(
       submission.certificate?.finalScore?.toString() ??
       (calculatedOverallScore == null ? null : roundScore(calculatedOverallScore).toFixed(2)),
     scoringSystem: submission.scoringSystem,
+    testSet: deliveredTestSet(submission.manifest),
     rubric,
     createdAt: submission.createdAt,
     answers,
@@ -632,7 +646,11 @@ export async function completeSubmission(
     if (!submission.manifest) {
       throw new Error("Submission does not contain the exact verified answer set");
     }
-    if (submission.manifest.version !== 1) throw new Error("Unsupported manifest version");
+    // Only five-slot Test Set manifests can complete; a legacy three-slot
+    // attempt is superseded by the next Assessment start instead.
+    if (submission.manifest.version !== CURRENT_MANIFEST_VERSION) {
+      throw new Error("Submission does not contain the exact verified answer set");
+    }
 
     const entryIds = new Set(submission.manifest.entries.map((entry) => entry.id));
     const answerIds = submission.answers.map((answer) => answer.manifestEntryId);
@@ -645,7 +663,7 @@ export async function completeSubmission(
       answer.observedMimeType === answer.mimeType
     );
     if (
-      entryIds.size !== 3 ||
+      entryIds.size !== ASSESSMENT_SLOTS.length ||
       answerIds.length !== entryIds.size ||
       answerIds.some((id) => !id || !entryIds.has(id)) ||
       new Set(answerIds).size !== entryIds.size ||

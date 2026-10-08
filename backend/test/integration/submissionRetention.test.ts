@@ -10,6 +10,7 @@ import {
 } from "@testcontainers/postgresql";
 import type { PrismaClient } from "../../src/generated/client.js";
 import type { StorageDeleteConfirmation } from "../../src/service/retentionStorage.service.js";
+import { createFixtureTestSet, manifestTestSetData, SLOTS } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 const TEST_PASSWORD_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
@@ -86,6 +87,7 @@ beforeEach(async () => {
   await prisma.submission.deleteMany();
   await prisma.task.deleteMany();
   await prisma.question.deleteMany();
+  await prisma.testSet.deleteMany();
   await prisma.user.deleteMany();
   await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "SubmissionManifest_v1_shape_check" AFTER INSERT OR UPDATE ON "SubmissionManifest" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
   await prisma.$executeRawUnsafe(`CREATE CONSTRAINT TRIGGER "ManifestEntry_v1_shape_check" AFTER INSERT OR UPDATE OR DELETE ON "ManifestEntry" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION enforce_submission_manifest_v1_shape()`);
@@ -122,12 +124,13 @@ async function createPurgeFixture(withAnswer = true) {
     createAdmin(),
     prisma.user.create({ data: userData("STUDENT") }),
   ]);
+  const testSet = await createFixtureTestSet(prisma, "RET");
   const questionId = crypto.randomUUID();
   const question = await prisma.question.create({
     data: {
       id: questionId,
-      category: "PART_1",
-      order: Math.floor(Math.random() * 1_000_000),
+      category: "PART_1A",
+      testSetId: testSet.id,
       audioStorageKey: `questions/${questionId}/prompt.webm`,
       audioMimeType: "audio/webm",
       audioSizeBytes: 10,
@@ -135,28 +138,23 @@ async function createPurgeFixture(withAnswer = true) {
       tasks: { create: { promptText: "Prompt", order: 1 } },
     },
   });
-  const otherQuestions = await Promise.all([
-    prisma.question.create({
-      data: {
-        category: "PART_2",
-        order: Math.floor(Math.random() * 1_000_000),
-        tasks: { create: { promptText: "Prompt", order: 1 } },
-      },
-    }),
-    prisma.question.create({
-      data: {
-        category: "PART_3",
-        order: Math.floor(Math.random() * 1_000_000),
-        tasks: { create: { promptText: "Prompt", order: 1 } },
-      },
-    }),
-  ]);
+  const otherQuestions = await Promise.all(
+    SLOTS.slice(1).map((category) =>
+      prisma.question.create({
+        data: {
+          category,
+          testSetId: testSet.id,
+          tasks: { create: { promptText: "Prompt", order: 1 } },
+        },
+      }),
+    ),
+  );
   const submission = await prisma.$transaction(async (tx) => {
     const created = await tx.submission.create({
       data: { studentId: student.id, status: "ABANDONED" },
     });
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: created.id, version: 1 },
+      data: { submissionId: created.id, ...manifestTestSetData(testSet) },
     });
     const entries = [];
     for (const [index, entryQuestion] of [question, ...otherQuestions].entries()) {
@@ -198,8 +196,8 @@ async function createRetiredPromptQuestion() {
   const question = await prisma.question.create({
     data: {
       id,
-      category: "PART_1",
-      order: Math.floor(Math.random() * 1_000_000),
+      category: "PART_1A",
+      testSetId: (await createFixtureTestSet(prisma, "RET")).id,
       audioStorageKey: `questions/${id}/prompt.webm`,
       audioMimeType: "audio/webm",
       audioSizeBytes: 10,
@@ -259,7 +257,7 @@ test("purge approval requires dual control and creates a recoverable quarantine"
       data: {
         manifestId: quarantinedManifest.id,
         submissionId: fixture.submission.id,
-        category: "PART_1",
+        category: "PART_1A",
         deliveryPosition: 99,
         sourceQuestionId: fixture.question.id,
         promptMediaStorageKey: fixture.question.audioStorageKey,
@@ -498,8 +496,8 @@ test("Prompt-media inventory reports active Questions sharing a retired identity
   });
   const activeQuestion = await prisma.question.create({
     data: {
-      category: "PART_1",
-      order: Math.floor(Math.random() * 1_000_000),
+      category: "PART_1A",
+      testSetId: (await createFixtureTestSet(prisma, "RET")).id,
       audioStorageKey: fixture.question.audioStorageKey,
       audioMimeType: "audio/webm",
       audioSizeBytes: 10,
@@ -524,8 +522,8 @@ test("Prompt-media cleanup quarantines and finalizes an unreferenced retired ide
   const cleanupQuestion = await prisma.question.create({
     data: {
       id: cleanupQuestionId,
-      category: "PART_1",
-      order: Math.floor(Math.random() * 1_000_000),
+      category: "PART_1A",
+      testSetId: (await createFixtureTestSet(prisma, "RET")).id,
       audioStorageKey: `questions/${cleanupQuestionId}/prompt.webm`,
       audioMimeType: "audio/webm",
       audioSizeBytes: 10,
@@ -868,8 +866,8 @@ test("Prompt-media quarantine rechecks references after the dry-run snapshot", a
   const cleanupQuestion = await prisma.question.create({
     data: {
       id: cleanupQuestionId,
-      category: "PART_1",
-      order: Math.floor(Math.random() * 1_000_000),
+      category: "PART_1A",
+      testSetId: (await createFixtureTestSet(prisma, "RET")).id,
       audioStorageKey: `questions/${cleanupQuestionId}/prompt.webm`,
       audioMimeType: "audio/webm",
       audioSizeBytes: 10,

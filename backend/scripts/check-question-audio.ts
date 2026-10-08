@@ -9,6 +9,7 @@ import {
   AUDIO_MIME_RE,
 } from "../src/service/upload.service.js";
 import { createQuestion, retireQuestion } from "../src/service/question.service.js";
+import { createTestSet } from "../src/service/testSet.service.js";
 import { QuestionCategory } from "../src/generated/enums.js";
 
 let failures = 0;
@@ -47,10 +48,10 @@ async function main() {
   await expectThrows(() => createQuestionAudioPresignedUpload(admin.id, "video/webm"), /Invalid mimeType/, "presign video mime");
   await expectThrows(() => createQuestionAudioPresignedUpload(admin.id, "audio/webm"), /Question not found/, "presign for nonexistent question");
 
-  const order = 100000 + Math.floor(Math.random() * 100000);
+  const testSet = await createTestSet(`AUDIO-${randomBytes(4).toString("hex")}`);
   const q = await createQuestion(admin.id, {
-    category: QuestionCategory.PART_1,
-    order,
+    category: QuestionCategory.PART_1A,
+    testSetId: testSet.id,
     tasks: [],
   });
 

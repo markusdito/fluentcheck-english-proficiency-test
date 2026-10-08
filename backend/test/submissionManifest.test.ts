@@ -26,7 +26,7 @@ test("Legacy readers fail closed instead of substituting a current Question for 
 
   const legacyAnswer: { questionId: string | null; question: object | null } = {
     questionId: "question-1",
-    question: { category: "PART_1" },
+    question: { category: "PART_1A" },
   };
   assert.doesNotThrow(() => assertLegacyAnswerQuestion(legacyAnswer));
 

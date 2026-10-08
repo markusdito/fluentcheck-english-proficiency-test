@@ -8,6 +8,7 @@ import type { Server } from "node:http";
 import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { SLOTS, createFixtureTestSet, manifestTestSetData, type Slot } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 let container: StartedPostgreSqlContainer;
@@ -25,13 +26,6 @@ let baseUrl: string;
 
 function uniqueUsername(prefix: string) {
   return `${prefix.replace(/[^a-z0-9_]/giu, "_")}_${crypto.randomUUID().replaceAll("-", "")}`;
-}
-
-let sharedOrderCounter = 10_000_000;
-
-/** Next question-set order shared across every category. */
-function nextSharedOrder() {
-  return ++sharedOrderCounter;
 }
 
 before(async () => {
@@ -74,6 +68,36 @@ after(async () => {
   if (container) await container.stop();
 }, { timeout: 120_000 });
 
+/** Create one Eligible question in the given Test Set slot. */
+async function createEligibleQuestion(testSetId: string, category: Slot, promptText: string) {
+  return prisma.question.create({
+    data: {
+      category,
+      testSetId,
+      preparationSeconds: 20,
+      recordingSeconds: 60,
+      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
+      audioMimeType: "audio/webm",
+      audioSizeBytes: 128,
+      audioUploadStatus: "UPLOADED",
+      tasks: { create: [{ promptText, order: 1 }] },
+    },
+  });
+}
+
+/**
+ * Create a fresh Test Set with one Eligible question in each given slot
+ * (every slot by default, which makes the Test Set deliverable).
+ */
+async function createTestSetQuestions(taskText: string, slots: readonly Slot[] = SLOTS) {
+  const testSet = await createFixtureTestSet(prisma, "INIT");
+  const questions: Array<{ id: string; category: Slot }> = [];
+  for (const category of slots) {
+    questions.push(await createEligibleQuestion(testSet.id, category, `${category} ${taskText}`));
+  }
+  return { testSet, questions };
+}
+
 async function createStudent() {
   const email = `${crypto.randomUUID()}@example.test`;
   return prisma.user.create({
@@ -86,35 +110,20 @@ async function createStudent() {
   });
 }
 
-test("initialization selects one eligible question per category and persists a complete manifest", async () => {
+test("initialization selects one eligible question per slot and persists a complete manifest", async () => {
   const student = await createStudent();
-  const order = nextSharedOrder();
-  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
-    const question = await prisma.question.create({
-      data: {
-        category,
-        order,
-        preparationSeconds: 20,
-        recordingSeconds: 60,
-        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 128,
-        audioUploadStatus: "UPLOADED",
-        tasks: { create: [{ promptText: `${category} task`, order: 1 }] },
-      },
-    });
-    assert.ok(question.id);
-  }
+  const { questions } = await createTestSetQuestions("task");
+  assert.equal(questions.length, 5);
 
   const result = await initializeManifestSubmission(student.id, "start-key-1", {
     chooseIndex: () => 0,
     signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
   });
-  assert.equal(result.entries.length, 3);
-  assert.deepEqual(result.entries.map((entry) => entry.deliveryPosition), [1, 2, 3]);
+  assert.equal(result.entries.length, 5);
+  assert.deepEqual(result.entries.map((entry) => entry.deliveryPosition), [1, 2, 3, 4, 5]);
   assert.equal(await prisma.submission.count({ where: { id: result.submissionId } }), 1);
-  assert.equal(await prisma.manifestEntry.count({ where: { manifestId: result.manifestId } }), 3);
-  assert.equal(await prisma.manifestTask.count({ where: { manifestEntry: { manifestId: result.manifestId } } }), 3);
+  assert.equal(await prisma.manifestEntry.count({ where: { manifestId: result.manifestId } }), 5);
+  assert.equal(await prisma.manifestTask.count({ where: { manifestEntry: { manifestId: result.manifestId } } }), 5);
 });
 
 test("a failed telemetry delivery cannot turn successful initialization into failure", async () => {
@@ -132,7 +141,7 @@ test("a failed telemetry delivery cannot turn successful initialization into fai
       throw new Error("telemetry unavailable");
     },
   });
-  assert.equal(result.entries.length, 3);
+  assert.equal(result.entries.length, 5);
 });
 
 test("unavailable assessment persists no Submission", async () => {
@@ -186,10 +195,10 @@ test("unavailable assessment persists no Submission", async () => {
       eventName: "submission_initialization_failed",
       classification: "BANK",
       internalReason: "QUESTION_BANK_INCOMPLETE",
-      categoryCount: 3,
+      categoryCount: 5,
       failureCount: 1,
       failedQuestionIds: [],
-      failedCategories: ["PART_1", "PART_2", "PART_3"],
+      failedCategories: [...SLOTS],
     },
   );
   assert.match(failure.requestId, /^[0-9a-f-]{36}$/u);
@@ -228,24 +237,7 @@ test("a failed telemetry delivery cannot alter the stable unavailable response",
 
 test("retries once when selected source evidence changes before persistence", async () => {
   const student = await createStudent();
-  const questionIds: string[] = [];
-  const order = nextSharedOrder();
-  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
-    const question = await prisma.question.create({
-      data: {
-        category,
-        order,
-        preparationSeconds: 20,
-        recordingSeconds: 60,
-        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 128,
-        audioUploadStatus: "UPLOADED",
-        tasks: { create: [{ promptText: `${category} task`, order: 1 }] },
-      },
-    });
-    questionIds.push(question.id);
-  }
+  const questionIds = (await createTestSetQuestions("task")).questions.map(({ id }) => id);
   let mutated = false;
   const failures: unknown[] = [];
   const result = await initializeManifestSubmission(student.id, "retry-key", {
@@ -260,29 +252,13 @@ test("retries once when selected source evidence changes before persistence", as
     observeFailure: (event) => failures.push(event),
   });
   assert.equal(mutated, true);
-  assert.equal(result.entries.length, 3);
+  assert.equal(result.entries.length, 5);
   assert.equal(result.entries[0]?.preparationSeconds, 99);
 });
 
 test("aggregates selected signing failures and retries the same start intent", async () => {
   const student = await createStudent();
-  const order = nextSharedOrder();
-  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
-    const storageKey = `questions/${crypto.randomUUID()}/prompt.webm`;
-    await prisma.question.create({
-      data: {
-        category,
-        order,
-        preparationSeconds: 20,
-        recordingSeconds: 60,
-        audioStorageKey: storageKey,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 128,
-        audioUploadStatus: "UPLOADED",
-        tasks: { create: [{ promptText: `${category} task`, order: 1 }] },
-      },
-    });
-  }
+  await createTestSetQuestions("task");
   let recovered = false;
   const failures: unknown[] = [];
   const signPromptMedia = async (key: string) => {
@@ -307,18 +283,14 @@ test("aggregates selected signing failures and retries the same start intent", a
     failedQuestionIds: string[];
     failedCategories: string[];
   };
-  assert.equal(signingFailure.failureCount, 3);
+  assert.equal(signingFailure.failureCount, 5);
   assert.equal(signingFailure.internalReason, "PROMPT_MEDIA_SIGNING_FAILED");
-  assert.equal(signingFailure.failedQuestionIds.length, 3);
-  assert.deepEqual(signingFailure.failedCategories, ["PART_1", "PART_2", "PART_3"]);
+  assert.equal(signingFailure.failedQuestionIds.length, 5);
+  assert.deepEqual(signingFailure.failedCategories, [...SLOTS]);
   assert.deepEqual(
     (failures[0] as { failedEntries: Array<{ category: string; reason: string }> }).failedEntries
       .map(({ category, reason }) => ({ category, reason })),
-    [
-      { category: "PART_1", reason: "SIGNING_FAILED" },
-      { category: "PART_2", reason: "SIGNING_FAILED" },
-      { category: "PART_3", reason: "SIGNING_FAILED" },
-    ],
+    SLOTS.map((category) => ({ category, reason: "SIGNING_FAILED" })),
   );
 
   recovered = true;
@@ -326,28 +298,13 @@ test("aggregates selected signing failures and retries the same start intent", a
     chooseIndex: () => 0,
     signPromptMedia,
   });
-  assert.equal(result.entries.length, 3);
+  assert.equal(result.entries.length, 5);
   assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 1);
 });
 
 test("resume maps Prompt media signing failure to Assessment unavailable", async () => {
   const student = await createStudent();
-  const order = nextSharedOrder();
-  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
-    await prisma.question.create({
-      data: {
-        category,
-        order,
-        preparationSeconds: 20,
-        recordingSeconds: 60,
-        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 128,
-        audioUploadStatus: "UPLOADED",
-        tasks: { create: [{ promptText: `${category} task`, order: 1 }] },
-      },
-    });
-  }
+  await createTestSetQuestions("task");
   await initializeManifestSubmission(student.id, "resume-failure-key", {
     chooseIndex: () => 0,
     signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
@@ -385,12 +342,11 @@ test("student prompt media is limited to the active submission manifest", async 
       },
     }),
   ]);
-  const questions = await Promise.all(([
-    "PART_1", "PART_2", "PART_3",
-  ] as const).map((category) => prisma.question.create({
+  const testSet = await createFixtureTestSet(prisma, "MEDIA");
+  const questions = await Promise.all(SLOTS.map((category) => prisma.question.create({
     data: {
       category,
-      order: nextSharedOrder(),
+      testSetId: testSet.id,
       createdById: admin.id,
       audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
       audioMimeType: "audio/webm",
@@ -408,7 +364,7 @@ test("student prompt media is limited to the active submission manifest", async 
       data: { studentId: student.id, status: "IN_PROGRESS" },
     });
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: created.id, version: 1 },
+      data: { submissionId: created.id, ...manifestTestSetData(testSet) },
     });
     for (const [index, question] of questions.entries()) {
       const entry = await tx.manifestEntry.create({
@@ -494,22 +450,7 @@ test("a closed idempotency key cannot replay an abandoned Submission", async () 
 
 test("allows a new start while earlier Submissions are in payment or scoring", async () => {
   const student = await createStudent();
-  const order = nextSharedOrder();
-  for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
-    await prisma.question.create({
-      data: {
-        category,
-        order,
-        preparationSeconds: 20,
-        recordingSeconds: 60,
-        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 128,
-        audioUploadStatus: "UPLOADED",
-        tasks: { create: [{ promptText: `${category} task`, order: 1 }] },
-      },
-    });
-  }
+  await createTestSetQuestions("task");
   const first = await initializeManifestSubmission(student.id, "pipeline-first-key", {
     chooseIndex: () => 0,
     signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
@@ -569,32 +510,19 @@ test("classifies a concurrent different-key start as an active Submission confli
 });
 
 /**
- * Create one question per category for each given order. `order` identifies a
- * question set shared across categories, so every order here exists in all
- * three categories unless a test deliberately omits one.
+ * Retire the whole shared bank, then create `count` fresh deliverable Test
+ * Sets, so each test binds deterministically to the questions it creates.
  */
-async function createUploadedBank(taskText: string, orders: number[] = [nextSharedOrder()]) {
-  // The bank is shared across the whole test file; retire everything first so
-  // each new test binds deterministically to the questions it creates.
+async function createUploadedBank(taskText: string, count = 1) {
   await prisma.question.updateMany({ data: { deletedAt: new Date() } });
-  for (const order of orders) {
-    for (const category of ["PART_1", "PART_2", "PART_3"] as const) {
-      await prisma.question.create({
-        data: {
-          category,
-          order,
-          preparationSeconds: 20,
-          recordingSeconds: 60,
-          audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-          audioMimeType: "audio/webm",
-          audioSizeBytes: 128,
-          audioUploadStatus: "UPLOADED",
-          tasks: { create: [{ promptText: `${category} ${taskText}`, order: 1 }] },
-        },
-      });
-    }
+  const testSets: Array<{ id: string; code: string }> = [];
+  for (let index = 0; index < count; index += 1) {
+    testSets.push((await createTestSetQuestions(taskText)).testSet);
   }
+  return testSets;
 }
+
+const signPromptMedia = async (key: string) => `https://media.example/${encodeURIComponent(key)}`;
 
 async function editBankTasks(manifestId: string, promptText: string) {
   const entries = await prisma.manifestEntry.findMany({
@@ -602,7 +530,7 @@ async function editBankTasks(manifestId: string, promptText: string) {
     select: { sourceQuestionId: true },
   });
   await prisma.task.updateMany({
-    where: { questionId: { in: entries.map((entry) => entry.sourceQuestionId) } },
+    where: { questionId: { in: entries.map((entry: { sourceQuestionId: string }) => entry.sourceQuestionId) } },
     data: { promptText },
   });
 }
@@ -610,100 +538,113 @@ async function editBankTasks(manifestId: string, promptText: string) {
 async function manifestTaskTexts(manifestId: string) {
   const tasks = await prisma.manifestTask.findMany({
     where: { manifestEntry: { manifestId } },
-    orderBy: { deliveredOrder: "asc" },
+    orderBy: { manifestEntry: { deliveryPosition: "asc" } },
     select: { deliveredText: true },
   });
-  return tasks.map((task) => task.deliveredText);
+  return tasks.map((task: { deliveredText: string }) => task.deliveredText);
 }
 
-async function manifestSourceOrders(manifestId: string) {
+/** Test Set of each delivered source question, in delivery order. */
+async function manifestSourceTestSetIds(manifestId: string) {
   const entries = await prisma.manifestEntry.findMany({
     where: { manifestId },
-    select: { sourceQuestion: { select: { order: true } } },
+    orderBy: { deliveryPosition: "asc" },
+    select: { sourceQuestion: { select: { testSetId: true } } },
   });
-  return entries.map((entry) => entry.sourceQuestion.order);
+  return entries.map((entry: { sourceQuestion: { testSetId: string } }) => entry.sourceQuestion.testSetId);
 }
 
-test("delivery uses one shared order across every category", async () => {
-  const firstOrder = ++sharedOrderCounter;
-  const secondOrder = ++sharedOrderCounter;
-  await createUploadedBank("bank task", [firstOrder, secondOrder]);
+const editedTexts = SLOTS.map(() => "PART_X edited task");
+const originalTexts = SLOTS.map((category) => `${category} original task`);
 
-  const lowest = await initializeManifestSubmission((await createStudent()).id, "shared-order-low-key", {
+test("a deliverable Test Set yields a version 2 manifest with all five slots in delivery order", async () => {
+  const [testSet] = await createUploadedBank("five slot task");
+  const result = await initializeManifestSubmission((await createStudent()).id, "five-slot-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
-  assert.deepEqual(await manifestSourceOrders(lowest.manifestId), [firstOrder, firstOrder, firstOrder]);
+  assert.equal(result.version, 2);
+  assert.deepEqual(result.testSet, { id: testSet!.id, code: testSet!.code });
+  assert.deepEqual(result.entries.map((entry) => entry.category), [...SLOTS]);
+  assert.deepEqual(result.entries.map((entry) => entry.deliveryPosition), [1, 2, 3, 4, 5]);
 
-  const highest = await initializeManifestSubmission((await createStudent()).id, "shared-order-high-key", {
-    chooseIndex: (length) => length - 1,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+  const manifest = await prisma.submissionManifest.findUniqueOrThrow({
+    where: { id: result.manifestId },
+    select: { version: true, testSetId: true, testSetCode: true },
   });
-  assert.deepEqual(await manifestSourceOrders(highest.manifestId), [secondOrder, secondOrder, secondOrder]);
+  assert.deepEqual(manifest, { version: 2, testSetId: testSet!.id, testSetCode: testSet!.code });
+  const persisted = await prisma.manifestEntry.findMany({
+    where: { manifestId: result.manifestId },
+    orderBy: { deliveryPosition: "asc" },
+    select: { category: true, deliveryPosition: true },
+  });
+  assert.deepEqual(persisted, SLOTS.map((category, index) => ({ category, deliveryPosition: index + 1 })));
+  assert.deepEqual(await manifestSourceTestSetIds(result.manifestId), SLOTS.map(() => testSet!.id));
 });
 
-test("an order missing from any category is not eligible for delivery", async () => {
-  const commonOrder = ++sharedOrderCounter;
-  const partialOrder = ++sharedOrderCounter;
-  await createUploadedBank("bank task", [commonOrder]);
-  // Add a second order that exists in only two of the three categories.
-  for (const category of ["PART_1", "PART_2"] as const) {
-    await prisma.question.create({
-      data: {
-        category,
-        order: partialOrder,
-        preparationSeconds: 20,
-        recordingSeconds: 60,
-        audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 128,
-        audioUploadStatus: "UPLOADED",
-        tasks: { create: [{ promptText: `${category} partial`, order: 1 }] },
+test("delivery uses one Test Set across every slot", async () => {
+  const testSets = await createUploadedBank("bank task", 2);
+  const [lowId, highId] = testSets.map(({ id }) => id).sort();
+
+  const lowest = await initializeManifestSubmission((await createStudent()).id, "test-set-low-key", {
+    chooseIndex: () => 0,
+    signPromptMedia,
+  });
+  assert.equal(lowest.testSet?.id, lowId);
+  assert.deepEqual(await manifestSourceTestSetIds(lowest.manifestId), SLOTS.map(() => lowId));
+
+  const highest = await initializeManifestSubmission((await createStudent()).id, "test-set-high-key", {
+    chooseIndex: (length) => length - 1,
+    signPromptMedia,
+  });
+  assert.equal(highest.testSet?.id, highId);
+  assert.deepEqual(await manifestSourceTestSetIds(highest.manifestId), SLOTS.map(() => highId));
+});
+
+test("a Test Set missing one slot is never delivered while a complete Test Set is", async () => {
+  const [complete] = await createUploadedBank("bank task");
+  // A second Test Set fills every slot except PART_4.
+  const partial = await createTestSetQuestions("partial", SLOTS.filter((slot) => slot !== "PART_4"));
+
+  for (const [key, chooseIndex] of [
+    ["partial-test-set-low-key", () => 0],
+    ["partial-test-set-high-key", (length: number) => length - 1],
+  ] as const) {
+    const lengths: number[] = [];
+    const result = await initializeManifestSubmission((await createStudent()).id, key, {
+      chooseIndex: (length) => {
+        lengths.push(length);
+        return chooseIndex(length);
       },
+      signPromptMedia,
     });
+    // Only the complete Test Set is a delivery candidate.
+    assert.deepEqual(lengths, [1]);
+    assert.equal(result.testSet?.id, complete!.id);
+    assert.notEqual(result.testSet?.id, partial.testSet.id);
+    assert.deepEqual(await manifestSourceTestSetIds(result.manifestId), SLOTS.map(() => complete!.id));
   }
-
-  // The highest index would pick partialOrder if a category-mixed set were
-  // allowed; only the common order is eligible, so it must be chosen instead.
-  const result = await initializeManifestSubmission((await createStudent()).id, "partial-order-key", {
-    chooseIndex: (length) => length - 1,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
-  });
-  assert.deepEqual(
-    await manifestSourceOrders(result.manifestId),
-    [commonOrder, commonOrder, commonOrder],
-  );
 });
 
-test("no order shared by every category makes the assessment unavailable", async () => {
+test("questions from different Test Sets are never mixed to cover every slot", async () => {
   const student = await createStudent();
-  const firstOrder = ++sharedOrderCounter;
-  const secondOrder = ++sharedOrderCounter;
-  await createUploadedBank("bank task", [firstOrder]);
-  // Only PART_3 gets the second order, so no order spans all categories.
-  await prisma.question.updateMany({ where: { order: firstOrder, category: "PART_3" }, data: { deletedAt: new Date() } });
-  await prisma.question.create({
-    data: {
-      category: "PART_3",
-      order: secondOrder,
-      preparationSeconds: 20,
-      recordingSeconds: 60,
-      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-      audioMimeType: "audio/webm",
-      audioSizeBytes: 128,
-      audioUploadStatus: "UPLOADED",
-      tasks: { create: [{ promptText: "PART_3 second", order: 1 }] },
-    },
-  });
+  await prisma.question.updateMany({ data: { deletedAt: new Date() } });
+  // Together these two Test Sets cover all five slots, but neither alone does.
+  await createTestSetQuestions("first", SLOTS.filter((slot) => slot !== "PART_4"));
+  await createTestSetQuestions("second", ["PART_4"]);
 
+  const failures: unknown[] = [];
   await assert.rejects(
-    initializeManifestSubmission(student.id, "no-common-order-key", {
+    initializeManifestSubmission(student.id, "mixed-test-set-key", {
       chooseIndex: () => 0,
-      signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+      signPromptMedia,
+      observeFailure: (event) => failures.push(event),
     }),
     AssessmentUnavailableError,
   );
   assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 0);
+  assert.equal(failures.length, 1);
+  assert.equal((failures[0] as { internalReason: string }).internalReason, "QUESTION_BANK_INCOMPLETE");
 });
 
 test("a stale attempt is superseded so the next start delivers the edited question bank", async () => {
@@ -711,25 +652,19 @@ test("a stale attempt is superseded so the next start delivers the edited questi
   await createUploadedBank("original task");
   const first = await initializeManifestSubmission(student.id, "universal-first-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
-  assert.deepEqual(
-    await manifestTaskTexts(first.manifestId),
-    ["PART_1 original task", "PART_2 original task", "PART_3 original task"],
-  );
+  assert.deepEqual(await manifestTaskTexts(first.manifestId), originalTexts);
 
-  // The admin edits the universal bank after the student's empty attempt.
+  // The admin edits the bank after the student's empty attempt.
   await editBankTasks(first.manifestId, "PART_X edited task");
 
   const second = await initializeManifestSubmission(student.id, "universal-second-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
   assert.notEqual(second.submissionId, first.submissionId);
-  assert.deepEqual(
-    await manifestTaskTexts(second.manifestId),
-    ["PART_X edited task", "PART_X edited task", "PART_X edited task"],
-  );
+  assert.deepEqual(await manifestTaskTexts(second.manifestId), editedTexts);
   assert.equal(
     (await prisma.submission.findUnique({ where: { id: first.submissionId }, select: { status: true } }))?.status,
     "ABANDONED",
@@ -739,10 +674,10 @@ test("a stale attempt is superseded so the next start delivers the edited questi
 
 test("an unfinished attempt stays resumable while the question bank is unchanged", async () => {
   const student = await createStudent();
-  await createUploadedBank("original task");
+  const [testSet] = await createUploadedBank("original task");
   const first = await initializeManifestSubmission(student.id, "tied-first-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
   const entry = await prisma.manifestEntry.findFirstOrThrow({ where: { manifestId: first.manifestId } });
   await prisma.answer.create({
@@ -752,7 +687,7 @@ test("an unfinished attempt stays resumable while the question bank is unchanged
   await assert.rejects(
     initializeManifestSubmission(student.id, "tied-second-key", {
       chooseIndex: () => 0,
-      signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+      signPromptMedia,
     }),
     (error: unknown) => error instanceof ActiveSubmissionConflictError && error.submissionId === first.submissionId,
   );
@@ -760,14 +695,66 @@ test("an unfinished attempt stays resumable while the question bank is unchanged
     (await prisma.submission.findUnique({ where: { id: first.submissionId }, select: { status: true } }))?.status,
     "IN_PROGRESS",
   );
-  const resumed = await resumeManifestSubmission(student.id, {
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
-  });
+  const resumed = await resumeManifestSubmission(student.id, { signPromptMedia });
   assert.equal(resumed.submissionId, first.submissionId);
+  assert.deepEqual(resumed.testSet, { id: testSet!.id, code: testSet!.code });
   assert.deepEqual(
     resumed.entries.flatMap((entry) => entry.tasks.map((task) => task.promptText)),
-    ["PART_1 original task", "PART_2 original task", "PART_3 original task"],
+    originalTexts,
   );
+});
+
+test("an attempt whose delivered question moved to another Test Set is superseded, not resumed", async () => {
+  const student = await createStudent();
+  const [testSet] = await createUploadedBank("original task");
+  const first = await initializeManifestSubmission(student.id, "moved-first-key", {
+    chooseIndex: () => 0,
+    signPromptMedia,
+  });
+  const movedEntry = await prisma.manifestEntry.findFirstOrThrow({
+    where: { manifestId: first.manifestId, category: "PART_2" },
+  });
+  await prisma.answer.create({
+    data: {
+      submissionId: first.submissionId,
+      manifestEntryId: movedEntry.id,
+      storageKey: `answers/${crypto.randomUUID()}.webm`,
+    },
+  });
+  // Unchanged so far: the attempt is resumable.
+  assert.equal((await resumeManifestSubmission(student.id, { signPromptMedia })).submissionId, first.submissionId);
+
+  // The admin moves the delivered PART_2 question into another Test Set and
+  // fills the vacated slot so the original Test Set stays deliverable.
+  const otherTestSet = await createFixtureTestSet(prisma, "MOVED");
+  await prisma.question.update({
+    where: { id: movedEntry.sourceQuestionId },
+    data: { testSetId: otherTestSet.id },
+  });
+  await createEligibleQuestion(testSet!.id, "PART_2", "PART_2 replacement task");
+
+  await assert.rejects(resumeManifestSubmission(student.id, { signPromptMedia }), AssessmentUnavailableError);
+
+  const second = await initializeManifestSubmission(student.id, "moved-second-key", {
+    chooseIndex: () => 0,
+    signPromptMedia,
+  });
+  assert.notEqual(second.submissionId, first.submissionId);
+  assert.equal(second.testSet?.id, testSet!.id);
+  assert.deepEqual(await manifestSourceTestSetIds(second.manifestId), SLOTS.map(() => testSet!.id));
+  const secondSources = await prisma.manifestEntry.findMany({
+    where: { manifestId: second.manifestId },
+    select: { sourceQuestionId: true },
+  });
+  assert.equal(
+    secondSources.some((entry: { sourceQuestionId: string }) => entry.sourceQuestionId === movedEntry.sourceQuestionId),
+    false,
+  );
+  assert.equal(
+    (await prisma.submission.findUnique({ where: { id: first.submissionId }, select: { status: true } }))?.status,
+    "ABANDONED",
+  );
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id, status: "IN_PROGRESS" } }), 1);
 });
 
 test("a retired question supersedes a partially answered attempt with the current bank", async () => {
@@ -775,13 +762,13 @@ test("a retired question supersedes a partially answered attempt with the curren
   await createUploadedBank("original task");
   const first = await initializeManifestSubmission(student.id, "retired-first-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
   const boundEntry = await prisma.manifestEntry.findFirstOrThrow({ where: { manifestId: first.manifestId } });
   const retiredQuestionId = boundEntry.sourceQuestionId;
   const retiredQuestion = await prisma.question.findUniqueOrThrow({
     where: { id: retiredQuestionId },
-    select: { order: true },
+    select: { testSetId: true },
   });
   await prisma.answer.create({
     data: {
@@ -792,35 +779,26 @@ test("a retired question supersedes a partially answered attempt with the curren
   });
 
   // The admin retires a delivered question and publishes its replacement in
-  // the same order so that order remains available across every category.
+  // the same Test Set so that Test Set remains deliverable.
   await prisma.question.update({
     where: { id: retiredQuestionId },
     data: { deletedAt: new Date() },
   });
-  await prisma.question.create({
-    data: {
-      category: boundEntry.category,
-      order: retiredQuestion.order,
-      preparationSeconds: 20,
-      recordingSeconds: 60,
-      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-      audioMimeType: "audio/webm",
-      audioSizeBytes: 128,
-      audioUploadStatus: "UPLOADED",
-      tasks: { create: [{ promptText: "replacement task", order: 1 }] },
-    },
-  });
+  await createEligibleQuestion(retiredQuestion.testSetId, boundEntry.category, "replacement task");
 
   const second = await initializeManifestSubmission(student.id, "retired-second-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
   assert.notEqual(second.submissionId, first.submissionId);
   const secondSources = await prisma.manifestEntry.findMany({
     where: { manifestId: second.manifestId },
     select: { sourceQuestionId: true },
   });
-  assert.equal(secondSources.some((entry) => entry.sourceQuestionId === retiredQuestionId), false);
+  assert.equal(
+    secondSources.some((entry: { sourceQuestionId: string }) => entry.sourceQuestionId === retiredQuestionId),
+    false,
+  );
   assert.equal(
     (await prisma.submission.findUnique({ where: { id: first.submissionId }, select: { status: true } }))?.status,
     "ABANDONED",
@@ -835,20 +813,17 @@ test("a stale idempotent replay of an answer-less attempt delivers the edited ba
   await createUploadedBank("original task");
   const first = await initializeManifestSubmission(student.id, "stale-replay-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
 
   await editBankTasks(first.manifestId, "PART_X edited task");
 
   const replayed = await initializeManifestSubmission(student.id, "stale-replay-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
   assert.notEqual(replayed.submissionId, first.submissionId);
-  assert.deepEqual(
-    await manifestTaskTexts(replayed.manifestId),
-    ["PART_X edited task", "PART_X edited task", "PART_X edited task"],
-  );
+  assert.deepEqual(await manifestTaskTexts(replayed.manifestId), editedTexts);
   const intent = await prisma.submissionStartIntent.findUniqueOrThrow({
     where: { idempotencyKey: "stale-replay-key" },
     select: { submissionId: true },
@@ -862,23 +837,24 @@ test("a stale idempotent replay of an answer-less attempt delivers the edited ba
 
 test("an unchanged bank replays the same attempt for a repeated start key", async () => {
   const student = await createStudent();
-  await createUploadedBank("original task");
+  const [testSet] = await createUploadedBank("original task");
   const first = await initializeManifestSubmission(student.id, "resume-replay-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
   const replayed = await initializeManifestSubmission(student.id, "resume-replay-key", {
     chooseIndex: () => 0,
-    signPromptMedia: async (key) => `https://media.example/${encodeURIComponent(key)}`,
+    signPromptMedia,
   });
   assert.equal(replayed.submissionId, first.submissionId);
   assert.equal(replayed.manifestId, first.manifestId);
+  assert.deepEqual(replayed.testSet, { id: testSet!.id, code: testSet!.code });
   assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 1);
 });
 
 test("http start supersedes a stale unfinished attempt and active serves the edited bank", async () => {
   const student = await createStudent();
-  await createUploadedBank("original task");
+  const [testSet] = await createUploadedBank("original task");
   const cookie = `jwt=${jwt.sign({ id: student.id }, process.env.JWT_SECRET!)}`;
   const start = (key: string) =>
     fetch(`${baseUrl}/api/submissions`, {
@@ -889,10 +865,11 @@ test("http start supersedes a stale unfinished attempt and active serves the edi
   const firstResponse = await start("http-stale-key");
   assert.equal(firstResponse.status, 201);
   const first = (await firstResponse.json()).data;
+  assert.deepEqual(first.testSet, { id: testSet!.id, code: testSet!.code });
   const boundEntry = await prisma.manifestEntry.findFirstOrThrow({ where: { manifestId: first.manifestId } });
   const boundQuestion = await prisma.question.findUniqueOrThrow({
     where: { id: boundEntry.sourceQuestionId },
-    select: { order: true },
+    select: { testSetId: true },
   });
   // The student has already recorded one answer but has not finished the test.
   await prisma.answer.create({
@@ -903,21 +880,9 @@ test("http start supersedes a stale unfinished attempt and active serves the edi
     },
   });
 
-  // The admin retires a delivered question and replaces it in the same order.
+  // The admin retires a delivered question and replaces it in the same Test Set.
   await prisma.question.update({ where: { id: boundEntry.sourceQuestionId }, data: { deletedAt: new Date() } });
-  await prisma.question.create({
-    data: {
-      category: boundEntry.category,
-      order: boundQuestion.order,
-      preparationSeconds: 20,
-      recordingSeconds: 60,
-      audioStorageKey: `questions/${crypto.randomUUID()}/prompt.webm`,
-      audioMimeType: "audio/webm",
-      audioSizeBytes: 128,
-      audioUploadStatus: "UPLOADED",
-      tasks: { create: [{ promptText: "replacement task", order: 1 }] },
-    },
-  });
+  await createEligibleQuestion(boundQuestion.testSetId, boundEntry.category, "replacement task");
 
   const secondResponse = await start("http-stale-key-2");
   assert.equal(secondResponse.status, 201);
@@ -927,11 +892,13 @@ test("http start supersedes a stale unfinished attempt and active serves the edi
     where: { manifestId: second.manifestId },
     select: { sourceQuestionId: true },
   });
-  assert.equal(secondSources.length, 3);
-  assert.equal(secondSources.some((entry) => entry.sourceQuestionId === boundEntry.sourceQuestionId), false);
+  assert.equal(secondSources.length, 5);
+  assert.equal(
+    secondSources.some((entry: { sourceQuestionId: string }) => entry.sourceQuestionId === boundEntry.sourceQuestionId),
+    false,
+  );
 
   const activeResponse = await fetch(`${baseUrl}/api/submissions/active`, { headers: { Cookie: cookie } });
   assert.equal(activeResponse.status, 200);
   assert.equal((await activeResponse.json()).data.submissionId, second.submissionId);
 });
-

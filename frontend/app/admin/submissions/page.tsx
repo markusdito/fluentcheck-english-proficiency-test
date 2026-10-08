@@ -1,5 +1,6 @@
 "use client";
 
+import { testSetLabel } from "@/lib/assessment-slots";
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -173,7 +174,10 @@ export default function AdminSubmissionsPage() {
                       >
                         {sub.studentName}
                       </Link>
-                      <p className="mt-0.5 text-[13px] text-sn-muted">{sub.studentEmail}</p>
+                      <p className="mt-0.5 text-[13px] text-sn-muted">
+                        {sub.studentEmail}
+                        {sub.testSet && ` · ${testSetLabel(sub.testSet)}`}
+                      </p>
                     </td>
                     <td className={td}><StatusPill status={sub.status} /></td>
                     <td className={td}>
