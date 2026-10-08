@@ -43,12 +43,21 @@ rejection, and the final error handler.
 
 ## 3. Persistence and domain vocabulary
 
-The main records are User, Question, Task, Submission, SubmissionManifest,
+The main records are User, TestSet, Question, Task, Submission, SubmissionManifest,
 ManifestEntry, ManifestTask, Answer, Payment, ExaminerAssignment, Score, and
 Certificate. User roles are STUDENT, EXAMINER, and ADMIN.
 
-A new Submission has one immutable Submission manifest. The manifest selects
-one eligible Question from each Required category: PART_1, PART_2, and PART_3.
+A new Submission has one immutable version 2 Submission manifest delivered
+from one Test Set. A Test Set holds at most one active Question per delivery
+slot (PART_1A, PART_1B, PART_2, PART_3, PART_4; partial unique index on
+testSetId/category) and is deliverable only when every slot holds an eligible
+Question; otherwise it is a Draft. The manifest snapshots the Test Set id and
+code and delivers the five slots in order 1A, 1B, 2, 3, 4 at positions 1..5;
+database triggers enforce that shape and require a complete version 2
+manifest for every new Submission. Legacy version 1 manifests (PART_1A,
+PART_2, PART_3 after the PART_1 rename) remain readable but are never
+delivered or completed; their Test Set is null. Question defaults for
+preparation/speaking seconds follow the slot (backend/src/service/assessmentSlots.ts).
 Each ManifestEntry stores the selected Question identity, delivery position,
 timings, prompt media metadata, and task snapshots. It remains authoritative
 after the source Question changes or is retired.
@@ -298,6 +307,15 @@ All administrator routes require an authenticated ADMIN account.
 <!-- route: GET /api/admin/stats | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/stats | ADMIN | Returns administrator statistics. |
 
+<!-- route: GET /api/admin/test-sets | source=backend/src/routes/admin.routes.ts -->
+| GET | /api/admin/test-sets | ADMIN | Lists Test Sets with per-slot readiness (DRAFT or DELIVERABLE). |
+
+<!-- route: POST /api/admin/test-sets | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/test-sets | ADMIN | Creates an empty Draft Test Set; the code is trimmed, upper-cased and unique. |
+
+<!-- route: PUT /api/admin/test-sets/:id | source=backend/src/routes/admin.routes.ts -->
+| PUT | /api/admin/test-sets/:id | ADMIN | Renames a Test Set; delivered manifests keep the code they were delivered with. |
+
 <!-- route: GET /api/admin/settings | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/settings | ADMIN | Reads application settings. |
 
@@ -309,8 +327,8 @@ All administrator routes require an authenticated ADMIN account.
 ### Manifest initialization and resume
 
 POST /api/submissions requires an idempotency key from the client. The
-initialization service chooses one eligible Question per Required category,
-prepares prompt media, and creates the Submission, manifest, entries, and task
+initialization service chooses one deliverable Test Set at random, takes its
+eligible Question for each slot, prepares prompt media, and creates the Submission, manifest, entries, and task
 snapshots in one bounded transaction. Eligibility is rechecked inside the
 transaction. A repeated key replays the same Submission only while it is
 IN_PROGRESS; a terminal or abandoned Submission returns
@@ -350,8 +368,8 @@ be retried by obtaining a new recording in the current frontend.
 
 ### Completion and payment
 
-Completion locks the Submission and requires a manifest-backed row, exactly
-three manifest entries, exactly one Answer per entry, and verified media for
+Completion locks the Submission and requires a version 2 manifest, exactly
+five manifest entries, exactly one Answer per entry, and verified media for
 each entry. The transition is AWAITING_PAYMENT when payment is required and
 PAID when payment is waived.
 
@@ -448,6 +466,7 @@ Focused tests that protect the main contracts include:
 | Contract | Focused tests |
 | --- | --- |
 | Manifest selection, snapshots, and persistence | backend/test/integration/manifestSubmissionInitialization.test.ts, backend/test/integration/submissionManifestPersistence.test.ts, backend/test/submissionManifestDelivery.test.ts |
+| Test Sets and five-slot migration | backend/test/integration/testSets.test.ts, backend/test/integration/testSetMigration.test.ts |
 | Verified answer upload evidence | backend/test/integration/answerUploadIntegrity.test.ts, backend/test/integration/submissionCompletion.test.ts, backend/test/uploadManifest.test.ts |
 | Legacy question-list and delivery boundaries | backend/test/integration/questionLifecycle.test.ts, backend/test/question-management.test.ts, backend/test/integration/manifestSubmissionInitialization.test.ts |
 | Payment attempts and callback outcomes | backend/test/integration/payment.test.ts, backend/test/payment.test.ts |

@@ -94,7 +94,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /admin/questions | source=frontend/app/admin/questions/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /admin/questions | Administrator Question and prompt-audio management. |
+| /admin/questions | Administrator Test Set readiness (Draft or Deliverable per slot), Test Set creation, and Question and prompt-audio management per Test Set slot. |
 
 <!-- page: /admin/settings | source=frontend/app/admin/settings/page.tsx -->
 | Route | Current behavior |
@@ -155,7 +155,8 @@ The higher-level modules are deliberately grouped by feature:
 | frontend/lib/upload-api.ts | Presign, direct PUT, and confirmation requests. |
 | frontend/lib/question-audio-api.ts | Administrator prompt-audio requests. |
 | frontend/lib/examiner-api.ts | Examiner assignment, media, score, and finalization requests. |
-| frontend/lib/admin-api.ts | Administrator users, settings, questions, Submissions, and assignments. |
+| frontend/lib/admin-api.ts | Administrator users, settings, Test Sets, questions, Submissions, and assignments. |
+| frontend/lib/assessment-slots.ts | The five delivery slots, their labels and default timings, and the Test Set display label. |
 
 There are no current frontend endpoints for /api/results, /auth/profile,
 /auth/password, or a separate test-definition service. Result data is loaded
