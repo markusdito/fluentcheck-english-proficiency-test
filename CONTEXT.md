@@ -185,19 +185,27 @@ A person authorized to independently score a Submission.
 _Avoid_: Jury, reviewer, marker
 
 **Assignment-capable account**:
-An active account authorized to work on an existing Examiner assignment. An `EXAMINER` and an `ADMIN` may be assignment-capable, but only an active `EXAMINER` is an Eligible examiner for a new Examiner assignment.
+An active account authorized to work on an existing Examiner assignment. An `EXAMINER` and an `ADMIN` may be assignment-capable, but only an active `EXAMINER` is an Eligible examiner for a new Examiner assignment set.
 _Avoid_: Eligible examiner when referring to existing assignment access
 
 **Eligible examiner**:
-An Examiner whose account is active and authorized when a new Examiner assignment is committed.
+An Examiner whose account is active and authorized when a new Examiner assignment set is committed.
 _Avoid_: Available examiner
 
 **Examiner assignment**:
-An obligation for one Examiner to score one Submission. Each Submission has exactly one active Examiner assignment, and its single Score is final: nothing is averaged across Examiners.
-_Avoid_: Review, grading task, Examiner assignment set, Examiner pair, jury
+An obligation for one Examiner to independently score one Submission with exactly one Score.
+_Avoid_: Review, grading task
+
+**Examiner assignment set**:
+Exactly two distinct Examiner assignments committed together for one Assignment-ready submission; neither Examiner has rank or priority, and neither sees the other's Score.
+_Avoid_: Examiner pair, jury
+
+**Submission result**:
+The mean of the two Examiners' Scores: the overall band is the mean of their two overall bands, and each criterion band is the mean of their two bands for that criterion. It exists only once both Examiner assignments are completed.
+_Avoid_: Final score from one examiner, averaged answers
 
 **Assignment-ready submission**:
-A completed Submission whose payment requirement is satisfied or waived and which has not received an Examiner assignment.
+A completed Submission whose payment requirement is satisfied or waived and which has not received an Examiner assignment set.
 _Avoid_: Paid submission, unassigned submission
 
 **Payment reconciliation**:
@@ -213,7 +221,7 @@ An Examiner assignment in `ASSIGNED` or `IN_PROGRESS` status that is not yet a C
 _Avoid_: Pending grading, incomplete assignment
 
 **Examiner assignment reassignment**:
-An authorized transfer of an `ASSIGNED` Examiner assignment to another Eligible examiner while preserving its assignment identity. Each transfer is recorded in immutable reassignment history.
+An authorized transfer of an `ASSIGNED` Examiner assignment to another Eligible examiner while preserving its assignment identity and slot. Each transfer is recorded in immutable reassignment history.
 _Avoid_: Assignment replacement
 
 **Capability-removing transition**:
@@ -229,7 +237,7 @@ An immutable record of one Examiner assignment transfer, including the departing
 _Avoid_: Assignment audit note
 
 **Scoring finalization**:
-The authoritative domain operation that commits the Submission's Completed Examiner assignment and moves the Submission to `SCORED`.
+The authoritative domain operation that commits one Completed Examiner assignment and derives the owning Submission's scoring status from its complete Examiner assignment set: `SCORED` once both assignments are completed.
 _Avoid_: score submission, grading completion
 
 **Score draft**:

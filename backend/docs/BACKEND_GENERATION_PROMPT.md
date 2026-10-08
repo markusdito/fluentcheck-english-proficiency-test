@@ -440,7 +440,7 @@ POST   /api/examiner/assignments/:id/scores   → Submit scores for all answers
    }
 3. Backend creates Score records (unique per assignmentId+answerId)
 4. Mark assignment as COMPLETED
-5. The Submission has exactly one examiner, so completing its assignment → Submission: SCORED
+5. When both examiners have completed → Submission: SCORED
 ```
 
 **Score model constraints:**
@@ -460,9 +460,9 @@ GET    /api/results/:id/certificate → Get certificate PDF download URL
 **Result calculation:**
 ```
 For a SCORED submission:
-1. Fetch the Score from the submission's single examiner assignment
-2. The final band is the overall band the examiner entered; nothing is averaged
-   across examiners, answers, or criteria
+1. Fetch the 2 Scores for the submission (one per examiner assignment)
+2. Final band = (examiner1.overall + examiner2.overall) / 2; each criterion band =
+   mean of the 2 examiners' bands for that criterion
 3. Create Certificate: { submissionId, finalScore, issuedAt: now() }
 4. Update Submission: SCORED → CERTIFIED
 5. Generate PDF certificate → upload to S3/R2 → update certificate.storageKey
@@ -602,11 +602,11 @@ Question (PART_1A/PART_1B/PART_2/PART_3/PART_4)
 Submission (IN_PROGRESS → AWAITING_PAYMENT → PAID → SCORING → SCORED → CERTIFIED)
  ├──→ Answer (1:N) — one video per question
  ├──→ Payment (1:N) — payment attempts
- ├──→ ExaminerAssignment (exactly 1 active) — one examiner per submission
+ ├──→ ExaminerAssignment (1:N, exactly 2) — two examiners per submission
  └──→ Certificate (1:1) — final certificate
 
 Answer
- ├──→ Score — scored by the submission's single examiner
+ ├──→ Score (one per examiner assignment) — averaged across both examiners
  └── belongs to Submission + Question
 
 ExaminerAssignment (ASSIGNED → IN_PROGRESS → COMPLETED)

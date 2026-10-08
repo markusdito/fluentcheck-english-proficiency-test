@@ -145,8 +145,8 @@ GET  /api/auth/me        → verifyToken middleware → fetch user by ID → ret
 | `Submission` | One test attempt by a student | ← User, → Answer, → Payment, → ExaminerAssignment, → Certificate |
 | `Answer` | Video response to one question | ← Submission, ← Question, → Score |
 | `Payment` | Payment record for a submission | ← Submission |
-| `ExaminerAssignment` | Assigns the one examiner who scores a submission | ← Submission, ← User (examiner), → Score |
-| `Score` | The examiner's score | ← ExaminerAssignment, ← Answer |
+| `ExaminerAssignment` | Assigns one of the two examiners (slot 1 or 2) who score a submission | ← Submission, ← User (examiner), → Score |
+| `Score` | One examiner's score | ← ExaminerAssignment, ← Answer |
 | `Certificate` | Final certificate for a scored submission | ← Submission (1:1) |
 
 **Enums:**
@@ -170,13 +170,13 @@ Payment:
   Submission: AWAITING_PAYMENT → PAID
 
 Examiner assignment:
-  Admin assigns 1 examiner → ExaminerAssignment: ASSIGNED
-  Examiner starts → AssignmentStatus: IN_PROGRESS
-  Examiner submits the Score (4 criteria + overall band) → AssignmentStatus: COMPLETED
-  Assignment complete → Submission: SCORING → SCORED
+  Admin assigns 2 examiners → ExaminerAssignment: ASSIGNED (×2, slots 1 and 2)
+  Each examiner starts → AssignmentStatus: IN_PROGRESS
+  Each examiner submits one Score for the whole submission (4 criteria + overall band) → AssignmentStatus: COMPLETED
+  Both complete → Submission: SCORING → SCORED
 
 Certification:
-  Final band = the examiner's overall band as entered (nothing averaged)
+  Final band = mean of the 2 examiners' overall bands; each criterion = mean of the 2 examiners' bands
   Certificate created → Submission: CERTIFIED
 ```
 

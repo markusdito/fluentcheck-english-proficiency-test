@@ -2,7 +2,7 @@
 
 FluentCheck is a full-stack English speaking assessment platform. Candidates
 record timed video responses in the browser, submit them for review, and receive
-a criterion-by-criterion proficiency score from a human examiner.
+a criterion-by-criterion proficiency score averaged from two human examiners.
 
 The project covers the complete assessment workflow: browser media capture,
 direct cloud uploads, payments, examiner assignment, rubric-based scoring, and
@@ -14,7 +14,7 @@ role-specific administration.
 | --- | --- |
 | Candidate | Creates an account, completes camera and microphone checks, records timed speaking answers, pays the assessment fee when required, and reviews scores and examiner feedback. |
 | Examiner | Opens assigned submissions, reviews prompt audio and candidate videos, scores every answer, and leaves written feedback. |
-| Administrator | Manages users and roles, maintains the question bank, uploads prompt audio, controls payment requirements, reviews submissions, and assigns an examiner to each one. |
+| Administrator | Manages users and roles, maintains the question bank, uploads prompt audio, controls payment requirements, reviews submissions, and assigns two examiners to each one. |
 
 The assessment currently uses a six-band rubric. Each answer is evaluated on
 pronunciation, fluency, vocabulary, and grammar, with half-band values from 1.0

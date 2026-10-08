@@ -103,7 +103,7 @@ provider checkout.
 | --- | --- |
 | Payment | PENDING, PAID, FAILED, or REFUNDED. Every validated success is retained as its own attempt. |
 | Answer upload | PENDING, UPLOADED, or FAILED. Only an R2-confirmed UPLOADED answer with verification evidence is complete. |
-| ExaminerAssignment | ASSIGNED, IN_PROGRESS, or COMPLETED. Implemented: exactly two fixed slots, 1 and 2, with no ranking. Planned (PRD v0.3.0 FR-8.2, #176): exactly one active Examiner per Submission. |
+| ExaminerAssignment | ASSIGNED, IN_PROGRESS, or COMPLETED. There are exactly two fixed slots, 1 and 2, with no ranking. |
 | Score | RUBRIC_6 or LEGACY_100 scoring system; draft scores are mutable until assignment completion. |
 | Certificate | One optional record per Submission in the schema; issuance is not currently implemented. |
 
@@ -392,10 +392,6 @@ after successful payment is logged and can be retried through the administrator
 assignment route. There is no one-examiner intermediate success and no
 automatic queue or loop described as current behavior.
 
-Planned (PRD v0.3.0 FR-8.2, #176): assignment commits exactly one active
-Examiner per Submission. Until that ships, the two-slot set above remains the
-enforced behavior.
-
 ### Independent scoring finalization
 
 Each assignment scores the delivered Answers independently. RUBRIC_6 scores
@@ -409,10 +405,9 @@ assignment. Repeating a completed finalization is an ALREADY_COMPLETED
 successful no-op. Invalid history fails closed. The Submission remains
 SCORING after one completed assignment and becomes SCORED after both.
 
-Planned (PRD v0.3.0 FR-9, #176 and #177): the single Examiner records one
-Score per Submission with an Examiner-entered overall band, and completing
-that one assignment moves the Submission to SCORED. Nothing is averaged
-across Answers, criteria, or Examiners.
+Planned (PRD v0.3.1 FR-9, #177): each Examiner records one Score per
+Submission with an Examiner-entered overall band instead of one Score per
+Answer, and the Submission result is the mean of the two Examiners' Scores.
 
 ## 6. Authentication, authorization, and request protection
 
