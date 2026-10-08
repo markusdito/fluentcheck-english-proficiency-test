@@ -13,3 +13,7 @@ export const errorSummary =
 export const primaryButton = `mt-1.5 inline-flex min-h-13 w-full items-center justify-center gap-2.5 rounded-full border border-sn-fg bg-sn-fg text-base font-medium text-sn-surface transition-[background-color,transform] duration-300 ease-spring hover:-translate-y-0.5 hover:bg-[color-mix(in_oklch,var(--color-sn-fg),white_14%)] active:translate-y-0 active:duration-75 disabled:pointer-events-none ${focusRing}`;
 
 export const textLink = `inline-flex min-h-11 items-center px-0.5 text-sm font-semibold text-sn-fg underline decoration-sn-fg/30 underline-offset-3 transition-[text-decoration-color] duration-200 ease-standard hover:decoration-sn-fg ${focusRing}`;
+
+// Sign-in form fills the resting height of the sign-up form so both panels share a top edge and
+// button line, which keeps the sliding switch smooth. ponytail: fixed px, update if sign-up fields change.
+export const signInFormFill = "min-h-[500px] content-between";
