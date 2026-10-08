@@ -1,5 +1,11 @@
 // Shared Tailwind class strings for the SpeakNusa admin console.
-import { focusRing } from "@/components/student/styles";
+import { focusRing, primaryButton, secondaryButton } from "@/components/student/styles";
+
+// For the shadcn <Button> (keeps its `loading` prop); tailwind-merge drops its own sizing/colours.
+const onButton = "h-auto max-sm:w-auto focus-visible:ring-0 focus-visible:border-current";
+export const btnPrimary = `${primaryButton} ${onButton}`;
+export const btnSecondary = `${secondaryButton} ${onButton}`;
+export const btnDanger = `${secondaryButton} ${onButton} border-sn-clay/40 text-sn-clay hover:border-sn-clay hover:bg-sn-clay/6`;
 
 export const tableWrap = "overflow-x-auto rounded-2xl border border-sn-border bg-sn-surface";
 export const th =

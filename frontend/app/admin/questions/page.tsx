@@ -18,19 +18,12 @@ import type { AdminQuestion, AdminTask } from "@/types/admin";
 import { queryKeys } from "@/lib/query-keys";
 import { parseNonNegativeInteger } from "@/lib/question-form";
 import { Button } from "@/components/ui/button";
-import { FormField } from "@/components/ui/form-field";
-import { Loader2, TriangleAlertIcon } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
+import { Pill } from "@/components/student/StatusPill";
+import { card, h2, h3, meta, primaryButton } from "@/components/student/styles";
+import { btnDanger, btnPrimary, btnSecondary, chip, empty, error as errorText, field, label, lead } from "@/components/admin/styles";
 import { AudioUploadButton } from "@/components/admin/AudioUploadButton";
 import { AudioUploadBadge } from "@/components/admin/AudioUploadBadge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
@@ -40,7 +33,6 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
@@ -54,9 +46,7 @@ const categoryLabels: Record<string, string> = {
 
 function CategoryBadge({ category }: { category: string }) {
   return (
-    <Badge variant="outline" data-tone="neutral">
-      {categoryLabels[category] ?? category}
-    </Badge>
+    <Pill>{categoryLabels[category] ?? category}</Pill>
   );
 }
 
@@ -68,17 +58,44 @@ function LifecycleBadge({
   retired: boolean;
 }) {
   return (
-    <Badge
-      variant={retired ? "destructive" : "outline"}
-      aria-label={`${entity} ${retired ? "retired" : "active"}`}
-    >
-      {retired ? "Retired" : "Active"}
-    </Badge>
+    <span aria-label={`${entity} ${retired ? "retired" : "active"}`}>
+      <Pill tone={retired ? "clay" : "green"}>{retired ? "Retired" : "Active"}</Pill>
+    </span>
   );
 }
 
 function isRetired(record: { deletedAt?: string | null }) {
   return record.deletedAt != null;
+}
+
+function Field({
+  label: text,
+  helperText,
+  required,
+  id,
+  className,
+  ...rest
+}: React.InputHTMLAttributes<HTMLInputElement> & { label: string; helperText?: string; id: string }) {
+  return (
+    <div className={className}>
+      <label htmlFor={id} className={label}>
+        <span>
+          {text}
+          {required && <span className="ml-0.5 text-sn-clay">*</span>}
+        </span>
+        <input
+          id={id}
+          required={required}
+          aria-describedby={helperText ? `${id}-help` : undefined}
+          className={field}
+          {...rest}
+        />
+      </label>
+      {helperText && (
+        <p id={`${id}-help`} className="mt-1.5 text-[13px] text-sn-muted">{helperText}</p>
+      )}
+    </div>
+  );
 }
 
 function ToNumberInput({
@@ -99,7 +116,7 @@ function ToNumberInput({
   helperText?: string;
 }) {
   return (
-    <FormField
+    <Field
       id={id}
       label={label}
       type="number"
@@ -139,27 +156,21 @@ function QuestionFormFields({
 }) {
   return (
     <>
-      <div>
-        <p className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-          Category <span className="text-signal">*</span>
-        </p>
-        <Select
+      <label className={label}>
+        <span>
+          Category <span className="text-sn-clay">*</span>
+        </span>
+        <select
+          className={field}
           value={category}
-          onValueChange={(v) => onCategory(v ?? "")}
+          onChange={(e) => onCategory(e.target.value)}
           disabled={disabled}
         >
-          <SelectTrigger size="default" className="w-full">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            {CATEGORIES.map((c) => (
-              <SelectItem key={c} value={c}>
-                {categoryLabels[c]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>{categoryLabels[c]}</option>
+          ))}
+        </select>
+      </label>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <ToNumberInput
@@ -301,20 +312,15 @@ function TaskEditor({
   }
 
   return (
-    <div className="border border-rule bg-rule/20 p-4">
-      <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-        Tasks
-      </p>
+    <div className="rounded-2xl border border-sn-border bg-sn-bg p-4 sm:p-5">
+      <p className="mb-3 text-[15px] font-semibold">Tasks</p>
 
       {error && (
-        <Alert variant="destructive" className="mb-3 items-start">
-          <TriangleAlertIcon />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <p role="alert" className={`${errorText} rounded-xl border border-sn-clay/30 bg-sn-clay/6 px-4 py-3 mb-3`}>{error}</p>
       )}
 
       {tasks.length === 0 ? (
-        <p className="mb-3 text-sm text-ink-soft">No tasks added yet.</p>
+        <p className="mb-3 text-sm text-sn-muted">No tasks added yet.</p>
       ) : (
         <ul className="mb-3 space-y-2">
           {tasks.map((task, index) => {
@@ -323,9 +329,9 @@ function TaskEditor({
             return (
               <li
                 key={task.id}
-                className="flex flex-col gap-3 border border-rule bg-paper-raised p-3 sm:flex-row sm:items-end"
+                className="flex flex-col gap-3 rounded-xl border border-sn-border bg-sn-surface p-3 sm:flex-row sm:items-end"
               >
-                <FormField
+                <Field
                   id={`task-prompt-${task.id}`}
                   label="Prompt"
                   value={task.promptText}
@@ -336,7 +342,7 @@ function TaskEditor({
                   className="flex-1"
                 />
                 <div className="w-full sm:w-24">
-                  <FormField
+                  <Field
                     id={`task-order-${task.id}`}
                     label="Order"
                     type="number"
@@ -357,8 +363,7 @@ function TaskEditor({
                   <LifecycleBadge entity="Task" retired={retired} />
                   {retired ? (
                     <Button
-                      variant="outline"
-                      size="sm"
+                      className={btnSecondary}
                       loading={restoringTaskKey === taskKey}
                       disabled={disabled || restoringTaskKey !== null}
                       onClick={() => onRestoreTask(task.id)}
@@ -368,8 +373,7 @@ function TaskEditor({
                   ) : (
                     <>
                       <Button
-                        variant="outline"
-                        size="sm"
+                        className={btnSecondary}
                         disabled={disabled}
                         onClick={() =>
                           handleUpdate(index, {
@@ -381,8 +385,7 @@ function TaskEditor({
                         Save
                       </Button>
                       <Button
-                        variant="destructive"
-                        size="sm"
+                        className={btnDanger}
                         disabled={disabled}
                         onClick={() => handleRemove(index)}
                       >
@@ -399,7 +402,7 @@ function TaskEditor({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
-          <FormField
+          <Field
             id="new-task-prompt"
             label="New task prompt"
             value={newPrompt}
@@ -410,7 +413,7 @@ function TaskEditor({
           />
         </div>
         <div className="w-full sm:w-24">
-          <FormField
+          <Field
             id="new-task-order"
             label="Order"
             type="number"
@@ -425,8 +428,7 @@ function TaskEditor({
         </div>
         <Button
           type="button"
-          variant="secondary"
-          size="md"
+          className={btnSecondary}
           loading={loading}
           disabled={disabled}
           onClick={() => void handleAdd()}
@@ -693,22 +695,22 @@ export default function AdminQuestionsPage() {
   if (questionsQuery.isPending) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
+        <Loader2 className="size-8 animate-spin text-sn-muted" role="status" aria-label="Loading" />
       </div>
     );
   }
 
   if (questionsQuery.isError) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-sm text-ink-soft">
+      <div className={`${card} text-center`}>
+        <p className="text-[15px] text-sn-muted">
           {questionsQuery.error instanceof ApiError
             ? questionsQuery.error.message
             : "Failed to load questions. Please try again."}
         </p>
-        <Button className="ml-4" onClick={() => questionsQuery.refetch()}>
+        <button type="button" className={`${primaryButton} mt-5`} onClick={() => questionsQuery.refetch()}>
           Try again
-        </Button>
+        </button>
       </div>
     );
   }
@@ -717,36 +719,27 @@ export default function AdminQuestionsPage() {
     ordered(questions.filter((q) => q.category === category));
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       <div>
-        <p className="mark">Test bank</p>
-        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
-          Questions
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-ink-soft">
-          Manage speaking questions, grouped by part, and their tasks.
+        <h1 className={h2}>Question bank</h1>
+        <p className={lead}>
+          Manage speaking questions, grouped by part, and their tasks. Retiring a
+          question never rewrites delivered submissions.
         </p>
       </div>
 
       {actionError && (
-        <Alert variant="destructive" className="items-start">
-          <TriangleAlertIcon />
-          <AlertDescription>{actionError}</AlertDescription>
-        </Alert>
+        <p role="alert" className={`${errorText} rounded-xl border border-sn-clay/30 bg-sn-clay/6 px-4 py-3 `}>{actionError}</p>
       )}
 
       {actionSuccess && (
-        <Alert className="items-start">
-          <AlertDescription>{actionSuccess}</AlertDescription>
-        </Alert>
+        <p role="status" className="rounded-xl border border-sn-border bg-sn-field-green px-4 py-3 text-sm text-sn-ink-green">{actionSuccess}</p>
       )}
 
-      <section className="flex flex-col gap-3 border-y border-rule py-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-            Question view
-          </p>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="text-[15px] font-semibold">Question view</p>
+          <p className="mt-1 text-sm text-sn-muted">
             Active questions are shown by default. Include retired records when needed for restoration.
           </p>
         </div>
@@ -755,40 +748,38 @@ export default function AdminQuestionsPage() {
           role="group"
           aria-label="Question lifecycle view"
         >
-          <Button
-            variant={includeRetired ? "outline" : "default"}
+          <button
+            type="button"
+            className={chip(!includeRetired)}
             aria-pressed={!includeRetired}
             onClick={() => setQuestionView(false)}
           >
             Active only
-          </Button>
-          <Button
-            variant={includeRetired ? "default" : "outline"}
+          </button>
+          <button
+            type="button"
+            className={chip(includeRetired)}
             aria-pressed={includeRetired}
             onClick={() => setQuestionView(true)}
           >
             Active + retired
-          </Button>
+          </button>
         </div>
       </section>
 
       {/* Create form */}
       {!editingId && (
         <section>
-          <p className="mark">New entry</p>
-          <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
+          <h2 className={h3}>
             Create question
           </h2>
           <form
             onSubmit={handleCreate}
             noValidate
-            className="mt-4 border border-rule bg-paper-raised p-6"
+            className={`${card} mt-4`}
           >
             {createError && (
-              <Alert variant="destructive" className="mb-4 items-start">
-                <TriangleAlertIcon />
-                <AlertDescription>{createError}</AlertDescription>
-              </Alert>
+              <p role="alert" className={`${errorText} rounded-xl border border-sn-clay/30 bg-sn-clay/6 px-4 py-3 mb-4`}>{createError}</p>
             )}
             <div className="grid gap-4">
               <QuestionFormFields
@@ -804,7 +795,7 @@ export default function AdminQuestionsPage() {
                 disabled={createLoading}
               />
               <div className="flex justify-end">
-                <Button type="submit" variant="default" loading={createLoading}>
+                <Button type="submit" className={btnPrimary} loading={createLoading}>
                   Create question
                 </Button>
               </div>
@@ -818,20 +809,16 @@ export default function AdminQuestionsPage() {
         const original = questions.find((q) => q.id === editingId);
         return (
           <section>
-            <p className="mark">Amendments</p>
-            <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
+            <h2 className={h3}>
               Edit question
             </h2>
             <form
               onSubmit={handleSaveEdit}
               noValidate
-              className="mt-4 border border-rule bg-paper-raised p-6"
+              className={`${card} mt-4`}
             >
               {editError && (
-                <Alert variant="destructive" className="mb-4 items-start">
-                  <TriangleAlertIcon />
-                  <AlertDescription>{editError}</AlertDescription>
-                </Alert>
+                <p role="alert" className={`${errorText} rounded-xl border border-sn-clay/30 bg-sn-clay/6 px-4 py-3 mb-4`}>{editError}</p>
               )}
               <div className="grid gap-4">
                 <QuestionFormFields
@@ -848,15 +835,13 @@ export default function AdminQuestionsPage() {
                 />
                 <div>
                   <div className="mb-2 flex flex-wrap items-center gap-3">
-                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-                      Prompt audio
-                    </p>
+                    <p className="text-[15px] font-semibold">Prompt audio</p>
                     {original && (
                       <AudioUploadBadge status={original.audioUploadStatus} />
                     )}
                   </div>
                   {original?.audioUploadStatus === "UPLOADED" ? (
-                    <p className="text-sm text-ink-soft">
+                    <p className="text-sm text-sn-muted">
                       Prompt audio is uploaded and ready for test delivery.
                     </p>
                   ) : (
@@ -867,7 +852,7 @@ export default function AdminQuestionsPage() {
                     />
                   )}
                   {original && original.audioUploadStatus !== "UPLOADED" && (
-                    <p className="mt-2 text-xs text-ink-soft">
+                    <p className="mt-2 text-xs text-sn-muted">
                       You can save this draft now. It will not appear in tests until its prompt audio is uploaded.
                     </p>
                   )}
@@ -888,19 +873,19 @@ export default function AdminQuestionsPage() {
                 <div className="flex justify-end gap-3">
                   <Button
                     type="button"
-                    variant="outline"
+                    className={btnSecondary}
                     onClick={cancelEdit}
                     disabled={editLoading}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="default" loading={editLoading}>
+                  <Button type="submit" className={btnPrimary} loading={editLoading}>
                     Save changes
                   </Button>
                 </div>
               </div>
               {original && (
-                <p className="mt-4 text-xs text-ink-faint">
+                <p className="mt-4 text-xs text-sn-muted">
                   Created{" "}
                   {new Date(original.createdAt).toLocaleDateString("en-US", {
                     year: "numeric",
@@ -917,9 +902,9 @@ export default function AdminQuestionsPage() {
       {/* Question lists by category */}
       {!editingId && (
         <Tabs defaultValue="PART_1">
-          <TabsList variant="line" className="mb-6">
+          <TabsList variant="line" className="mb-6 h-auto! w-full justify-start gap-1 rounded-none border-b border-sn-border p-0">
             {CATEGORIES.map((category) => (
-              <TabsTrigger key={category} value={category} className="px-4">
+              <TabsTrigger key={category} value={category} className="min-h-11 flex-none rounded-t-xl rounded-b-none px-4 text-[15px] font-normal text-sn-muted after:bottom-[-1px]! after:bg-sn-fg focus-visible:ring-0 data-active:font-medium data-active:text-sn-fg">
                 {categoryLabels[category]}
               </TabsTrigger>
             ))}
@@ -930,14 +915,7 @@ export default function AdminQuestionsPage() {
             return (
               <TabsContent key={category} value={category}>
                 {items.length === 0 ? (
-                  <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
-                    <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-                      No questions in this part yet
-                    </p>
-                    <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
-                      Create the first {categoryLabels[category]} question above.
-                    </p>
-                  </div>
+                  <p className={empty}>No questions in this part yet. Create the first {categoryLabels[category]} question above.</p>
                 ) : (
                   <div className="space-y-4">
                     {items.map((q) => {
@@ -945,19 +923,17 @@ export default function AdminQuestionsPage() {
                       return (
                         <div
                           key={q.id}
-                          className="border border-rule bg-paper-raised p-5"
+                          className={card}
                         >
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="min-w-0 flex-1">
                               <div className="mb-2 flex flex-wrap items-center gap-3">
                                 <CategoryBadge category={q.category} />
                                 <LifecycleBadge entity="Question" retired={retired} />
-                                <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">
-                                  Order {q.order}
-                                </span>
+                                <span className={meta}>Order {q.order}</span>
                                 <AudioUploadBadge status={q.audioUploadStatus} />
                               </div>
-                              <p className="text-sm leading-6 text-ink">
+                              <p className="text-[15px] leading-6">
                                 {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"} ·{" "}
                                 {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
                               </p>
@@ -971,17 +947,16 @@ export default function AdminQuestionsPage() {
                                       return (
                                         <li
                                           key={t.id}
-                                          className="flex flex-wrap items-center gap-2 border-l-2 border-rule-strong pl-3 text-xs leading-5 text-ink-soft"
+                                          className="flex flex-wrap items-center gap-2 border-l-2 border-sn-border pl-3 text-sm leading-6 text-sn-muted"
                                         >
                                           <span>
-                                            <span className="font-medium text-ink">{t.order}.</span>{" "}
+                                            <span className="font-medium text-sn-fg">{t.order}.</span>{" "}
                                             {t.promptText}
                                           </span>
                                           <LifecycleBadge entity="Task" retired={taskRetired} />
                                           {taskRetired && (
                                             <Button
-                                              variant="outline"
-                                              size="xs"
+                                              className={btnSecondary}
                                               loading={restoringTaskKey === `${q.id}:${t.id}`}
                                               disabled={
                                                 restoringTaskKey !== null ||
@@ -1002,8 +977,7 @@ export default function AdminQuestionsPage() {
                             <div className="flex shrink-0 items-center gap-2">
                               {retired ? (
                                 <Button
-                                  variant="outline"
-                                  size="sm"
+                                  className={btnSecondary}
                                   loading={restoringQuestionId === q.id}
                                   disabled={
                                     restoringQuestionId !== null ||
@@ -1016,15 +990,13 @@ export default function AdminQuestionsPage() {
                               ) : (
                                 <>
                                   <Button
-                                    variant="outline"
-                                    size="sm"
+                                    className={btnSecondary}
                                     onClick={() => startEdit(q)}
                                   >
                                     Edit
                                   </Button>
                                   <Button
-                                    variant="destructive"
-                                    size="sm"
+                                    className={btnDanger}
                                     onClick={() => requestRetire(q.id)}
                                   >
                                     Retire
@@ -1051,22 +1023,19 @@ export default function AdminQuestionsPage() {
           if (!open) setConfirmRetireId(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100%-32px)] rounded-3xl bg-sn-surface p-7 font-albert text-sn-fg ring-sn-border data-[size=default]:max-w-[460px] data-[size=default]:sm:max-w-[460px]">
           <AlertDialogHeader>
-            <AlertDialogMedia>
-              <TriangleAlertIcon />
-            </AlertDialogMedia>
-            <AlertDialogTitle>Retire this question?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className={h3}>Retire this question?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[15px] text-sn-muted">
               It will no longer be offered in new assessments. Prompt media
               remains available through retained submissions, and retained
               evidence is unchanged.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="-mx-7 -mb-7 mt-2 rounded-b-3xl border-sn-border bg-sn-bg px-7 py-5">
+            <AlertDialogCancel className={btnSecondary}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              variant="destructive"
+              className={`${btnPrimary} border-sn-clay bg-sn-clay hover:bg-[color-mix(in_oklch,var(--color-sn-clay),black_12%)]`}
               onClick={handleRetire}
               loading={retireLoading}
             >
