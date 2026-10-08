@@ -1,6 +1,5 @@
 import type { QuestionCategory } from "../generated/enums.js";
-
-const REQUIRED_CATEGORIES = ["PART_1", "PART_2", "PART_3"] as const;
+import { ASSESSMENT_SLOTS, CURRENT_MANIFEST_VERSION } from "./assessmentSlots.js";
 
 export interface ManifestDeliveryTask {
   deliveredOrder: number;
@@ -89,8 +88,9 @@ export function isValidPromptMediaUrl(value: string): boolean {
   }
 }
 
-function assertVersionOne(manifest: ManifestDeliveryManifest) {
-  if (manifest.version !== 1) {
+function assertDeliverableVersion(manifest: ManifestDeliveryManifest) {
+  // Legacy version 1 manifests remain readable evidence but are never delivered.
+  if (manifest.version !== CURRENT_MANIFEST_VERSION) {
     throw new ManifestEvidenceUnavailableError("Unsupported manifest version");
   }
 }
@@ -117,15 +117,17 @@ function validateEntry(entry: ManifestDeliveryEntry) {
   }
 }
 
+/** Every slot exactly once, delivered in the fixed order 1A -> 1B -> 2 -> 3 -> 4. */
 function validateShape(entries: ManifestDeliveryEntry[]) {
-  if (entries.length !== REQUIRED_CATEGORIES.length) {
+  if (entries.length !== ASSESSMENT_SLOTS.length) {
     throw new ManifestEvidenceUnavailableError("Incomplete manifest entries");
   }
-  const categories = entries.map((entry) => entry.category).sort();
-  const positions = entries.map((entry) => entry.deliveryPosition).sort();
+  const ordered = [...entries].sort(
+    (left, right) => left.deliveryPosition - right.deliveryPosition,
+  );
   if (
-    categories.join(",") !== REQUIRED_CATEGORIES.join(",") ||
-    positions.join(",") !== "1,2,3"
+    ordered.some((entry, index) =>
+      entry.deliveryPosition !== index + 1 || entry.category !== ASSESSMENT_SLOTS[index])
   ) {
     throw new ManifestEvidenceUnavailableError("Invalid manifest entry shape");
   }
@@ -137,7 +139,7 @@ export async function buildManifestDelivery(
   manifest: ManifestDeliveryManifest,
   signPromptMedia: SignPromptMedia,
 ): Promise<DeliveredManifestEntry[]> {
-  assertVersionOne(manifest);
+  assertDeliverableVersion(manifest);
   validateShape(manifest.entries);
 
   const orderedEntries = [...manifest.entries].sort(

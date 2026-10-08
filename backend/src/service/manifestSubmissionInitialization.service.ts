@@ -2,6 +2,12 @@ import { randomInt, randomUUID } from "node:crypto";
 import { prisma } from "../config/db.js";
 import { createQuestionAudioViewUrlFromMetadata } from "./upload.service.js";
 import { lockPromptMediaStorageIdentity } from "./promptMediaLock.service.js";
+import { deliveredTestSet } from "./submissionManifest.service.js";
+import {
+  ASSESSMENT_SLOTS,
+  CURRENT_MANIFEST_VERSION,
+  ELIGIBLE_QUESTION_WHERE,
+} from "./assessmentSlots.js";
 import {
   buildManifestDelivery,
   ManifestEvidenceUnavailableError,
@@ -18,7 +24,7 @@ import {
   type AssessmentInitializationFailureReason,
 } from "./assessmentInitializationObservability.service.js";
 
-const CATEGORIES = ["PART_1", "PART_2", "PART_3"] as const;
+const CATEGORIES = ASSESSMENT_SLOTS;
 const INITIALIZATION_DEADLINE_MS = 10_000;
 
 export class AssessmentUnavailableError extends Error {
@@ -135,19 +141,25 @@ async function findActiveSubmissionId(studentId: string): Promise<string | undef
 
 /**
  * An unfinished attempt may only be resumed while its manifest still matches
- * the current universal question bank. Retirement or edits of a delivered
- * Question make the attempt stale, so the next start supersedes it with a
- * fresh manifest instead of serving outdated (possibly retired) questions.
+ * the current question bank. Retirement or edits of a delivered Question, or
+ * a legacy three-slot manifest, make the attempt stale, so the next start
+ * supersedes it with a fresh manifest instead of serving outdated questions.
  */
 async function activeManifestMatchesCurrentBank(submissionId: string): Promise<boolean> {
   const manifest = await prisma.submissionManifest.findFirst({
     where: { submissionId },
     include: { entries: { include: { tasks: { orderBy: { deliveredOrder: "asc" } } } } },
   });
-  if (!manifest || manifest.entries.length !== CATEGORIES.length) return false;
-  // Delivery binds one shared order across every category. An attempt whose
-  // entries span different orders predates that rule and must be rebuilt.
-  const deliveredOrders = new Set<number>();
+  if (
+    !manifest ||
+    manifest.version !== CURRENT_MANIFEST_VERSION ||
+    !manifest.testSetId ||
+    manifest.entries.length !== CATEGORIES.length
+  ) {
+    return false;
+  }
+  // Delivery binds one Test Set across every slot. A delivered Question moved
+  // to another Test Set makes the attempt stale.
   for (const entry of manifest.entries) {
     const question = await prisma.question.findUnique({
       where: { id: entry.sourceQuestionId },
@@ -168,9 +180,9 @@ async function activeManifestMatchesCurrentBank(submissionId: string): Promise<b
     ) {
       return false;
     }
-    deliveredOrders.add(question.order);
+    if (question.testSetId !== manifest.testSetId) return false;
   }
-  return deliveredOrders.size === 1;
+  return true;
 }
 
 function isAssessmentInitializationUnavailable(error: unknown): boolean {
@@ -336,7 +348,14 @@ async function replayStartIntent(
     manifest,
     (key, mime) => withDeadline(signPromptMedia(key, mime), deadline),
   );
-  return { submissionId: existingIntent.submissionId, status: existingIntent.submission.status, manifestId: manifest.id, version: manifest.version, entries };
+  return {
+    submissionId: existingIntent.submissionId,
+    status: existingIntent.submission.status,
+    manifestId: manifest.id,
+    version: manifest.version,
+    testSet: deliveredTestSet(existingIntent.submission.manifest),
+    entries,
+  };
 }
 
 /** Select, snapshot, and persist one complete manifest atomically. */
@@ -386,15 +405,7 @@ export async function initializeManifestSubmission(
     const candidateSets = await Promise.all(
       CATEGORIES.map(async (category) => {
         const candidates = await prisma.question.findMany({
-          where: {
-            category,
-            deletedAt: null,
-            audioUploadStatus: "UPLOADED",
-            audioStorageKey: { not: null },
-            audioMimeType: { not: null },
-            audioSizeBytes: { not: null },
-            tasks: { some: { deletedAt: null } },
-          },
+          where: { ...ELIGIBLE_QUESTION_WHERE, category },
           orderBy: { id: "asc" },
           include: {
             tasks: {
@@ -415,27 +426,28 @@ export async function initializeManifestSubmission(
         failedCategories: unavailableCategories,
       });
     }
-    // `order` identifies a question set shared by every category. Delivery must
-    // use one order across all categories, never a mix, so choose a single
-    // order available in every category and take that order's question from each.
-    const ordersByCategory = new Map(
+    // A Submission is delivered from exactly one Test Set and never mixes
+    // sets. Only a Test Set with an Eligible question in every slot is
+    // deliverable; choose one of those and take each slot's Question from it.
+    const testSetsByCategory = new Map(
       candidateSets.map(({ category, candidates }) => [
         category,
-        new Map(candidates.map((question) => [question.order, question])),
+        new Map(candidates.map((question) => [question.testSetId, question])),
       ]),
     );
-    const commonOrders = [...ordersByCategory.get(CATEGORIES[0])!.keys()]
-      .filter((order) => CATEGORIES.every((category) => ordersByCategory.get(category)!.has(order)))
-      .sort((left, right) => left - right);
-    if (commonOrders.length === 0) {
+    const deliverableTestSetIds = [...testSetsByCategory.get(CATEGORIES[0])!.keys()]
+      .filter((testSetId) =>
+        CATEGORIES.every((category) => testSetsByCategory.get(category)!.has(testSetId)))
+      .sort();
+    if (deliverableTestSetIds.length === 0) {
       throw new AssessmentUnavailableError("Assessment unavailable", {
         internalReason: "QUESTION_BANK_INCOMPLETE",
         failedCategories: [...CATEGORIES],
       });
     }
-    const selectedOrder = commonOrders[chooseIndex(commonOrders.length)];
+    const selectedTestSetId = deliverableTestSetIds[chooseIndex(deliverableTestSetIds.length)];
     const selected = CATEGORIES.map(
-      (category) => ordersByCategory.get(category)!.get(selectedOrder)!,
+      (category) => testSetsByCategory.get(category)!.get(selectedTestSetId)!,
     );
 
     const manifestId = randomUUID();
@@ -460,7 +472,7 @@ export async function initializeManifestSubmission(
     const safe = await buildManifestDelivery(
       {
         id: manifestId,
-        version: 1,
+        version: CURRENT_MANIFEST_VERSION,
           entries: prepared.map((item) => ({
             id: item.manifestEntryId,
             category: item.question.category,
@@ -503,11 +515,22 @@ export async function initializeManifestSubmission(
         await lockPromptMediaStorageIdentity(tx, item.question.audioStorageKey!);
       }
 
+      const testSet = await tx.testSet.findUnique({
+        where: { id: selectedTestSetId },
+        select: { id: true, code: true },
+      });
+      if (!testSet) throw new EligibilityConflictError();
       const submission = await tx.submission.create({
         data: { studentId, status: "IN_PROGRESS" },
       });
       const manifest = await tx.submissionManifest.create({
-        data: { id: manifestId, submissionId: submission.id, version: 1 },
+        data: {
+          id: manifestId,
+          submissionId: submission.id,
+          version: CURRENT_MANIFEST_VERSION,
+          testSetId: testSet.id,
+          testSetCode: testSet.code,
+        },
       });
       for (const item of prepared) {
         const current = await tx.question.findUnique({
@@ -515,7 +538,9 @@ export async function initializeManifestSubmission(
           include: { tasks: { where: { deletedAt: null }, orderBy: { order: "asc" } } },
         });
         if (
-          !current || current.deletedAt || current.audioStorageKey !== item.question.audioStorageKey ||
+          !current || current.deletedAt || current.testSetId !== selectedTestSetId ||
+          current.category !== item.question.category ||
+          current.audioStorageKey !== item.question.audioStorageKey ||
           current.audioMimeType !== item.question.audioMimeType || current.audioSizeBytes !== item.question.audioSizeBytes ||
           current.preparationSeconds !== item.question.preparationSeconds ||
           current.recordingSeconds !== item.question.recordingSeconds ||
@@ -572,6 +597,7 @@ export async function initializeManifestSubmission(
       status: result.submission.status,
       manifestId: result.manifest.id,
       version: result.manifest.version,
+      testSet: deliveredTestSet(result.manifest),
       entries: safe,
     };
     observeSuccess(observeSuccessCallback, { requestId, startedAt, now });
@@ -696,6 +722,7 @@ export async function resumeManifestSubmission(
     status: submission.status,
     manifestId: manifest.id,
     version: manifest.version,
+    testSet: deliveredTestSet(submission.manifest),
     entries,
     uploadedEntryIds: submission.answers
       .filter((answer) => answer.uploadStatus === "UPLOADED" && answer.manifestEntryId)

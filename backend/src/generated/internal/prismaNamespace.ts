@@ -386,6 +386,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   GoogleOAuthState: 'GoogleOAuthState',
+  TestSet: 'TestSet',
   Question: 'Question',
   Task: 'Task',
   Submission: 'Submission',
@@ -421,7 +422,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "googleOAuthState" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
+    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -570,6 +571,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.GoogleOAuthStateCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.GoogleOAuthStateCountAggregateOutputType> | number
+        }
+      }
+    }
+    TestSet: {
+      payload: Prisma.$TestSetPayload<ExtArgs>
+      fields: Prisma.TestSetFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TestSetFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TestSetFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>
+        }
+        findFirst: {
+          args: Prisma.TestSetFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TestSetFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>
+        }
+        findMany: {
+          args: Prisma.TestSetFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>[]
+        }
+        create: {
+          args: Prisma.TestSetCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>
+        }
+        createMany: {
+          args: Prisma.TestSetCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TestSetCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>[]
+        }
+        delete: {
+          args: Prisma.TestSetDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>
+        }
+        update: {
+          args: Prisma.TestSetUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>
+        }
+        deleteMany: {
+          args: Prisma.TestSetDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TestSetUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TestSetUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>[]
+        }
+        upsert: {
+          args: Prisma.TestSetUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TestSetPayload>
+        }
+        aggregate: {
+          args: Prisma.TestSetAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTestSet>
+        }
+        groupBy: {
+          args: Prisma.TestSetGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TestSetGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TestSetCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TestSetCountAggregateOutputType> | number
         }
       }
     }
@@ -2120,10 +2195,20 @@ export const GoogleOAuthStateScalarFieldEnum = {
 export type GoogleOAuthStateScalarFieldEnum = (typeof GoogleOAuthStateScalarFieldEnum)[keyof typeof GoogleOAuthStateScalarFieldEnum]
 
 
+export const TestSetScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TestSetScalarFieldEnum = (typeof TestSetScalarFieldEnum)[keyof typeof TestSetScalarFieldEnum]
+
+
 export const QuestionScalarFieldEnum = {
   id: 'id',
   category: 'category',
-  order: 'order',
+  testSetId: 'testSetId',
   preparationSeconds: 'preparationSeconds',
   recordingSeconds: 'recordingSeconds',
   createdById: 'createdById',
@@ -2293,6 +2378,8 @@ export const SubmissionManifestScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
   version: 'version',
+  testSetId: 'testSetId',
+  testSetCode: 'testSetCode',
   createdAt: 'createdAt'
 } as const
 
@@ -2910,6 +2997,7 @@ export type PrismaClientOptions = ({
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   googleOAuthState?: Prisma.GoogleOAuthStateOmit
+  testSet?: Prisma.TestSetOmit
   question?: Prisma.QuestionOmit
   task?: Prisma.TaskOmit
   submission?: Prisma.SubmissionOmit

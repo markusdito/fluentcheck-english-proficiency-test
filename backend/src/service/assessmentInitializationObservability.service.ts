@@ -1,3 +1,4 @@
+import { ASSESSMENT_SLOTS } from "./assessmentSlots.js";
 import { env } from "../config/env.js";
 
 export const SUBMISSION_INITIALIZATION_FAILURE_EVENT =
@@ -170,8 +171,8 @@ function buildFailureTelemetry(
       : 1,
     failedQuestionIds: uniqueStrings(event.failedQuestionIds).slice(0, 100),
     failedCategories: uniqueStrings(event.failedCategories)
-      .filter((category) => category === "PART_1" || category === "PART_2" || category === "PART_3")
-      .slice(0, 3),
+      .filter((category) => (ASSESSMENT_SLOTS as readonly string[]).includes(category))
+      .slice(0, ASSESSMENT_SLOTS.length),
     failureClass,
     preparationDurationMs: safeDuration(event.preparationDurationMs),
   };

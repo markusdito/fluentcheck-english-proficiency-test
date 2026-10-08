@@ -24,9 +24,9 @@ function syntheticFailureEvent(requestId: string): AssessmentInitializationFailu
     requestId,
     failureCount: 1,
     failedQuestionIds: [],
-    failedCategories: ["PART_1"],
+    failedCategories: ["PART_1A"],
     preparationDurationMs: 12,
-    categoryCount: 3,
+    categoryCount: 5,
   };
 }
 

@@ -1,3 +1,4 @@
+import { isSupportedManifestVersion } from "./assessmentSlots.js";
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
 import {
@@ -18,6 +19,8 @@ import {
 import {
   assertLegacyAnswerQuestion,
   assertLegacySubmissionEvidence,
+  deliveredTestSet,
+  type DeliveredTestSet,
 } from "./submissionManifest.service.js";
 import type {
   AssignmentStatus,
@@ -31,6 +34,7 @@ export interface ExaminerAssignmentSummary {
   submissionId: string;
   studentName: string;
   submissionStatus: string;
+  testSet: DeliveredTestSet | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +63,7 @@ export interface AssignmentDetail {
   studentName: string;
   submissionStatus: string;
   scoringSystem: ScoringSystemValue;
+  testSet: DeliveredTestSet | null;
   answers: AssignmentAnswer[];
   createdAt: Date;
   updatedAt: Date;
@@ -418,6 +423,9 @@ export async function getExaminerAssignments(examinerId: string): Promise<Examin
           student: {
             select: { username: true },
           },
+          manifest: {
+            select: { testSetId: true, testSetCode: true },
+          },
         },
       },
     },
@@ -429,6 +437,7 @@ export async function getExaminerAssignments(examinerId: string): Promise<Examin
     submissionId: a.submissionId,
     studentName: a.submission.student.username,
     submissionStatus: a.submission.status,
+    testSet: deliveredTestSet(a.submission.manifest),
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
   }));
@@ -451,6 +460,8 @@ export async function getExaminerAssignmentDetail(
             select: {
               id: true,
               version: true,
+              testSetId: true,
+              testSetCode: true,
               entries: {
                 select: {
                   id: true,
@@ -520,7 +531,9 @@ export async function getExaminerAssignmentDetail(
     throw new Error("Submission is not available");
   }
   const manifest = assignment.submission.manifest;
-  if (manifest && manifest.version !== 1) throw new Error("Unsupported manifest version");
+  if (manifest && !isSupportedManifestVersion(manifest.version)) {
+    throw new Error("Unsupported manifest version");
+  }
   if (!manifest) assertLegacySubmissionEvidence(manifest);
 
   const answers: AssignmentAnswer[] = await Promise.all(
@@ -590,6 +603,7 @@ export async function getExaminerAssignmentDetail(
     studentName: assignment.submission.student.username,
     submissionStatus: assignment.submission.status,
     scoringSystem: assignment.submission.scoringSystem,
+    testSet: deliveredTestSet(manifest),
     answers,
     createdAt: assignment.createdAt,
     updatedAt: assignment.updatedAt,

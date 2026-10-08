@@ -51,7 +51,7 @@ test("submission detail hydrates any answer count from one submission query", as
           mimeType: "video/webm",
           durationSeconds: null,
           question: {
-            category: "PART_1",
+            category: "PART_1A",
             audioUploadStatus: "PENDING",
             audioStorageKey: null,
             audioMimeType: null,
@@ -107,7 +107,7 @@ test("manifest-backed submission fails closed when historical Prompt media is un
           entries: [
             {
               id: "entry-1",
-              category: "PART_1",
+              category: "PART_1A",
               preparationSeconds: 30,
               recordingSeconds: 60,
               promptMediaStorageKey: "missing-historical-media",
@@ -170,8 +170,8 @@ test("combined test delivery signs uploaded prompts and never exposes storage ke
     [
       {
         id: "question-1",
-        category: "PART_1",
-        order: 1,
+        category: "PART_1A",
+        testSetId: "test-set-1",
         preparationSeconds: 30,
         recordingSeconds: 60,
         audioUploadStatus: "UPLOADED",
@@ -194,16 +194,16 @@ test("combined test delivery signs uploaded prompts and never exposes storage ke
 test("combined test delivery fails closed and reports multiple signer failures", async () => {
   await assert.rejects(
     buildTestQuestionDelivery(
-      [1, 2, 3].map((index) => ({
-        id: `question-${index}`,
-        category: `PART_${index}`,
-        order: index,
+      (["PART_1A", "PART_1B", "PART_2"] as const).map((category, offset) => ({
+        id: `question-${offset + 1}`,
+        category,
+        testSetId: "test-set-1",
         preparationSeconds: 30,
         recordingSeconds: 60,
         audioUploadStatus: "UPLOADED",
-        audioStorageKey: `questions/question-${index}/prompt.mp3`,
+        audioStorageKey: `questions/question-${offset + 1}/prompt.mp3`,
         audioMimeType: "audio/mpeg",
-        tasks: [{ id: `task-${index}`, promptText: "Introduce yourself", order: 1 }],
+        tasks: [{ id: `task-${offset + 1}`, promptText: "Introduce yourself", order: 1 }],
       })),
       async (storageKey) => {
         if (storageKey.includes("question-1") || storageKey.includes("question-3")) {
@@ -218,8 +218,8 @@ test("combined test delivery fails closed and reports multiple signer failures",
         operation: "prompt-media-signing",
         failureCount: 2,
         failures: [
-          { entryId: "question-1", category: "PART_1", reason: "SIGNING_FAILED" },
-          { entryId: "question-3", category: "PART_3", reason: "SIGNING_FAILED" },
+          { entryId: "question-1", category: "PART_1A", reason: "SIGNING_FAILED" },
+          { entryId: "question-3", category: "PART_2", reason: "SIGNING_FAILED" },
         ],
       });
       assert.equal(JSON.stringify(error).includes("questions/question-1"), false);

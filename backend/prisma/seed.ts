@@ -22,6 +22,7 @@ async function main() {
   await prisma.submission.deleteMany();
   await prisma.task.deleteMany();
   await prisma.question.deleteMany();
+  await prisma.testSet.deleteMany();
 
   // Find or create an admin user to be the creator of questions
   let admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
@@ -66,298 +67,62 @@ async function main() {
   }
 
   // ──────────────────────────────────────────────
-  // PART 1 — Introduction & Interview (3 questions, 5+ tasks each)
+  // DEMO TEST SET — one Question per delivery slot with PRD default timings.
+  // The full CEFR B1 Test Sets A–F are loaded separately.
   // ──────────────────────────────────────────────
-  const part1Questions = [
+  const testSet = await prisma.testSet.create({ data: { code: "DEMO" } });
+  const demoQuestions = [
     {
-      category: "PART_1" as const,
-      order: 1,
-      preparationSeconds: 20,
-      recordingSeconds: 60,
-      createdById: admin.id,
-      tasks: {
-        create: [
-          {
-            promptText: "What do you do — are you a student or do you work?",
-            order: 1,
-          },
-          {
-            promptText: "Why did you choose that field of study or career path?",
-            order: 2,
-          },
-          {
-            promptText: "What do you enjoy most about your studies or job?",
-            order: 3,
-          },
-          {
-            promptText: "Do you plan to continue in this field in the future? Why or why not?",
-            order: 4,
-          },
-          {
-            promptText: "What skills do you think are most important for success in your field?",
-            order: 5,
-          },
-        ],
-      },
+      category: "PART_1A" as const,
+      preparationSeconds: 10,
+      recordingSeconds: 45,
+      tasks: ["Task 1A: Describe your plans for the next five years."],
     },
     {
-      category: "PART_1" as const,
-      order: 2,
-      preparationSeconds: 20,
-      recordingSeconds: 60,
-      createdById: admin.id,
-      tasks: {
-        create: [
-          {
-            promptText: "Can you describe the area or neighborhood where you live?",
-            order: 1,
-          },
-          {
-            promptText: "What is your favorite room in your home, and why?",
-            order: 2,
-          },
-          {
-            promptText: "How long have you lived there, and do you like it?",
-            order: 3,
-          },
-          {
-            promptText: "What changes would you make to your home if you could?",
-            order: 4,
-          },
-          {
-            promptText: "How has your hometown changed since you were a child?",
-            order: 5,
-          },
-        ],
-      },
-    },
-    {
-      category: "PART_1" as const,
-      order: 3,
-      preparationSeconds: 20,
-      recordingSeconds: 60,
-      createdById: admin.id,
-      tasks: {
-        create: [
-          {
-            promptText: "What do you enjoy doing in your free time?",
-            order: 1,
-          },
-          {
-            promptText: "How often do you engage in this hobby, and with whom?",
-            order: 2,
-          },
-          {
-            promptText: "Why is it important for people to have hobbies?",
-            order: 3,
-          },
-          {
-            promptText: "Have you taken up any new hobbies recently? What inspired you?",
-            order: 4,
-          },
-          {
-            promptText: "Do you prefer spending your free time alone or with others? Why?",
-            order: 5,
-          },
-          {
-            promptText: "What hobby would you like to try in the future if you had more time?",
-            order: 6,
-          },
-        ],
-      },
-    },
-  ];
-
-  // ──────────────────────────────────────────────
-  // PART 2 — Individual Long Turn (2 questions, 5+ tasks each)
-  // ──────────────────────────────────────────────
-  const part2Questions = [
-    {
-      category: "PART_2" as const,
-      order: 4,
-      preparationSeconds: 60,
-      recordingSeconds: 120,
-      createdById: admin.id,
-      tasks: {
-        create: [
-          {
-            promptText: "Where did you go and when did this journey take place?",
-            order: 1,
-          },
-          {
-            promptText: "Who accompanied you on this journey?",
-            order: 2,
-          },
-          {
-            promptText: "What happened during the journey that made it memorable?",
-            order: 3,
-          },
-          {
-            promptText: "How did you feel before, during, and after the journey?",
-            order: 4,
-          },
-          {
-            promptText: "What did you learn or gain from this experience?",
-            order: 5,
-          },
-          {
-            promptText: "Would you recommend this journey to others? Why or why not?",
-            order: 6,
-          },
-        ],
-      },
+      category: "PART_1B" as const,
+      preparationSeconds: 10,
+      recordingSeconds: 45,
+      tasks: ["Task 1B: Explain how English is useful in your daily life."],
     },
     {
       category: "PART_2" as const,
-      order: 5,
       preparationSeconds: 60,
-      recordingSeconds: 120,
-      createdById: admin.id,
-      tasks: {
-        create: [
-          {
-            promptText: "What is the skill and how did you first become interested in it?",
-            order: 1,
-          },
-          {
-            promptText: "How did you go about learning this skill — what steps did you take?",
-            order: 2,
-          },
-          {
-            promptText: "What challenges or difficulties did you face while learning it?",
-            order: 3,
-          },
-          {
-            promptText: "How long did it take you to become proficient?",
-            order: 4,
-          },
-          {
-            promptText: "How has this skill benefited you in your personal or professional life?",
-            order: 5,
-          },
-          {
-            promptText: "What advice would you give to someone who wants to learn this skill?",
-            order: 6,
-          },
-        ],
-      },
+      recordingSeconds: 90,
+      tasks: [
+        "Talk about a community action you took part in or would like to start.",
+        "Say what the action was and who was involved.",
+        "Explain why it mattered to you.",
+        "Describe what you would do differently next time.",
+      ],
+    },
+    {
+      category: "PART_3" as const,
+      preparationSeconds: 60,
+      recordingSeconds: 90,
+      tasks: ["Look at the four graduation project options. Select the ONE option you prefer and explain why."],
+    },
+    {
+      category: "PART_4" as const,
+      preparationSeconds: 15,
+      recordingSeconds: 60,
+      tasks: ["Task 4: Express your opinion on vocational skills versus a university degree."],
     },
   ];
 
-  // ──────────────────────────────────────────────
-  // PART 3 — Two-way Discussion (3 questions, 5+ tasks each)
-  // ──────────────────────────────────────────────
-  const part3Questions = [
-    {
-      category: "PART_3" as const,
-      order: 6,
-      preparationSeconds: 30,
-      recordingSeconds: 90,
-      createdById: admin.id,
-      tasks: {
-        create: [
-          {
-            promptText: "Why do you think people are drawn to travel and explore new places?",
-            order: 1,
-          },
-          {
-            promptText: "What are the main benefits of experiencing different cultures?",
-            order: 2,
-          },
-          {
-            promptText: "How has technology changed the way people travel today compared to the past?",
-            order: 3,
-          },
-          {
-            promptText: "Do you think tourism has more positive or negative impacts on local communities? Explain.",
-            order: 4,
-          },
-          {
-            promptText: "What role should governments play in promoting sustainable tourism?",
-            order: 5,
-          },
-        ],
-      },
-    },
-    {
-      category: "PART_3" as const,
-      order: 7,
-      preparationSeconds: 30,
-      recordingSeconds: 90,
-      createdById: admin.id,
-      tasks: {
-        create: [
-          {
-            promptText: "How has the way people access education changed in the last decade?",
-            order: 1,
-          },
-          {
-            promptText: "Do you believe online learning can replace traditional classroom education? Why or why not?",
-            order: 2,
-          },
-          {
-            promptText: "What subjects do you think should be emphasized more in school curricula today?",
-            order: 3,
-          },
-          {
-            promptText: "How important is lifelong learning in today's rapidly changing job market?",
-            order: 4,
-          },
-          {
-            promptText: "What role do you think artificial intelligence will play in education in the future?",
-            order: 5,
-          },
-          {
-            promptText: "How can we ensure equal access to quality education for people around the world?",
-            order: 6,
-          },
-        ],
-      },
-    },
-    {
-      category: "PART_3" as const,
-      order: 8,
-      preparationSeconds: 30,
-      recordingSeconds: 90,
-      createdById: admin.id,
-      tasks: {
-        create: [
-          {
-            promptText: "In what ways has technology most significantly changed daily life?",
-            order: 1,
-          },
-          {
-            promptText: "Do you think people today are more or less connected than in the past? Explain.",
-            order: 2,
-          },
-          {
-            promptText: "What are the biggest challenges facing society today?",
-            order: 3,
-          },
-          {
-            promptText: "How do you think urbanization and city growth will shape future generations?",
-            order: 4,
-          },
-          {
-            promptText: "What is the role of the younger generation in driving social change?",
-            order: 5,
-          },
-          {
-            promptText: "Do you believe technology will ultimately bring people together or drive them apart? Why?",
-            order: 6,
-          },
-        ],
-      },
-    },
-  ];
+  console.log(`📝 Creating Test Set ${testSet.code} with ${demoQuestions.length} questions...`);
 
-  const allQuestions = [...part1Questions, ...part2Questions, ...part3Questions];
-
-  console.log(`📝 Creating ${allQuestions.length} questions with tasks...`);
-
-  for (const q of allQuestions) {
+  for (const q of demoQuestions) {
     const created = await prisma.question.create({
-      data: q,
+      data: {
+        category: q.category,
+        testSetId: testSet.id,
+        preparationSeconds: q.preparationSeconds,
+        recordingSeconds: q.recordingSeconds,
+        createdById: admin.id,
+        tasks: {
+          create: q.tasks.map((promptText, index) => ({ promptText, order: index + 1 })),
+        },
+      },
       include: { tasks: true },
     });
     await prisma.question.update({
@@ -369,13 +134,11 @@ async function main() {
         audioUploadStatus: "UPLOADED",
       },
     });
-    console.log(`  ✅ Created: [${created.category}] order ${created.order} — ${created.tasks.length} tasks`);
+    console.log(`  ✅ Created: [${testSet.code}/${created.category}] — ${created.tasks.length} tasks`);
   }
 
   console.log("\n🎉 Seed completed successfully!");
-  console.log(`   Total questions: ${allQuestions.length}`);
-  const totalTasks = allQuestions.reduce((sum, q) => sum + q.tasks.create.length, 0);
-  console.log(`   Total tasks: ${totalTasks}`);
+  console.log(`   Total questions: ${demoQuestions.length}`);
 }
 
 main()

@@ -38,6 +38,8 @@ export type SubmissionManifestMinAggregateOutputType = {
   id: string | null
   submissionId: string | null
   version: number | null
+  testSetId: string | null
+  testSetCode: string | null
   createdAt: Date | null
 }
 
@@ -45,6 +47,8 @@ export type SubmissionManifestMaxAggregateOutputType = {
   id: string | null
   submissionId: string | null
   version: number | null
+  testSetId: string | null
+  testSetCode: string | null
   createdAt: Date | null
 }
 
@@ -52,6 +56,8 @@ export type SubmissionManifestCountAggregateOutputType = {
   id: number
   submissionId: number
   version: number
+  testSetId: number
+  testSetCode: number
   createdAt: number
   _all: number
 }
@@ -69,6 +75,8 @@ export type SubmissionManifestMinAggregateInputType = {
   id?: true
   submissionId?: true
   version?: true
+  testSetId?: true
+  testSetCode?: true
   createdAt?: true
 }
 
@@ -76,6 +84,8 @@ export type SubmissionManifestMaxAggregateInputType = {
   id?: true
   submissionId?: true
   version?: true
+  testSetId?: true
+  testSetCode?: true
   createdAt?: true
 }
 
@@ -83,6 +93,8 @@ export type SubmissionManifestCountAggregateInputType = {
   id?: true
   submissionId?: true
   version?: true
+  testSetId?: true
+  testSetCode?: true
   createdAt?: true
   _all?: true
 }
@@ -177,6 +189,8 @@ export type SubmissionManifestGroupByOutputType = {
   id: string
   submissionId: string
   version: number
+  testSetId: string | null
+  testSetCode: string | null
   createdAt: Date
   _count: SubmissionManifestCountAggregateOutputType | null
   _avg: SubmissionManifestAvgAggregateOutputType | null
@@ -207,8 +221,11 @@ export type SubmissionManifestWhereInput = {
   id?: Prisma.UuidFilter<"SubmissionManifest"> | string
   submissionId?: Prisma.UuidFilter<"SubmissionManifest"> | string
   version?: Prisma.IntFilter<"SubmissionManifest"> | number
+  testSetId?: Prisma.UuidNullableFilter<"SubmissionManifest"> | string | null
+  testSetCode?: Prisma.StringNullableFilter<"SubmissionManifest"> | string | null
   createdAt?: Prisma.DateTimeFilter<"SubmissionManifest"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
+  testSet?: Prisma.XOR<Prisma.TestSetNullableScalarRelationFilter, Prisma.TestSetWhereInput> | null
   entries?: Prisma.ManifestEntryListRelationFilter
 }
 
@@ -216,8 +233,11 @@ export type SubmissionManifestOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrderInput | Prisma.SortOrder
+  testSetCode?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   submission?: Prisma.SubmissionOrderByWithRelationInput
+  testSet?: Prisma.TestSetOrderByWithRelationInput
   entries?: Prisma.ManifestEntryOrderByRelationAggregateInput
 }
 
@@ -229,8 +249,11 @@ export type SubmissionManifestWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.SubmissionManifestWhereInput[]
   NOT?: Prisma.SubmissionManifestWhereInput | Prisma.SubmissionManifestWhereInput[]
   version?: Prisma.IntFilter<"SubmissionManifest"> | number
+  testSetId?: Prisma.UuidNullableFilter<"SubmissionManifest"> | string | null
+  testSetCode?: Prisma.StringNullableFilter<"SubmissionManifest"> | string | null
   createdAt?: Prisma.DateTimeFilter<"SubmissionManifest"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
+  testSet?: Prisma.XOR<Prisma.TestSetNullableScalarRelationFilter, Prisma.TestSetWhereInput> | null
   entries?: Prisma.ManifestEntryListRelationFilter
 }, "id" | "submissionId" | "id_submissionId">
 
@@ -238,6 +261,8 @@ export type SubmissionManifestOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrderInput | Prisma.SortOrder
+  testSetCode?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.SubmissionManifestCountOrderByAggregateInput
   _avg?: Prisma.SubmissionManifestAvgOrderByAggregateInput
@@ -253,14 +278,18 @@ export type SubmissionManifestScalarWhereWithAggregatesInput = {
   id?: Prisma.UuidWithAggregatesFilter<"SubmissionManifest"> | string
   submissionId?: Prisma.UuidWithAggregatesFilter<"SubmissionManifest"> | string
   version?: Prisma.IntWithAggregatesFilter<"SubmissionManifest"> | number
+  testSetId?: Prisma.UuidNullableWithAggregatesFilter<"SubmissionManifest"> | string | null
+  testSetCode?: Prisma.StringNullableWithAggregatesFilter<"SubmissionManifest"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"SubmissionManifest"> | Date | string
 }
 
 export type SubmissionManifestCreateInput = {
   id?: string
   version: number
+  testSetCode?: string | null
   createdAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutManifestInput
+  testSet?: Prisma.TestSetCreateNestedOneWithoutManifestsInput
   entries?: Prisma.ManifestEntryCreateNestedManyWithoutManifestInput
 }
 
@@ -268,6 +297,8 @@ export type SubmissionManifestUncheckedCreateInput = {
   id?: string
   submissionId: string
   version: number
+  testSetId?: string | null
+  testSetCode?: string | null
   createdAt?: Date | string
   entries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutManifestInput
 }
@@ -275,8 +306,10 @@ export type SubmissionManifestUncheckedCreateInput = {
 export type SubmissionManifestUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutManifestNestedInput
+  testSet?: Prisma.TestSetUpdateOneWithoutManifestsNestedInput
   entries?: Prisma.ManifestEntryUpdateManyWithoutManifestNestedInput
 }
 
@@ -284,6 +317,8 @@ export type SubmissionManifestUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   entries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutManifestNestedInput
 }
@@ -292,12 +327,15 @@ export type SubmissionManifestCreateManyInput = {
   id?: string
   submissionId: string
   version: number
+  testSetId?: string | null
+  testSetCode?: string | null
   createdAt?: Date | string
 }
 
 export type SubmissionManifestUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -305,7 +343,19 @@ export type SubmissionManifestUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type SubmissionManifestListRelationFilter = {
+  every?: Prisma.SubmissionManifestWhereInput
+  some?: Prisma.SubmissionManifestWhereInput
+  none?: Prisma.SubmissionManifestWhereInput
+}
+
+export type SubmissionManifestOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
 }
 
 export type SubmissionManifestNullableScalarRelationFilter = {
@@ -322,6 +372,8 @@ export type SubmissionManifestCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrder
+  testSetCode?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -333,6 +385,8 @@ export type SubmissionManifestMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrder
+  testSetCode?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -340,6 +394,8 @@ export type SubmissionManifestMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   submissionId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  testSetId?: Prisma.SortOrder
+  testSetCode?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -350,6 +406,48 @@ export type SubmissionManifestSumOrderByAggregateInput = {
 export type SubmissionManifestScalarRelationFilter = {
   is?: Prisma.SubmissionManifestWhereInput
   isNot?: Prisma.SubmissionManifestWhereInput
+}
+
+export type SubmissionManifestCreateNestedManyWithoutTestSetInput = {
+  create?: Prisma.XOR<Prisma.SubmissionManifestCreateWithoutTestSetInput, Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput> | Prisma.SubmissionManifestCreateWithoutTestSetInput[] | Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput[]
+  connectOrCreate?: Prisma.SubmissionManifestCreateOrConnectWithoutTestSetInput | Prisma.SubmissionManifestCreateOrConnectWithoutTestSetInput[]
+  createMany?: Prisma.SubmissionManifestCreateManyTestSetInputEnvelope
+  connect?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+}
+
+export type SubmissionManifestUncheckedCreateNestedManyWithoutTestSetInput = {
+  create?: Prisma.XOR<Prisma.SubmissionManifestCreateWithoutTestSetInput, Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput> | Prisma.SubmissionManifestCreateWithoutTestSetInput[] | Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput[]
+  connectOrCreate?: Prisma.SubmissionManifestCreateOrConnectWithoutTestSetInput | Prisma.SubmissionManifestCreateOrConnectWithoutTestSetInput[]
+  createMany?: Prisma.SubmissionManifestCreateManyTestSetInputEnvelope
+  connect?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+}
+
+export type SubmissionManifestUpdateManyWithoutTestSetNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionManifestCreateWithoutTestSetInput, Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput> | Prisma.SubmissionManifestCreateWithoutTestSetInput[] | Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput[]
+  connectOrCreate?: Prisma.SubmissionManifestCreateOrConnectWithoutTestSetInput | Prisma.SubmissionManifestCreateOrConnectWithoutTestSetInput[]
+  upsert?: Prisma.SubmissionManifestUpsertWithWhereUniqueWithoutTestSetInput | Prisma.SubmissionManifestUpsertWithWhereUniqueWithoutTestSetInput[]
+  createMany?: Prisma.SubmissionManifestCreateManyTestSetInputEnvelope
+  set?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+  disconnect?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+  delete?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+  connect?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+  update?: Prisma.SubmissionManifestUpdateWithWhereUniqueWithoutTestSetInput | Prisma.SubmissionManifestUpdateWithWhereUniqueWithoutTestSetInput[]
+  updateMany?: Prisma.SubmissionManifestUpdateManyWithWhereWithoutTestSetInput | Prisma.SubmissionManifestUpdateManyWithWhereWithoutTestSetInput[]
+  deleteMany?: Prisma.SubmissionManifestScalarWhereInput | Prisma.SubmissionManifestScalarWhereInput[]
+}
+
+export type SubmissionManifestUncheckedUpdateManyWithoutTestSetNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionManifestCreateWithoutTestSetInput, Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput> | Prisma.SubmissionManifestCreateWithoutTestSetInput[] | Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput[]
+  connectOrCreate?: Prisma.SubmissionManifestCreateOrConnectWithoutTestSetInput | Prisma.SubmissionManifestCreateOrConnectWithoutTestSetInput[]
+  upsert?: Prisma.SubmissionManifestUpsertWithWhereUniqueWithoutTestSetInput | Prisma.SubmissionManifestUpsertWithWhereUniqueWithoutTestSetInput[]
+  createMany?: Prisma.SubmissionManifestCreateManyTestSetInputEnvelope
+  set?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+  disconnect?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+  delete?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+  connect?: Prisma.SubmissionManifestWhereUniqueInput | Prisma.SubmissionManifestWhereUniqueInput[]
+  update?: Prisma.SubmissionManifestUpdateWithWhereUniqueWithoutTestSetInput | Prisma.SubmissionManifestUpdateWithWhereUniqueWithoutTestSetInput[]
+  updateMany?: Prisma.SubmissionManifestUpdateManyWithWhereWithoutTestSetInput | Prisma.SubmissionManifestUpdateManyWithWhereWithoutTestSetInput[]
+  deleteMany?: Prisma.SubmissionManifestScalarWhereInput | Prisma.SubmissionManifestScalarWhereInput[]
 }
 
 export type SubmissionManifestCreateNestedOneWithoutSubmissionInput = {
@@ -398,16 +496,76 @@ export type SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionManifestUpdateToOneWithWhereWithoutEntriesInput, Prisma.SubmissionManifestUpdateWithoutEntriesInput>, Prisma.SubmissionManifestUncheckedUpdateWithoutEntriesInput>
 }
 
+export type SubmissionManifestCreateWithoutTestSetInput = {
+  id?: string
+  version: number
+  testSetCode?: string | null
+  createdAt?: Date | string
+  submission: Prisma.SubmissionCreateNestedOneWithoutManifestInput
+  entries?: Prisma.ManifestEntryCreateNestedManyWithoutManifestInput
+}
+
+export type SubmissionManifestUncheckedCreateWithoutTestSetInput = {
+  id?: string
+  submissionId: string
+  version: number
+  testSetCode?: string | null
+  createdAt?: Date | string
+  entries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutManifestInput
+}
+
+export type SubmissionManifestCreateOrConnectWithoutTestSetInput = {
+  where: Prisma.SubmissionManifestWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionManifestCreateWithoutTestSetInput, Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput>
+}
+
+export type SubmissionManifestCreateManyTestSetInputEnvelope = {
+  data: Prisma.SubmissionManifestCreateManyTestSetInput | Prisma.SubmissionManifestCreateManyTestSetInput[]
+  skipDuplicates?: boolean
+}
+
+export type SubmissionManifestUpsertWithWhereUniqueWithoutTestSetInput = {
+  where: Prisma.SubmissionManifestWhereUniqueInput
+  update: Prisma.XOR<Prisma.SubmissionManifestUpdateWithoutTestSetInput, Prisma.SubmissionManifestUncheckedUpdateWithoutTestSetInput>
+  create: Prisma.XOR<Prisma.SubmissionManifestCreateWithoutTestSetInput, Prisma.SubmissionManifestUncheckedCreateWithoutTestSetInput>
+}
+
+export type SubmissionManifestUpdateWithWhereUniqueWithoutTestSetInput = {
+  where: Prisma.SubmissionManifestWhereUniqueInput
+  data: Prisma.XOR<Prisma.SubmissionManifestUpdateWithoutTestSetInput, Prisma.SubmissionManifestUncheckedUpdateWithoutTestSetInput>
+}
+
+export type SubmissionManifestUpdateManyWithWhereWithoutTestSetInput = {
+  where: Prisma.SubmissionManifestScalarWhereInput
+  data: Prisma.XOR<Prisma.SubmissionManifestUpdateManyMutationInput, Prisma.SubmissionManifestUncheckedUpdateManyWithoutTestSetInput>
+}
+
+export type SubmissionManifestScalarWhereInput = {
+  AND?: Prisma.SubmissionManifestScalarWhereInput | Prisma.SubmissionManifestScalarWhereInput[]
+  OR?: Prisma.SubmissionManifestScalarWhereInput[]
+  NOT?: Prisma.SubmissionManifestScalarWhereInput | Prisma.SubmissionManifestScalarWhereInput[]
+  id?: Prisma.UuidFilter<"SubmissionManifest"> | string
+  submissionId?: Prisma.UuidFilter<"SubmissionManifest"> | string
+  version?: Prisma.IntFilter<"SubmissionManifest"> | number
+  testSetId?: Prisma.UuidNullableFilter<"SubmissionManifest"> | string | null
+  testSetCode?: Prisma.StringNullableFilter<"SubmissionManifest"> | string | null
+  createdAt?: Prisma.DateTimeFilter<"SubmissionManifest"> | Date | string
+}
+
 export type SubmissionManifestCreateWithoutSubmissionInput = {
   id?: string
   version: number
+  testSetCode?: string | null
   createdAt?: Date | string
+  testSet?: Prisma.TestSetCreateNestedOneWithoutManifestsInput
   entries?: Prisma.ManifestEntryCreateNestedManyWithoutManifestInput
 }
 
 export type SubmissionManifestUncheckedCreateWithoutSubmissionInput = {
   id?: string
   version: number
+  testSetId?: string | null
+  testSetCode?: string | null
   createdAt?: Date | string
   entries?: Prisma.ManifestEntryUncheckedCreateNestedManyWithoutManifestInput
 }
@@ -431,13 +589,17 @@ export type SubmissionManifestUpdateToOneWithWhereWithoutSubmissionInput = {
 export type SubmissionManifestUpdateWithoutSubmissionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  testSet?: Prisma.TestSetUpdateOneWithoutManifestsNestedInput
   entries?: Prisma.ManifestEntryUpdateManyWithoutManifestNestedInput
 }
 
 export type SubmissionManifestUncheckedUpdateWithoutSubmissionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   entries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutManifestNestedInput
 }
@@ -445,14 +607,18 @@ export type SubmissionManifestUncheckedUpdateWithoutSubmissionInput = {
 export type SubmissionManifestCreateWithoutEntriesInput = {
   id?: string
   version: number
+  testSetCode?: string | null
   createdAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutManifestInput
+  testSet?: Prisma.TestSetCreateNestedOneWithoutManifestsInput
 }
 
 export type SubmissionManifestUncheckedCreateWithoutEntriesInput = {
   id?: string
   submissionId: string
   version: number
+  testSetId?: string | null
+  testSetCode?: string | null
   createdAt?: Date | string
 }
 
@@ -475,14 +641,52 @@ export type SubmissionManifestUpdateToOneWithWhereWithoutEntriesInput = {
 export type SubmissionManifestUpdateWithoutEntriesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutManifestNestedInput
+  testSet?: Prisma.TestSetUpdateOneWithoutManifestsNestedInput
 }
 
 export type SubmissionManifestUncheckedUpdateWithoutEntriesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   submissionId?: Prisma.StringFieldUpdateOperationsInput | string
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type SubmissionManifestCreateManyTestSetInput = {
+  id?: string
+  submissionId: string
+  version: number
+  testSetCode?: string | null
+  createdAt?: Date | string
+}
+
+export type SubmissionManifestUpdateWithoutTestSetInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  submission?: Prisma.SubmissionUpdateOneRequiredWithoutManifestNestedInput
+  entries?: Prisma.ManifestEntryUpdateManyWithoutManifestNestedInput
+}
+
+export type SubmissionManifestUncheckedUpdateWithoutTestSetInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  submissionId?: Prisma.StringFieldUpdateOperationsInput | string
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  entries?: Prisma.ManifestEntryUncheckedUpdateManyWithoutManifestNestedInput
+}
+
+export type SubmissionManifestUncheckedUpdateManyWithoutTestSetInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  submissionId?: Prisma.StringFieldUpdateOperationsInput | string
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  testSetCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -521,8 +725,11 @@ export type SubmissionManifestSelect<ExtArgs extends runtime.Types.Extensions.In
   id?: boolean
   submissionId?: boolean
   version?: boolean
+  testSetId?: boolean
+  testSetCode?: boolean
   createdAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
+  testSet?: boolean | Prisma.SubmissionManifest$testSetArgs<ExtArgs>
   entries?: boolean | Prisma.SubmissionManifest$entriesArgs<ExtArgs>
   _count?: boolean | Prisma.SubmissionManifestCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["submissionManifest"]>
@@ -531,48 +738,62 @@ export type SubmissionManifestSelectCreateManyAndReturn<ExtArgs extends runtime.
   id?: boolean
   submissionId?: boolean
   version?: boolean
+  testSetId?: boolean
+  testSetCode?: boolean
   createdAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
+  testSet?: boolean | Prisma.SubmissionManifest$testSetArgs<ExtArgs>
 }, ExtArgs["result"]["submissionManifest"]>
 
 export type SubmissionManifestSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   submissionId?: boolean
   version?: boolean
+  testSetId?: boolean
+  testSetCode?: boolean
   createdAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
+  testSet?: boolean | Prisma.SubmissionManifest$testSetArgs<ExtArgs>
 }, ExtArgs["result"]["submissionManifest"]>
 
 export type SubmissionManifestSelectScalar = {
   id?: boolean
   submissionId?: boolean
   version?: boolean
+  testSetId?: boolean
+  testSetCode?: boolean
   createdAt?: boolean
 }
 
-export type SubmissionManifestOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "version" | "createdAt", ExtArgs["result"]["submissionManifest"]>
+export type SubmissionManifestOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "version" | "testSetId" | "testSetCode" | "createdAt", ExtArgs["result"]["submissionManifest"]>
 export type SubmissionManifestInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
+  testSet?: boolean | Prisma.SubmissionManifest$testSetArgs<ExtArgs>
   entries?: boolean | Prisma.SubmissionManifest$entriesArgs<ExtArgs>
   _count?: boolean | Prisma.SubmissionManifestCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type SubmissionManifestIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
+  testSet?: boolean | Prisma.SubmissionManifest$testSetArgs<ExtArgs>
 }
 export type SubmissionManifestIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
+  testSet?: boolean | Prisma.SubmissionManifest$testSetArgs<ExtArgs>
 }
 
 export type $SubmissionManifestPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "SubmissionManifest"
   objects: {
     submission: Prisma.$SubmissionPayload<ExtArgs>
+    testSet: Prisma.$TestSetPayload<ExtArgs> | null
     entries: Prisma.$ManifestEntryPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     submissionId: string
     version: number
+    testSetId: string | null
+    testSetCode: string | null
     createdAt: Date
   }, ExtArgs["result"]["submissionManifest"]>
   composites: {}
@@ -969,6 +1190,7 @@ readonly fields: SubmissionManifestFieldRefs;
 export interface Prisma__SubmissionManifestClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   submission<T extends Prisma.SubmissionDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SubmissionDefaultArgs<ExtArgs>>): Prisma.Prisma__SubmissionClient<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  testSet<T extends Prisma.SubmissionManifest$testSetArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SubmissionManifest$testSetArgs<ExtArgs>>): Prisma.Prisma__TestSetClient<runtime.Types.Result.GetResult<Prisma.$TestSetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   entries<T extends Prisma.SubmissionManifest$entriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SubmissionManifest$entriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ManifestEntryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1002,6 +1224,8 @@ export interface SubmissionManifestFieldRefs {
   readonly id: Prisma.FieldRef<"SubmissionManifest", 'String'>
   readonly submissionId: Prisma.FieldRef<"SubmissionManifest", 'String'>
   readonly version: Prisma.FieldRef<"SubmissionManifest", 'Int'>
+  readonly testSetId: Prisma.FieldRef<"SubmissionManifest", 'String'>
+  readonly testSetCode: Prisma.FieldRef<"SubmissionManifest", 'String'>
   readonly createdAt: Prisma.FieldRef<"SubmissionManifest", 'DateTime'>
 }
     
@@ -1401,6 +1625,25 @@ export type SubmissionManifestDeleteManyArgs<ExtArgs extends runtime.Types.Exten
    * Limit how many SubmissionManifests to delete.
    */
   limit?: number
+}
+
+/**
+ * SubmissionManifest.testSet
+ */
+export type SubmissionManifest$testSetArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the TestSet
+   */
+  select?: Prisma.TestSetSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the TestSet
+   */
+  omit?: Prisma.TestSetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TestSetInclude<ExtArgs> | null
+  where?: Prisma.TestSetWhereInput
 }
 
 /**
