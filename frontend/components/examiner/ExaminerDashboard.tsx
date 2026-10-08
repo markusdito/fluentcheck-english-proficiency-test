@@ -24,9 +24,6 @@ const matches: Record<Filter, (a: ExaminerAssignmentSummary) => boolean> = {
   done: (a) => a.status === "COMPLETED",
 };
 
-const isFinal = (a: ExaminerAssignmentSummary) =>
-  a.submissionStatus === "SCORED" || a.submissionStatus === "CERTIFIED";
-
 export const submissionRef = (id: string) => `SN-${id.slice(0, 8).toUpperCase()}`;
 
 const formatDate = (iso: string) =>
@@ -63,7 +60,6 @@ export function ExaminerDashboard({ name, email, assignments }: ExaminerDashboar
   const [filter, setFilter] = useState<Filter>("all");
   const rows = assignments.filter(matches[filter]);
   const count = (f: Filter) => assignments.filter(matches[f]).length;
-  const awaitingPair = assignments.filter((a) => a.status === "COMPLETED" && !isFinal(a)).length;
   const first = name.trim().split(/\s+/)[0];
 
   return (
@@ -76,11 +72,10 @@ export function ExaminerDashboard({ name, email, assignments }: ExaminerDashboar
         </p>
       </div>
 
-      <section aria-label="Queue summary" className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile value={count("open") + count("progress")} label="In my queue" />
-        <Tile value={count("progress")} label="Scoring in progress" />
-        <Tile value={count("done")} label="Completed by me" />
-        <Tile value={awaitingPair} label="Awaiting second examiner" />
+      <section aria-label="Queue summary" className="mt-10 grid gap-4 sm:grid-cols-3">
+        <Tile value={count("open")} label="In Queue" />
+        <Tile value={count("progress")} label="In Progress" />
+        <Tile value={count("done")} label="Done" />
       </section>
 
       <section aria-labelledby="queue-title" className="mt-14">
