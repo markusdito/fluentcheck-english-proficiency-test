@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CircleAlertIcon } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { errorSummary } from "@/components/auth/styles";
 import {
   getGoogleAuthErrorMessage,
   removeGoogleAuthErrorFromUrl,
@@ -22,9 +21,8 @@ export function GoogleAuthError() {
   if (!message) return null;
 
   return (
-    <Alert variant="destructive" className="mb-6 items-start">
-      <CircleAlertIcon />
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
+    <p role="alert" className={`mb-6 ${errorSummary}`}>
+      {message}
+    </p>
   );
 }

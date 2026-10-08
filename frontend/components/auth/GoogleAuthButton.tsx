@@ -1,17 +1,18 @@
-import { buttonVariants } from "@/components/ui/button";
 import { getGoogleAuthStartPath } from "@/lib/google-auth";
+import { focusRing } from "@/components/auth/styles";
 
 export type GoogleAuthReturnTo = "login" | "signup";
 
 interface GoogleAuthButtonProps {
   returnTo: GoogleAuthReturnTo;
+  dividerLabel?: string;
 }
 
 function GoogleMark() {
   return (
     <svg
       aria-hidden="true"
-      className="size-5"
+      className="size-[18px]"
       focusable="false"
       viewBox="0 0 24 24"
     >
@@ -35,17 +36,12 @@ function GoogleMark() {
   );
 }
 
-export function GoogleAuthButton({ returnTo }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({ returnTo, dividerLabel = "or" }: GoogleAuthButtonProps) {
   return (
-    <div className="space-y-5">
+    <div>
       <a
         href={getGoogleAuthStartPath(returnTo)}
-        className={buttonVariants({
-          variant: "outline",
-          size: "lg",
-          className:
-            "w-full border-rule-strong bg-paper-raised text-ink hover:bg-paper hover:text-ink",
-        })}
+        className={`inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-sn-fg/22 bg-sn-surface text-[15px] font-medium text-sn-fg transition-[background-color,border-color,transform] duration-200 ease-standard hover:border-sn-fg hover:bg-[color-mix(in_oklch,var(--color-sn-fg)_5%,var(--color-sn-surface))] active:scale-[0.98] ${focusRing}`}
       >
         <GoogleMark />
         <span>Continue with Google</span>
@@ -53,14 +49,12 @@ export function GoogleAuthButton({ returnTo }: GoogleAuthButtonProps) {
 
       <div
         role="separator"
-        aria-label="or"
-        className="flex items-center gap-3 text-ink-faint"
+        aria-label={dividerLabel}
+        className="my-6 flex items-center gap-3.5 text-[13px] text-sn-muted"
       >
-        <span aria-hidden="true" className="h-px flex-1 bg-rule" />
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em]">
-          or
-        </span>
-        <span aria-hidden="true" className="h-px flex-1 bg-rule" />
+        <span aria-hidden="true" className="h-px flex-1 bg-sn-border" />
+        <span aria-hidden="true">{dividerLabel}</span>
+        <span aria-hidden="true" className="h-px flex-1 bg-sn-border" />
       </div>
     </div>
   );
