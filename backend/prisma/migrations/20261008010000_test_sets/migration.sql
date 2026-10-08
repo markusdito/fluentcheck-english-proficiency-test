@@ -64,6 +64,14 @@ CHECK (
     OR ("testSetId" IS NOT NULL AND "testSetCode" IS NOT NULL AND "testSetCode" <> '')
 );
 
+-- Version 2 delivers five slots at positions 1..5; the original table check
+-- only admitted the three legacy positions. Per-version shape stays enforced
+-- by the manifest shape triggers below.
+ALTER TABLE "ManifestEntry" DROP CONSTRAINT "ManifestEntry_deliveryPosition_check";
+ALTER TABLE "ManifestEntry"
+ADD CONSTRAINT "ManifestEntry_deliveryPosition_check"
+CHECK ("deliveryPosition" BETWEEN 1 AND 5);
+
 -- Version 1 keeps its legacy three-slot shape under the renamed label.
 CREATE OR REPLACE FUNCTION submission_manifest_v1_has_exact_shape(target_manifest_id UUID)
 RETURNS BOOLEAN

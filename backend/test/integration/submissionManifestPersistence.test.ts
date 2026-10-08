@@ -9,12 +9,12 @@ import {
 } from "@testcontainers/postgresql";
 import { Client } from "pg";
 import { inspectSubmissionManifestReadiness } from "../../src/service/submissionManifestPreflight.service.js";
+import { SLOTS, type Slot } from "../fixtures/testSets.js";
 
 const MANIFEST_MIGRATION = "20260828000000_submission_manifest_persistence";
 
 let container: StartedPostgreSqlContainer;
 let constraintsClient: Client;
-let nextQuestionOrder = 820_000;
 
 const createDatabaseSql = {
   manifest_additive_migration:
@@ -88,6 +88,8 @@ after(async () => {
   if (container) await container.stop();
 }, { timeout: 120_000 });
 
+const VERSION_1_LAYOUT = ["PART_1A", "PART_2", "PART_3"] as const;
+
 async function createManifestSources(client: Client, prefix: string) {
   const studentId = randomUUID();
   const username = `manifest_${studentId.replaceAll("-", "")}`;
@@ -99,15 +101,25 @@ async function createManifestSources(client: Client, prefix: string) {
     [studentId, username, email],
   );
 
+  const testSet = {
+    id: randomUUID(),
+    code: `M-${randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
+  };
+  await client.query(
+    `INSERT INTO "TestSet" ("id", "code", "createdAt", "updatedAt")
+     VALUES ($1, $2, NOW(), NOW())`,
+    [testSet.id, testSet.code],
+  );
+
   const questions = [];
-  for (const [index, category] of ["PART_1", "PART_2", "PART_3"].entries()) {
+  for (const [index, category] of SLOTS.entries()) {
     const questionId = randomUUID();
     const taskId = randomUUID();
     await client.query(
       `INSERT INTO "Question"
-        ("id", "category", "order", "createdAt", "updatedAt")
+        ("id", "category", "testSetId", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, NOW(), NOW())`,
-      [questionId, category, nextQuestionOrder++],
+      [questionId, category, testSet.id],
     );
     await client.query(
       `INSERT INTO "Task"
@@ -115,17 +127,76 @@ async function createManifestSources(client: Client, prefix: string) {
        VALUES ($1, $2, $3, 1, NOW(), NOW())`,
       [taskId, questionId, `${prefix} prompt ${index + 1}`],
     );
-    questions.push({ category, questionId, taskId });
+    questions.push({ category: category as Slot, questionId, taskId });
   }
 
-  return { studentId, questions };
+  return { studentId, testSet, questions };
+}
+
+type ManifestSources = Awaited<ReturnType<typeof createManifestSources>>;
+type ManifestEntryPlan = {
+  source: ManifestSources["questions"][number];
+  deliveryPosition: number;
+};
+
+/** Version 2 delivers every slot in order 1A, 1B, 2, 3, 4 at positions 1..5. */
+function version2Layout(fixture: ManifestSources): ManifestEntryPlan[] {
+  return fixture.questions.map((source, index) => ({
+    source,
+    deliveryPosition: index + 1,
+  }));
+}
+
+/** Legacy version 1 delivered PART_1A, PART_2, PART_3 at positions 1..3. */
+function version1Layout(fixture: ManifestSources): ManifestEntryPlan[] {
+  return VERSION_1_LAYOUT.map((category, index) => ({
+    source: fixture.questions.find((question) => question.category === category)!,
+    deliveryPosition: index + 1,
+  }));
+}
+
+async function insertManifestEntry(
+  client: Client,
+  manifest: { submissionId: string; manifestId: string },
+  plan: ManifestEntryPlan,
+) {
+  const entryId = randomUUID();
+  await client.query(
+    `INSERT INTO "ManifestEntry"
+      ("id", "manifestId", "submissionId", "category", "deliveryPosition", "preparationSeconds", "recordingSeconds", "promptMediaStorageKey", "promptMediaMimeType", "promptMediaSizeBytes", "sourceQuestionId")
+     VALUES ($1, $2, $3, $4, $5, 30, 120, $6, 'audio/webm', 1234, $7)`,
+    [
+      entryId,
+      manifest.manifestId,
+      manifest.submissionId,
+      plan.source.category,
+      plan.deliveryPosition,
+      `questions/${plan.source.questionId}/prompt.webm`,
+      plan.source.questionId,
+    ],
+  );
+  await client.query(
+    `INSERT INTO "ManifestTask"
+      ("id", "manifestEntryId", "sourceTaskId", "sourceQuestionId", "deliveredOrder", "deliveredText")
+     VALUES ($1, $2, $3, $4, 1, $5)`,
+    [
+      randomUUID(),
+      entryId,
+      plan.source.taskId,
+      plan.source.questionId,
+      `Delivered task ${plan.deliveryPosition}`,
+    ],
+  );
+  return entryId;
 }
 
 async function insertSubmissionManifest(
   client: Client,
-  fixture: Awaited<ReturnType<typeof createManifestSources>>,
+  fixture: ManifestSources,
   entryCount: number,
+  options: { version?: 1 | 2; entries?: ManifestEntryPlan[] } = {},
 ) {
+  const version = options.version ?? 2;
   const submissionId = randomUUID();
   const manifestId = randomUUID();
   await client.query(
@@ -135,35 +206,21 @@ async function insertSubmissionManifest(
     [submissionId, fixture.studentId],
   );
   await client.query(
-    `INSERT INTO "SubmissionManifest" ("id", "submissionId", "version")
-     VALUES ($1, $2, 1)`,
-    [manifestId, submissionId],
+    `INSERT INTO "SubmissionManifest" ("id", "submissionId", "version", "testSetId", "testSetCode")
+     VALUES ($1, $2, $3, $4, $5)`,
+    version === 2
+      ? [manifestId, submissionId, 2, fixture.testSet.id, fixture.testSet.code]
+      : [manifestId, submissionId, 1, null, null],
   );
 
+  const plans =
+    options.entries ??
+    (version === 2 ? version2Layout(fixture) : version1Layout(fixture));
   const entryIds: string[] = [];
-  for (const [index, source] of fixture.questions.slice(0, entryCount).entries()) {
-    const entryId = randomUUID();
-    await client.query(
-      `INSERT INTO "ManifestEntry"
-        ("id", "manifestId", "submissionId", "category", "deliveryPosition", "preparationSeconds", "recordingSeconds", "promptMediaStorageKey", "promptMediaMimeType", "promptMediaSizeBytes", "sourceQuestionId")
-       VALUES ($1, $2, $3, $4, $5, 30, 120, $6, 'audio/webm', 1234, $7)`,
-      [
-        entryId,
-        manifestId,
-        submissionId,
-        source.category,
-        index + 1,
-        `questions/${source.questionId}/prompt.webm`,
-        source.questionId,
-      ],
+  for (const plan of plans.slice(0, entryCount)) {
+    entryIds.push(
+      await insertManifestEntry(client, { submissionId, manifestId }, plan),
     );
-    await client.query(
-      `INSERT INTO "ManifestTask"
-        ("id", "manifestEntryId", "sourceTaskId", "sourceQuestionId", "deliveredOrder", "deliveredText")
-       VALUES ($1, $2, $3, $4, 1, $5)`,
-      [randomUUID(), entryId, source.taskId, source.questionId, `Delivered task ${index + 1}`],
-    );
-    entryIds.push(entryId);
   }
 
   return { submissionId, manifestId, entryIds };
@@ -258,7 +315,19 @@ test("the additive migration preserves existing Submissions and classifies them 
   }
 }, { timeout: 120_000 });
 
-test("version-1 manifests commit only with the exact Required category and delivery-position sets", async () => {
+async function manifestEntryCount(manifestId: string) {
+  const result = await constraintsClient.query<{ count: number }>(
+    `SELECT COUNT(*)::int AS "count"
+     FROM "ManifestEntry" WHERE "manifestId" = $1`,
+    [manifestId],
+  );
+  return result.rows[0]?.count;
+}
+
+const VERSION_2_SHAPE_ERROR =
+  /version 2 must contain exactly PART_1A, PART_1B, PART_2, PART_3, PART_4 at positions 1, 2, 3, 4, 5/;
+
+test("legacy version-1 manifests commit only with the exact PART_1A, PART_2, PART_3 shape", async () => {
   const completeFixture = await createManifestSources(
     constraintsClient,
     `complete-${randomUUID()}`,
@@ -268,31 +337,140 @@ test("version-1 manifests commit only with the exact Required category and deliv
     constraintsClient,
     completeFixture,
     3,
+    { version: 1 },
   );
   await constraintsClient.query("COMMIT");
-  assert.equal(
-    Number(
-      (
-        await constraintsClient.query<{ count: string }>(
-          `SELECT COUNT(*)::text AS "count"
-           FROM "ManifestEntry" WHERE "manifestId" = $1`,
-          [complete.manifestId],
-        )
-      ).rows[0].count,
-    ),
-    3,
-  );
+  assert.equal(await manifestEntryCount(complete.manifestId), 3);
 
   const incompleteFixture = await createManifestSources(
     constraintsClient,
     `incomplete-${randomUUID()}`,
   );
   await constraintsClient.query("BEGIN");
-  await insertSubmissionManifest(constraintsClient, incompleteFixture, 2);
+  await insertSubmissionManifest(constraintsClient, incompleteFixture, 2, {
+    version: 1,
+  });
   await assert.rejects(
     constraintsClient.query("COMMIT"),
-    /version 1 must contain exactly PART_1, PART_2, PART_3 at positions 1, 2, 3/,
+    /version 1 must contain exactly PART_1A, PART_2, PART_3 at positions 1, 2, 3/,
   );
+});
+
+test("version-2 manifests commit only with all five slots in delivery order", async () => {
+  const completeFixture = await createManifestSources(
+    constraintsClient,
+    `v2-complete-${randomUUID()}`,
+  );
+  await constraintsClient.query("BEGIN");
+  const complete = await insertSubmissionManifest(
+    constraintsClient,
+    completeFixture,
+    5,
+  );
+  await constraintsClient.query("COMMIT");
+  assert.equal(await manifestEntryCount(complete.manifestId), 5);
+  const bound = await constraintsClient.query<{
+    testSetId: string;
+    testSetCode: string;
+  }>(
+    `SELECT "testSetId", "testSetCode" FROM "SubmissionManifest" WHERE "id" = $1`,
+    [complete.manifestId],
+  );
+  assert.deepEqual(bound.rows[0], {
+    testSetId: completeFixture.testSet.id,
+    testSetCode: completeFixture.testSet.code,
+  });
+
+  const missingFixture = await createManifestSources(
+    constraintsClient,
+    `v2-missing-${randomUUID()}`,
+  );
+  await constraintsClient.query("BEGIN");
+  await insertSubmissionManifest(constraintsClient, missingFixture, 5, {
+    entries: version2Layout(missingFixture).filter(
+      (plan) => plan.source.category !== "PART_4",
+    ),
+  });
+  await assert.rejects(constraintsClient.query("COMMIT"), VERSION_2_SHAPE_ERROR);
+
+  // Every slot is present, but PART_1B and PART_2 swap positions 2 and 3.
+  const swappedFixture = await createManifestSources(
+    constraintsClient,
+    `v2-swapped-${randomUUID()}`,
+  );
+  const swapped = version2Layout(swappedFixture).map((plan) =>
+    plan.source.category === "PART_1B"
+      ? { ...plan, deliveryPosition: 3 }
+      : plan.source.category === "PART_2"
+        ? { ...plan, deliveryPosition: 2 }
+        : plan,
+  );
+  await constraintsClient.query("BEGIN");
+  await insertSubmissionManifest(constraintsClient, swappedFixture, 5, {
+    entries: swapped,
+  });
+  await assert.rejects(constraintsClient.query("COMMIT"), VERSION_2_SHAPE_ERROR);
+
+  // A version 2 manifest cannot be committed in the legacy three-slot shape.
+  const legacyShapeFixture = await createManifestSources(
+    constraintsClient,
+    `v2-legacy-shape-${randomUUID()}`,
+  );
+  await constraintsClient.query("BEGIN");
+  await insertSubmissionManifest(constraintsClient, legacyShapeFixture, 3, {
+    entries: version1Layout(legacyShapeFixture),
+  });
+  await assert.rejects(constraintsClient.query("COMMIT"), VERSION_2_SHAPE_ERROR);
+
+  // A sixth entry cannot exist: positions stop at 5 and every slot is unique.
+  const sixthFixture = await createManifestSources(
+    constraintsClient,
+    `v2-sixth-${randomUUID()}`,
+  );
+  await constraintsClient.query("BEGIN");
+  const sixth = await insertSubmissionManifest(
+    constraintsClient,
+    sixthFixture,
+    5,
+  );
+  await assert.rejects(
+    insertManifestEntry(constraintsClient, sixth, {
+      source: sixthFixture.questions[0]!,
+      deliveryPosition: 6,
+    }),
+    /ManifestEntry_deliveryPosition_check/,
+  );
+  await constraintsClient.query("ROLLBACK");
+});
+
+test("version-2 manifests require a bound Test Set snapshot", async () => {
+  const fixture = await createManifestSources(
+    constraintsClient,
+    `v2-test-set-${randomUUID()}`,
+  );
+  const submissionId = randomUUID();
+  await constraintsClient.query(
+    `INSERT INTO "Submission"
+      ("id", "studentId", "status", "createdAt", "updatedAt")
+     VALUES ($1, $2, 'AWAITING_PAYMENT', NOW(), NOW())`,
+    [submissionId, fixture.studentId],
+  );
+
+  for (const [testSetId, testSetCode] of [
+    [null, null],
+    [null, fixture.testSet.code],
+    [fixture.testSet.id, null],
+    [fixture.testSet.id, ""],
+  ]) {
+    await assert.rejects(
+      constraintsClient.query(
+        `INSERT INTO "SubmissionManifest" ("id", "submissionId", "version", "testSetId", "testSetCode")
+         VALUES ($1, $2, 2, $3, $4)`,
+        [randomUUID(), submissionId, testSetId, testSetCode],
+      ),
+      /SubmissionManifest_test_set_check/,
+    );
+  }
 });
 
 test("bound manifest evidence is immutable and retains its source evidence", async () => {
@@ -301,12 +479,12 @@ test("bound manifest evidence is immutable and retains its source evidence", asy
     `immutable-${randomUUID()}`,
   );
   await constraintsClient.query("BEGIN");
-  const manifest = await insertSubmissionManifest(constraintsClient, fixture, 3);
+  const manifest = await insertSubmissionManifest(constraintsClient, fixture, 5);
   await constraintsClient.query("COMMIT");
 
   const immutableMutations = [
     {
-      sql: `UPDATE "SubmissionManifest" SET "version" = 2 WHERE "id" = $1`,
+      sql: `UPDATE "SubmissionManifest" SET "version" = 1 WHERE "id" = $1`,
       id: manifest.manifestId,
     },
     {
@@ -368,7 +546,7 @@ test("Answers use exactly one Legacy-question or same-Submission Manifest-entry 
     `answer-identity-${randomUUID()}`,
   );
   await constraintsClient.query("BEGIN");
-  const manifest = await insertSubmissionManifest(constraintsClient, fixture, 3);
+  const manifest = await insertSubmissionManifest(constraintsClient, fixture, 5);
   await constraintsClient.query("COMMIT");
 
   await constraintsClient.query(
@@ -441,7 +619,7 @@ test("Manifest Task lineage cannot cross the Manifest entry's source Question", 
     `task-lineage-${randomUUID()}`,
   );
   await constraintsClient.query("BEGIN");
-  const manifest = await insertSubmissionManifest(constraintsClient, fixture, 3);
+  const manifest = await insertSubmissionManifest(constraintsClient, fixture, 5);
   await constraintsClient.query("COMMIT");
 
   await assert.rejects(
@@ -466,7 +644,7 @@ test("manifest identities enforce one manifest and unique entry and Task positio
     `unique-${randomUUID()}`,
   );
   await constraintsClient.query("BEGIN");
-  const complete = await insertSubmissionManifest(constraintsClient, fixture, 3);
+  const complete = await insertSubmissionManifest(constraintsClient, fixture, 5);
   await constraintsClient.query("COMMIT");
 
   await assert.rejects(
@@ -491,7 +669,7 @@ test("manifest identities enforce one manifest and unique entry and Task positio
   await constraintsClient.query(
     `INSERT INTO "ManifestEntry"
       ("id", "manifestId", "submissionId", "category", "deliveryPosition", "sourceQuestionId")
-     VALUES ($1, $2, $3, 'PART_1', 1, $4)`,
+     VALUES ($1, $2, $3, 'PART_1A', 1, $4)`,
     [
       randomUUID(),
       duplicateCategory.manifestId,
@@ -503,7 +681,7 @@ test("manifest identities enforce one manifest and unique entry and Task positio
     constraintsClient.query(
       `INSERT INTO "ManifestEntry"
         ("id", "manifestId", "submissionId", "category", "deliveryPosition", "sourceQuestionId")
-       VALUES ($1, $2, $3, 'PART_1', 2, $4)`,
+       VALUES ($1, $2, $3, 'PART_1A', 2, $4)`,
       [
         randomUUID(),
         duplicateCategory.manifestId,
@@ -524,7 +702,7 @@ test("manifest identities enforce one manifest and unique entry and Task positio
   await constraintsClient.query(
     `INSERT INTO "ManifestEntry"
       ("id", "manifestId", "submissionId", "category", "deliveryPosition", "sourceQuestionId")
-     VALUES ($1, $2, $3, 'PART_1', 1, $4)`,
+     VALUES ($1, $2, $3, 'PART_1A', 1, $4)`,
     [
       randomUUID(),
       duplicatePosition.manifestId,
@@ -536,7 +714,7 @@ test("manifest identities enforce one manifest and unique entry and Task positio
     constraintsClient.query(
       `INSERT INTO "ManifestEntry"
         ("id", "manifestId", "submissionId", "category", "deliveryPosition", "sourceQuestionId")
-       VALUES ($1, $2, $3, 'PART_2', 1, $4)`,
+       VALUES ($1, $2, $3, 'PART_1B', 1, $4)`,
       [
         randomUUID(),
         duplicatePosition.manifestId,
@@ -558,7 +736,7 @@ test("manifest identities enforce one manifest and unique entry and Task positio
     constraintsClient.query(
       `INSERT INTO "ManifestEntry"
         ("id", "manifestId", "submissionId", "category", "deliveryPosition", "sourceQuestionId")
-       VALUES ($1, $2, $3, 'PART_1', 4, $4)`,
+       VALUES ($1, $2, $3, 'PART_1A', 6, $4)`,
       [
         randomUUID(),
         invalidPosition.manifestId,
@@ -725,7 +903,7 @@ test("the preflight detects Manifest Tasks whose source Question disagrees with 
       `broken-task-${randomUUID()}`,
     );
     await client.query("BEGIN");
-    const manifest = await insertSubmissionManifest(client, fixture, 3);
+    const manifest = await insertSubmissionManifest(client, fixture, 5);
     await client.query("COMMIT");
     await client.query(
       'ALTER TABLE "ManifestTask" DROP CONSTRAINT "ManifestTask_manifestEntryId_sourceQuestionId_fkey"',
@@ -750,7 +928,7 @@ test("the preflight detects Manifest Tasks whose source Question disagrees with 
   }
 }, { timeout: 120_000 });
 
-test("the cutover rejects new manifest-less Submissions while allowing atomic manifest creation", async () => {
+test("the cutover rejects new manifest-less and version-1 Submissions while allowing atomic version-2 manifest creation", async () => {
   const databaseUrl = await createDatabase("manifest_cutover");
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
@@ -775,12 +953,20 @@ test("the cutover rejects new manifest-less Submissions while allowing atomic ma
        VALUES ($1, $2, 'IN_PROGRESS', NOW(), NOW())`,
       [manifestlessSubmissionId, studentId],
     );
-    await assert.rejects(client.query("COMMIT"), /complete version-1 manifest/);
+    await assert.rejects(client.query("COMMIT"), /complete version-2 manifest/);
+    await client.query("ROLLBACK").catch(() => undefined);
+
+    // A complete legacy version 1 manifest is no longer enough for a new
+    // Submission: only migrated Legacy rows may keep version 1 evidence.
+    const legacyFixture = await createManifestSources(client, `cutover-v1-${studentId}`);
+    await client.query("BEGIN");
+    await insertSubmissionManifest(client, legacyFixture, 3, { version: 1 });
+    await assert.rejects(client.query("COMMIT"), /complete version-2 manifest/);
     await client.query("ROLLBACK").catch(() => undefined);
 
     const fixture = await createManifestSources(client, `cutover-valid-${studentId}`);
     await client.query("BEGIN");
-    const valid = await insertSubmissionManifest(client, fixture, 3);
+    const valid = await insertSubmissionManifest(client, fixture, 5);
     await assert.doesNotReject(client.query("COMMIT"));
     const persisted = await client.query(
       `SELECT COUNT(*)::int AS count
