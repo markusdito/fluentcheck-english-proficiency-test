@@ -21,7 +21,9 @@ async function waitForHttp(url: string, timeoutMs: number): Promise<Response> {
       throw new Error(`server at ${url} did not become ready`);
     }
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(5_000),
+      });
       return response;
     } catch {
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -39,10 +41,14 @@ describe("frontend production image", () => {
     execFileAsync("docker", args, { timeout });
 
   beforeAll(async () => {
-    await execFileAsync("docker", ["build", "-t", IMAGE, "."], {
-      cwd: FRONTEND_ROOT,
-      timeout: 900_000,
-    });
+    // CI builds the image in its own step so build progress is visible in the
+    // job log; execFile buffers output and would hide where a build stalls.
+    if (process.env.SMOKE_IMAGE_PREBUILT !== "1") {
+      await execFileAsync("docker", ["build", "-t", IMAGE, "."], {
+        cwd: FRONTEND_ROOT,
+        timeout: 900_000,
+      });
+    }
 
     upstreamServer = http.createServer((req, res) => {
       res.setHeader("content-type", "application/json");

@@ -45,10 +45,14 @@ describe("backend production image", () => {
     execFileAsync("docker", args, { timeout });
 
   before(async () => {
-    await execFileAsync("docker", ["build", "-t", IMAGE, "."], {
-      cwd: BACKEND_ROOT,
-      timeout: 900_000,
-    });
+    // CI builds the image in its own step so build progress is visible in the
+    // job log; execFile buffers output and would hide where a build stalls.
+    if (process.env.SMOKE_IMAGE_PREBUILT !== "1") {
+      await execFileAsync("docker", ["build", "-t", IMAGE, "."], {
+        cwd: BACKEND_ROOT,
+        timeout: 900_000,
+      });
+    }
 
     postgres = await new PostgreSqlContainer("postgres:17-alpine").start();
     await execFileAsync(
@@ -101,11 +105,14 @@ describe("backend production image", () => {
         );
       }
       try {
-        const response = await fetch(`http://127.0.0.1:${backendPort}/`);
+        const response = await fetch(`http://127.0.0.1:${backendPort}/`, {
+          signal: AbortSignal.timeout(5_000),
+        });
         if (response.ok) break;
       } catch {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // not ready yet
       }
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   });
 
