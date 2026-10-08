@@ -26,6 +26,7 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   FAILED: { label: "Failed", tone: "clay" },
   REFUNDED: { label: "Refunded", tone: "plain" },
   UPLOADED: { label: "Uploaded", tone: "green" },
+  AWAITING: { label: "Awaiting score", tone: "amber" },
 };
 
 /** Glossy glass status pill with a solid icon disc for coloured tones. */
