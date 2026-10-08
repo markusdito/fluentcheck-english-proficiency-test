@@ -18,6 +18,14 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   SCORING: { label: "Scoring", tone: "navy" },
   SCORED: { label: "Scored", tone: "green" },
   CERTIFIED: { label: "Certified", tone: "green" },
+  // admin-only: assignment, payment, media states
+  ASSIGNED: { label: "Assigned", tone: "navy" },
+  COMPLETED: { label: "Completed", tone: "green" },
+  WAIVED: { label: "Waived", tone: "green" },
+  PENDING: { label: "Pending", tone: "amber" },
+  FAILED: { label: "Failed", tone: "clay" },
+  REFUNDED: { label: "Refunded", tone: "plain" },
+  UPLOADED: { label: "Uploaded", tone: "green" },
 };
 
 /** Glossy glass status pill with a solid icon disc for coloured tones. */

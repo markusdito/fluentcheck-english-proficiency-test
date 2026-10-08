@@ -2,32 +2,23 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { fetchAdminStats } from "@/lib/admin-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { AssignmentList } from "@/components/examiner/AssignmentList";
 import { queryKeys } from "@/lib/query-keys";
-import { SubmissionStatus } from "@/components/ui/submission-status";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { StatusPill } from "@/components/student/StatusPill";
+import { card, h2, h3, meta, primaryButton, secondaryButton, statNum } from "@/components/student/styles";
+import { empty, lead, tableWrap, td, th, tr } from "@/components/admin/styles";
+import { submissionRef } from "@/components/examiner/ExaminerDashboard";
 
-function StatCard({
-  eyebrow,
-  value,
-  children,
-}: {
-  eyebrow: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
+const FLOW = ["IN_PROGRESS", "AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"] as const;
+
+function Tile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-rule bg-paper-raised px-6 py-5">
-      <p className="mark">{eyebrow}</p>
-      {value != null ? (
-        <p className="mt-2 font-mono text-3xl font-semibold tabular-nums text-ink">
-          {value}
-        </p>
-      ) : null}
-      {children}
+    <div className="rounded-2xl border border-sn-border bg-sn-surface p-5">
+      <p className="m-0 text-lg font-bold">{label}</p>
+      <p className={`${statNum} mt-3 text-[32px] font-light!`}>{value}</p>
     </div>
   );
 }
@@ -46,163 +37,132 @@ export default function AdminOverviewPage() {
   if (statsQuery.isPending) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
+        <Loader2 className="size-8 animate-spin text-sn-muted" role="status" aria-label="Loading" />
       </div>
     );
   }
 
   if (statsQuery.isError) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <p className="text-sm text-ink-soft">
-          Failed to load admin stats. Please try again.
-        </p>
-        <Button className="ml-4" onClick={() => statsQuery.refetch()}>
+      <div className={`${card} text-center`}>
+        <p className="text-[15px] text-sn-muted">Failed to load admin stats. Please try again.</p>
+        <button type="button" className={`${primaryButton} mt-5`} onClick={() => statsQuery.refetch()}>
           Try again
-        </Button>
+        </button>
       </div>
     );
   }
 
+  const byStatus = stats?.submissionsByStatus ?? {};
   const revenue = (stats?.paidRevenue ?? 0).toLocaleString("id-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
   });
+  const users = Object.entries(stats?.usersByRole ?? {});
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="mark">Platform overview</p>
-        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
-          Overview
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-ink-soft">
-          A summary of platform activity.
+      <div>
+        <h1 className={h2}>Admin console</h1>
+        <p className={lead}>
+          Run assessment operations: pair examiners, track statuses, and settle payments.
         </p>
       </div>
 
-      {/* Stat cards */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2">
-        <StatCard eyebrow="Users by role">
-          <div className="mt-3 space-y-1">
-            {Object.entries(stats?.usersByRole ?? {}).map(([role, count]) => (
-              <div
-                key={role}
-                className="flex items-center justify-between text-sm"
-              >
-                <span className="text-ink">{role}</span>
-                <span className="font-mono font-semibold tabular-nums text-ink">
-                  {count}
-                </span>
-              </div>
-            ))}
-          </div>
-        </StatCard>
-        <StatCard eyebrow="Submissions by status">
-          <div className="mt-3 space-y-1">
-            {Object.entries(stats?.submissionsByStatus ?? {}).map(
-              ([status, count]) => (
-                <div
-                  key={status}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span className="text-ink">{status.replace(/_/g, " ")}</span>
-                  <span className="font-mono font-semibold tabular-nums text-ink">
-                    {count}
-                  </span>
-                </div>
-              ),
-            )}
-          </div>
-        </StatCard>
-        <StatCard eyebrow="Paid revenue" value={revenue} />
-        <StatCard eyebrow="Pending grading" value={String(stats?.pendingGrading ?? 0)} />
-      </div>
-
-      <section className="mb-10" aria-label="Your examiner work">
-        <div className="mb-4">
-          <div>
-            <p className="mark">Your examiner work</p>
-            <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
-              Existing assignments
-            </h2>
-          </div>
-        </div>
-        {assignmentsQuery.isPending ? (
-          <div className="flex h-28 items-center justify-center border border-rule bg-paper-raised">
-            <Loader2 className="size-6 animate-spin text-ink-faint" role="status" aria-label="Loading assignments" />
-          </div>
-        ) : assignmentsQuery.isError ? (
-          <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-8 text-center">
-            <p className="text-sm text-ink-soft">
-              Existing examiner assignments could not be loaded. Refresh to try again.
-            </p>
-          </div>
-        ) : (
-          <AssignmentList assignments={assignmentsQuery.data ?? []} />
-        )}
+      <section aria-label="Status counts" className="mt-10 grid gap-4 sm:grid-cols-2 min-[921px]:grid-cols-4">
+        <Tile label="In progress" value={String(byStatus.IN_PROGRESS ?? 0)} />
+        <Tile label="Awaiting payment" value={String(byStatus.AWAITING_PAYMENT ?? 0)} />
+        <Tile label="Pending grading" value={String(stats?.pendingGrading ?? 0)} />
+        <Tile label="Paid revenue" value={revenue} />
       </section>
 
-      {/* Recent submissions */}
-      <section>
-        <div className="mb-4 flex items-end justify-between">
-          <div>
-            <p className="mark">Latest activity</p>
-            <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
-              Recent submissions
-            </h2>
-          </div>
-          <Link
-            href="/admin/submissions"
-            className="text-sm font-medium text-ink underline-offset-4 hover:underline"
-          >
+      <div className="mt-14 grid items-start gap-7 min-[921px]:grid-cols-[2fr_1fr]">
+        <section className={card} aria-labelledby="flow-title">
+          <h2 id="flow-title" className={h3}>Status flow</h2>
+          <p className="mt-2 text-[15px] text-sn-muted">
+            Submissions move one way. Counts show where each submission sits now.
+          </p>
+          <ul className="mt-5 flex flex-wrap gap-2" role="list">
+            {[...FLOW, "ABANDONED"].map((s) => (
+              <li key={s} className="inline-flex items-center gap-2">
+                <StatusPill status={s} />
+                <span className="text-sm tabular-nums text-sn-muted">{byStatus[s] ?? 0}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className={card} aria-labelledby="users-title">
+          <h2 id="users-title" className={h3}>Users by role</h2>
+          <dl className="mt-3 mb-0">
+            {users.map(([role, count]) => (
+              <div key={role} className="flex items-center justify-between border-t border-sn-border py-3.5">
+                <dt className={meta}>{role}</dt>
+                <dd className="m-0 tabular-nums">{count}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </div>
+
+      <section className="mt-14" aria-labelledby="recent-title">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-4">
+          <h2 id="recent-title" className={h3}>Recent submissions</h2>
+          <Link href="/admin/submissions" className={`${secondaryButton} max-sm:w-auto`}>
             View all
           </Link>
         </div>
         {stats && stats.recentSubmissions.length > 0 ? (
-          <div className="border border-rule bg-paper-raised">
-            <ul className="divide-y divide-rule" role="list">
-              {stats.recentSubmissions.map((sub) => (
-                <li key={sub.id}>
-                  <Link
-                    href={`/admin/submissions/${sub.id}`}
-                    className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-rule/40"
-                  >
-                    <div className="flex min-w-0 items-center gap-4">
-                      <SubmissionStatus status={sub.status} />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-ink">
-                          {sub.studentName ?? "—"}
-                        </p>
-                        <p className="mt-0.5 text-xs text-ink-soft">
-                          {new Date(sub.createdAt).toLocaleString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="shrink-0 font-mono text-xs text-ink-faint">
-                      {sub.id.slice(0, 8)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          <div className={tableWrap}>
+            <table className="w-full border-collapse">
+              <caption className="sr-only">Recent submissions</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className={th}>Submission</th>
+                  <th scope="col" className={th}>Candidate</th>
+                  <th scope="col" className={th}>Created</th>
+                  <th scope="col" className={th}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.recentSubmissions.map((sub) => (
+                  <tr key={sub.id} className={tr}>
+                    <td className={`${td} font-medium whitespace-nowrap tabular-nums`}>
+                      <Link href={`/admin/submissions/${sub.id}`} className="underline-offset-4 hover:underline">
+                        {submissionRef(sub.id)}
+                      </Link>
+                    </td>
+                    <td className={`${td} max-w-[24ch] truncate`}>{sub.studentName ?? "—"}</td>
+                    <td className={`${td} whitespace-nowrap tabular-nums text-sn-muted`}>
+                      {new Date(sub.createdAt).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className={td}><StatusPill status={sub.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-              No submissions yet
-            </p>
-            <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
-              Submissions will appear here once students complete a test.
-            </p>
+          <p className={empty}>No submissions yet. They appear here once students complete a test.</p>
+        )}
+      </section>
+
+      <section className="mt-14" aria-labelledby="work-title">
+        <h2 id="work-title" className={`${h3} mb-4`}>Your examiner work</h2>
+        {assignmentsQuery.isPending ? (
+          <div className={`${card} flex justify-center`}>
+            <Loader2 className="size-6 animate-spin text-sn-muted" role="status" aria-label="Loading assignments" />
           </div>
+        ) : assignmentsQuery.isError ? (
+          <p className={empty}>Existing examiner assignments could not be loaded. Refresh to try again.</p>
+        ) : (
+          <AssignmentList assignments={assignmentsQuery.data ?? []} />
         )}
       </section>
     </div>
