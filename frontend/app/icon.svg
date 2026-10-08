@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- SpeakNusa mark: green-black ink tile, paper speech bubble, sound bars, marking-pen red REC dot -->
+  <rect width="64" height="64" rx="12" fill="#1b2420"/>
+  <path d="M16 12h32a6 6 0 0 1 6 6v22a6 6 0 0 1-6 6H28L15 56V46h-1a6 6 0 0 1-4-6V18a6 6 0 0 1 6-6z" fill="#f4f5f2"/>
+  <rect x="19" y="26" width="7" height="14" rx="2" fill="#1b2420"/>
+  <rect x="29" y="18" width="7" height="22" rx="2" fill="#1b2420"/>
+  <rect x="39" y="23" width="7" height="17" rx="2" fill="#1b2420"/>
+  <circle cx="51" cy="15" r="8" fill="#e23d28" stroke="#1b2420" stroke-width="3"/>
+</svg>
