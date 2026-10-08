@@ -3,9 +3,5 @@ export default function TestLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="min-h-screen bg-studio">
-      {children}
-    </div>
-  );
+  return children;
 }
