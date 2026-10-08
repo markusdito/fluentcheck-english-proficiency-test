@@ -220,6 +220,7 @@ export async function createQuestion(userId: string, data: CreateQuestionInput) 
           : undefined,
       },
       include: {
+        testSet: {select: {id: true, code: true}},
         tasks: {
           where: {deletedAt: null},
           orderBy: {order: "asc"},
@@ -256,6 +257,7 @@ export async function updateQuestion(id: string, data: UpdateQuestionInput) {
         ...(data.recordingSeconds !== undefined && {recordingSeconds: data.recordingSeconds}),
       },
       include: {
+        testSet: {select: {id: true, code: true}},
         tasks: {
           where: {deletedAt: null},
           orderBy: {order: "asc"},
@@ -415,6 +417,7 @@ export async function restoreQuestion(id: string) {
     return transaction.question.findUniqueOrThrow({
       where: {id},
       include: {
+        testSet: {select: {id: true, code: true}},
         tasks: {
           orderBy: {order: "asc"},
         },
