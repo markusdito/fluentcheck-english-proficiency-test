@@ -81,9 +81,9 @@ export default function AdminOverviewPage() {
         <section className={card} aria-labelledby="flow-title">
           <h2 id="flow-title" className={h3}>Status flow</h2>
           <p className="mt-2 text-[15px] text-sn-muted">
-            Submissions move top to bottom. Each count is how many sit at that stage now.
+            Submissions move through stages 1 to 6. Each count is how many sit at that stage now.
           </p>
-          <ol className="mt-5 mb-0 list-none p-0">
+          <ol className="mt-5 mb-0 grid list-none gap-x-8 p-0 sm:grid-flow-col sm:grid-cols-2 sm:grid-rows-3">
             {FLOW.map((s, i) => (
               <li key={s} className="flex items-center gap-4 border-t border-sn-border py-3">
                 <span className="w-5 text-sm tabular-nums text-sn-muted" aria-hidden="true">{i + 1}</span>
