@@ -15,15 +15,6 @@ import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermiss
 import { StudentDashboard } from "@/components/student/StudentDashboard";
 import { PageState } from "@/components/student/PageShell";
 import { h3, primaryButton } from "@/components/student/styles";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import type { ExaminerAssignmentSummary } from "@/types/examiner";
 import { useSession } from "@/hooks/useSession";
 import { queryKeys } from "@/lib/query-keys";
@@ -31,7 +22,6 @@ import { queryKeys } from "@/lib/query-keys";
 export default function DashboardPage() {
   const router = useRouter();
   const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [showReviewPipelineNotice, setShowReviewPipelineNotice] = useState(false);
   const [historyCursors, setHistoryCursors] = useState<string[]>([]);
   const session = useSession({ required: true });
   const user = session.data;
@@ -95,52 +85,15 @@ export default function DashboardPage() {
 
   const isExaminer = user?.role === "EXAMINER";
 
-  // The Active Submission (still recording) is excluded from the dashboard
-  // history and is resumed by the test route instead. A Review-pipeline
-  // submission (payment/scoring) is the newest history row and blocks a new
-  // Assessment start.
-  const REVIEW_PIPELINE_STATUSES = ["AWAITING_PAYMENT", "PAID", "SCORING"];
-  const hasReviewPipelineSubmission =
-    dashboard?.submissions.some((sub) => REVIEW_PIPELINE_STATUSES.includes(sub.status)) ??
-    false;
-
-  const handleStartAssessment = () => {
-    if (hasReviewPipelineSubmission) {
-      setShowReviewPipelineNotice(true);
-      return;
-    }
-    setShowPermissionModal(true);
-  };
-
   const modals = (
-    <>
-      <CameraMicPermissionModal
-        open={showPermissionModal}
-        onClose={() => setShowPermissionModal(false)}
-        onComplete={() => {
-          setShowPermissionModal(false);
-          router.push("/test/demo-test");
-        }}
-      />
-
-      <AlertDialog
-        open={showReviewPipelineNotice}
-        onOpenChange={setShowReviewPipelineNotice}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Previous submission still being reviewed</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your previous submission is still moving through payment and scoring.
-              You can start a new assessment once it has been scored.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction>Got it</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <CameraMicPermissionModal
+      open={showPermissionModal}
+      onClose={() => setShowPermissionModal(false)}
+      onComplete={() => {
+        setShowPermissionModal(false);
+        router.push("/test/demo-test");
+      }}
+    />
   );
 
   if (!isExaminer) {
@@ -162,7 +115,7 @@ export default function DashboardPage() {
             const nextCursor = dashboard?.pagination.nextCursor;
             if (nextCursor) setHistoryCursors((cursors) => [...cursors, nextCursor]);
           }}
-          onStart={handleStartAssessment}
+          onStart={() => setShowPermissionModal(true)}
         />
         {modals}
       </>
