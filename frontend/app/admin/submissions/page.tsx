@@ -1,29 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
 import {
   fetchAdminSubmissions,
   assignExaminers,
 } from "@/lib/admin-api";
-import { SubmissionStatus } from "@/components/ui/submission-status";
-import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/student/StatusPill";
+import { card, h2, meta, primaryButton, secondaryButton } from "@/components/student/styles";
+import { chip, empty, lead, tableWrap, td, th, tr } from "@/components/admin/styles";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminSubmission, Paginated } from "@/types/admin";
 import { queryKeys } from "@/lib/query-keys";
 import { patchAssignedSubmissionPage } from "@/lib/admin-cache";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 
 const SUBMISSION_STATUSES = [
   "AWAITING_PAYMENT",
@@ -65,7 +57,6 @@ const idr = new Intl.NumberFormat("id-ID", {
 });
 
 export default function AdminSubmissionsPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
@@ -110,84 +101,62 @@ export default function AdminSubmissionsPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <p className="mark">Queue</p>
-        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
-          Submissions
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-ink-soft">
-          Review student submissions and assign two examiners to completed
-          submissions that are paid or waived.
-        </p>
-      </div>
+      <h1 className={h2}>Submissions</h1>
+      <p className={lead}>
+        Review student submissions and assign two examiners to completed
+        submissions that are paid or waived.
+      </p>
 
-      {/* Status filter tabs */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+      <div className="mt-10 mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter submissions">
         {[
           { value: "", label: "All" },
           ...SUBMISSION_STATUSES.map((status) => ({
             value: status,
-            label: status.replace(/_/g, " "),
+            label: status.charAt(0) + status.slice(1).replace(/_/g, " ").toLowerCase(),
           })),
-        ].map((opt) => {
-          const active = statusFilter === opt.value;
-          return (
-            <button
-              key={opt.value || "all"}
-              type="button"
-              onClick={() => {
-                setStatusFilter(opt.value);
-                setPage(1);
-              }}
-              aria-pressed={active}
-              className={cn(
-                "border-b-2 pb-1 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors",
-                active
-                  ? "border-ink text-ink"
-                  : "border-transparent text-ink-soft hover:text-ink",
-              )}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
+        ].map((opt) => (
+          <button
+            key={opt.value || "all"}
+            type="button"
+            onClick={() => {
+              setStatusFilter(opt.value);
+              setPage(1);
+            }}
+            aria-pressed={statusFilter === opt.value}
+            className={chip(statusFilter === opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {submissionsQuery.isPending ? (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
+          <Loader2 className="size-8 animate-spin text-sn-muted" role="status" aria-label="Loading" />
         </div>
       ) : submissionsQuery.isError ? (
-        <div className="flex h-64 items-center justify-center">
-          <p className="text-sm text-ink-soft">
-            Failed to load submissions. Please try again.
-          </p>
-          <Button className="ml-4" onClick={() => submissionsQuery.refetch()}>
+        <div className={`${card} text-center`}>
+          <p className="text-[15px] text-sn-muted">Failed to load submissions. Please try again.</p>
+          <button type="button" className={`${primaryButton} mt-5`} onClick={() => submissionsQuery.refetch()}>
             Try again
-          </Button>
+          </button>
         </div>
       ) : items.length === 0 ? (
-        <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-            No submissions
-          </p>
-          <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
-            No submissions match the current filter.
-          </p>
-        </div>
+        <p className={empty}>No submissions match the current filter.</p>
       ) : (
-        <div className="border border-rule bg-paper-raised">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="mark px-5 text-center text-xs font-semibold">Student</TableHead>
-                <TableHead className="mark px-5 text-center text-xs font-semibold">Status</TableHead>
-                <TableHead className="mark px-5 text-center text-xs font-semibold">Latest payment</TableHead>
-                <TableHead className="mark px-5 text-center text-xs font-semibold">Assignments</TableHead>
-                <TableHead className="mark px-5 text-center text-xs font-semibold">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <div className={tableWrap}>
+          <table className="w-full border-collapse">
+            <caption className="sr-only">Submissions</caption>
+            <thead>
+              <tr>
+                <th scope="col" className={th}>Candidate</th>
+                <th scope="col" className={th}>Status</th>
+                <th scope="col" className={th}>Latest payment</th>
+                <th scope="col" className={th}>Examiners</th>
+                <th scope="col" className={th}><span className="sr-only">Action</span></th>
+              </tr>
+            </thead>
+            <tbody>
               {items.map((sub) => {
                 // Assignment-ready covers paid and waived (payment not
                 // required) submissions without an existing set.
@@ -195,119 +164,89 @@ export default function AdminSubmissionsPage() {
                   (sub.status === "PAID" || !sub.paymentRequired) &&
                   sub.assignments.length === 0;
                 return (
-                  <TableRow
-                    key={sub.id}
-                    role="link"
-                    tabIndex={0}
-                    aria-label={`View submission by ${sub.studentName}`}
-                    className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink [&>td]:align-middle"
-                    onClick={(event) => {
-                      const target = event.target as HTMLElement;
-                      if (
-                        target.closest(
-                          "button, a, input, select, textarea, [role='button']"
-                        )
-                      ) {
-                        return;
-                      }
-                      router.push(`/admin/submissions/${sub.id}`);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.target !== event.currentTarget) return;
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        router.push(`/admin/submissions/${sub.id}`);
-                      }
-                    }}
-                  >
-                    <TableCell className="px-5 py-3.5">
-                      <p className="font-medium text-ink">{sub.studentName}</p>
-                      <p className="mt-0.5 text-xs text-ink-soft">{sub.studentEmail}</p>
-                    </TableCell>
-                    <TableCell className="px-5 py-3.5 text-center">
-                      <SubmissionStatus status={sub.status} />
-                    </TableCell>
-                    <TableCell className="px-5 py-3.5 text-center">
+                  <tr key={sub.id} className={tr}>
+                    <td className={td}>
+                      <Link
+                        href={`/admin/submissions/${sub.id}`}
+                        aria-label={`View submission by ${sub.studentName}`}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {sub.studentName}
+                      </Link>
+                      <p className="mt-0.5 text-[13px] text-sn-muted">{sub.studentEmail}</p>
+                    </td>
+                    <td className={td}><StatusPill status={sub.status} /></td>
+                    <td className={td}>
                       {!sub.paymentRequired ? (
-                        <SubmissionStatus status="WAIVED" />
+                        <StatusPill status="WAIVED" />
                       ) : sub.latestPayment?.status === "PAID" ? (
-                        <span className="font-mono text-sm font-semibold tabular-nums text-ink">
-                          {idr.format(sub.latestPayment.amount)}
-                        </span>
+                        <span className="font-medium tabular-nums">{idr.format(sub.latestPayment.amount)}</span>
                       ) : (
-                        <SubmissionStatus status="PENDING" />
+                        <StatusPill status="PENDING" />
                       )}
-                    </TableCell>
-                    <TableCell className="px-5 py-3.5">
+                    </td>
+                    <td className={td}>
                       {sub.assignments.length > 0 ? (
-                        <div className="flex min-w-[17rem] flex-col divide-y divide-rule">
+                        <ul className="grid min-w-[14rem] gap-1.5" role="list">
                           {sub.assignments.map((a) => (
-                            <div
-                              key={a.id}
-                              className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 py-2 first:pt-0 last:pb-0"
-                            >
-                              <span
-                                className="min-w-0 truncate text-xs font-medium text-ink"
-                                title={a.examinerName}
-                              >
-                                {a.examinerName}
+                            <li key={a.id} className="flex items-center justify-between gap-3 text-sm">
+                              <span className="min-w-0 truncate" title={a.examinerName}>{a.examinerName}</span>
+                              <span className="shrink-0 text-[13px] text-sn-muted">
+                                {a.status.charAt(0) + a.status.slice(1).replace(/_/g, " ").toLowerCase()}
                               </span>
-                              <SubmissionStatus status={a.status} />
-                            </div>
+                            </li>
                           ))}
-                        </div>
+                        </ul>
                       ) : (
-                        <span className="text-xs text-ink-faint">None</span>
+                        <span className="text-sm text-sn-muted">Unassigned</span>
                       )}
-                    </TableCell>
-                    <TableCell className="px-5 py-3.5 text-right">
+                    </td>
+                    <td className={`${td} text-right`}>
                       {canAssign ? (
-                        <Button
-                          size="sm"
-                          loading={assigningId === sub.id}
-                          disabled={assigningId !== null && assigningId !== sub.id}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void handleAssign(sub);
-                          }}
+                        <button
+                          type="button"
+                          className={`${secondaryButton} max-sm:w-auto`}
+                          aria-busy={assigningId === sub.id || undefined}
+                          disabled={assigningId !== null}
+                          onClick={() => void handleAssign(sub)}
                         >
+                          {assigningId === sub.id ? (
+                            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                          ) : null}
                           Assign examiners
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-ink-faint">—</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
                 );
               })}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Pagination */}
       {submissionsQuery.isSuccess && items.length > 0 && (
-        <div className="mt-6 flex items-center justify-between">
-          <p className="text-sm text-ink-soft">
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <p className={meta}>
             Page {page} of {totalPages}
           </p>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
+            <button
+              type="button"
+              className={`${secondaryButton} max-sm:w-auto`}
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
+            </button>
+            <button
+              type="button"
+              className={`${secondaryButton} max-sm:w-auto`}
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
               Next
-            </Button>
+            </button>
           </div>
         </div>
       )}
