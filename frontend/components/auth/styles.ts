@@ -14,6 +14,6 @@ export const primaryButton = `mt-1.5 inline-flex min-h-13 w-full items-center ju
 
 export const textLink = `inline-flex min-h-11 items-center px-0.5 text-sm font-semibold text-sn-fg underline decoration-sn-fg/30 underline-offset-3 transition-[text-decoration-color] duration-200 ease-standard hover:decoration-sn-fg ${focusRing}`;
 
-// Sign-in form fills the resting height of the sign-up form so both panels share a top edge and
-// button line, which keeps the sliding switch smooth. ponytail: fixed px, update if sign-up fields change.
-export const signInFormFill = "min-h-[500px] content-between";
+// Sign-in form fills the resting height of the sign-up form: fields stay packed under the title,
+// the submit button sits on the same line as sign-up's. ponytail: fixed px, update if sign-up fields change.
+export const signInFormFill = "flex min-h-[500px] flex-col";

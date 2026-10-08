@@ -84,7 +84,7 @@ export function LoginForm() {
       <GoogleAuthError />
       <GoogleAuthButton returnTo="login" dividerLabel="or sign in with email" />
 
-      <form onSubmit={handleSubmit} noValidate aria-label="Login form" className={`grid gap-[18px] ${signInFormFill}`}>
+      <form onSubmit={handleSubmit} noValidate aria-label="Login form" className={`gap-[18px] ${signInFormFill}`}>
         {error && (
           <p role="alert" className={errorSummary}>
             {error}
@@ -138,10 +138,12 @@ export function LoginForm() {
           </Link>
         </div>
 
-        <button type="submit" disabled={loading} aria-busy={loading || undefined} className={primaryButton}>
-          {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
-          <span>{loading ? "Signing in…" : "Sign in"}</span>
-        </button>
+        <div className="mt-auto">
+          <button type="submit" disabled={loading} aria-busy={loading || undefined} className={primaryButton}>
+            {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            <span>{loading ? "Signing in…" : "Sign in"}</span>
+          </button>
+        </div>
       </form>
     </div>
   );
