@@ -12,8 +12,9 @@ interface PromptDisplayProps {
   cueCard?: CueCard | null;
   options?: DeliveredOption[] | null;
   autoPlay?: boolean;
-  /** Prompt plays allowed per slot, autoplay included (PRD FR-3.4). */
-  maxPlays?: number;
+  /** Prompt plays left in this slot (PRD FR-3.4); see QuestionAudioPlayer. */
+  playsLeft?: number;
+  onPlayStarted?: () => void;
   audioLocked?: boolean;
   onAudioEnded?: () => void;
 }
@@ -75,7 +76,8 @@ export function PromptDisplay({
   cueCard,
   options,
   autoPlay,
-  maxPlays,
+  playsLeft,
+  onPlayStarted,
   audioLocked,
   onAudioEnded,
 }: PromptDisplayProps) {
@@ -89,7 +91,8 @@ export function PromptDisplay({
         <QuestionAudioPlayer
           audioUrl={audioUrl}
           autoPlay={autoPlay}
-          maxPlays={maxPlays}
+          playsLeft={playsLeft}
+          onPlayStarted={onPlayStarted}
           locked={audioLocked}
           onEnded={onAudioEnded}
         />

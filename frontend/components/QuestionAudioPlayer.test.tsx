@@ -83,15 +83,18 @@ describe("QuestionAudioPlayer", () => {
     expect(onEnded).toHaveBeenCalledTimes(1);
   });
 
-  it("allows the autoplay plus one replay, then disables playback (PRD FR-3.4)", async () => {
+  it("counts plays through the owner and disables playback at zero (PRD FR-3.4)", async () => {
     const user = userEvent.setup();
-    const { container } = render(
-      <QuestionAudioPlayer audioUrl="https://example.com/prompt.webm" autoPlay maxPlays={2} />,
-    );
+    const onPlayStarted = vi.fn();
+    const props = { audioUrl: "https://example.com/prompt.webm", autoPlay: true, onPlayStarted };
+    const { container, rerender } = render(<QuestionAudioPlayer {...props} playsLeft={2} />);
     const audio = container.querySelector("audio")!;
+    expect(play).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: /pause/i })).not.toBeInTheDocument();
 
     fireEvent.play(audio);
+    expect(onPlayStarted).toHaveBeenCalledTimes(1);
+    rerender(<QuestionAudioPlayer {...props} playsLeft={1} />);
     expect(screen.getByRole("button", { name: "Playing…" })).toBeDisabled();
     fireEvent.ended(audio);
     expect(screen.getByText("1 play left")).toBeInTheDocument();
@@ -99,23 +102,18 @@ describe("QuestionAudioPlayer", () => {
     audio.currentTime = 30;
     await user.click(screen.getByRole("button", { name: "Replay question" }));
     expect(audio.currentTime).toBe(0);
-    fireEvent.play(audio);
-    fireEvent.ended(audio);
+    expect(play).toHaveBeenCalledTimes(2);
 
+    rerender(<QuestionAudioPlayer {...props} playsLeft={0} />);
     expect(screen.getByText("0 plays left")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Replay question" })).toBeDisabled();
   });
 
-  it("does not count a blocked autoplay as a play", async () => {
-    play.mockRejectedValueOnce(new Error("Autoplay blocked"));
-    render(<QuestionAudioPlayer audioUrl="https://example.com/prompt.webm" autoPlay maxPlays={2} />);
-    await screen.findByRole("status");
-    expect(screen.getByText("2 plays left")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Play question" })).toBeEnabled();
-  });
-
-  it("disables playback when locked", () => {
-    render(<QuestionAudioPlayer audioUrl="https://example.com/prompt.webm" autoPlay maxPlays={2} locked />);
+  it("does not autoplay when no plays are left or when locked", () => {
+    const { rerender } = render(
+      <QuestionAudioPlayer audioUrl="https://example.com/a.webm" autoPlay playsLeft={0} />,
+    );
+    rerender(<QuestionAudioPlayer audioUrl="https://example.com/b.webm" autoPlay playsLeft={2} locked />);
     expect(play).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Play question" })).toBeDisabled();
   });

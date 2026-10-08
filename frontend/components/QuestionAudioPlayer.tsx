@@ -13,8 +13,13 @@ interface QuestionAudioPlayerProps {
   audioUrl: string | null;
   compact?: boolean;
   autoPlay?: boolean;
-  /** Test runner only: total plays allowed, autoplay included (PRD FR-3.4). Removes Pause. */
-  maxPlays?: number;
+  /**
+   * Test runner only: plays still allowed for this prompt (PRD FR-3.4: 2 per
+   * slot, autoplay included). The owner counts plays via `onPlayStarted` so the
+   * limit survives a remount. Replaces Play/Pause with one Play/Replay button.
+   */
+  playsLeft?: number;
+  onPlayStarted?: () => void;
   /** Stops the prompt and blocks further plays, e.g. once recording starts. */
   locked?: boolean;
   onEnded?: () => void;
@@ -27,17 +32,15 @@ interface QuestionAudioPlayerProps {
  * changes, replaces the browser's full control bar with Play/Pause and Replay,
  * and surfaces a hint if the browser blocks autoplay. Other surfaces retain the
  * native audio controls. Renders a placeholder when the question has no audio
- * yet (not uploaded). With `maxPlays`, a single Play/Replay button counts
- * every play from the beginning and disables itself when none are left.
+ * yet (not uploaded). With `playsLeft`, a single Play/Replay button plays from
+ * the beginning and disables itself when no plays are left.
  */
-export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, maxPlays, locked, onEnded }: QuestionAudioPlayerProps) {
+export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, playsLeft, onPlayStarted, locked, onEnded }: QuestionAudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [blockedUrl, setBlockedUrl] = useState<string | null>(null);
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
   const [rawProgress, setRawProgress] = useState({ url: "", time: 0, duration: 0 });
-  const [plays, setPlays] = useState({ url: "", count: 0 });
-  const playCount = plays.url === audioUrl ? plays.count : 0;
-  const limited = maxPlays !== undefined;
+  const limited = playsLeft !== undefined;
 
   const playAudio = useCallback((restart: boolean) => {
     const audio = audioRef.current;
@@ -58,7 +61,7 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, maxPlays, loc
   // Autoplay the prompt audio whenever the question's audio changes.
   // Blocked state is keyed by URL so a question change naturally resets it.
   useEffect(() => {
-    if (!autoPlay || !audioUrl || locked) return;
+    if (!autoPlay || !audioUrl || locked || playsLeft === 0) return;
     playAudio(false);
     // Autoplay fires once per prompt; locking later must not replay it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,7 +101,7 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, maxPlays, loc
         onLoadedMetadata={(e) => trackProgress(e.currentTarget)}
         onPlay={() => {
           setPlayingUrl(audioUrl);
-          if (limited) setPlays((prev) => ({ url: audioUrl, count: (prev.url === audioUrl ? prev.count : 0) + 1 }));
+          onPlayStarted?.();
         }}
         onPause={() => setPlayingUrl(null)}
         onEnded={() => {
@@ -116,9 +119,8 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, maxPlays, loc
       {autoPlay && limited && (
         <LimitedControls
           isPlaying={isPlaying}
-          playsLeft={Math.max(0, maxPlays - playCount)}
-          played={playCount > 0}
-          disabled={locked || isPlaying || playCount >= maxPlays}
+          playsLeft={playsLeft}
+          disabled={locked || isPlaying || playsLeft <= 0}
           onPlay={() => playAudio(true)}
           progress={progress}
           autoplayBlocked={autoplayBlocked}
@@ -178,7 +180,6 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, maxPlays, loc
 function LimitedControls({
   isPlaying,
   playsLeft,
-  played,
   disabled,
   onPlay,
   progress,
@@ -186,7 +187,6 @@ function LimitedControls({
 }: {
   isPlaying: boolean;
   playsLeft: number;
-  played: boolean;
   disabled: boolean;
   onPlay: () => void;
   progress: { time: number; duration: number };
@@ -197,8 +197,8 @@ function LimitedControls({
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-5 border-y border-sn-border py-4 max-sm:grid-cols-1">
         <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Question audio controls">
           <button type="button" className={secondaryButton} onClick={onPlay} disabled={disabled}>
-            {played ? <RotateCcwIcon className="size-4" aria-hidden /> : <PlayIcon className="size-4" aria-hidden />}
-            {isPlaying ? "Playing…" : played ? "Replay question" : "Play question"}
+            {playsLeft < 2 ? <RotateCcwIcon className="size-4" aria-hidden /> : <PlayIcon className="size-4" aria-hidden />}
+            {isPlaying ? "Playing…" : playsLeft < 2 ? "Replay question" : "Play question"}
           </button>
           <span className="text-sm text-sn-muted">
             {playsLeft} play{playsLeft === 1 ? "" : "s"} left
