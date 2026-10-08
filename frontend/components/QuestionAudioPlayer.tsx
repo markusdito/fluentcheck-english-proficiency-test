@@ -56,7 +56,7 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: Qu
 
   if (!audioUrl) {
     return (
-      <p className="text-sm text-ink-soft">
+      <p className="text-sm text-sn-muted">
         {compact ? "Audio pending" : "Audio not yet available for this question."}
       </p>
     );
@@ -92,7 +92,7 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: Qu
         aria-hidden={autoPlay || undefined}
         className={autoPlay ? "hidden" : compact ? "h-9 w-full" : "w-full"}
       >
-        <p className="text-sm text-ink-soft">
+        <p className="text-sm text-sn-muted">
           Your browser does not support audio playback.
         </p>
       </audio>
