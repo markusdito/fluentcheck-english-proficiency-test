@@ -81,16 +81,23 @@ export default function AdminOverviewPage() {
         <section className={card} aria-labelledby="flow-title">
           <h2 id="flow-title" className={h3}>Status flow</h2>
           <p className="mt-2 text-[15px] text-sn-muted">
-            Submissions move one way. Counts show where each submission sits now.
+            Submissions move top to bottom. Each count is how many sit at that stage now.
           </p>
-          <ul className="mt-5 flex flex-wrap gap-2" role="list">
-            {[...FLOW, "ABANDONED"].map((s) => (
-              <li key={s} className="inline-flex items-center gap-2">
+          <ol className="mt-5 mb-0 list-none p-0">
+            {FLOW.map((s, i) => (
+              <li key={s} className="flex items-center gap-4 border-t border-sn-border py-3">
+                <span className="w-5 text-sm tabular-nums text-sn-muted" aria-hidden="true">{i + 1}</span>
                 <StatusPill status={s} />
-                <span className="text-sm tabular-nums text-sn-muted">{byStatus[s] ?? 0}</span>
+                <span className="ml-auto text-xl font-light tabular-nums">{byStatus[s] ?? 0}</span>
               </li>
             ))}
-          </ul>
+          </ol>
+          <div className="flex items-center gap-4 border-t border-dashed border-sn-border pt-3">
+            <span className="w-5" aria-hidden="true" />
+            <StatusPill status="ABANDONED" />
+            <span className="text-sm text-sn-muted">Ended while in progress</span>
+            <span className="ml-auto text-xl font-light tabular-nums">{byStatus.ABANDONED ?? 0}</span>
+          </div>
         </section>
 
         <section className={card} aria-labelledby="users-title">
