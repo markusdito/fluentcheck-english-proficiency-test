@@ -259,10 +259,9 @@ the same name. After changing a script or icon in `testSets.ts`, delete the
 affected file and run `npx tsx prisma/generateSeedAssets.ts` (needs
 `pip install edge-tts`, ImageMagick and the frontend dependencies).
 
-> [!CAUTION]
-> The current seed clears assessment data—including questions, submissions,
-> payments, assignments, answers, and scores—before recreating sample records.
-> Run it only against a disposable development database.
+The seed deletes nothing. It adds missing Test Sets, Questions and examiner
+accounts, so it is safe to re-run. A slot that already holds an active
+Question with uploaded prompt audio is left unchanged.
 
 ### 5. Start both applications
 

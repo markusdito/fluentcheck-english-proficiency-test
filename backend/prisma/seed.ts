@@ -25,15 +25,8 @@ const prisma = new PrismaClient({
 async function main() {
   console.log("🌱 Starting seed...");
 
-  // Clean existing seed data
-  await prisma.score.deleteMany();
-  await prisma.examinerAssignment.deleteMany();
-  await prisma.payment.deleteMany();
-  await prisma.answer.deleteMany();
-  await prisma.submission.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.testSet.deleteMany();
+  // No cleanup: Submission manifests are immutable evidence (database
+  // triggers), so the seed only adds missing records and is safe to re-run.
 
   // Find or create an admin user to be the creator of questions
   let admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
@@ -81,13 +74,25 @@ async function main() {
   // CEFR B1 TEST SETS A–F (PRD §3.3, FR-6.4). Prompt audio and option icons
   // are committed in prisma/seed-assets and uploaded to R2, so every set is
   // deliverable after seeding. Without R2 a Question stays a Draft until an
-  // admin uploads its media from the question bank.
+  // admin uploads its media, or the seed is re-run. An existing active
+  // Question in a slot is kept as-is; only its missing media is uploaded.
   // ──────────────────────────────────────────────
   let drafts = 0;
   for (const set of TEST_SETS) {
-    const testSet = await prisma.testSet.create({ data: { code: set.code } });
+    const testSet = await prisma.testSet.upsert({
+      where: { code: set.code },
+      update: {},
+      create: { code: set.code },
+    });
     for (const q of set.questions) {
-      const created = await prisma.question.create({
+      const existing = await prisma.question.findFirst({
+        where: { testSetId: testSet.id, category: q.category, deletedAt: null },
+      });
+      if (existing?.audioUploadStatus === "UPLOADED") {
+        console.log(`  ⏭️  [${set.code}/${q.category}] already seeded`);
+        continue;
+      }
+      const created = existing ?? await prisma.question.create({
         data: {
           category: q.category,
           testSetId: testSet.id,
