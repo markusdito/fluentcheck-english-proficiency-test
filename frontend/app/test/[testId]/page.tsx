@@ -187,7 +187,6 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     }
     if (phase === "recording") {
       stopRecording();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPhase("finalizing");
     } else if (phase === "preparation") {
       prepCountdown.pause();
@@ -358,7 +357,6 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     const sid = submissionIdRef.current;
     if (!sid) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCompletionPending(true);
     setCompletionError(null);
     completeSubmission(sid)
