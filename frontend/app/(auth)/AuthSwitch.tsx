@@ -22,7 +22,7 @@ export function AuthSwitch() {
       <span
         aria-hidden="true"
         className={cn(
-          "absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-sn-fg transition-transform duration-320 ease-spring motion-reduce:transition-none",
+          "absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-sn-fg transition-transform duration-480 ease-spring motion-reduce:transition-none",
           onSignup && "translate-x-full",
         )}
       />

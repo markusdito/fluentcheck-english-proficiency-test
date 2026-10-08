@@ -55,7 +55,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <main className="mx-auto grid w-full max-w-[1120px] flex-1 content-start items-start justify-items-center px-4 pt-3 pb-10 sm:content-center sm:items-center sm:px-8 sm:pt-6 sm:pb-26 min-[921px]:grid-cols-[minmax(0,1fr)_minmax(0,440px)] min-[921px]:gap-16">
         <section aria-label="Account" className="w-full max-w-[480px] min-[921px]:max-w-[440px]">
           <AuthSwitch />
-          <RedirectIfSignedIn>{children}</RedirectIfSignedIn>
+          {/* clip the sliding panel; padding keeps focus outlines visible */}
+          <div className="-mx-2 overflow-x-clip px-2">
+            <RedirectIfSignedIn>{children}</RedirectIfSignedIn>
+          </div>
         </section>
 
         <aside
