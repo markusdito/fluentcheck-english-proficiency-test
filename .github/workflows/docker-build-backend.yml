@@ -9,6 +9,7 @@ on:
 jobs:
   backend-image:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: backend
@@ -22,5 +23,11 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - name: Build image and run container smoke test
+      - name: Build image
+        timeout-minutes: 15
+        run: docker build --progress=plain -t fluentcheck-backend:smoke .
+      - name: Run container smoke test
+        timeout-minutes: 10
+        env:
+          SMOKE_IMAGE_PREBUILT: "1"
         run: npm run test:docker
