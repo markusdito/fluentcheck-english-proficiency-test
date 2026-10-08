@@ -27,6 +27,8 @@ function mapInitializedTest(initialized: Awaited<ReturnType<typeof initializeSub
       prepTime: entry.preparationSeconds,
       recordingDuration: entry.recordingSeconds,
       order: entry.deliveryPosition,
+      cueCard: entry.cueCard ?? null,
+      options: entry.options ?? null,
     })),
   };
 }

@@ -8,6 +8,19 @@ export interface TestSetRef {
   code: string;
 }
 
+/** Part 2 cue card (PRD §3.2): a topic and exactly three points to include. */
+export interface CueCard {
+  topic: string;
+  points: string[];
+}
+
+/** One of the four Part 3 options as delivered: always text, with its icon. */
+export interface DeliveredOption {
+  title: string;
+  bullets: string[];
+  iconUrl: string | null;
+}
+
 export interface ApiTask {
   id: string;
   promptText: string;
@@ -47,6 +60,8 @@ export interface Prompt {
   prepTime: number;
   recordingDuration: number;
   order: number;
+  cueCard: CueCard | null;
+  options: DeliveredOption[] | null;
 }
 
 export interface TestSection {

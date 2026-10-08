@@ -654,6 +654,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               totalQuestions={totalQuestions}
               audioUrl={currentQuestion.audioUrl}
               tasks={currentQuestion.tasks}
+              cueCard={currentQuestion.cueCard}
+              options={currentQuestion.options}
               autoPlay
               onAudioEnded={handlePromptAudioEnded}
             />
