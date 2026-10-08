@@ -19,7 +19,7 @@ interface StudentDashboardProps {
   onStart: () => void;
 }
 
-const tab = `-mb-px min-h-11 cursor-pointer border-0 border-b-2 border-transparent bg-transparent px-0.5 py-3 text-[15px] font-medium text-sn-muted transition-colors duration-200 hover:text-sn-fg data-selected:border-sn-fg data-selected:text-sn-fg ${focusRing}`;
+const tab = `-mb-px min-h-11 cursor-pointer border-0 border-b-2 border-transparent bg-transparent px-0.5 py-3 text-[15px] font-medium text-sn-muted transition-colors duration-200 hover:text-sn-fg data-active:border-sn-fg data-active:text-sn-fg ${focusRing}`;
 
 export function StudentDashboard({
   name,
