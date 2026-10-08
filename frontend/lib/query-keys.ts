@@ -19,5 +19,6 @@ export const queryKeys = {
   adminSubmission: (submissionId: string) =>
     ["admin", "submissions", "detail", submissionId] as const,
   adminQuestions: ["admin", "questions"] as const,
+  adminTestSets: ["admin", "test-sets"] as const,
   adminSettings: ["admin", "settings"] as const,
 } as const;

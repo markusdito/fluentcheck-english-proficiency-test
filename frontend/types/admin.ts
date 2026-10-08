@@ -84,6 +84,7 @@ export interface AdminSubmission {
   id: string;
   status: string;
   paymentRequired: boolean;
+  testSet: TestSetRef | null;
   studentName: string;
   studentEmail: string;
   createdAt: string;
@@ -144,6 +145,7 @@ export interface AdminSubmissionDetail {
   status: string;
   scoringSystem: ScoringSystem;
   paymentRequired: boolean;
+  testSet: TestSetRef | null;
   createdAt: string;
   updatedAt: string;
   student: {
@@ -199,7 +201,8 @@ export interface AdminTask {
 export interface AdminQuestion {
   id: string;
   category: string;
-  order: number;
+  testSetId: string;
+  testSet: TestSetRef;
   preparationSeconds: number;
   recordingSeconds: number;
   audioStorageKey: string | null;
@@ -215,3 +218,19 @@ import type {
   RubricBreakdown,
   ScoringSystem,
 } from "@/types/scoring";
+import type { QuestionCategory, TestSetRef } from "@/types/test";
+
+export interface AdminTestSetSlot {
+  category: QuestionCategory;
+  questionId: string | null;
+  eligible: boolean;
+}
+
+/** A Test Set is deliverable only when every slot holds an Eligible question. */
+export interface AdminTestSet {
+  id: string;
+  code: string;
+  status: "DELIVERABLE" | "DRAFT";
+  slots: AdminTestSetSlot[];
+  createdAt: string;
+}

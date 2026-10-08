@@ -13,8 +13,17 @@ import {
   updateTask,
   deleteTask,
   restoreTask,
+  fetchTestSets,
+  createTestSet,
 } from "@/lib/admin-api";
-import type { AdminQuestion, AdminTask } from "@/types/admin";
+import type { AdminQuestion, AdminTask, AdminTestSet } from "@/types/admin";
+import {
+  ASSESSMENT_SLOTS,
+  SLOT_DEFAULT_TIMING,
+  SLOT_LABELS,
+  slotLabel,
+  type QuestionCategory,
+} from "@/lib/assessment-slots";
 import { queryKeys } from "@/lib/query-keys";
 import { parseNonNegativeInteger } from "@/lib/question-form";
 import { Button } from "@/components/ui/button";
@@ -36,17 +45,106 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const CATEGORIES = ["PART_1", "PART_2", "PART_3"] as const;
-
-const categoryLabels: Record<string, string> = {
-  PART_1: "Part 1",
-  PART_2: "Part 2",
-  PART_3: "Part 3",
-};
-
 function CategoryBadge({ category }: { category: string }) {
   return (
-    <Pill>{categoryLabels[category] ?? category}</Pill>
+    <Pill>{slotLabel(category)}</Pill>
+  );
+}
+
+function TestSetPanel({
+  testSets,
+  loading,
+  onCreated,
+}: {
+  testSets: AdminTestSet[];
+  loading: boolean;
+  onCreated: (testSet: { id: string }) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  async function handleCreate(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!code.trim()) {
+      setError("Test Set code is required.");
+      return;
+    }
+    setCreating(true);
+    try {
+      const created = await createTestSet(code.trim());
+      setCode("");
+      onCreated(created);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to create Test Set.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <section>
+      <h2 className={h3}>Test Sets</h2>
+      <p className="mt-1 text-sm text-sn-muted">
+        A Submission is delivered from one Test Set. A set is deliverable only when all five
+        slots hold an active question with uploaded prompt audio and at least one task;
+        otherwise it stays a draft.
+      </p>
+      <div className={`${card} mt-4 space-y-4`}>
+        {loading ? (
+          <Loader2 className="size-5 animate-spin text-sn-muted" role="status" aria-label="Loading Test Sets" />
+        ) : testSets.length === 0 ? (
+          <p className="text-sm text-sn-muted">No Test Sets yet. Create one below, then add a question for each slot.</p>
+        ) : (
+          <ul className="space-y-3" aria-label="Test Set readiness">
+            {testSets.map((testSet) => (
+              <li key={testSet.id} className="flex flex-col gap-2 border-t border-sn-border pt-3 first:border-t-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-[15px] font-semibold">Set {testSet.code}</span>
+                  <Pill tone={testSet.status === "DELIVERABLE" ? "green" : "clay"}>
+                    {testSet.status === "DELIVERABLE" ? "Deliverable" : "Draft"}
+                  </Pill>
+                </div>
+                <ul className="flex flex-wrap gap-1.5" aria-label={`Set ${testSet.code} slots`}>
+                  {testSet.slots.map((slot) => (
+                    <li
+                      key={slot.category}
+                      className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                        slot.eligible
+                          ? "border-sn-border bg-sn-field-green text-sn-ink-green"
+                          : "border-sn-clay/30 bg-sn-clay/6 text-sn-clay"
+                      }`}
+                    >
+                      {slotLabel(slot.category).split(" · ")[1] ?? slotLabel(slot.category)}
+                      {": "}
+                      {slot.eligible ? "ready" : slot.questionId ? "draft" : "missing"}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form onSubmit={handleCreate} noValidate className="flex flex-col gap-3 border-t border-sn-border pt-4 sm:flex-row sm:items-end">
+          <Field
+            id="new-test-set-code"
+            label="New Test Set code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="A"
+            disabled={creating}
+            className="flex-1"
+          />
+          <Button type="submit" className={btnSecondary} loading={creating}>
+            Create Test Set
+          </Button>
+        </form>
+        {error && (
+          <p role="alert" className={`${errorText} rounded-xl border border-sn-clay/30 bg-sn-clay/6 px-4 py-3`}>{error}</p>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -135,8 +233,9 @@ function QuestionFormFields({
   idPrefix,
   category,
   onCategory,
-  order,
-  onOrder,
+  testSetId,
+  onTestSetId,
+  testSets,
   preparationSeconds,
   onPreparationSeconds,
   recordingSeconds,
@@ -146,48 +245,63 @@ function QuestionFormFields({
   idPrefix: string;
   category: string;
   onCategory: (v: string) => void;
-  order: string;
-  onOrder: (v: string) => void;
+  testSetId: string;
+  onTestSetId: (v: string) => void;
+  testSets: AdminTestSet[];
   preparationSeconds: string;
   onPreparationSeconds: (v: string) => void;
   recordingSeconds: string;
   onRecordingSeconds: (v: string) => void;
   disabled?: boolean;
 }) {
+  const defaults = SLOT_DEFAULT_TIMING[category as QuestionCategory];
   return (
     <>
-      <label className={label}>
-        <span>
-          Category <span className="text-sn-clay">*</span>
-        </span>
-        <select
-          className={field}
-          value={category}
-          onChange={(e) => onCategory(e.target.value)}
-          disabled={disabled}
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{categoryLabels[c]}</option>
-          ))}
-        </select>
-      </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className={label}>
+          <span>
+            Test Set <span className="text-sn-clay">*</span>
+          </span>
+          <select
+            id={`${idPrefix}-testSet`}
+            className={field}
+            value={testSetId}
+            onChange={(e) => onTestSetId(e.target.value)}
+            disabled={disabled}
+          >
+            <option value="" disabled>Select a Test Set</option>
+            {testSets.map((testSet) => (
+              <option key={testSet.id} value={testSet.id}>Set {testSet.code}</option>
+            ))}
+          </select>
+        </label>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <ToNumberInput
-          id={`${idPrefix}-order`}
-          label="Order"
-          value={order}
-          onChange={onOrder}
-          required
-          disabled={disabled}
-          helperText="Question set shared by all categories: a test uses one order in PART_1, PART_2 and PART_3 together, so each delivered order must exist in every category."
-        />
+        <label className={label}>
+          <span>
+            Slot <span className="text-sn-clay">*</span>
+          </span>
+          <select
+            id={`${idPrefix}-category`}
+            className={field}
+            value={category}
+            onChange={(e) => onCategory(e.target.value)}
+            disabled={disabled}
+          >
+            {ASSESSMENT_SLOTS.map((c) => (
+              <option key={c} value={c}>{SLOT_LABELS[c]}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <ToNumberInput
           id={`${idPrefix}-preparationSeconds`}
           label="Prep (s)"
           value={preparationSeconds}
           onChange={onPreparationSeconds}
           disabled={disabled}
+          helperText={defaults ? `Leave empty for the slot default of ${defaults.preparationSeconds}s.` : undefined}
         />
         <ToNumberInput
           id={`${idPrefix}-recordingSeconds`}
@@ -195,6 +309,7 @@ function QuestionFormFields({
           value={recordingSeconds}
           onChange={onRecordingSeconds}
           disabled={disabled}
+          helperText={defaults ? `Leave empty for the slot default of ${defaults.recordingSeconds}s.` : undefined}
         />
       </div>
     </>
@@ -456,17 +571,24 @@ export default function AdminQuestionsPage() {
     queryFn: ({ signal }) => fetchAdminQuestions({ includeRetired }, signal),
   });
   const questions = questionsQuery.data ?? [];
+  const testSetsQuery = useQuery({
+    queryKey: queryKeys.adminTestSets,
+    queryFn: ({ signal }) => fetchTestSets(signal),
+  });
+  const testSets = testSetsQuery.data ?? [];
+  const testSetCode = (testSetId: string) =>
+    testSets.find((testSet) => testSet.id === testSetId)?.code;
 
-  const [createCategory, setCreateCategory] = useState("PART_1");
-  const [createOrder, setCreateOrder] = useState("");
+  const [createCategory, setCreateCategory] = useState<string>("PART_1A");
+  const [createTestSetId, setCreateTestSetId] = useState("");
   const [createPrep, setCreatePrep] = useState("");
   const [createRecord, setCreateRecord] = useState("");
   const [createError, setCreateError] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editCategory, setEditCategory] = useState("PART_1");
-  const [editOrder, setEditOrder] = useState("");
+  const [editCategory, setEditCategory] = useState<string>("PART_1A");
+  const [editTestSetId, setEditTestSetId] = useState("");
   const [editPrep, setEditPrep] = useState("");
   const [editRecord, setEditRecord] = useState("");
   const [editTasks, setEditTasks] = useState<AdminTask[]>([]);
@@ -483,20 +605,34 @@ export default function AdminQuestionsPage() {
       questionsQueryKey,
       (current) => updater(current ?? []),
     );
+    refreshTestSets();
+  }
+
+  /** Any question, task or audio change can move a Test Set between Draft and deliverable. */
+  function refreshTestSets() {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.adminTestSets });
   }
 
   function ordered(group: AdminQuestion[]) {
-    return group.slice().sort((a, b) => a.order - b.order);
+    return group
+      .slice()
+      .sort((a, b) =>
+        (a.testSet?.code ?? testSetCode(a.testSetId) ?? "").localeCompare(
+          b.testSet?.code ?? testSetCode(b.testSetId) ?? "",
+        ),
+      );
   }
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setCreateError("");
-    let order: number;
     let preparationSeconds: number | undefined;
     let recordingSeconds: number | undefined;
+    if (!createTestSetId) {
+      setCreateError("Test Set is required.");
+      return;
+    }
     try {
-      order = parseNonNegativeInteger(createOrder, "Order", true)!;
       preparationSeconds = parseNonNegativeInteger(createPrep, "Preparation time");
       recordingSeconds = parseNonNegativeInteger(createRecord, "Recording time");
     } catch (error) {
@@ -507,12 +643,11 @@ export default function AdminQuestionsPage() {
     try {
       const question = await createQuestion({
         category: createCategory,
-        order,
+        testSetId: createTestSetId,
         preparationSeconds,
         recordingSeconds,
       });
       updateQuestions((current) => [...current, question]);
-      setCreateOrder("");
       setCreatePrep("");
       setCreateRecord("");
       // Open the draft immediately so the admin can add tasks and prompt audio.
@@ -529,7 +664,7 @@ export default function AdminQuestionsPage() {
   function startEdit(q: AdminQuestion) {
     setEditingId(q.id);
     setEditCategory(q.category);
-    setEditOrder(String(q.order));
+    setEditTestSetId(q.testSetId);
     setEditPrep(String(q.preparationSeconds));
     setEditRecord(String(q.recordingSeconds));
     setEditTasks(q.tasks.map((t) => ({ ...t })));
@@ -556,11 +691,13 @@ export default function AdminQuestionsPage() {
     e.preventDefault();
     if (!editingId) return;
     setEditError("");
-    let order: number;
     let preparationSeconds: number | undefined;
     let recordingSeconds: number | undefined;
+    if (!editTestSetId) {
+      setEditError("Test Set is required.");
+      return;
+    }
     try {
-      order = parseNonNegativeInteger(editOrder, "Order", true)!;
       preparationSeconds = parseNonNegativeInteger(editPrep, "Preparation time");
       recordingSeconds = parseNonNegativeInteger(editRecord, "Recording time");
     } catch (error) {
@@ -571,7 +708,7 @@ export default function AdminQuestionsPage() {
     try {
       const updated = await updateQuestion(editingId, {
         category: editCategory,
-        order,
+        testSetId: editTestSetId,
         preparationSeconds,
         recordingSeconds,
       });
@@ -636,7 +773,7 @@ export default function AdminQuestionsPage() {
       );
       setActionSuccess(
         restored
-          ? `Question restored at ${categoryLabels[restored.category] ?? restored.category}, order ${restored.order}. Child task states are unchanged.`
+          ? `Question restored at Set ${restored.testSet?.code ?? testSetCode(restored.testSetId) ?? "?"}, ${slotLabel(restored.category)}. Child task states are unchanged.`
           : "Question restored. Child task states are unchanged.",
       );
     } catch (err) {
@@ -723,10 +860,21 @@ export default function AdminQuestionsPage() {
       <div>
         <h1 className={h2}>Question bank</h1>
         <p className={lead}>
-          Manage speaking questions, grouped by part, and their tasks. Retiring a
-          question never rewrites delivered submissions.
+          Manage Test Sets and their speaking questions, one per slot, with their
+          tasks. Retiring a question never rewrites delivered submissions.
         </p>
       </div>
+
+      {!editingId && (
+        <TestSetPanel
+          testSets={testSets}
+          loading={testSetsQuery.isPending}
+          onCreated={(created) => {
+            refreshTestSets();
+            setCreateTestSetId(created.id);
+          }}
+        />
+      )}
 
       {actionError && (
         <p role="alert" className={`${errorText} rounded-xl border border-sn-clay/30 bg-sn-clay/6 px-4 py-3 `}>{actionError}</p>
@@ -786,8 +934,9 @@ export default function AdminQuestionsPage() {
                 idPrefix="create-question"
                 category={createCategory}
                 onCategory={setCreateCategory}
-                order={createOrder}
-                onOrder={setCreateOrder}
+                testSetId={createTestSetId}
+                onTestSetId={setCreateTestSetId}
+                testSets={testSets}
                 preparationSeconds={createPrep}
                 onPreparationSeconds={setCreatePrep}
                 recordingSeconds={createRecord}
@@ -825,8 +974,9 @@ export default function AdminQuestionsPage() {
                   idPrefix="edit-question"
                   category={editCategory}
                   onCategory={setEditCategory}
-                  order={editOrder}
-                  onOrder={setEditOrder}
+                  testSetId={editTestSetId}
+                  onTestSetId={setEditTestSetId}
+                  testSets={testSets}
                   preparationSeconds={editPrep}
                   onPreparationSeconds={setEditPrep}
                   recordingSeconds={editRecord}
@@ -863,11 +1013,12 @@ export default function AdminQuestionsPage() {
                   onChange={setEditTasks}
                   onRestoreTask={(taskId) => void handleRestoreTask(editingId, taskId)}
                   restoringTaskKey={restoringTaskKey}
-                  onCommitted={() =>
+                  onCommitted={() => {
                     void queryClient.invalidateQueries({
                       queryKey: questionsQueryKey,
-                    })
-                  }
+                    });
+                    refreshTestSets();
+                  }}
                   disabled={editLoading}
                 />
                 <div className="flex justify-end gap-3">
@@ -901,21 +1052,21 @@ export default function AdminQuestionsPage() {
 
       {/* Question lists by category */}
       {!editingId && (
-        <Tabs defaultValue="PART_1">
+        <Tabs defaultValue="PART_1A">
           <TabsList variant="line" className="mb-6 h-auto! w-full justify-start gap-1 rounded-none border-b border-sn-border p-0">
-            {CATEGORIES.map((category) => (
+            {ASSESSMENT_SLOTS.map((category) => (
               <TabsTrigger key={category} value={category} className="min-h-11 flex-none rounded-t-xl rounded-b-none px-4 text-[15px] font-normal text-sn-muted after:bottom-[-1px]! after:bg-sn-fg focus-visible:ring-0 data-active:font-medium data-active:text-sn-fg">
-                {categoryLabels[category]}
+                {SLOT_LABELS[category]}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          {CATEGORIES.map((category) => {
+          {ASSESSMENT_SLOTS.map((category) => {
             const items = group(category);
             return (
               <TabsContent key={category} value={category}>
                 {items.length === 0 ? (
-                  <p className={empty}>No questions in this part yet. Create the first {categoryLabels[category]} question above.</p>
+                  <p className={empty}>No questions in this slot yet. Create the first {SLOT_LABELS[category]} question above.</p>
                 ) : (
                   <div className="space-y-4">
                     {items.map((q) => {
@@ -930,7 +1081,7 @@ export default function AdminQuestionsPage() {
                               <div className="mb-2 flex flex-wrap items-center gap-3">
                                 <CategoryBadge category={q.category} />
                                 <LifecycleBadge entity="Question" retired={retired} />
-                                <span className={meta}>Order {q.order}</span>
+                                <span className={meta}>Set {q.testSet?.code ?? testSetCode(q.testSetId) ?? "?"}</span>
                                 <AudioUploadBadge status={q.audioUploadStatus} />
                               </div>
                               <p className="text-[15px] leading-6">

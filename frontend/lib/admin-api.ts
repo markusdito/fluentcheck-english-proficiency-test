@@ -7,6 +7,7 @@ import type {
   AdminSubmission,
   AdminSubmissionDetail,
   AdminTask,
+  AdminTestSet,
   AdminUser,
   Paginated,
   AssignSubmissionResult,
@@ -197,7 +198,7 @@ export async function fetchAdminQuestions(
 
 interface QuestionPayload {
   category: string;
-  order: number;
+  testSetId: string;
   preparationSeconds?: number;
   recordingSeconds?: number;
 }
@@ -214,6 +215,28 @@ export async function updateQuestion(
   payload: Partial<QuestionPayload>
 ): Promise<AdminQuestion> {
   const res = await api.put<QuestionEnvelope>(`/questions/${id}`, payload);
+  return res.data;
+}
+
+/** Every Test Set with per-slot readiness (Draft vs deliverable). */
+export async function fetchTestSets(signal?: AbortSignal): Promise<AdminTestSet[]> {
+  const res = await api.get<ListEnvelope<AdminTestSet>>("/admin/test-sets", { signal });
+  return res.data;
+}
+
+export async function createTestSet(code: string): Promise<Pick<AdminTestSet, "id" | "code" | "createdAt">> {
+  const res = await api.post<{ status: string; data: Pick<AdminTestSet, "id" | "code" | "createdAt"> }>(
+    "/admin/test-sets",
+    { code },
+  );
+  return res.data;
+}
+
+export async function renameTestSet(id: string, code: string): Promise<Pick<AdminTestSet, "id" | "code" | "createdAt">> {
+  const res = await api.put<{ status: string; data: Pick<AdminTestSet, "id" | "code" | "createdAt"> }>(
+    `/admin/test-sets/${id}`,
+    { code },
+  );
   return res.data;
 }
 
