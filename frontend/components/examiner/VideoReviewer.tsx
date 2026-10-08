@@ -1,5 +1,6 @@
 "use client";
 
+import { slotLabel } from "@/lib/assessment-slots";
 import type { AssignmentAnswer } from "@/types/examiner";
 import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
 import { Pill } from "@/components/student/StatusPill";
@@ -27,7 +28,7 @@ export function VideoReviewer({ answers, currentIndex }: VideoReviewerProps) {
     <article className={card} aria-labelledby="answer-title">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 id="answer-title" className={h3}>
-          {current.questionCategory.replace(/_/g, " ")}
+          {slotLabel(current.questionCategory)}
         </h2>
         <Pill>
           Answer {currentIndex + 1} of {answers.length}

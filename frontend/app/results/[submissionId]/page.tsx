@@ -1,5 +1,6 @@
 "use client";
 
+import { slotLabel, testSetLabel } from "@/lib/assessment-slots";
 import { useCallback, useEffect, useRef, useState, use } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -30,7 +31,7 @@ const CRITERION_LABELS = {
 
 const REVIEW_STATUSES = new Set(["PAID", "SCORING"]);
 
-const categoryLabel = (c: string) => c.replace(/_/g, " ").toLowerCase().replace(/^\w/, (x) => x.toUpperCase());
+const categoryLabel = slotLabel;
 
 export default function SubmissionResultPage({
   params,
@@ -153,6 +154,7 @@ export default function SubmissionResultPage({
         <p className={meta}>
           {dateText} ·{" "}
           {created.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+          {submission.testSet && ` · ${testSetLabel(submission.testSet)}`}
         </p>
       </div>
 

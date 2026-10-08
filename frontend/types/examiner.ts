@@ -2,6 +2,7 @@ import type {
   RubricValues,
   ScoringSystem,
 } from "@/types/scoring";
+import type { TestSetRef } from "@/types/test";
 
 export interface ExaminerTask {
   id: string;
@@ -15,6 +16,7 @@ export interface ExaminerAssignmentSummary {
   submissionId: string;
   studentName: string;
   submissionStatus: string;
+  testSet: TestSetRef | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,6 +45,7 @@ export interface AssignmentDetail {
   studentName: string;
   submissionStatus: string;
   scoringSystem: ScoringSystem;
+  testSet: TestSetRef | null;
   answers: AssignmentAnswer[];
   createdAt: string;
   updatedAt: string;

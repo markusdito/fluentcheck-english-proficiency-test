@@ -1,5 +1,6 @@
 "use client";
 
+import { slotLabel } from "@/lib/assessment-slots";
 import { useState, type ReactNode } from "react";
 import { ChevronLeftIcon } from "lucide-react";
 import type { AssignmentAnswer } from "@/types/examiner";
@@ -54,7 +55,7 @@ const BANDS = Array.from({ length: 11 }, (_, i) => (1 + i / 2).toFixed(1));
 const field = `min-h-11 w-full rounded-xl border border-sn-border bg-sn-surface px-3 py-2.5 text-[15px] text-sn-fg transition-colors hover:border-sn-fg/32 ${focusRing}`;
 const label = "grid gap-1.5 text-sm text-sn-muted";
 
-export const partLabel = (category: string) => category.replace(/_/g, " ");
+export const partLabel = slotLabel;
 
 function rubricDraft(rubric?: RubricValues | null): RubricDraft {
   const band = (v?: number) => (v == null ? "" : v.toFixed(1));
