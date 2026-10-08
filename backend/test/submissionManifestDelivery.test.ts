@@ -37,7 +37,38 @@ test("builds ordered delivery from immutable snapshot fields", async () => {
     promptMediaSizeBytes: 42,
     promptMediaUrl: "https://cdn.test/questions/q-1/prompt.webm",
     tasks: [{ order: 1, promptText: "Task 1" }],
+    cueCard: null,
+    options: null,
   });
+});
+
+test("delivers the snapshotted cue card and options with signed icons", async () => {
+  const cueCard = { topic: "A trip", points: ["Where", "Who", "Why"] };
+  const options = [0, 1, 2, 3].map((index) => ({
+    title: `Option ${index}`,
+    bullets: ["one", "two"],
+    icon: { storageKey: `icons/${index}.png`, mimeType: "image/png", sizeBytes: 10 },
+  }));
+  const base = manifest();
+  base.entries[2] = { ...base.entries[2], cueCard };
+  base.entries[3] = { ...base.entries[3], options };
+  const result = await buildManifestDelivery(
+    base,
+    async (key) => `https://cdn.test/${key}`,
+    async (key) => `https://icons.test/${key}`,
+  );
+  assert.deepEqual(result[2].cueCard, cueCard);
+  assert.deepEqual(result[3].options, options.map((option, index) => ({
+    title: option.title,
+    bullets: option.bullets,
+    iconUrl: `https://icons.test/icons/${index}.png`,
+  })));
+
+  // An option icon that cannot be signed fails delivery closed, never icon-less.
+  await assert.rejects(
+    buildManifestDelivery(base, async (key) => `https://cdn.test/${key}`, async () => "http://insecure"),
+    ManifestEvidenceUnavailableError,
+  );
 });
 
 test("fails closed for unknown versions, incomplete snapshots, and non-HTTPS media", async () => {

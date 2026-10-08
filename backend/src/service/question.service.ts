@@ -3,6 +3,12 @@ import {Prisma} from "../generated/client.js";
 import {QuestionCategory} from "../generated/enums.js";
 import {lockPromptMediaStorageIdentity} from "./promptMediaLock.service.js";
 import {ASSESSMENT_SLOTS, SLOT_DEFAULT_TIMING} from "./assessmentSlots.js";
+import {
+  assertContentMatchesSlot,
+  hasDeliverableContent,
+  parseCueCard,
+  parseOptions,
+} from "./questionContent.js";
 
 export class PositionConflictError extends Error {
   constructor(
@@ -112,6 +118,9 @@ export interface CreateQuestionInput {
   preparationSeconds?: number;
   recordingSeconds?: number;
   tasks?: CreateTaskInput[];
+  /** Unvalidated admin input; see questionContent.ts. Undefined leaves it unset. */
+  cueCard?: unknown;
+  options?: unknown;
 }
 
 export interface UpdateQuestionInput {
@@ -119,6 +128,13 @@ export interface UpdateQuestionInput {
   testSetId?: string;
   preparationSeconds?: number;
   recordingSeconds?: number;
+  cueCard?: unknown;
+  options?: unknown;
+}
+
+/** Prisma needs DbNull, not null, to clear a nullable Json column. */
+function jsonValue<T>(value: T | null) {
+  return value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
 }
 
 export interface UpdateTaskInput {
@@ -141,6 +157,8 @@ export async function retrieveAdminQuestions(includeRetired = false) {
       testSet: {select: {id: true, code: true}},
       preparationSeconds: true,
       recordingSeconds: true,
+      cueCard: true,
+      options: true,
       audioStorageKey: true,
       audioMimeType: true,
       audioSizeBytes: true,
@@ -165,7 +183,7 @@ export async function retrieveAdminQuestions(includeRetired = false) {
  * Retrieve only questions that are ready to be delivered to test takers.
  */
 export async function retrieveTestQuestions() {
-  return prisma.question.findMany({
+  const questions = await prisma.question.findMany({
     where: {
       deletedAt: null,
       category: {in: [...ASSESSMENT_SLOTS]},
@@ -179,6 +197,8 @@ export async function retrieveTestQuestions() {
       testSetId: true,
       preparationSeconds: true,
       recordingSeconds: true,
+      cueCard: true,
+      options: true,
       audioStorageKey: true,
       audioMimeType: true,
       audioUploadStatus: true,
@@ -193,6 +213,7 @@ export async function retrieveTestQuestions() {
       },
     },
   });
+  return questions.filter(hasDeliverableContent);
 }
 
 /**
@@ -206,6 +227,9 @@ export async function createQuestion(userId: string, data: CreateQuestionInput) 
 
   await assertTestSetExists(data.testSetId);
   const defaults = SLOT_DEFAULT_TIMING[data.category];
+  const cueCard = data.cueCard === undefined ? null : parseCueCard(data.cueCard);
+  const options = data.options === undefined ? null : parseOptions(data.options, null);
+  assertContentMatchesSlot(data.category, {cueCard, options});
 
   try {
     return await prisma.question.create({
@@ -214,6 +238,8 @@ export async function createQuestion(userId: string, data: CreateQuestionInput) 
         testSetId: data.testSetId,
         preparationSeconds: data.preparationSeconds ?? defaults.preparationSeconds,
         recordingSeconds: data.recordingSeconds ?? defaults.recordingSeconds,
+        ...(cueCard && {cueCard: jsonValue(cueCard)}),
+        ...(options && {options: jsonValue(options)}),
         createdById: userId,
         tasks: data.tasks?.length
           ? {create: data.tasks.map((task) => ({promptText: task.promptText, order: task.order}))}
@@ -242,10 +268,16 @@ export async function createQuestion(userId: string, data: CreateQuestionInput) 
 export async function updateQuestion(id: string, data: UpdateQuestionInput) {
   const existing = await prisma.question.findUnique({
     where: {id},
-    select: {id: true, category: true, testSetId: true, deletedAt: true},
+    select: {id: true, category: true, testSetId: true, deletedAt: true, cueCard: true, options: true},
   });
   if (!existing || existing.deletedAt) throw new Error("Question not found");
   if (data.testSetId !== undefined) await assertTestSetExists(data.testSetId);
+  const cueCard = data.cueCard === undefined ? undefined : parseCueCard(data.cueCard);
+  const options = data.options === undefined ? undefined : parseOptions(data.options, existing.options);
+  assertContentMatchesSlot(data.category ?? existing.category, {
+    cueCard: cueCard === undefined ? existing.cueCard : cueCard,
+    options: options === undefined ? existing.options : options,
+  });
 
   try {
     return await prisma.question.update({
@@ -255,6 +287,8 @@ export async function updateQuestion(id: string, data: UpdateQuestionInput) {
         ...(data.testSetId !== undefined && {testSetId: data.testSetId}),
         ...(data.preparationSeconds !== undefined && {preparationSeconds: data.preparationSeconds}),
         ...(data.recordingSeconds !== undefined && {recordingSeconds: data.recordingSeconds}),
+        ...(cueCard !== undefined && {cueCard: jsonValue(cueCard)}),
+        ...(options !== undefined && {options: jsonValue(options)}),
       },
       include: {
         testSet: {select: {id: true, code: true}},

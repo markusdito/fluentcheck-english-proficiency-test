@@ -21,6 +21,8 @@ import {
   confirmQuestionAudioUploadHandler,
   getQuestionAudioUrl,
   getTestQuestions,
+  createOptionIconPresignedUrl,
+  confirmOptionIconUploadHandler,
 } from "../controllers/question.controller.js";
 
 export function createQuestionRouter(runtime?: RateLimitRuntime) {
@@ -65,6 +67,22 @@ export function createQuestionRouter(runtime?: RateLimitRuntime) {
     ...questionAudioLimiters,
     requireRole("ADMIN"),
     confirmQuestionAudioUploadHandler,
+  );
+
+  // Admin: Part 3 option icon upload (direct to R2 via presigned PUT)
+  router.post(
+    "/:id/options/:index/icon/presigned-url",
+    verifyToken,
+    ...questionAudioLimiters,
+    requireRole("ADMIN"),
+    createOptionIconPresignedUrl,
+  );
+  router.post(
+    "/:id/options/:index/icon/confirm",
+    verifyToken,
+    ...questionAudioLimiters,
+    requireRole("ADMIN"),
+    confirmOptionIconUploadHandler,
   );
 
   // Admin: task management under a question

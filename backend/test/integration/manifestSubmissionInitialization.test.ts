@@ -8,7 +8,7 @@ import type { Server } from "node:http";
 import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { SLOTS, createFixtureTestSet, manifestTestSetData, type Slot } from "../fixtures/testSets.js";
+import { SLOTS, createFixtureTestSet, deliverableContent, manifestTestSetData, type Slot } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 let container: StartedPostgreSqlContainer;
@@ -80,6 +80,7 @@ async function createEligibleQuestion(testSetId: string, category: Slot, promptT
       audioMimeType: "audio/webm",
       audioSizeBytes: 128,
       audioUploadStatus: "UPLOADED",
+      ...deliverableContent(category),
       tasks: { create: [{ promptText, order: 1 }] },
     },
   });
@@ -352,6 +353,7 @@ test("student prompt media is limited to the active submission manifest", async 
       audioMimeType: "audio/webm",
       audioSizeBytes: 128,
       audioUploadStatus: "UPLOADED",
+      ...deliverableContent(category),
       tasks: { create: { promptText: "Describe the scene.", order: 1 } },
     },
   })));

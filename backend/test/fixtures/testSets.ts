@@ -21,3 +21,26 @@ export async function createFixtureTestSet(db: TestSetClient, prefix = "T") {
 export function manifestTestSetData(testSet: { id: string; code: string }) {
   return { version: 2, testSetId: testSet.id, testSetCode: testSet.code };
 }
+
+/**
+ * Structured content a slot needs to be deliverable: four options with icons
+ * for Part 3, a cue card for Part 2, nothing otherwise. Spread into
+ * `prisma.question.create({ data })`.
+ */
+export function deliverableContent(category: string) {
+  if (category === "PART_2") {
+    return { cueCard: { topic: "A memorable trip", points: ["Where", "Who with", "Why"] } };
+  }
+  if (category !== "PART_3") return {};
+  return {
+    options: [0, 1, 2, 3].map((index) => ({
+      title: `Option ${index + 1}`,
+      bullets: ["First point", "Second point"],
+      icon: {
+        storageKey: `questions/${randomUUID()}/options/${index}/${randomUUID()}.png`,
+        mimeType: "image/png",
+        sizeBytes: 64,
+      },
+    })),
+  };
+}

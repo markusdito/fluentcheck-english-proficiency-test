@@ -12,7 +12,7 @@ import {
 import type { Express } from "express";
 import jwt from "jsonwebtoken";
 import type { PrismaClient } from "../../src/generated/client.js";
-import { SLOTS, type Slot } from "../fixtures/testSets.js";
+import { SLOTS, deliverableContent, type Slot } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 const TEST_PASSWORD_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
@@ -161,6 +161,7 @@ async function createSlotQuestion(
             audioMimeType: "audio/webm",
             audioSizeBytes: 128,
             audioUploadStatus: "UPLOADED" as const,
+            ...deliverableContent(category),
           }
         : {}),
       tasks: { create: [{ promptText: `${category} prompt`, order: 1 }] },

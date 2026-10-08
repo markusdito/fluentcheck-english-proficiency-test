@@ -22,11 +22,31 @@ import {
   confirmQuestionAudioUpload,
   createQuestionAudioViewUrl,
   createQuestionAudioViewUrlFromMetadata,
+  createOptionIconPresignedUpload,
+  confirmOptionIconUpload,
+  createOptionIconViewUrl,
 } from "../service/upload.service.js";
+import {
+  InvalidQuestionContentError,
+  presentOptions,
+} from "../service/questionContent.js";
 import { buildTestQuestionDelivery } from "../service/test-question-delivery.service.js";
 import {
   ManifestEvidenceUnavailableError,
 } from "../service/submissionManifestDelivery.service.js";
+
+/** Admin view of a Question: option icons carry a short-lived preview URL next to their identity. */
+async function presentAdminQuestion<T extends { options?: unknown }>(question: T) {
+  const presented = await presentOptions(question.options, createOptionIconViewUrl);
+  if (!presented) return question;
+  return {
+    ...question,
+    options: (question.options as Array<Record<string, unknown>>).map((option, index) => ({
+      ...option,
+      iconUrl: presented[index].iconUrl,
+    })),
+  };
+}
 
 function sendAssessmentUnavailable(res: Response) {
   res.setHeader("Retry-After", "5");
@@ -156,6 +176,10 @@ function handleQuestionError(res: Response, error: unknown) {
     res.status(409).json({ error: error.message });
     return;
   }
+  if (error instanceof InvalidQuestionContentError) {
+    res.status(400).json({ error: error.message });
+    return;
+  }
   if (error instanceof TestSetNotFoundError) {
     res.status(404).json({ error: error.message });
     return;
@@ -175,7 +199,7 @@ export async function getQuestions(req: Request, res: Response) {
     const questions = await retrieveAdminQuestions();
     res.status(200).json({
       status: "success",
-      data: questions,
+      data: await Promise.all(questions.map(presentAdminQuestion)),
     });
   } catch (error) {
     console.error("Error fetching questions:", error);
@@ -189,7 +213,7 @@ export async function getAdminQuestions(req: Request, res: Response) {
     const questions = await retrieveAdminQuestions(includeRetired);
     res.status(200).json({
       status: "success",
-      data: questions,
+      data: await Promise.all(questions.map(presentAdminQuestion)),
     });
   } catch (error) {
     console.error("Error fetching admin questions:", error);
@@ -208,7 +232,7 @@ export async function restoreQuestion(req: Request, res: Response) {
 
 export async function createQuestion(req: Request, res: Response) {
   try {
-    const { category, testSetId, preparationSeconds, recordingSeconds, tasks } = req.body;
+    const { category, testSetId, preparationSeconds, recordingSeconds, tasks, cueCard, options } = req.body;
 
     if (!isQuestionCategory(category)) {
       res.status(400).json({ error: CATEGORY_ERROR });
@@ -252,9 +276,11 @@ export async function createQuestion(req: Request, res: Response) {
         promptText: task.promptText.trim(),
         order: task.order,
       })),
+      cueCard,
+      options,
     });
 
-    res.status(201).json({ status: "success", data: question });
+    res.status(201).json({ status: "success", data: await presentAdminQuestion(question) });
   } catch (error) {
     handleQuestionError(res, error);
   }
@@ -263,7 +289,7 @@ export async function createQuestion(req: Request, res: Response) {
 export async function updateQuestion(req: Request, res: Response) {
   try {
     const id = req.params.id as string;
-    const { category, testSetId, preparationSeconds, recordingSeconds } = req.body;
+    const { category, testSetId, preparationSeconds, recordingSeconds, cueCard, options } = req.body;
 
     if (category !== undefined && !isQuestionCategory(category)) {
       res.status(400).json({ error: CATEGORY_ERROR });
@@ -287,9 +313,11 @@ export async function updateQuestion(req: Request, res: Response) {
       testSetId,
       preparationSeconds,
       recordingSeconds,
+      cueCard,
+      options,
     });
 
-    res.status(200).json({ status: "success", data: question });
+    res.status(200).json({ status: "success", data: await presentAdminQuestion(question) });
   } catch (error) {
     handleQuestionError(res, error);
   }
@@ -370,5 +398,57 @@ export async function restoreTask(req: Request, res: Response) {
     res.status(200).json({ status: "success", data: task });
   } catch (error) {
     handleQuestionError(res, error);
+  }
+}
+
+function handleOptionIconError(res: Response, error: unknown) {
+  const message = error instanceof Error ? error.message : "Internal server error";
+  const status =
+    message === "Question not found"
+      ? 404
+      : message === "Only a Part 3 Question has option icons" ||
+        message === "Save the four option texts before uploading icons"
+      ? 409
+      : message.startsWith("Invalid") || message === "Option icon not found in storage"
+      ? 400
+      : 500;
+  res.status(status).json({ error: message });
+}
+
+/** POST /api/questions/:id/options/:index/icon/presigned-url (admin only). */
+export async function createOptionIconPresignedUrl(req: Request, res: Response) {
+  try {
+    const { mimeType } = req.body as { mimeType?: unknown };
+    if (typeof mimeType !== "string") {
+      res.status(400).json({ error: "mimeType is required" });
+      return;
+    }
+    const result = await createOptionIconPresignedUpload(
+      req.params.id as string,
+      Number(req.params.index),
+      mimeType,
+    );
+    res.status(201).json({ status: "success", data: result });
+  } catch (error) {
+    handleOptionIconError(res, error);
+  }
+}
+
+/** POST /api/questions/:id/options/:index/icon/confirm (admin only). */
+export async function confirmOptionIconUploadHandler(req: Request, res: Response) {
+  try {
+    const { storageKey } = req.body as { storageKey?: unknown };
+    if (typeof storageKey !== "string") {
+      res.status(400).json({ error: "storageKey is required" });
+      return;
+    }
+    const icon = await confirmOptionIconUpload(
+      req.params.id as string,
+      Number(req.params.index),
+      storageKey,
+    );
+    res.status(200).json({ status: "success", data: icon });
+  } catch (error) {
+    handleOptionIconError(res, error);
   }
 }

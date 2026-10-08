@@ -81,6 +81,8 @@ export type ManifestEntryCountAggregateOutputType = {
   promptMediaStorageKey: number
   promptMediaMimeType: number
   promptMediaSizeBytes: number
+  cueCard: number
+  options: number
   sourceQuestionId: number
   createdAt: number
   _all: number
@@ -142,6 +144,8 @@ export type ManifestEntryCountAggregateInputType = {
   promptMediaStorageKey?: true
   promptMediaMimeType?: true
   promptMediaSizeBytes?: true
+  cueCard?: true
+  options?: true
   sourceQuestionId?: true
   createdAt?: true
   _all?: true
@@ -244,6 +248,8 @@ export type ManifestEntryGroupByOutputType = {
   promptMediaStorageKey: string
   promptMediaMimeType: string
   promptMediaSizeBytes: number
+  cueCard: runtime.JsonValue | null
+  options: runtime.JsonValue | null
   sourceQuestionId: string
   createdAt: Date
   _count: ManifestEntryCountAggregateOutputType | null
@@ -282,6 +288,8 @@ export type ManifestEntryWhereInput = {
   promptMediaStorageKey?: Prisma.StringFilter<"ManifestEntry"> | string
   promptMediaMimeType?: Prisma.StringFilter<"ManifestEntry"> | string
   promptMediaSizeBytes?: Prisma.IntFilter<"ManifestEntry"> | number
+  cueCard?: Prisma.JsonNullableFilter<"ManifestEntry">
+  options?: Prisma.JsonNullableFilter<"ManifestEntry">
   sourceQuestionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestEntry"> | Date | string
   manifest?: Prisma.XOR<Prisma.SubmissionManifestScalarRelationFilter, Prisma.SubmissionManifestWhereInput>
@@ -301,6 +309,8 @@ export type ManifestEntryOrderByWithRelationInput = {
   promptMediaStorageKey?: Prisma.SortOrder
   promptMediaMimeType?: Prisma.SortOrder
   promptMediaSizeBytes?: Prisma.SortOrder
+  cueCard?: Prisma.SortOrderInput | Prisma.SortOrder
+  options?: Prisma.SortOrderInput | Prisma.SortOrder
   sourceQuestionId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   manifest?: Prisma.SubmissionManifestOrderByWithRelationInput
@@ -327,6 +337,8 @@ export type ManifestEntryWhereUniqueInput = Prisma.AtLeast<{
   promptMediaStorageKey?: Prisma.StringFilter<"ManifestEntry"> | string
   promptMediaMimeType?: Prisma.StringFilter<"ManifestEntry"> | string
   promptMediaSizeBytes?: Prisma.IntFilter<"ManifestEntry"> | number
+  cueCard?: Prisma.JsonNullableFilter<"ManifestEntry">
+  options?: Prisma.JsonNullableFilter<"ManifestEntry">
   sourceQuestionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestEntry"> | Date | string
   manifest?: Prisma.XOR<Prisma.SubmissionManifestScalarRelationFilter, Prisma.SubmissionManifestWhereInput>
@@ -346,6 +358,8 @@ export type ManifestEntryOrderByWithAggregationInput = {
   promptMediaStorageKey?: Prisma.SortOrder
   promptMediaMimeType?: Prisma.SortOrder
   promptMediaSizeBytes?: Prisma.SortOrder
+  cueCard?: Prisma.SortOrderInput | Prisma.SortOrder
+  options?: Prisma.SortOrderInput | Prisma.SortOrder
   sourceQuestionId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ManifestEntryCountOrderByAggregateInput
@@ -369,6 +383,8 @@ export type ManifestEntryScalarWhereWithAggregatesInput = {
   promptMediaStorageKey?: Prisma.StringWithAggregatesFilter<"ManifestEntry"> | string
   promptMediaMimeType?: Prisma.StringWithAggregatesFilter<"ManifestEntry"> | string
   promptMediaSizeBytes?: Prisma.IntWithAggregatesFilter<"ManifestEntry"> | number
+  cueCard?: Prisma.JsonNullableWithAggregatesFilter<"ManifestEntry">
+  options?: Prisma.JsonNullableWithAggregatesFilter<"ManifestEntry">
   sourceQuestionId?: Prisma.UuidWithAggregatesFilter<"ManifestEntry"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ManifestEntry"> | Date | string
 }
@@ -382,6 +398,8 @@ export type ManifestEntryCreateInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   manifest: Prisma.SubmissionManifestCreateNestedOneWithoutEntriesInput
   sourceQuestion: Prisma.QuestionCreateNestedOneWithoutManifestEntriesInput
@@ -400,6 +418,8 @@ export type ManifestEntryUncheckedCreateInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId: string
   createdAt?: Date | string
   tasks?: Prisma.ManifestTaskUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -415,6 +435,8 @@ export type ManifestEntryUpdateInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput
   sourceQuestion?: Prisma.QuestionUpdateOneRequiredWithoutManifestEntriesNestedInput
@@ -433,6 +455,8 @@ export type ManifestEntryUncheckedUpdateInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tasks?: Prisma.ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -450,6 +474,8 @@ export type ManifestEntryCreateManyInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId: string
   createdAt?: Date | string
 }
@@ -463,6 +489,8 @@ export type ManifestEntryUpdateManyMutationInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -477,6 +505,8 @@ export type ManifestEntryUncheckedUpdateManyInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -522,6 +552,8 @@ export type ManifestEntryCountOrderByAggregateInput = {
   promptMediaStorageKey?: Prisma.SortOrder
   promptMediaMimeType?: Prisma.SortOrder
   promptMediaSizeBytes?: Prisma.SortOrder
+  cueCard?: Prisma.SortOrder
+  options?: Prisma.SortOrder
   sourceQuestionId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -703,6 +735,8 @@ export type ManifestEntryCreateWithoutSourceQuestionInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   manifest: Prisma.SubmissionManifestCreateNestedOneWithoutEntriesInput
   tasks?: Prisma.ManifestTaskCreateNestedManyWithoutManifestEntryInput
@@ -720,6 +754,8 @@ export type ManifestEntryUncheckedCreateWithoutSourceQuestionInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   tasks?: Prisma.ManifestTaskUncheckedCreateNestedManyWithoutManifestEntryInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -765,6 +801,8 @@ export type ManifestEntryScalarWhereInput = {
   promptMediaStorageKey?: Prisma.StringFilter<"ManifestEntry"> | string
   promptMediaMimeType?: Prisma.StringFilter<"ManifestEntry"> | string
   promptMediaSizeBytes?: Prisma.IntFilter<"ManifestEntry"> | number
+  cueCard?: Prisma.JsonNullableFilter<"ManifestEntry">
+  options?: Prisma.JsonNullableFilter<"ManifestEntry">
   sourceQuestionId?: Prisma.UuidFilter<"ManifestEntry"> | string
   createdAt?: Prisma.DateTimeFilter<"ManifestEntry"> | Date | string
 }
@@ -778,6 +816,8 @@ export type ManifestEntryCreateWithoutManifestInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   sourceQuestion: Prisma.QuestionCreateNestedOneWithoutManifestEntriesInput
   tasks?: Prisma.ManifestTaskCreateNestedManyWithoutManifestEntryInput
@@ -793,6 +833,8 @@ export type ManifestEntryUncheckedCreateWithoutManifestInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId: string
   createdAt?: Date | string
   tasks?: Prisma.ManifestTaskUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -834,6 +876,8 @@ export type ManifestEntryCreateWithoutTasksInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   manifest: Prisma.SubmissionManifestCreateNestedOneWithoutEntriesInput
   sourceQuestion: Prisma.QuestionCreateNestedOneWithoutManifestEntriesInput
@@ -851,6 +895,8 @@ export type ManifestEntryUncheckedCreateWithoutTasksInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId: string
   createdAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -881,6 +927,8 @@ export type ManifestEntryUpdateWithoutTasksInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput
   sourceQuestion?: Prisma.QuestionUpdateOneRequiredWithoutManifestEntriesNestedInput
@@ -898,6 +946,8 @@ export type ManifestEntryUncheckedUpdateWithoutTasksInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -912,6 +962,8 @@ export type ManifestEntryCreateWithoutAnswersInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   manifest: Prisma.SubmissionManifestCreateNestedOneWithoutEntriesInput
   sourceQuestion: Prisma.QuestionCreateNestedOneWithoutManifestEntriesInput
@@ -929,6 +981,8 @@ export type ManifestEntryUncheckedCreateWithoutAnswersInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId: string
   createdAt?: Date | string
   tasks?: Prisma.ManifestTaskUncheckedCreateNestedManyWithoutManifestEntryInput
@@ -959,6 +1013,8 @@ export type ManifestEntryUpdateWithoutAnswersInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput
   sourceQuestion?: Prisma.QuestionUpdateOneRequiredWithoutManifestEntriesNestedInput
@@ -976,6 +1032,8 @@ export type ManifestEntryUncheckedUpdateWithoutAnswersInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tasks?: Prisma.ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -992,6 +1050,8 @@ export type ManifestEntryCreateManySourceQuestionInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
@@ -1004,6 +1064,8 @@ export type ManifestEntryUpdateWithoutSourceQuestionInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUpdateOneRequiredWithoutEntriesNestedInput
   tasks?: Prisma.ManifestTaskUpdateManyWithoutManifestEntryNestedInput
@@ -1021,6 +1083,8 @@ export type ManifestEntryUncheckedUpdateWithoutSourceQuestionInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tasks?: Prisma.ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -1037,6 +1101,8 @@ export type ManifestEntryUncheckedUpdateManyWithoutSourceQuestionInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1049,6 +1115,8 @@ export type ManifestEntryCreateManyManifestInput = {
   promptMediaStorageKey?: string
   promptMediaMimeType?: string
   promptMediaSizeBytes?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId: string
   createdAt?: Date | string
 }
@@ -1062,6 +1130,8 @@ export type ManifestEntryUpdateWithoutManifestInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sourceQuestion?: Prisma.QuestionUpdateOneRequiredWithoutManifestEntriesNestedInput
   tasks?: Prisma.ManifestTaskUpdateManyWithoutManifestEntryNestedInput
@@ -1077,6 +1147,8 @@ export type ManifestEntryUncheckedUpdateWithoutManifestInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tasks?: Prisma.ManifestTaskUncheckedUpdateManyWithoutManifestEntryNestedInput
@@ -1092,6 +1164,8 @@ export type ManifestEntryUncheckedUpdateManyWithoutManifestInput = {
   promptMediaStorageKey?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaMimeType?: Prisma.StringFieldUpdateOperationsInput | string
   promptMediaSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceQuestionId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1147,6 +1221,8 @@ export type ManifestEntrySelect<ExtArgs extends runtime.Types.Extensions.Interna
   promptMediaStorageKey?: boolean
   promptMediaMimeType?: boolean
   promptMediaSizeBytes?: boolean
+  cueCard?: boolean
+  options?: boolean
   sourceQuestionId?: boolean
   createdAt?: boolean
   manifest?: boolean | Prisma.SubmissionManifestDefaultArgs<ExtArgs>
@@ -1167,6 +1243,8 @@ export type ManifestEntrySelectCreateManyAndReturn<ExtArgs extends runtime.Types
   promptMediaStorageKey?: boolean
   promptMediaMimeType?: boolean
   promptMediaSizeBytes?: boolean
+  cueCard?: boolean
+  options?: boolean
   sourceQuestionId?: boolean
   createdAt?: boolean
   manifest?: boolean | Prisma.SubmissionManifestDefaultArgs<ExtArgs>
@@ -1184,6 +1262,8 @@ export type ManifestEntrySelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   promptMediaStorageKey?: boolean
   promptMediaMimeType?: boolean
   promptMediaSizeBytes?: boolean
+  cueCard?: boolean
+  options?: boolean
   sourceQuestionId?: boolean
   createdAt?: boolean
   manifest?: boolean | Prisma.SubmissionManifestDefaultArgs<ExtArgs>
@@ -1201,11 +1281,13 @@ export type ManifestEntrySelectScalar = {
   promptMediaStorageKey?: boolean
   promptMediaMimeType?: boolean
   promptMediaSizeBytes?: boolean
+  cueCard?: boolean
+  options?: boolean
   sourceQuestionId?: boolean
   createdAt?: boolean
 }
 
-export type ManifestEntryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "manifestId" | "submissionId" | "category" | "deliveryPosition" | "preparationSeconds" | "recordingSeconds" | "promptMediaStorageKey" | "promptMediaMimeType" | "promptMediaSizeBytes" | "sourceQuestionId" | "createdAt", ExtArgs["result"]["manifestEntry"]>
+export type ManifestEntryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "manifestId" | "submissionId" | "category" | "deliveryPosition" | "preparationSeconds" | "recordingSeconds" | "promptMediaStorageKey" | "promptMediaMimeType" | "promptMediaSizeBytes" | "cueCard" | "options" | "sourceQuestionId" | "createdAt", ExtArgs["result"]["manifestEntry"]>
 export type ManifestEntryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   manifest?: boolean | Prisma.SubmissionManifestDefaultArgs<ExtArgs>
   sourceQuestion?: boolean | Prisma.QuestionDefaultArgs<ExtArgs>
@@ -1241,6 +1323,8 @@ export type $ManifestEntryPayload<ExtArgs extends runtime.Types.Extensions.Inter
     promptMediaStorageKey: string
     promptMediaMimeType: string
     promptMediaSizeBytes: number
+    cueCard: runtime.JsonValue | null
+    options: runtime.JsonValue | null
     sourceQuestionId: string
     createdAt: Date
   }, ExtArgs["result"]["manifestEntry"]>
@@ -1680,6 +1764,8 @@ export interface ManifestEntryFieldRefs {
   readonly promptMediaStorageKey: Prisma.FieldRef<"ManifestEntry", 'String'>
   readonly promptMediaMimeType: Prisma.FieldRef<"ManifestEntry", 'String'>
   readonly promptMediaSizeBytes: Prisma.FieldRef<"ManifestEntry", 'Int'>
+  readonly cueCard: Prisma.FieldRef<"ManifestEntry", 'Json'>
+  readonly options: Prisma.FieldRef<"ManifestEntry", 'Json'>
   readonly sourceQuestionId: Prisma.FieldRef<"ManifestEntry", 'String'>
   readonly createdAt: Prisma.FieldRef<"ManifestEntry", 'DateTime'>
 }

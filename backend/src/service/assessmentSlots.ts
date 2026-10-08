@@ -36,7 +36,9 @@ export function isSupportedManifestVersion(version: number): boolean {
 /**
  * An Eligible question is active with complete, uploaded Prompt media and at
  * least one active Task. Shared by Assessment start and Test Set readiness so
- * the two cannot drift.
+ * the two cannot drift. A Part 3 Question additionally needs four options with
+ * icons; JSON content cannot be filtered here, so callers also apply
+ * `hasDeliverableContent` from questionContent.ts.
  */
 export const ELIGIBLE_QUESTION_WHERE = {
   deletedAt: null,

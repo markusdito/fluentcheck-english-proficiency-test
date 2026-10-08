@@ -76,6 +76,8 @@ export type QuestionCountAggregateOutputType = {
   testSetId: number
   preparationSeconds: number
   recordingSeconds: number
+  cueCard: number
+  options: number
   createdById: number
   audioStorageKey: number
   audioMimeType: number
@@ -138,6 +140,8 @@ export type QuestionCountAggregateInputType = {
   testSetId?: true
   preparationSeconds?: true
   recordingSeconds?: true
+  cueCard?: true
+  options?: true
   createdById?: true
   audioStorageKey?: true
   audioMimeType?: true
@@ -241,6 +245,8 @@ export type QuestionGroupByOutputType = {
   testSetId: string
   preparationSeconds: number
   recordingSeconds: number
+  cueCard: runtime.JsonValue | null
+  options: runtime.JsonValue | null
   createdById: string | null
   audioStorageKey: string | null
   audioMimeType: string | null
@@ -280,6 +286,8 @@ export type QuestionWhereInput = {
   testSetId?: Prisma.UuidFilter<"Question"> | string
   preparationSeconds?: Prisma.IntFilter<"Question"> | number
   recordingSeconds?: Prisma.IntFilter<"Question"> | number
+  cueCard?: Prisma.JsonNullableFilter<"Question">
+  options?: Prisma.JsonNullableFilter<"Question">
   createdById?: Prisma.UuidNullableFilter<"Question"> | string | null
   audioStorageKey?: Prisma.StringNullableFilter<"Question"> | string | null
   audioMimeType?: Prisma.StringNullableFilter<"Question"> | string | null
@@ -302,6 +310,8 @@ export type QuestionOrderByWithRelationInput = {
   testSetId?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
+  cueCard?: Prisma.SortOrderInput | Prisma.SortOrder
+  options?: Prisma.SortOrderInput | Prisma.SortOrder
   createdById?: Prisma.SortOrderInput | Prisma.SortOrder
   audioStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   audioMimeType?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -328,6 +338,8 @@ export type QuestionWhereUniqueInput = Prisma.AtLeast<{
   testSetId?: Prisma.UuidFilter<"Question"> | string
   preparationSeconds?: Prisma.IntFilter<"Question"> | number
   recordingSeconds?: Prisma.IntFilter<"Question"> | number
+  cueCard?: Prisma.JsonNullableFilter<"Question">
+  options?: Prisma.JsonNullableFilter<"Question">
   createdById?: Prisma.UuidNullableFilter<"Question"> | string | null
   audioStorageKey?: Prisma.StringNullableFilter<"Question"> | string | null
   audioMimeType?: Prisma.StringNullableFilter<"Question"> | string | null
@@ -350,6 +362,8 @@ export type QuestionOrderByWithAggregationInput = {
   testSetId?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
+  cueCard?: Prisma.SortOrderInput | Prisma.SortOrder
+  options?: Prisma.SortOrderInput | Prisma.SortOrder
   createdById?: Prisma.SortOrderInput | Prisma.SortOrder
   audioStorageKey?: Prisma.SortOrderInput | Prisma.SortOrder
   audioMimeType?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -374,6 +388,8 @@ export type QuestionScalarWhereWithAggregatesInput = {
   testSetId?: Prisma.UuidWithAggregatesFilter<"Question"> | string
   preparationSeconds?: Prisma.IntWithAggregatesFilter<"Question"> | number
   recordingSeconds?: Prisma.IntWithAggregatesFilter<"Question"> | number
+  cueCard?: Prisma.JsonNullableWithAggregatesFilter<"Question">
+  options?: Prisma.JsonNullableWithAggregatesFilter<"Question">
   createdById?: Prisma.UuidNullableWithAggregatesFilter<"Question"> | string | null
   audioStorageKey?: Prisma.StringNullableWithAggregatesFilter<"Question"> | string | null
   audioMimeType?: Prisma.StringNullableWithAggregatesFilter<"Question"> | string | null
@@ -389,6 +405,8 @@ export type QuestionCreateInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -410,6 +428,8 @@ export type QuestionUncheckedCreateInput = {
   testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: string | null
   audioStorageKey?: string | null
   audioMimeType?: string | null
@@ -429,6 +449,8 @@ export type QuestionUpdateInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -450,6 +472,8 @@ export type QuestionUncheckedUpdateInput = {
   testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -470,6 +494,8 @@ export type QuestionCreateManyInput = {
   testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: string | null
   audioStorageKey?: string | null
   audioMimeType?: string | null
@@ -485,6 +511,8 @@ export type QuestionUpdateManyMutationInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -500,6 +528,8 @@ export type QuestionUncheckedUpdateManyInput = {
   testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -531,6 +561,8 @@ export type QuestionCountOrderByAggregateInput = {
   testSetId?: Prisma.SortOrder
   preparationSeconds?: Prisma.SortOrder
   recordingSeconds?: Prisma.SortOrder
+  cueCard?: Prisma.SortOrder
+  options?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
   audioStorageKey?: Prisma.SortOrder
   audioMimeType?: Prisma.SortOrder
@@ -766,6 +798,8 @@ export type QuestionCreateWithoutCreatedByInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -786,6 +820,8 @@ export type QuestionUncheckedCreateWithoutCreatedByInput = {
   testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -834,6 +870,8 @@ export type QuestionScalarWhereInput = {
   testSetId?: Prisma.UuidFilter<"Question"> | string
   preparationSeconds?: Prisma.IntFilter<"Question"> | number
   recordingSeconds?: Prisma.IntFilter<"Question"> | number
+  cueCard?: Prisma.JsonNullableFilter<"Question">
+  options?: Prisma.JsonNullableFilter<"Question">
   createdById?: Prisma.UuidNullableFilter<"Question"> | string | null
   audioStorageKey?: Prisma.StringNullableFilter<"Question"> | string | null
   audioMimeType?: Prisma.StringNullableFilter<"Question"> | string | null
@@ -849,6 +887,8 @@ export type QuestionCreateWithoutTestSetInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -868,6 +908,8 @@ export type QuestionUncheckedCreateWithoutTestSetInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: string | null
   audioStorageKey?: string | null
   audioMimeType?: string | null
@@ -913,6 +955,8 @@ export type QuestionCreateWithoutTasksInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -933,6 +977,8 @@ export type QuestionUncheckedCreateWithoutTasksInput = {
   testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: string | null
   audioStorageKey?: string | null
   audioMimeType?: string | null
@@ -967,6 +1013,8 @@ export type QuestionUpdateWithoutTasksInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -987,6 +1035,8 @@ export type QuestionUncheckedUpdateWithoutTasksInput = {
   testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1005,6 +1055,8 @@ export type QuestionCreateWithoutPromptMediaCleanupObjectsInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -1025,6 +1077,8 @@ export type QuestionUncheckedCreateWithoutPromptMediaCleanupObjectsInput = {
   testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: string | null
   audioStorageKey?: string | null
   audioMimeType?: string | null
@@ -1059,6 +1113,8 @@ export type QuestionUpdateWithoutPromptMediaCleanupObjectsInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -1079,6 +1135,8 @@ export type QuestionUncheckedUpdateWithoutPromptMediaCleanupObjectsInput = {
   testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1097,6 +1155,8 @@ export type QuestionCreateWithoutManifestEntriesInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -1117,6 +1177,8 @@ export type QuestionUncheckedCreateWithoutManifestEntriesInput = {
   testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: string | null
   audioStorageKey?: string | null
   audioMimeType?: string | null
@@ -1151,6 +1213,8 @@ export type QuestionUpdateWithoutManifestEntriesInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -1171,6 +1235,8 @@ export type QuestionUncheckedUpdateWithoutManifestEntriesInput = {
   testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1189,6 +1255,8 @@ export type QuestionCreateWithoutAnswersInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -1209,6 +1277,8 @@ export type QuestionUncheckedCreateWithoutAnswersInput = {
   testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: string | null
   audioStorageKey?: string | null
   audioMimeType?: string | null
@@ -1243,6 +1313,8 @@ export type QuestionUpdateWithoutAnswersInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -1263,6 +1335,8 @@ export type QuestionUncheckedUpdateWithoutAnswersInput = {
   testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1282,6 +1356,8 @@ export type QuestionCreateManyCreatedByInput = {
   testSetId: string
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: string | null
   audioMimeType?: string | null
   audioSizeBytes?: number | null
@@ -1296,6 +1372,8 @@ export type QuestionUpdateWithoutCreatedByInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -1316,6 +1394,8 @@ export type QuestionUncheckedUpdateWithoutCreatedByInput = {
   testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -1335,6 +1415,8 @@ export type QuestionUncheckedUpdateManyWithoutCreatedByInput = {
   testSetId?: Prisma.StringFieldUpdateOperationsInput | string
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -1349,6 +1431,8 @@ export type QuestionCreateManyTestSetInput = {
   category: $Enums.QuestionCategory
   preparationSeconds?: number
   recordingSeconds?: number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: string | null
   audioStorageKey?: string | null
   audioMimeType?: string | null
@@ -1364,6 +1448,8 @@ export type QuestionUpdateWithoutTestSetInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioSizeBytes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -1383,6 +1469,8 @@ export type QuestionUncheckedUpdateWithoutTestSetInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1402,6 +1490,8 @@ export type QuestionUncheckedUpdateManyWithoutTestSetInput = {
   category?: Prisma.EnumQuestionCategoryFieldUpdateOperationsInput | $Enums.QuestionCategory
   preparationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
   recordingSeconds?: Prisma.IntFieldUpdateOperationsInput | number
+  cueCard?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  options?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audioMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1476,6 +1566,8 @@ export type QuestionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   testSetId?: boolean
   preparationSeconds?: boolean
   recordingSeconds?: boolean
+  cueCard?: boolean
+  options?: boolean
   createdById?: boolean
   audioStorageKey?: boolean
   audioMimeType?: boolean
@@ -1499,6 +1591,8 @@ export type QuestionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   testSetId?: boolean
   preparationSeconds?: boolean
   recordingSeconds?: boolean
+  cueCard?: boolean
+  options?: boolean
   createdById?: boolean
   audioStorageKey?: boolean
   audioMimeType?: boolean
@@ -1517,6 +1611,8 @@ export type QuestionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   testSetId?: boolean
   preparationSeconds?: boolean
   recordingSeconds?: boolean
+  cueCard?: boolean
+  options?: boolean
   createdById?: boolean
   audioStorageKey?: boolean
   audioMimeType?: boolean
@@ -1535,6 +1631,8 @@ export type QuestionSelectScalar = {
   testSetId?: boolean
   preparationSeconds?: boolean
   recordingSeconds?: boolean
+  cueCard?: boolean
+  options?: boolean
   createdById?: boolean
   audioStorageKey?: boolean
   audioMimeType?: boolean
@@ -1545,7 +1643,7 @@ export type QuestionSelectScalar = {
   deletedAt?: boolean
 }
 
-export type QuestionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "category" | "testSetId" | "preparationSeconds" | "recordingSeconds" | "createdById" | "audioStorageKey" | "audioMimeType" | "audioSizeBytes" | "audioUploadStatus" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["question"]>
+export type QuestionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "category" | "testSetId" | "preparationSeconds" | "recordingSeconds" | "cueCard" | "options" | "createdById" | "audioStorageKey" | "audioMimeType" | "audioSizeBytes" | "audioUploadStatus" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["question"]>
 export type QuestionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   testSet?: boolean | Prisma.TestSetDefaultArgs<ExtArgs>
   createdBy?: boolean | Prisma.Question$createdByArgs<ExtArgs>
@@ -1580,6 +1678,8 @@ export type $QuestionPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     testSetId: string
     preparationSeconds: number
     recordingSeconds: number
+    cueCard: runtime.JsonValue | null
+    options: runtime.JsonValue | null
     createdById: string | null
     audioStorageKey: string | null
     audioMimeType: string | null
@@ -2022,6 +2122,8 @@ export interface QuestionFieldRefs {
   readonly testSetId: Prisma.FieldRef<"Question", 'String'>
   readonly preparationSeconds: Prisma.FieldRef<"Question", 'Int'>
   readonly recordingSeconds: Prisma.FieldRef<"Question", 'Int'>
+  readonly cueCard: Prisma.FieldRef<"Question", 'Json'>
+  readonly options: Prisma.FieldRef<"Question", 'Json'>
   readonly createdById: Prisma.FieldRef<"Question", 'String'>
   readonly audioStorageKey: Prisma.FieldRef<"Question", 'String'>
   readonly audioMimeType: Prisma.FieldRef<"Question", 'String'>

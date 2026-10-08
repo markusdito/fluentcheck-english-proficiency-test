@@ -5,6 +5,16 @@ import { r2Client } from "../config/r2.js";
 import { env } from "../config/env.js";
 import { prisma } from "../config/db.js";
 import { lockPromptMediaStorageIdentity } from "./promptMediaLock.service.js";
+import { Prisma } from "../generated/client.js";
+import {
+  generateOptionIconKey,
+  ICON_MIME_RE,
+  isOptionIconKey,
+  MAX_ICON_SIZE_BYTES,
+  OPTION_COUNT,
+  type OptionIcon,
+  type QuestionOption,
+} from "./questionContent.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -244,6 +254,96 @@ export async function createQuestionAudioViewUrlFromMetadata(
     ResponseCacheControl: "no-cache",
   });
   return getSignedUrl(r2Client, command, { expiresIn: 300 });
+}
+
+// Part 3 option icons. Keys are server-generated and unique per upload.
+export const OPTION_ICON_KEY_RE = /^questions\/[0-9a-f-]{36}\/options\/[0-3]\/[0-9a-f-]{36}\.(png|jpg|webp)$/;
+
+/** Sign an option icon from its stored identity (admin preview and delivery). */
+export async function createOptionIconViewUrl(storageKey: string, mimeType: string): Promise<string> {
+  if (!OPTION_ICON_KEY_RE.test(storageKey)) throw new Error("Invalid option icon storage key");
+  const command = new GetObjectCommand({
+    Bucket: env.R2_BUCKET_NAME,
+    Key: storageKey,
+    ResponseContentDisposition: "inline",
+    ResponseContentType: mimeType,
+  });
+  return getSignedUrl(r2Client, command, { expiresIn: 3600 });
+}
+
+async function lockActiveQuestionOptions(tx: Prisma.TransactionClient, questionId: string) {
+  await tx.$queryRaw`SELECT "id" FROM "Question" WHERE "id" = ${questionId}::uuid FOR UPDATE`;
+  const question = await tx.question.findUnique({
+    where: { id: questionId },
+    select: { category: true, deletedAt: true, options: true },
+  });
+  if (!question || question.deletedAt) throw new Error("Question not found");
+  if (question.category !== "PART_3") throw new Error("Only a Part 3 Question has option icons");
+  if (!Array.isArray(question.options) || question.options.length !== OPTION_COUNT) {
+    throw new Error("Save the four option texts before uploading icons");
+  }
+  return question.options as unknown as QuestionOption[];
+}
+
+/** Presigned PUT for one Part 3 option icon (admin only). */
+export async function createOptionIconPresignedUpload(
+  questionId: string,
+  optionIndex: number,
+  mimeType: string,
+): Promise<{ presignedUrl: string; storageKey: string }> {
+  if (!UUID_RE.test(questionId)) throw new Error("Invalid questionId");
+  if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= OPTION_COUNT) {
+    throw new Error("Invalid option index");
+  }
+  if (!ICON_MIME_RE.test(mimeType)) throw new Error("Invalid mimeType");
+  await prisma.$transaction((tx) => lockActiveQuestionOptions(tx, questionId));
+
+  const storageKey = generateOptionIconKey(questionId, optionIndex, randomUUID(), mimeType);
+  const presignedUrl = await getSignedUrl(
+    r2Client,
+    new PutObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey, ContentType: mimeType }),
+    { expiresIn: 3600 },
+  );
+  return { presignedUrl, storageKey };
+}
+
+/**
+ * Bind an uploaded icon to its option after FluentCheck observes the object.
+ * The key must be one this question/option could have been issued.
+ */
+export async function confirmOptionIconUpload(
+  questionId: string,
+  optionIndex: number,
+  storageKey: string,
+): Promise<OptionIcon> {
+  if (!UUID_RE.test(questionId)) throw new Error("Invalid questionId");
+  if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= OPTION_COUNT) {
+    throw new Error("Invalid option index");
+  }
+  if (!isOptionIconKey(storageKey, questionId, optionIndex)) {
+    throw new Error("Invalid option icon storage key");
+  }
+  const head = await inspectPromptMedia(storageKey);
+  if (!head.exists) throw new Error("Option icon not found in storage");
+  if (!head.contentType || !ICON_MIME_RE.test(head.contentType)) {
+    throw new Error("Invalid option icon content type");
+  }
+  if (!head.contentLength || head.contentLength <= 0 || head.contentLength > MAX_ICON_SIZE_BYTES) {
+    throw new Error("Invalid option icon size");
+  }
+  const icon: OptionIcon = { storageKey, mimeType: head.contentType, sizeBytes: head.contentLength };
+
+  await prisma.$transaction(async (tx) => {
+    const options = await lockActiveQuestionOptions(tx, questionId);
+    const next = options.map((option, index) => (index === optionIndex ? { ...option, icon } : option));
+    await tx.question.update({
+      where: { id: questionId },
+      data: { options: next as unknown as Prisma.InputJsonValue },
+    });
+  });
+  // ponytail: replaced icon objects are not cleaned up; delivered snapshots may
+  // still reference them. Fold into prompt-media cleanup when storage cost matters.
+  return icon;
 }
 
 /**

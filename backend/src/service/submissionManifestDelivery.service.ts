@@ -1,5 +1,6 @@
 import type { QuestionCategory } from "../generated/enums.js";
 import { ASSESSMENT_SLOTS, CURRENT_MANIFEST_VERSION } from "./assessmentSlots.js";
+import { presentOptions, type CueCard, type PresentedOption } from "./questionContent.js";
 
 export interface ManifestDeliveryTask {
   deliveredOrder: number;
@@ -16,6 +17,9 @@ export interface ManifestDeliveryEntry {
   promptMediaMimeType: string;
   promptMediaSizeBytes: number;
   tasks: ManifestDeliveryTask[];
+  /** Delivered prompt snapshot of the Part 2 cue card / Part 3 options. */
+  cueCard?: unknown;
+  options?: unknown;
   /** Internal lineage used only to build sanitized failure diagnostics. */
   sourceQuestionId?: string;
 }
@@ -36,6 +40,8 @@ export interface DeliveredManifestEntry {
   promptMediaSizeBytes: number;
   promptMediaUrl: string;
   tasks: Array<{ order: number; promptText: string }>;
+  cueCard: CueCard | null;
+  options: PresentedOption[] | null;
 }
 
 export type ManifestDeliveryFailureReason =
@@ -138,6 +144,7 @@ function validateShape(entries: ManifestDeliveryEntry[]) {
 export async function buildManifestDelivery(
   manifest: ManifestDeliveryManifest,
   signPromptMedia: SignPromptMedia,
+  signOptionIcon: SignPromptMedia = signPromptMedia,
 ): Promise<DeliveredManifestEntry[]> {
   assertDeliverableVersion(manifest);
   validateShape(manifest.entries);
@@ -152,7 +159,11 @@ export async function buildManifestDelivery(
           entry.promptMediaStorageKey,
           entry.promptMediaMimeType,
         );
-        if (!isValidPromptMediaUrl(promptMediaUrl)) {
+        const options = await presentOptions(entry.options, signOptionIcon);
+        if (
+          !isValidPromptMediaUrl(promptMediaUrl) ||
+          options?.some((option) => !option.iconUrl || !isValidPromptMediaUrl(option.iconUrl))
+        ) {
           return {
             entry,
             failure: {
@@ -162,7 +173,7 @@ export async function buildManifestDelivery(
             },
           };
         }
-        return { entry, promptMediaUrl };
+        return { entry, promptMediaUrl, options };
       } catch (error) {
         return {
           entry,
@@ -210,6 +221,8 @@ export async function buildManifestDelivery(
           order: task.deliveredOrder,
           promptText: task.deliveredText,
         })),
+      cueCard: (entry.cueCard as CueCard | null | undefined) ?? null,
+      options: attempt.options ?? null,
     };
   });
 }
