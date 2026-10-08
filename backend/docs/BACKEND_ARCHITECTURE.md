@@ -59,8 +59,16 @@ PART_2, PART_3 after the PART_1 rename) remain readable but are never
 delivered or completed; their Test Set is null. Question defaults for
 preparation/speaking seconds follow the slot (backend/src/service/assessmentSlots.ts).
 Each ManifestEntry stores the selected Question identity, delivery position,
-timings, prompt media metadata, and task snapshots. It remains authoritative
+timings, prompt media metadata, task snapshots, and the Part 2 cue card /
+Part 3 options (with icon identities) as delivered. It remains authoritative
 after the source Question changes or is retired.
+
+A Part 2 Question carries a cue card (topic + 3 points) and a Part 3 Question
+carries four options (title + 2 bullets + icon), both as JSON on Question and
+validated in backend/src/service/questionContent.ts. Option icons are uploaded
+directly to R2 under server-generated, per-upload keys and bound to their
+option only after server-side HEAD inspection (image/png, jpeg or webp, at most
+512 KiB). Replaced icon objects are not yet cleaned up.
 
 An Answer attaches to a ManifestEntry for the current flow. Legacy answers may
 retain the older submission/question relationship. A Verified answer is
@@ -68,7 +76,8 @@ server-observed R2 evidence bound to its manifest entry; a client declaration
 alone is not sufficient.
 
 Question eligibility for new manifest creation requires an active Question,
-available prompt audio metadata, and at least one active Task. Prompt media
+available prompt audio metadata, and at least one active Task; a Part 3
+Question also needs all four options with verified icons. Prompt media
 preparation signs a short-lived HTTPS URL from retained identity metadata. It
 does not prove that a later browser request will play the object.
 
@@ -174,6 +183,10 @@ manifest-backed flow does not use it.
 
 <!-- route: POST /api/questions/audio/confirm | source=backend/src/routes/question.routes.ts -->
 | POST | /api/questions/audio/confirm | ADMIN, question-audio rate limit | Confirms prompt audio after server-side R2 metadata inspection. |
+<!-- route: POST /api/questions/:id/options/:index/icon/presigned-url | source=backend/src/routes/question.routes.ts -->
+| POST | /api/questions/:id/options/:index/icon/presigned-url | ADMIN, question-audio rate limit | Creates a direct R2 upload URL for one Part 3 option icon; requires saved option texts. |
+<!-- route: POST /api/questions/:id/options/:index/icon/confirm | source=backend/src/routes/question.routes.ts -->
+| POST | /api/questions/:id/options/:index/icon/confirm | ADMIN, question-audio rate limit | Binds an uploaded icon to its option after server-side R2 metadata inspection. |
 
 <!-- route: POST /api/questions/:id/tasks | source=backend/src/routes/question.routes.ts -->
 | POST | /api/questions/:id/tasks | ADMIN | Adds a Task to a Question. |
