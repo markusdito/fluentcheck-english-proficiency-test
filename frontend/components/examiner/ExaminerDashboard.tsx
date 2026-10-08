@@ -40,7 +40,7 @@ export function AssignmentPill({ a }: { a: Pick<ExaminerAssignmentSummary, "stat
 function Tile({ value, label }: { value: number; label: string }) {
   return (
     <div className="rounded-2xl border border-sn-border bg-sn-surface p-5">
-      <p className="m-0 text-sm text-sn-muted">{label}</p>
+      <p className="m-0 text-lg font-bold">{label}</p>
       <p className={`${statNum} mt-3 text-[32px]`}>{value}</p>
     </div>
   );
