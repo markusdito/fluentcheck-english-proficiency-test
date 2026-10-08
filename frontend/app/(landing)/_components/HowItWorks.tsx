@@ -57,7 +57,7 @@ const steps: Step[] = [
   {
     tone: "bg-sn-clay text-sn-bg",
     title: "Record four parts",
-    desc: "Two short personal responses, a monologue, a decision-making task, and an opinion. Each answer gets its own preparation time and recording window, and you can re-record a part while the session is open.",
+    desc: "Two short personal responses, a monologue, a decision-making task, and an opinion. Each answer gets its own preparation time, then recording starts and stops automatically. One take per answer, no re-record.",
     icon: (
       <svg {...iconProps}>
         <circle cx="12" cy="12" r="8" />

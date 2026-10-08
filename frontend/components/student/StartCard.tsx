@@ -10,7 +10,7 @@ const parts = [
 ];
 
 const stats = [
-  { fig: "4", cap: "parts in a row" },
+  { fig: "5", cap: "answers, one take each" },
   { fig: "2", cap: "examiners score it" },
   { fig: "1", cap: "sitting, start to end" },
 ];
@@ -21,8 +21,10 @@ export function StartCard({ onStart }: { onStart: () => void }) {
       <p className={meta}>Speaking test · one sitting</p>
       <h3 className={`${h3} mt-2`}>Take the speaking test</h3>
       <p className="mt-2 max-w-[60ch] text-pretty text-sn-muted">
-        Four parts run one after another. Each question is played aloud, preparation
-        starts when the audio ends, and recording starts when preparation ends.
+        Four parts, five answers, one after another. Each question is played aloud
+        and you may replay it once. Preparation starts when the audio ends, recording
+        starts and stops on its own, and the test moves on by itself. Each answer is
+        recorded once: there is no preview and no re-record.
       </p>
 
       <div className="mt-5 grid grid-cols-3 gap-3 border-y border-sn-border py-5">
@@ -56,8 +58,8 @@ export function StartCard({ onStart }: { onStart: () => void }) {
           <Pill tone="amber">Keep going</Pill>
         </span>
         <p className="m-0 text-[15px]">
-          Timers keep running once a part starts. Pick a quiet room and keep about
-          10 minutes free before you begin.
+          Timers keep running once a part starts and cannot be paused. Pick a quiet
+          room, use a headset if you can, and keep about 15 minutes free before you begin.
         </p>
       </div>
 
