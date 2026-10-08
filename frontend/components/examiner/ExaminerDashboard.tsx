@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { CircleCheck, ClipboardList, Clock3, ListTodo } from "lucide-react";
 import type { ExaminerAssignmentSummary } from "@/types/examiner";
 import { PageShell } from "@/components/student/PageShell";
 import { Pill } from "@/components/student/StatusPill";
@@ -41,21 +40,11 @@ export function AssignmentPill({ a }: { a: Pick<ExaminerAssignmentSummary, "stat
   return <Pill tone="green">Scored by me</Pill>;
 }
 
-const tones = {
-  navy: "bg-sn-field-navy text-sn-navy",
-  amber: "bg-sn-field-amber text-sn-ink-amber",
-  green: "bg-sn-field-green text-sn-ink-green",
-  clay: "bg-[color-mix(in_oklch,var(--color-sn-clay)_8%,white)] text-sn-clay",
-};
-
-function Tile({ tone, icon, value, label }: { tone: keyof typeof tones; icon: ReactNode; value: number; label: string }) {
+function Tile({ value, label }: { value: number; label: string }) {
   return (
     <div className="rounded-2xl border border-sn-border bg-sn-surface p-5">
-      <div className={cn("mb-3 grid size-9 place-items-center rounded-xl [&_svg]:size-[18px]", tones[tone])} aria-hidden="true">
-        {icon}
-      </div>
-      <p className={`${statNum} text-[28px]`}>{value}</p>
-      <p className="mt-1 text-sm text-sn-muted">{label}</p>
+      <p className="m-0 text-sm text-sn-muted">{label}</p>
+      <p className={`${statNum} mt-3 text-[32px]`}>{value}</p>
     </div>
   );
 }
@@ -88,10 +77,10 @@ export function ExaminerDashboard({ name, email, assignments }: ExaminerDashboar
       </div>
 
       <section aria-label="Queue summary" className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile tone="navy" icon={<ListTodo strokeWidth={1.5} />} value={count("open") + count("progress")} label="In my queue" />
-        <Tile tone="amber" icon={<Clock3 strokeWidth={1.5} />} value={count("progress")} label="Scoring in progress" />
-        <Tile tone="green" icon={<CircleCheck strokeWidth={1.5} />} value={count("done")} label="Completed by me" />
-        <Tile tone="clay" icon={<ClipboardList strokeWidth={1.5} />} value={awaitingPair} label="Awaiting second examiner" />
+        <Tile value={count("open") + count("progress")} label="In my queue" />
+        <Tile value={count("progress")} label="Scoring in progress" />
+        <Tile value={count("done")} label="Completed by me" />
+        <Tile value={awaitingPair} label="Awaiting second examiner" />
       </section>
 
       <section aria-labelledby="queue-title" className="mt-14">
