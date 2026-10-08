@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/client.js";
 import { Pool } from "pg";
@@ -88,18 +89,27 @@ async function main() {
       category: "PART_2" as const,
       preparationSeconds: 60,
       recordingSeconds: 90,
-      tasks: [
-        "Talk about a community action you took part in or would like to start.",
-        "Say what the action was and who was involved.",
-        "Explain why it mattered to you.",
-        "Describe what you would do differently next time.",
-      ],
+      tasks: ["Talk about a community action you took part in or would like to start."],
+      cueCard: {
+        topic: "A community action you took part in or would like to start",
+        points: [
+          "What the action was and who was involved",
+          "Why it mattered to you",
+          "What you would do differently next time",
+        ],
+      },
     },
     {
       category: "PART_3" as const,
       preparationSeconds: 60,
       recordingSeconds: 90,
       tasks: ["Look at the four graduation project options. Select the ONE option you prefer and explain why."],
+      options: [
+        { title: "Research paper", bullets: ["Deep study of one topic", "Works alone"] },
+        { title: "Community project", bullets: ["Helps local people", "Needs teamwork"] },
+        { title: "Internship report", bullets: ["Real work experience", "Depends on a company"] },
+        { title: "Start-up prototype", bullets: ["Builds a product", "High risk"] },
+      ],
     },
     {
       category: "PART_4" as const,
@@ -132,6 +142,18 @@ async function main() {
         audioMimeType: "audio/webm",
         audioSizeBytes: 1,
         audioUploadStatus: "UPLOADED",
+        ...("cueCard" in q && { cueCard: q.cueCard }),
+        // Like the prompt audio above, demo icon identities are placeholders.
+        ...("options" in q && {
+          options: q.options.map((option, index) => ({
+            ...option,
+            icon: {
+              storageKey: `questions/${created.id}/options/${index}/${randomUUID()}.png`,
+              mimeType: "image/png",
+              sizeBytes: 1,
+            },
+          })),
+        }),
       },
     });
     console.log(`  ✅ Created: [${testSet.code}/${created.category}] — ${created.tasks.length} tasks`);
