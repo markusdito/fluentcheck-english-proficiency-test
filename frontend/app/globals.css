@@ -421,3 +421,60 @@ html.reduce-motion *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* ---- Auth switch: old and new panels slide together like a door, in step with the pill.
+   Keyed on the navigation's transition type (set by AuthSwitch links), panel named in (auth)/layout. ---- */
+html:active-view-transition-type(auth-to-signup, auth-to-login)::view-transition-group(auth-panel) {
+  overflow: clip;
+  animation-duration: 480ms;
+  animation-timing-function: var(--ease-spring);
+}
+html:active-view-transition-type(auth-to-signup, auth-to-login)::view-transition-old(auth-panel),
+html:active-view-transition-type(auth-to-signup, auth-to-login)::view-transition-new(auth-panel) {
+  height: 100%;
+  mix-blend-mode: normal;
+  animation: 480ms var(--ease-spring) both;
+}
+/* Rest of the page snaps; the switch pill animates live underneath. */
+html:active-view-transition-type(auth-to-signup, auth-to-login)::view-transition-old(root) {
+  display: none;
+}
+html:active-view-transition-type(auth-to-signup, auth-to-login)::view-transition-new(root) {
+  animation: none;
+}
+/* Create account lives to the left: it enters from the left while sign in exits right. */
+html:active-view-transition-type(auth-to-signup)::view-transition-old(auth-panel) {
+  --to: 100%;
+  animation-name: auth-slide-out;
+}
+html:active-view-transition-type(auth-to-signup)::view-transition-new(auth-panel) {
+  --from: -100%;
+  animation-name: auth-slide-in;
+}
+html:active-view-transition-type(auth-to-login)::view-transition-old(auth-panel) {
+  --to: -100%;
+  animation-name: auth-slide-out;
+}
+html:active-view-transition-type(auth-to-login)::view-transition-new(auth-panel) {
+  --from: 100%;
+  animation-name: auth-slide-in;
+}
+@keyframes auth-slide-in {
+  from { translate: var(--from) 0; opacity: 0; }
+  to { translate: 0 0; opacity: 1; }
+}
+@keyframes auth-slide-out {
+  from { translate: 0 0; opacity: 1; }
+  to { translate: var(--to) 0; opacity: 0; }
+}
+::view-transition {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

@@ -32,6 +32,8 @@ export function AuthSwitch() {
           <Link
             key={t.href}
             href={t.href}
+            // Sign-up sits to the left of sign-in in the slide (it enters from the left).
+            transitionTypes={[t.href === "/signup" ? "auth-to-signup" : "auth-to-login"]}
             aria-current={current ? "page" : undefined}
             className={cn(
               "relative z-1 inline-flex min-h-11 items-center justify-center rounded-full text-[15px] font-medium transition-colors duration-240 ease-standard",
