@@ -13,7 +13,7 @@ An `IN_PROGRESS` Submission that is the student's current assessment attempt; a 
 _Avoid_: Open test, pending test
 
 **Review-pipeline submission**:
-A Submission that has finished recording and is moving through payment and Examiner scoring without yet being Scored or Abandoned. A student cannot start a new Assessment while a Review-pipeline submission exists.
+A Submission that has finished recording and is moving through payment and Examiner scoring without yet being Scored or Abandoned. It never blocks a new Assessment start; a student may have several at once.
 _Avoid_: Active submission, submission being reviewed
 
 **Assessment**:

@@ -1,6 +1,6 @@
 # Block new Assessments while a Submission is in the review pipeline
 
-Status: Accepted
+Status: Superseded (#164) — PRD v0.3.0 FR-2.3/FR-2.5 allow a retake at any time. The `SUBMISSION_IN_REVIEW` check and the dashboard notice were removed; only the single `IN_PROGRESS` rule remains. Each Submission keeps its own payment or waiver.
 
 A student may hold at most one Submission that is not yet Scored or Abandoned. The existing single-Active-Submission rule (`IN_PROGRESS`) only covers recording; without this decision a student could record a second Submission while the first was still moving through payment and Examiner scoring, producing two parallel scoring pipelines for one student.
 
