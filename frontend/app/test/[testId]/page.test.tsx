@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   stopRecording: vi.fn(),
   stopStream: vi.fn(),
   uploadToR2: vi.fn(),
+  useCountdown: vi.fn(),
   assessmentStart: {
     audioDevices: [],
     audioError: null,
@@ -72,7 +73,7 @@ vi.mock("@/hooks/useRecording", () => ({
 }));
 
 vi.mock("@/hooks/useCountdown", () => ({
-  useCountdown: () => mocks.countdown,
+  useCountdown: (seconds: number, onComplete: () => void) => mocks.useCountdown(seconds, onComplete),
 }));
 
 vi.mock("@/lib/test-initialization", () => ({
@@ -100,11 +101,7 @@ vi.mock("@/components/test/WebcamPreview", () => ({
   WebcamPreview: () => <div>webcam</div>,
 }));
 
-vi.mock("@/components/test/RecordingTimer", () => ({
-  RecordingTimer: ({ elapsed }: { elapsed: number }) => <div>elapsed {elapsed}</div>,
-}));
-
-const questions = ["PART_1", "PART_2", "PART_3"].map((category, index) => ({
+const questions = ["PART_1A", "PART_1B", "PART_2", "PART_3", "PART_4"].map((category, index) => ({
   id: `entry-${index + 1}`,
   audioUrl: null,
   tasks: [`Prompt ${index + 1}`],
@@ -113,6 +110,8 @@ const questions = ["PART_1", "PART_2", "PART_3"].map((category, index) => ({
   recordingDuration: 60,
   order: index + 1,
   category,
+  cueCard: null,
+  options: null,
 }));
 
 const params = Promise.resolve({ testId: "test-1" });
@@ -154,15 +153,25 @@ async function setFinalizedBlob(view: PageView, duration = 12) {
   });
 }
 
-async function uploadCurrentQuestion(view: PageView) {
+/** Prep ends (mocked countdown fires onComplete), recording auto-starts, then auto-stops with a blob. */
+async function recordCurrentSlot(view: PageView, onComplete: () => void) {
+  const before = mocks.startRecording.mock.calls.length;
+  await act(async () => onComplete());
+  await waitFor(() => expect(mocks.startRecording.mock.calls.length).toBe(before + 1));
   await setFinalizedBlob(view);
-  await waitFor(() => expect(mocks.getPresignedUrl).toHaveBeenCalled());
-  await waitFor(() => expect(mocks.uploadToR2).toHaveBeenCalled());
-  await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalled());
-  await waitFor(() => expect(screen.getByRole("button", { name: /next question|finish test/i })).toBeEnabled());
+  mocks.recording.blob = null;
+  await act(async () => {
+    view.rerender(
+      <Suspense fallback={<div>loading page</div>}>
+        <TestPage params={params} />
+      </Suspense>,
+    );
+  });
 }
 
-describe("TestPage recording and upload workflow", () => {
+describe("TestPage strict exam flow", () => {
+  let onComplete: () => void = () => {};
+
   beforeEach(() => {
     mocks.completeSubmission.mockResolvedValue(undefined);
     mocks.confirmUpload.mockResolvedValue(undefined);
@@ -173,6 +182,7 @@ describe("TestPage recording and upload workflow", () => {
     });
     mocks.initializeTest.mockResolvedValue({
       submissionId: "submission-1",
+      testSet: { id: "set-a", code: "A" },
       questions,
       uploadedEntryIds: [],
     });
@@ -189,135 +199,121 @@ describe("TestPage recording and upload workflow", () => {
     mocks.recording.blob = null;
     mocks.recording.duration = 0;
     mocks.recording.error = null;
+    mocks.useCountdown.mockImplementation((_seconds: number, cb: () => void) => {
+      onComplete = cb;
+      return mocks.countdown;
+    });
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("keeps Next disabled until the asynchronous stop produces and verifies a non-empty blob", async () => {
-    const user = userEvent.setup();
-    const view = await renderPage();
-    await screen.findByRole("button", { name: "Start recording" });
+  it("shows the Test Set title and Part/Task header with no manual recording controls", async () => {
+    await renderPage();
+    expect(
+      await screen.findByRole("heading", { name: "SPEAKNUSA SPEAKING ASSESSMENT — TEST SET A" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Part 1 · Task 1A" })).toBeInTheDocument();
+    for (const name of [/start recording/i, /stop answering/i, /next question/i, /re-record/i, /finish test/i]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+  });
 
-    await user.click(screen.getByRole("button", { name: "Start recording" }));
-    await user.click(screen.getByRole("button", { name: "Stop answering" }));
-    expect(screen.getByRole("button", { name: "Next question" })).toBeDisabled();
-    expect(mocks.getPresignedUrl).not.toHaveBeenCalled();
+  it("auto-starts recording at the end of preparation and auto-advances without waiting for the upload", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
 
     const confirm = deferred<void>();
     mocks.confirmUpload.mockReturnValueOnce(confirm.promise);
-    await setFinalizedBlob(view);
+    await recordCurrentSlot(view, onComplete);
 
-    await waitFor(() => expect(mocks.getPresignedUrl).toHaveBeenCalledWith(
-      "submission-1",
-      "entry-1",
-      "video/webm",
-    ));
-    await waitFor(() => expect(mocks.uploadToR2).toHaveBeenCalledWith(
-      "https://storage.example/upload",
-      mocks.recording.blob,
-    ));
-    expect(screen.getByRole("button", { name: "Next question" })).toBeDisabled();
+    expect(mocks.startRecording).toHaveBeenCalledWith(mocks.stream, 60);
+    await waitFor(() => expect(mocks.getPresignedUrl).toHaveBeenCalledWith("submission-1", "entry-1", "video/webm"));
+    // Advanced to the next slot while entry-1 is still verifying.
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
     expect(mocks.completeSubmission).not.toHaveBeenCalled();
-
     confirm.resolve(undefined);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Next question" })).toBeEnabled());
   });
 
-  it("blocks navigation while the finalized recording is being uploaded", async () => {
-    const user = userEvent.setup();
+  it("blocks navigation while a background upload is pending", async () => {
     const view = await renderPage();
-    await screen.findByRole("button", { name: "Start recording" });
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
 
-    await user.click(screen.getByRole("button", { name: "Start recording" }));
-    await user.click(screen.getByRole("button", { name: "Stop answering" }));
-
-    const presign = deferred<{
-      answerId: string;
-      presignedUrl: string;
-      storageKey: string;
-    }>();
+    const presign = deferred<{ answerId: string; presignedUrl: string; storageKey: string }>();
     mocks.getPresignedUrl.mockReturnValueOnce(presign.promise);
-    await setFinalizedBlob(view);
+    await recordCurrentSlot(view, onComplete);
     await waitFor(() => expect(mocks.getPresignedUrl).toHaveBeenCalled());
 
     const beforeUnload = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(beforeUnload);
     expect(beforeUnload.defaultPrevented).toBe(true);
     expect(mocks.stopStream).toHaveBeenCalled();
-
-    presign.resolve({
-      answerId: "answer-1",
-      presignedUrl: "https://storage.example/upload",
-      storageKey: "answers/answer-1.webm",
-    });
-    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalled());
-
-    window.dispatchEvent(new PopStateEvent("popstate"));
-    expect(mocks.stopStream).toHaveBeenCalledTimes(2);
+    presign.resolve({ answerId: "a", presignedUrl: "https://storage.example/upload", storageKey: "k" });
   });
 
-  it("does not complete the last question until its upload finishes, then gates dashboard return on completion", async () => {
-    const user = userEvent.setup();
+  it("shows the completion screen only after all five Answers are verified and the Submission completes", async () => {
     const view = await renderPage();
-    await screen.findByRole("button", { name: "Start recording" });
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
 
-    for (let index = 0; index < 2; index += 1) {
-      await user.click(screen.getByRole("button", { name: "Start recording" }));
-      await user.click(screen.getByRole("button", { name: "Stop answering" }));
-      await uploadCurrentQuestion(view);
-      await user.click(screen.getByRole("button", { name: "Next question" }));
-      await screen.findByRole("button", { name: "Start recording" });
-      mocks.recording.blob = null;
+    const lastConfirm = deferred<void>();
+    for (let index = 0; index < 5; index += 1) {
+      if (index === 4) mocks.confirmUpload.mockReturnValueOnce(lastConfirm.promise);
+      await recordCurrentSlot(view, onComplete);
     }
 
-    await user.click(screen.getByRole("button", { name: "Start recording" }));
-    await user.click(screen.getByRole("button", { name: "Stop answering" }));
-    expect(screen.getByRole("button", { name: "Finish test" })).toBeDisabled();
+    expect(await screen.findByRole("heading", { name: "Saving your answers" })).toBeInTheDocument();
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledTimes(5));
     expect(mocks.completeSubmission).not.toHaveBeenCalled();
+    expect(screen.queryByText(/successfully recorded and uploaded/)).not.toBeInTheDocument();
 
-    const completion = deferred<void>();
-    mocks.completeSubmission.mockReturnValueOnce(completion.promise);
-    await setFinalizedBlob(view);
-    await waitFor(() => expect(mocks.getPresignedUrl).toHaveBeenCalledTimes(3));
-    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledTimes(3));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Finish test" })).toBeEnabled());
-
-    await user.click(screen.getByRole("button", { name: "Finish test" }));
+    lastConfirm.resolve(undefined);
     await waitFor(() => expect(mocks.completeSubmission).toHaveBeenCalledWith("submission-1"));
-    expect(screen.getByRole("button", { name: /Uploading \(0 remaining\)/i })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Return to dashboard" })).not.toBeInTheDocument();
-
-    completion.resolve(undefined);
-    expect(await screen.findByRole("button", { name: "Return to dashboard" })).toBeEnabled();
+    expect(
+      await screen.findByRole("heading", { name: "All 5 answers successfully recorded and uploaded" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("submission-1")).toBeInTheDocument();
+    expect(screen.getAllByText("Saved for Evaluation").length).toBeGreaterThan(0);
   });
 
-  it("exposes a retryable completion failure instead of permanently marking the submission complete", async () => {
-    const user = userEvent.setup();
-    const view = await renderPage();
-    await screen.findByRole("button", { name: "Start recording" });
+  it("retries a failed upload from the kept take instead of re-recording", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.uploadToR2.mockRejectedValue(new Error("network down"));
+      const view = await renderPage();
+      await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+      for (let index = 0; index < 5; index += 1) await recordCurrentSlot(view, onComplete);
 
-    mocks.completeSubmission.mockRejectedValueOnce(new Error("temporary failure"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+      expect(await screen.findByRole("button", { name: "Retry upload" })).toBeInTheDocument();
+      expect(mocks.startRecording).toHaveBeenCalledTimes(5);
 
-    for (let index = 0; index < 3; index += 1) {
-      await user.click(screen.getByRole("button", { name: "Start recording" }));
-      await user.click(screen.getByRole("button", { name: "Stop answering" }));
-      await uploadCurrentQuestion(view);
-      if (index < 2) {
-        await user.click(screen.getByRole("button", { name: "Next question" }));
-        await screen.findByRole("button", { name: "Start recording" });
-        mocks.recording.blob = null;
-      }
+      mocks.uploadToR2.mockResolvedValue(undefined);
+      await act(async () => {
+        screen.getByRole("button", { name: "Retry upload" }).click();
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      await waitFor(() => expect(mocks.completeSubmission).toHaveBeenCalled());
+      expect(mocks.startRecording).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
     }
+  });
 
-    await user.click(screen.getByRole("button", { name: "Finish test" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Retry submission" })).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /Uploading \(0 remaining\)/i })).toBeDisabled();
+  it("exposes a retryable completion failure", async () => {
+    mocks.completeSubmission.mockRejectedValueOnce(new Error("temporary failure"));
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    for (let index = 0; index < 5; index += 1) await recordCurrentSlot(view, onComplete);
 
-    mocks.completeSubmission.mockResolvedValueOnce(undefined);
-    await user.click(screen.getByRole("button", { name: "Retry submission" }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Retry submission" }));
     await waitFor(() => expect(mocks.completeSubmission).toHaveBeenCalledTimes(2));
+    expect(
+      await screen.findByRole("heading", { name: "All 5 answers successfully recorded and uploaded" }),
+    ).toBeInTheDocument();
   });
 
   it("does not leave an unauthenticated route in an infinite loading state", async () => {
