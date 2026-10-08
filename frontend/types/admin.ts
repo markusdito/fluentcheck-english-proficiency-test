@@ -198,6 +198,15 @@ export interface AdminTask {
   deletedAt?: string | null;
 }
 
+export interface AdminOption {
+  title: string;
+  bullets: string[];
+  /** Verified icon identity; null until an icon is uploaded for this option. */
+  icon: { storageKey: string; mimeType: string; sizeBytes: number } | null;
+  /** Short-lived preview URL for the icon. */
+  iconUrl?: string | null;
+}
+
 export interface AdminQuestion {
   id: string;
   category: string;
@@ -205,6 +214,8 @@ export interface AdminQuestion {
   testSet: TestSetRef;
   preparationSeconds: number;
   recordingSeconds: number;
+  cueCard?: CueCard | null;
+  options?: AdminOption[] | null;
   audioStorageKey: string | null;
   audioMimeType: string | null;
   audioSizeBytes: number | null;
@@ -218,7 +229,7 @@ import type {
   RubricBreakdown,
   ScoringSystem,
 } from "@/types/scoring";
-import type { QuestionCategory, TestSetRef } from "@/types/test";
+import type { CueCard, QuestionCategory, TestSetRef } from "@/types/test";
 
 export interface AdminTestSetSlot {
   category: QuestionCategory;

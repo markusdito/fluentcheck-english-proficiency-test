@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { CueCard } from "@/types/test";
 import type {
   AdminExaminer,
   AdminQuestion,
@@ -201,6 +202,9 @@ interface QuestionPayload {
   testSetId: string;
   preparationSeconds?: number;
   recordingSeconds?: number;
+  cueCard?: CueCard | null;
+  /** Option text only; icons are bound through the verified icon upload. */
+  options?: Array<{ title: string; bullets: string[] }> | null;
 }
 
 export async function createQuestion(
@@ -292,4 +296,25 @@ export async function restoreTask(
     `/questions/${questionId}/tasks/${taskId}/restore`,
   );
   return res.data;
+}
+
+/** Upload one Part 3 option icon: presigned PUT to R2, then server-side verification. */
+export async function uploadOptionIcon(
+  questionId: string,
+  optionIndex: number,
+  file: File,
+): Promise<void> {
+  const base = `/questions/${questionId}/options/${optionIndex}/icon`;
+  const { data } = await api.post<{ status: string; data: { presignedUrl: string; storageKey: string } }>(
+    `${base}/presigned-url`,
+    { mimeType: file.type },
+  );
+  const response = await fetch(data.presignedUrl, {
+    method: "PUT",
+    body: file,
+    mode: "cors",
+    headers: { "Content-Type": file.type },
+  });
+  if (!response.ok) throw new Error(`Icon upload failed (${response.status})`);
+  await api.post(`${base}/confirm`, { storageKey: data.storageKey });
 }
