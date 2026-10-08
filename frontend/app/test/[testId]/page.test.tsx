@@ -236,6 +236,21 @@ describe("TestPage strict exam flow", () => {
     confirm.resolve(undefined);
   });
 
+  it("lets the student stop recording early, then uploads and advances", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    expect(screen.queryByRole("button", { name: /stop and submit/i })).not.toBeInTheDocument();
+
+    await act(async () => onComplete());
+    await userEvent.click(await screen.findByRole("button", { name: /stop and submit answer/i }));
+    expect(mocks.stopRecording).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /saving answer/i })).toBeDisabled();
+
+    await setFinalizedBlob(view, 5);
+    await waitFor(() => expect(mocks.getPresignedUrl).toHaveBeenCalledWith("submission-1", "entry-1", "video/webm"));
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
+  });
+
   it("blocks navigation while a background upload is pending", async () => {
     const view = await renderPage();
     await screen.findByRole("heading", { name: "Part 1 · Task 1A" });

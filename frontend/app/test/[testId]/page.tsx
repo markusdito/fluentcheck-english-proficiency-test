@@ -644,6 +644,20 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               preparing={preparing}
               recording={recording}
             />
+            {recording && (
+              // Ends the take early; the blob effect above uploads it and advances.
+              <button
+                type="button"
+                className={`${primaryButton} mt-5`}
+                disabled={phase === "finalizing"}
+                onClick={() => {
+                  stopRecording();
+                  setPhase("finalizing");
+                }}
+              >
+                {phase === "finalizing" ? "Saving answer…" : "Stop and submit answer"}
+              </button>
+            )}
             {preparing && !prepCountdown.isRunning && (
               <p className="mt-3 mb-0 text-[15px] text-sn-muted">Preparation begins when the question audio ends.</p>
             )}
