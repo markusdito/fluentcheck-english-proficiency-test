@@ -133,6 +133,7 @@ describe("Dashboard request gating", () => {
       });
 
     renderDashboard();
+    fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
     await screen.findByRole("link", { name: /Jan 2, 2026/i });
     fireEvent.click(await screen.findByRole("button", { name: "Next history page" }));
 

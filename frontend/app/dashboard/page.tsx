@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ChevronRightIcon, CircleAlertIcon, Loader2 } from "lucide-react";
+import { CircleAlertIcon, Loader2 } from "lucide-react";
 import {
   DASHBOARD_PAGE_SIZE,
   fetchDashboardStats,
@@ -13,6 +12,7 @@ import {
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { AssignmentList } from "@/components/examiner/AssignmentList";
 import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermissionModal";
+import { StudentDashboard } from "@/components/student/StudentDashboard";
 import { Header } from "@/components/layout/Header";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ScaleAwareScoreDisplay } from "@/components/results/ScaleAwareScoreDisplay";
-import { scoreMaximum } from "@/types/scoring";
-import { SubmissionStatus } from "@/components/ui/submission-status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ExaminerAssignmentSummary } from "@/types/examiner";
 import { useSession } from "@/hooks/useSession";
@@ -48,6 +45,8 @@ export default function DashboardPage() {
     queryKey: queryKeys.studentDashboard(dashboardParams),
     queryFn: ({ signal }) => fetchDashboardStats(dashboardParams, signal),
     enabled: user?.role === "STUDENT",
+    // keep the current page mounted while the next history page loads
+    placeholderData: keepPreviousData,
   });
   const assignmentsQuery = useQuery<ExaminerAssignmentSummary[]>({
     queryKey: queryKeys.examinerAssignments,
@@ -122,6 +121,63 @@ export default function DashboardPage() {
     setShowPermissionModal(true);
   };
 
+  const modals = (
+    <>
+      <CameraMicPermissionModal
+        open={showPermissionModal}
+        onClose={() => setShowPermissionModal(false)}
+        onComplete={() => {
+          setShowPermissionModal(false);
+          router.push("/test/demo-test");
+        }}
+      />
+
+      <AlertDialog
+        open={showReviewPipelineNotice}
+        onOpenChange={setShowReviewPipelineNotice}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Previous submission still being reviewed</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your previous submission is still moving through payment and scoring.
+              You can start a new assessment once it has been scored.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+
+  if (!isExaminer) {
+    return (
+      <>
+        <StudentDashboard
+          name={user?.name ?? ""}
+          email={user?.email ?? ""}
+          dashboard={dashboard}
+          page={historyPageNumber}
+          canPrev={historyCursors.length > 0 && !dashboardQuery.isFetching}
+          canNext={
+            !!dashboard?.pagination.hasMore &&
+            dashboard.pagination.nextCursor != null &&
+            !dashboardQuery.isFetching
+          }
+          onPrev={() => setHistoryCursors((cursors) => cursors.slice(0, -1))}
+          onNext={() => {
+            const nextCursor = dashboard?.pagination.nextCursor;
+            if (nextCursor) setHistoryCursors((cursors) => [...cursors, nextCursor]);
+          }}
+          onStart={handleStartAssessment}
+        />
+        {modals}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-paper">
       {/* Skip link */}
@@ -144,232 +200,26 @@ export default function DashboardPage() {
       />
 
       <main id="dashboard-content" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-        {isExaminer ? (
-          <>
-            <div className="max-w-2xl">
-              <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
-                Examiner dashboard
-              </p>
-              <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
-                Review and score submissions
-              </h1>
-              <p className="mt-3 text-[15px] leading-7 text-ink-soft">
-                Welcome back{user?.name ? `, ${user.name}` : ""}. Submissions assigned to
-                you for scoring appear below.
-              </p>
-            </div>
+        <div className="max-w-2xl">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
+            Examiner dashboard
+          </p>
+          <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
+            Review and score submissions
+          </h1>
+          <p className="mt-3 text-[15px] leading-7 text-ink-soft">
+            Welcome back{user?.name ? `, ${user.name}` : ""}. Submissions assigned to
+            you for scoring appear below.
+          </p>
+        </div>
 
-            <section className="mt-10">
-              <p className="mark">Assigned submissions</p>
-              <div className="mt-4">
-                <AssignmentList assignments={examinerAssignments} />
-              </div>
-            </section>
-          </>
-        ) : (
-          <>
-            <div className="max-w-2xl animate-rise">
-              <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
-                Candidate dashboard
-              </p>
-              <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
-                Welcome back{user?.name ? `, ${user.name}` : ""}.
-              </h1>
-              <p className="mt-3 text-[15px] leading-7 text-ink-soft">
-                This is where your band reports land. Start a new assessment, or reopen a
-                submission the jury has marked.
-              </p>
-            </div>
-
-            {/* Stat cards */}
-            <div className="mt-10 grid gap-4 sm:grid-cols-2">
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">Total tests</p>
-                <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-ink">
-                  {dashboard?.totalTests ?? 0}
-                </p>
-              </div>
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">Best score</p>
-                {dashboard?.bestScore != null ? (
-                  <div className="mt-3">
-                    <ScaleAwareScoreDisplay score={dashboard.bestScore} />
-                  </div>
-                ) : (
-                  <p className="mt-2 font-mono text-sm text-ink-faint">No score yet</p>
-                )}
-              </div>
-            </div>
-
-            {/* Start CTA — ink panel */}
-            <div className="mt-6 flex flex-col gap-6 border border-ink bg-ink px-6 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-              <div>
-                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-paper/60">
-                  Ready when you are
-                </p>
-                <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-paper sm:text-3xl">
-                  Record a new assessment
-                </h2>
-                <p className="mt-1.5 text-sm leading-6 text-paper/70">
-                  We check your camera and microphone before you begin.
-                </p>
-              </div>
-              <Button
-                variant="invert"
-                size="lg"
-                className="shrink-0"
-                onClick={handleStartAssessment}
-              >
-                Start your assessment
-              </Button>
-            </div>
-
-            {/* Test history */}
-            <section className="mt-12">
-              <div>
-                <p className="mark">Test history</p>
-                <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
-                  Your reports
-                </h2>
-              </div>
-
-              {dashboard && dashboard.submissions.length > 0 ? (
-                <div className="mt-6 border border-rule bg-paper-raised">
-                  <ul className="divide-y divide-rule" role="list">
-                    {dashboard.submissions.map((sub) => (
-                      <li key={sub.id}>
-                        <Link
-                          href={`/results/${sub.id}`}
-                          className="group flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-rule/40"
-                        >
-                          <div className="flex items-center gap-5">
-                            <div>
-                              <p className="font-mono text-sm tabular-nums text-ink">
-                                {new Date(sub.createdAt).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </p>
-                              <p className="mt-0.5 font-mono text-[11px] text-ink-faint">
-                                {new Date(sub.createdAt).toLocaleTimeString("en-US", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </p>
-                            </div>
-                            {sub.score != null && (
-                              <span className="border-l border-rule pl-4 font-mono text-lg font-semibold tabular-nums text-ink">
-                                {sub.score}
-                                <span className="text-xs font-normal text-ink-faint">
-                                  /{scoreMaximum(sub.scoringSystem)}
-                                </span>
-                              </span>
-                            )}
-                          </div>
-                          <span className="flex shrink-0 items-center gap-3">
-                            <SubmissionStatus status={sub.status} />
-                            <ChevronRightIcon
-                              className="size-4 text-ink-faint transition-transform group-hover:translate-x-0.5"
-                            />
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <div className="mt-6 border border-dashed border-rule-strong bg-paper-raised px-6 py-14 text-center">
-                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-                    No assessments yet
-                  </p>
-                  <p className="mx-auto mt-4 max-w-sm font-display text-2xl font-medium tracking-tight text-ink">
-                    Your band report will land here.
-                  </p>
-                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-ink-soft">
-                    Record your first answers and two certified examiners will score your
-                    pronunciation, fluency, vocabulary and grammar.
-                  </p>
-                  <Button
-                    className="mt-7"
-                    size="lg"
-                    onClick={handleStartAssessment}
-                  >
-                    Start your assessment
-                  </Button>
-                </div>
-              )}
-
-              {dashboard &&
-                (historyCursors.length > 0 || dashboard.pagination.hasMore) && (
-                  <div className="mt-6 flex items-center justify-between">
-                    <p className="text-sm text-ink-soft" aria-live="polite">
-                      Page {historyPageNumber}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label="Previous history page"
-                        disabled={historyCursors.length === 0 || dashboardQuery.isFetching}
-                        onClick={() => setHistoryCursors((cursors) => cursors.slice(0, -1))}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label="Next history page"
-                        disabled={
-                          !dashboard.pagination.hasMore ||
-                          dashboard.pagination.nextCursor == null ||
-                          dashboardQuery.isFetching
-                        }
-                        onClick={() => {
-                          const nextCursor = dashboard.pagination.nextCursor;
-                          if (!nextCursor) return;
-                          setHistoryCursors((cursors) => [...cursors, nextCursor]);
-                        }}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
-            </section>
-          </>
-        )}
+        <section className="mt-10">
+          <p className="mark">Assigned submissions</p>
+          <div className="mt-4">
+            <AssignmentList assignments={examinerAssignments} />
+          </div>
+        </section>
       </main>
-
-      {/* Camera & Mic confirmation — students only */}
-      {!isExaminer && (
-        <CameraMicPermissionModal
-          open={showPermissionModal}
-          onClose={() => setShowPermissionModal(false)}
-          onComplete={() => {
-            setShowPermissionModal(false);
-            router.push("/test/demo-test");
-          }}
-        />
-      )}
-
-      <AlertDialog
-        open={showReviewPipelineNotice}
-        onOpenChange={setShowReviewPipelineNotice}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Previous submission still being reviewed</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your previous submission is still moving through payment and scoring.
-              You can start a new assessment once it has been scored.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction>Got it</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
