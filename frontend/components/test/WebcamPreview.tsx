@@ -1,17 +1,26 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { Video } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Stamp } from "@/components/ui/Stamp";
+
+export type WebcamStatus = "standby" | "recording" | "saved";
+
+const STATUS: Record<WebcamStatus, { label: string; tone: string }> = {
+  standby: { label: "Camera standby", tone: "bg-sn-field-navy text-sn-navy" },
+  recording: { label: "Rec", tone: "bg-sn-field-amber text-sn-ink-amber" },
+  saved: { label: "Take saved", tone: "bg-sn-field-green text-sn-ink-green" },
+};
 
 interface WebcamPreviewProps {
   stream: MediaStream | null;
-  isRecording?: boolean;
+  status?: WebcamStatus;
   className?: string;
 }
 
-export function WebcamPreview({ stream, isRecording = false, className = "" }: WebcamPreviewProps) {
+export function WebcamPreview({ stream, status = "standby", className = "" }: WebcamPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const s = STATUS[status];
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -20,34 +29,32 @@ export function WebcamPreview({ stream, isRecording = false, className = "" }: W
   }, [stream]);
 
   return (
-    <div className={cn("relative overflow-hidden bg-studio", className)}>
+    <div
+      className={cn(
+        "relative aspect-video overflow-hidden rounded-2xl border border-sn-navy/36 bg-sn-field-navy text-sn-navy",
+        !stream && "border-dashed",
+        className,
+      )}
+    >
       {stream ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="h-full w-full object-cover"
-        />
+        <video ref={videoRef} autoPlay playsInline muted className="size-full -scale-x-100 object-cover" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-studio-panel">
-          <div className="text-center text-studio-text/50">
-            <svg className="mx-auto mb-2 h-12 w-12" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
-            </svg>
-            <p className="text-sm">No camera</p>
-          </div>
+        <div className="flex size-full flex-col items-center justify-center gap-1 p-4 pt-11 text-center">
+          <Video className="size-7" strokeWidth={1.6} aria-hidden="true" />
+          <p className="m-0 mt-1 text-[15px] font-semibold text-sn-fg">No camera</p>
         </div>
       )}
-
-      {/* Recording indicator — brand stamp */}
-      {isRecording && (
-        <div className="absolute left-4 top-4">
-          <Stamp tone="signal" dot>
-            REC
-          </Stamp>
-        </div>
-      )}
+      <span
+        className={cn(
+          "absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.04em]",
+          s.tone,
+        )}
+      >
+        {status === "recording" && (
+          <span className="size-2 animate-pulse rounded-full bg-current" aria-hidden="true" />
+        )}
+        {s.label}
+      </span>
     </div>
   );
 }
