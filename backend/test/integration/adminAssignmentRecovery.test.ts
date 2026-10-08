@@ -9,6 +9,7 @@ import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import type { Prisma, PrismaClient } from "../../src/generated/client.js";
+import { SLOTS, createFixtureTestSet, manifestTestSetData } from "../fixtures/testSets.js";
 import type {
   AssignExaminersResult,
   AssignmentSetOutcome,
@@ -117,12 +118,13 @@ async function createAssignmentReadySubmission(status: SubmissionStatus = "PAID"
     const submission = await tx.submission.create({
       data: { studentId: student.id, status, paymentRequired: true },
     });
+    const testSet = await createFixtureTestSet(tx);
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: submission.id, version: 1 },
+      data: { submissionId: submission.id, ...manifestTestSetData(testSet) },
     });
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
-        data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+        data: { category, testSetId: testSet.id, tasks: { create: { promptText: "Prompt", order: 1 } } },
       });
       await tx.manifestEntry.create({
         data: {
@@ -337,12 +339,13 @@ test("automatic payment failure preserves the committed payment and later admin 
     const created = await tx.submission.create({
       data: { studentId: student.id, status: "AWAITING_PAYMENT", paymentRequired: true },
     });
+    const testSet = await createFixtureTestSet(tx);
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: created.id, version: 1 },
+      data: { submissionId: created.id, ...manifestTestSetData(testSet) },
     });
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
-        data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+        data: { category, testSetId: testSet.id, tasks: { create: { promptText: "Prompt", order: 1 } } },
       });
       await tx.manifestEntry.create({
         data: {

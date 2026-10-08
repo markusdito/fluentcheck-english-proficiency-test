@@ -15,7 +15,7 @@ const FINAL_MIGRATION = "20260829150000_enforce_required_examiner_assignment_slo
 
 let container: StartedPostgreSqlContainer;
 let constraintsClient: Client;
-let nextQuestionOrder = 910_000;
+const SLOTS = ["PART_1A", "PART_1B", "PART_2", "PART_3", "PART_4"] as const;
 
 const createDatabaseSql = {
   assignment_expansion: 'CREATE DATABASE "assignment_expansion"',
@@ -107,7 +107,7 @@ async function insertSubmission(
   const studentId = await insertStudent(client, prefix);
   const submissionId = randomUUID();
   // The manifest shape trigger is deferred to commit, so the Submission and its
-  // complete version-1 manifest must be inserted in one transaction.
+  // complete version-2 manifest must be inserted in one transaction.
   await client.query("BEGIN");
   try {
     await client.query(
@@ -116,21 +116,28 @@ async function insertSubmission(
        VALUES ($1, $2, $3, NOW(), NOW())`,
       [submissionId, studentId, status],
     );
+    // A fresh Test Set per Submission keeps active slot uniqueness intact.
+    const testSetId = randomUUID();
+    const testSetCode = `T-${testSetId.replaceAll("-", "").slice(0, 12).toUpperCase()}`;
+    await client.query(
+      `INSERT INTO "TestSet" ("id", "code", "updatedAt") VALUES ($1, $2, NOW())`,
+      [testSetId, testSetCode],
+    );
     const manifestId = randomUUID();
     await client.query(
-      `INSERT INTO "SubmissionManifest" ("id", "submissionId", "version")
-       VALUES ($1, $2, 1)`,
-      [manifestId, submissionId],
+      `INSERT INTO "SubmissionManifest" ("id", "submissionId", "version", "testSetId", "testSetCode")
+       VALUES ($1, $2, 2, $3, $4)`,
+      [manifestId, submissionId, testSetId, testSetCode],
     );
-    for (const [index, category] of ["PART_1", "PART_2", "PART_3"].entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const questionId = randomUUID();
       const taskId = randomUUID();
       const entryId = randomUUID();
       await client.query(
         `INSERT INTO "Question"
-          ("id", "category", "order", "createdAt", "updatedAt")
+          ("id", "category", "testSetId", "createdAt", "updatedAt")
          VALUES ($1, $2, $3, NOW(), NOW())`,
-        [questionId, category, nextQuestionOrder++],
+        [questionId, category, testSetId],
       );
       await client.query(
         `INSERT INTO "Task"

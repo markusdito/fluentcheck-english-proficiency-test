@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { after, before, beforeEach, test } from "node:test";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import type { Prisma, PrismaClient } from "../../src/generated/client.js";
+import { SLOTS, createFixtureTestSet, manifestTestSetData } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 let container: StartedPostgreSqlContainer;
@@ -84,17 +85,18 @@ async function createAssignmentReadySubmission() {
     },
   });
   // The manifest shape trigger is deferred to commit, so the Submission and
-  // its complete version-1 manifest must be created in one transaction.
+  // its complete version-2 manifest must be created in one transaction.
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const submission = await tx.submission.create({
       data: { studentId: student.id, status: "PAID", paymentRequired: true },
     });
+    const testSet = await createFixtureTestSet(tx);
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: submission.id, version: 1 },
+      data: { submissionId: submission.id, ...manifestTestSetData(testSet) },
     });
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
-        data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+        data: { category, testSetId: testSet.id, tasks: { create: { promptText: "Prompt", order: 1 } } },
       });
       await tx.manifestEntry.create({
         data: {

@@ -9,6 +9,7 @@ import jwt from "jsonwebtoken";
 import type { Express } from "express";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import type { Prisma, PrismaClient } from "../../src/generated/client.js";
+import { SLOTS, createFixtureTestSet, manifestTestSetData } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 let container: StartedPostgreSqlContainer;
@@ -64,11 +65,14 @@ async function fixture() {
   });
   const { submission, entries } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const submission = await tx.submission.create({ data: { studentId: student.id } });
-    const manifest = await tx.submissionManifest.create({ data: { submissionId: submission.id, version: 1 } });
+    const testSet = await createFixtureTestSet(tx);
+    const manifest = await tx.submissionManifest.create({
+      data: { submissionId: submission.id, ...manifestTestSetData(testSet) },
+    });
     const entries: Prisma.ManifestEntryGetPayload<{}>[] = [];
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
-        data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+        data: { category, testSetId: testSet.id, tasks: { create: { promptText: "Prompt", order: 1 } } },
       });
       entries.push(await tx.manifestEntry.create({
         data: {
@@ -184,6 +188,51 @@ async function provisionVerifiedAnswers(
     });
   }
 }
+
+test("a version 2 manifest completes only with all five slots verified", async () => {
+  const partial = await fixture();
+  const partialManifest = await prisma.submissionManifest.findUniqueOrThrow({
+    where: { submissionId: partial.submission.id },
+    select: { version: true, entries: { select: { category: true, deliveryPosition: true } } },
+  });
+  assert.equal(partialManifest.version, 2);
+  assert.deepEqual(
+    partialManifest.entries
+      .sort((left, right) => left.deliveryPosition - right.deliveryPosition)
+      .map((entry) => entry.category),
+    [...SLOTS],
+  );
+
+  // Four of five verified Answers: the PART_4 slot is missing.
+  assert.equal(partial.entries.length, 5);
+  await provisionVerifiedAnswers(partial.entries.slice(0, 4), partial.submission.id);
+  const rejected = await fetch(`${baseUrl}/api/submissions/${partial.submission.id}/complete`, {
+    method: "POST",
+    headers: { Cookie: cookie(partial.student.id) },
+  });
+  assert.equal(rejected.status, 400);
+  assert.equal(
+    ((await rejected.json()) as { error?: string }).error,
+    "Submission does not contain the exact verified answer set",
+  );
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: partial.submission.id } })).status,
+    "IN_PROGRESS",
+  );
+
+  const full = await fixture();
+  await provisionVerifiedAnswers(full.entries, full.submission.id);
+  const accepted = await fetch(`${baseUrl}/api/submissions/${full.submission.id}/complete`, {
+    method: "POST",
+    headers: { Cookie: cookie(full.student.id) },
+  });
+  assert.equal(accepted.status, 200);
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: full.submission.id } })).status,
+    "AWAITING_PAYMENT",
+  );
+  assert.equal(await prisma.answer.count({ where: { submissionId: full.submission.id } }), 5);
+});
 
 test("waived completion dispatches automatic assignment and commits exactly two examiners", async () => {
   await prisma.appSettings.update({ where: { id: 1 }, data: { paymentEnabled: false } });

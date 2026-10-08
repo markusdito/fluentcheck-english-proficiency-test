@@ -11,6 +11,7 @@ import { Client } from "pg";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import type { Prisma, PrismaClient } from "../../src/generated/client.js";
 import type { SubmissionStatus } from "../../src/generated/enums.js";
+import { SLOTS, createFixtureTestSet, manifestTestSetData } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 const JWT_SECRET = crypto.randomBytes(32).toString("hex");
@@ -113,15 +114,16 @@ async function createScoringSubmission(status: SubmissionStatus = "SCORING") {
     const submission = await tx.submission.create({
       data: { studentId: student.id, status, scoringSystem: "RUBRIC_6" },
     });
+    const testSet = await createFixtureTestSet(tx, "SCORE");
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: submission.id, version: 1 },
+      data: { submissionId: submission.id, ...manifestTestSetData(testSet) },
     });
     const entries = [];
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
         data: {
           category,
-          order: Math.floor(Math.random() * 1_000_000),
+          testSetId: testSet.id,
           tasks: { create: { promptText: "Prompt", order: 1 } },
         },
       });

@@ -13,6 +13,7 @@ import jwt from "jsonwebtoken";
 import { Client } from "pg";
 import type { Prisma, PrismaClient } from "../../src/generated/client.js";
 import type { IpaymuTransport } from "../../src/service/ipaymu.transport.js";
+import { SLOTS, createFixtureTestSet, manifestTestSetData } from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 const checkoutRequests: Array<{ url: string; init: RequestInit }> = [];
@@ -255,7 +256,7 @@ async function createAwaitingPaymentSubmission() {
     },
   });
   // The manifest shape trigger is deferred to commit, so the Submission and
-  // its complete version-1 manifest must be created in one transaction.
+  // its complete version-2 manifest must be created in one transaction.
   const submission = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.submission.create({
       data: {
@@ -264,12 +265,13 @@ async function createAwaitingPaymentSubmission() {
         paymentRequired: true,
       },
     });
+    const testSet = await createFixtureTestSet(tx, "PAY");
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: created.id, version: 1 },
+      data: { submissionId: created.id, ...manifestTestSetData(testSet) },
     });
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
-        data: { category, order: Math.floor(Math.random() * 1_000_000), tasks: { create: { promptText: "Prompt", order: 1 } } },
+        data: { category, testSetId: testSet.id, tasks: { create: { promptText: "Prompt", order: 1 } } },
       });
       await tx.manifestEntry.create({
         data: {

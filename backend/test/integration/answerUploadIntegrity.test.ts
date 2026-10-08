@@ -16,6 +16,11 @@ import {
   installFakeR2Head,
   type FakeR2Object,
 } from "../fixtures/fakeR2.js";
+import {
+  SLOTS,
+  createFixtureTestSet,
+  manifestTestSetData,
+} from "../fixtures/testSets.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -115,16 +120,17 @@ async function createFixture() {
     const submission = await tx.submission.create({
       data: { studentId: student.id, status: "IN_PROGRESS" },
     });
+    const testSet = await createFixtureTestSet(tx);
     const manifest = await tx.submissionManifest.create({
-      data: { submissionId: submission.id, version: 1 },
+      data: { submissionId: submission.id, ...manifestTestSetData(testSet) },
     });
     const entries: Array<Prisma.ManifestEntryGetPayload<{}>> = [];
 
-    for (const [index, category] of (["PART_1", "PART_2", "PART_3"] as const).entries()) {
+    for (const [index, category] of SLOTS.entries()) {
       const question = await tx.question.create({
         data: {
           category,
-          order: Math.floor(Math.random() * 1_000_000),
+          testSetId: testSet.id,
           tasks: { create: { promptText: `${category} prompt`, order: 1 } },
         },
         include: { tasks: true },
