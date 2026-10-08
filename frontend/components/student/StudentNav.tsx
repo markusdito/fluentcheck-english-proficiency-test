@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { container, focusRing, meta } from "./styles";
 
-function initials(name: string) {
+export function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "?";
   return (parts[0][0] + (parts.length > 1 ? parts.at(-1)![0] : "")).toUpperCase();
