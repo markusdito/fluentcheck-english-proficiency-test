@@ -197,7 +197,7 @@ export function Hero() {
             data-island-target
             className="mb-5 max-w-[32ch] text-[length:clamp(44px,6vw,76px)] leading-[1.04] font-bold tracking-[-0.02em] text-balance"
           >
-            Three parts.
+            Four parts.
             <br />
             Two examiners.
             <br />

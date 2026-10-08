@@ -21,7 +21,7 @@ export function StartCard({ onStart }: { onStart: () => void }) {
       <p className={meta}>Speaking test · one sitting</p>
       <h3 className={`${h3} mt-2`}>Take the speaking test</h3>
       <p className="mt-2 max-w-[60ch] text-pretty text-sn-muted">
-        Three parts run one after another. Each question is played aloud, preparation
+        Four parts run one after another. Each question is played aloud, preparation
         starts when the audio ends, and recording starts when preparation ends.
       </p>
 
