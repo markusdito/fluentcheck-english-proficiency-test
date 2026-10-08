@@ -64,6 +64,10 @@ _Avoid_: Grading task, question assignment
 One of `PART_1`, `PART_2`, or `PART_3`; every new Submission contains exactly one selected Question from each Required category.
 _Avoid_: Test section, question group
 
+**Question set**:
+The Questions sharing one `order` across the Required categories; a Submission delivers one complete Question set and never mixes orders.
+_Avoid_: Question group, paper
+
 **Answer**:
 A student's recorded response to one Question within a Submission.
 _Avoid_: Recording, response file
@@ -133,15 +137,19 @@ An immutable record of the Question content, timing, and Prompt media identity p
 _Avoid_: Current question, question copy
 
 **Eligible question**:
-An active Question with available Prompt media and at least one active Task that can be included in a new Submission.
+An active Question with available Prompt media that can be included in a new Submission. Tasks are optional enrichment, not a condition of eligibility.
 _Avoid_: Ready question, test question
+
+**Draft question**:
+An active Question whose Prompt media is not yet complete; it is administratively visible but not eligible for delivery. A Question with no Tasks is not a Draft.
+_Avoid_: Incomplete question, unpublished question
 
 **Submission manifest**:
 An immutable record of the Questions selected, one per required category, their delivery order, and the Delivered prompt snapshots presented within one Submission. It remains authoritative even when the source Questions are later edited or retired.
 _Avoid_: Test configuration, question list
 
 **Assessment unavailable**:
-A temporary condition in which FluentCheck cannot safely create a complete Submission because Question selection or Prompt media preparation cannot satisfy the delivery contract.
+A condition in which FluentCheck cannot safely create a complete Submission because Question selection or Prompt media preparation cannot satisfy the delivery contract. A transient preparation failure is retryable; a persistent gap in the Question bank is not, because only an administrator can clear it.
 _Avoid_: Connection error, generic server error
 
 **Manifest entry**:

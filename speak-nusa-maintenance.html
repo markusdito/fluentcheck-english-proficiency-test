@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#061219">
+<title>NusaSpeak — offline for maintenance</title>
+<meta name="description" content="NusaSpeak is offline for maintenance. We are back as soon as the upgrade is done.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ============================================================
+   NusaSpeak — maintenance notice
+   Single file. No build step. Nothing to configure.
+   ============================================================ */
+
+:root{
+  --ink:#061219;          /* deep strait — page ground */
+  --line-soft:rgba(226,244,246,.07);
+  --foam:#E6F1F1;         /* primary text */
+  --mist:#A8C6C9;         /* secondary text */
+  --muted:#6F929A;        /* labels */
+  --signal:#F0A03C;       /* beacon amber — the one accent */
+  --gutter:clamp(20px,4.2vw,52px);
+  --lamp-y:42px;          /* beacon lamp origin: also the light sweep's pivot */
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  min-height:100svh;
+  background:var(--ink);
+  color:var(--foam);
+  font-family:var(--sans);
+  font-size:clamp(15px,.55vw + 13.6px,16.5px);
+  line-height:1.55;
+  font-synthesis-weight:none;
+  overflow-x:hidden;
+}
+
+/* Chart-paper graticule: faint survey grid under everything. */
+body::before{
+  content:"";
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    repeating-linear-gradient(90deg,var(--line-soft) 0 1px,transparent 1px 96px),
+    repeating-linear-gradient(0deg,var(--line-soft) 0 1px,transparent 1px 96px);
+  opacity:.5;
+}
+
+/* --- the beacon: a slow light sweep pivoting on the lamp --- */
+.beam{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.beam::before{
+  content:"";
+  position:absolute;
+  left:calc(var(--gutter) - 130vmax);
+  top:calc(var(--lamp-y) - 130vmax);
+  width:260vmax;height:260vmax;
+  background:conic-gradient(from 0deg,
+      transparent 0 44deg,
+      rgba(240,160,60,.08) 55deg,
+      transparent 68deg);
+  -webkit-mask-image:radial-gradient(closest-side,rgba(0,0,0,.9),rgba(0,0,0,.3) 24%,transparent 56%);
+  mask-image:radial-gradient(closest-side,rgba(0,0,0,.9),rgba(0,0,0,.3) 24%,transparent 56%);
+  animation:sweep 17s linear infinite;
+}
+@keyframes sweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+.shell{
+  position:relative;z-index:1;
+  min-height:100svh;
+  max-width:1180px;
+  margin:0 auto;
+  padding:30px var(--gutter) 34px;
+  display:flex;flex-direction:column;gap:clamp(34px,7vh,72px);
+}
+
+/* ---------------- top bar ---------------- */
+/* Wraps rather than clipping: on phones the status chip drops to a second line. */
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
+.wordmark{
+  display:flex;align-items:center;gap:11px;
+  font-size:1rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--foam);text-decoration:none;
+}
+.wordmark span{color:var(--mist);font-weight:500}
+.lamp{
+  position:relative;flex:none;
+  width:9px;height:9px;border-radius:50%;
+  background:var(--signal);
+  box-shadow:0 0 14px 2px rgba(240,160,60,.5);
+  animation:lamp 4.6s ease-in-out infinite;
+}
+@keyframes lamp{0%,100%{opacity:.5}45%{opacity:1}}
+.chip{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:7px 13px 7px 11px;
+  border:1px solid rgba(226,244,246,.13);border-radius:100px;
+  background:rgba(240,160,60,.05);
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--mist);white-space:nowrap;
+}
+.chip::before{
+  content:"";width:6px;height:6px;border-radius:50%;
+  background:var(--signal);box-shadow:0 0 9px rgba(240,160,60,.85);
+}
+
+/* ---------------- notice ---------------- */
+/* The word is the whole page, so it is sized in cqi: it fills the
+   column to the same optical width at every viewport.            */
+.hero{
+  flex:1;
+  display:flex;flex-direction:column;justify-content:center;
+  container-type:inline-size;
+}
+.eyebrow{
+  display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;
+  margin:0 0 clamp(16px,2.4vh,26px);
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);
+}
+.eyebrow b{color:var(--mist);font-weight:500}
+
+.status{
+  margin:0;
+  font-variation-settings:"wdth" 62,"wght" 880;
+  font-size:clamp(3.4rem,17vw,9.5rem);   /* fallback */
+  line-height:.84;
+  letter-spacing:-.02em;
+  text-transform:uppercase;
+  color:var(--foam);
+  display:flex;align-items:baseline;
+  white-space:nowrap;
+}
+@supports (font-size:1cqi){
+  .status{font-size:clamp(3.4rem,26.5cqi,19rem)}
+}
+/* the signature: the full stop is the beacon. */
+.beacon{
+  flex:none;
+  width:.115em;height:.115em;margin-left:.075em;
+  border-radius:50%;
+  background:var(--signal);
+  box-shadow:0 0 .1em rgba(255,214,160,.9),0 0 1.1em .1em rgba(240,160,60,.55);
+  animation:pulse 4.6s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{opacity:.55;box-shadow:0 0 .08em rgba(255,214,160,.5),0 0 .5em .04em rgba(240,160,60,.28)}
+  45%{opacity:1;box-shadow:0 0 .12em rgba(255,224,180,.95),0 0 1.2em .12em rgba(240,160,60,.6)}
+}
+
+.copy{margin:clamp(24px,3.4vh,38px) 0 0;max-width:48ch}
+.lede{
+  margin:0;
+  font-size:clamp(1.05rem,.5vw + .95rem,1.25rem);
+  line-height:1.52;
+  color:var(--foam);
+  text-wrap:pretty;
+}
+.lede + .lede{
+  margin-top:14px;
+  font-size:clamp(.98rem,.35vw + .92rem,1.08rem);
+  color:var(--mist);
+}
+
+/* ---------------- footer ---------------- */
+.foot{
+  display:flex;flex-wrap:wrap;gap:10px 26px;justify-content:space-between;align-items:baseline;
+  padding-top:22px;border-top:1px solid var(--line-soft);
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;
+  color:var(--muted);
+}
+.foot b{color:var(--mist);font-weight:400}
+/* Only the clock is a single unbreakable unit; the rest may wrap. */
+.foot > :last-child{white-space:nowrap}
+.wordmark:focus-visible{outline:2px solid var(--signal);outline-offset:3px;border-radius:2px}
+
+@media (prefers-reduced-motion:reduce){
+  .beam::before,.lamp,.beacon{animation:none}
+  .beam::before{opacity:.5}
+  .beacon{opacity:.9}
+}
+@media print{
+  body{background:#fff;color:#000}
+  body::before,.beam,.lamp,.beacon{display:none}
+  .shell{min-height:0}
+}
+</style>
+</head>
+<body>
+
+<div class="beam" aria-hidden="true"></div>
+
+<div class="shell">
+
+  <header class="topbar">
+    <a class="wordmark" href="/">
+      <span class="lamp" aria-hidden="true"></span>
+      Nusa<span>Speak</span>
+    </a>
+    <p class="chip" role="status">Maintenance in progress</p>
+  </header>
+
+  <main class="hero">
+    <p class="eyebrow">
+      <b>Service notice</b>
+      <span>Speaking test engine</span>
+    </p>
+
+    <h1 class="status">Offline<i class="beacon" aria-hidden="true"></i></h1>
+
+    <div class="copy">
+      <p class="lede">
+        NusaSpeak is offline while we upgrade the speaking test. We are back as soon
+        as the work is done.
+      </p>
+      <p class="lede">
+        Your account, your practice history, and the results you have already earned are
+        safe. Nothing has been lost.
+      </p>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <span>NusaSpeak · English proficiency testing</span>
+    <span><b id="clock">Yogyakarta 16:57 WIB</b></span>
+  </footer>
+
+</div>
+
+<script>
+/* Local times, so the page reads as live rather than a stale cached copy. */
+(function () {
+  const el = document.getElementById("clock");
+  const TIMEZONE = "Asia/Jakarta"; // Yogyakarta runs on WIB (UTC+7)
+  const fmt = (tz) => new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz
+  }).format(new Date());
+
+  function tick() {
+    el.textContent = "Yogyakarta " + fmt(TIMEZONE) + " WIB · " + fmt() + " your time";
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
