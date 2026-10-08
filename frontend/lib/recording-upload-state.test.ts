@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   areAllManifestEntriesUploaded,
-  canAdvanceFromEntry,
   initializeUploadStates,
   uploadStatusLabel,
 } from "@/lib/recording-upload-state";
@@ -19,12 +18,6 @@ describe("recording upload state", () => {
     expect(areAllManifestEntriesUploaded(["entry-a", "entry-b"], {
       "entry-a": { status: "uploaded" },
     })).toBe(false);
-  });
-
-  it("requires verified upload before leaving the current entry", () => {
-    const states = { "entry-a": { status: "blob-ready" as const } };
-    expect(canAdvanceFromEntry("entry-a", states)).toBe(false);
-    expect(canAdvanceFromEntry("entry-a", { "entry-a": { status: "uploaded" } })).toBe(true);
   });
 
   it("describes the asynchronous upload phases", () => {

@@ -76,6 +76,21 @@ describe("useCountdown", () => {
     expect(result.current.isComplete).toBe(false);
   });
 
+  it("follows the monotonic clock even when interval ticks are delayed", () => {
+    const { result } = renderHook(() => useCountdown(10));
+    const startedAt = performance.now();
+    act(() => {
+      result.current.start();
+    });
+
+    // A throttled tab fires one late tick after 7 s of real elapsed time.
+    vi.spyOn(performance, "now").mockReturnValue(startedAt + 7_000);
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    expect(result.current.seconds).toBe(3);
+  });
+
   it("clears its timer when unmounted", () => {
     const onComplete = vi.fn();
     const { result, unmount } = renderHook(() => useCountdown(1, onComplete));

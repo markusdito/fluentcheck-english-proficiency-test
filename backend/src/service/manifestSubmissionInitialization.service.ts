@@ -1,8 +1,9 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { prisma } from "../config/db.js";
-import { createQuestionAudioViewUrlFromMetadata } from "./upload.service.js";
+import { createOptionIconViewUrl, createQuestionAudioViewUrlFromMetadata } from "./upload.service.js";
 import { lockPromptMediaStorageIdentity } from "./promptMediaLock.service.js";
 import { deliveredTestSet } from "./submissionManifest.service.js";
+import { hasDeliverableContent, sameContent } from "./questionContent.js";
 import {
   ASSESSMENT_SLOTS,
   CURRENT_MANIFEST_VERSION,
@@ -51,6 +52,7 @@ export class AssessmentUnavailableError extends Error {
 export interface AssessmentInitializationDependencies {
   chooseIndex?: (length: number) => number;
   signPromptMedia?: (storageKey: string, mimeType: string) => Promise<string>;
+  signOptionIcon?: (storageKey: string, mimeType: string) => Promise<string>;
   now?: () => number;
   deadline?: number;
   attempt?: number;
@@ -173,6 +175,8 @@ async function activeManifestMatchesCurrentBank(submissionId: string): Promise<b
       question.audioSizeBytes !== entry.promptMediaSizeBytes ||
       question.preparationSeconds !== entry.preparationSeconds ||
       question.recordingSeconds !== entry.recordingSeconds ||
+      !sameContent(question.cueCard, entry.cueCard) ||
+      !sameContent(question.options, entry.options) ||
       question.tasks.length !== entry.tasks.length || question.tasks.some((task, index) =>
         task.id !== entry.tasks[index]?.sourceTaskId ||
         task.promptText !== entry.tasks[index]?.deliveredText ||
@@ -307,6 +311,7 @@ async function replayStartIntent(
   idempotencyKey: string,
   signPromptMedia: NonNullable<AssessmentInitializationDependencies["signPromptMedia"]>,
   deadline: number,
+  signOptionIcon: NonNullable<AssessmentInitializationDependencies["signOptionIcon"]>,
 ) {
   const existingIntent = await prisma.submissionStartIntent.findUnique({
     where: { idempotencyKey },
@@ -342,11 +347,14 @@ async function replayStartIntent(
       promptMediaSizeBytes: entry.promptMediaSizeBytes,
       sourceQuestionId: entry.sourceQuestionId,
       tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
+      cueCard: entry.cueCard,
+      options: entry.options,
     })),
   };
   const entries = await buildManifestDelivery(
     manifest,
     (key, mime) => withDeadline(signPromptMedia(key, mime), deadline),
+    (key, mime) => withDeadline(signOptionIcon(key, mime), deadline),
   );
   return {
     submissionId: existingIntent.submissionId,
@@ -366,6 +374,7 @@ export async function initializeManifestSubmission(
 ) {
   const chooseIndex = dependencies.chooseIndex ?? ((length: number) => randomInt(length));
   const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
+  const signOptionIcon = dependencies.signOptionIcon ?? createOptionIconViewUrl;
   const now = dependencies.now ?? Date.now;
   const startedAt = dependencies.startedAt ?? now();
   const requestId = dependencies.requestId ?? randomUUID();
@@ -380,7 +389,7 @@ export async function initializeManifestSubmission(
 
   try {
     if (idempotencyKey) {
-      const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
+      const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline, signOptionIcon);
       if (replay) {
         observeSuccess(observeSuccessCallback, { requestId, startedAt, now });
         return replay;
@@ -404,7 +413,7 @@ export async function initializeManifestSubmission(
     // the current universal question bank instead of outdated questions.
     const candidateSets = await Promise.all(
       CATEGORIES.map(async (category) => {
-        const candidates = await prisma.question.findMany({
+        const candidates = (await prisma.question.findMany({
           where: { ...ELIGIBLE_QUESTION_WHERE, category },
           orderBy: { id: "asc" },
           include: {
@@ -413,7 +422,7 @@ export async function initializeManifestSubmission(
               orderBy: { order: "asc" },
             },
           },
-        });
+        })).filter(hasDeliverableContent);
         return { category, candidates };
       }),
     );
@@ -487,9 +496,12 @@ export async function initializeManifestSubmission(
             deliveredOrder: task.order,
             deliveredText: task.promptText,
           })),
+            cueCard: item.question.cueCard,
+            options: item.question.options,
         })),
       },
       (key, mime) => withDeadline(signPromptMedia(key, mime), deadline),
+      (key, mime) => withDeadline(signOptionIcon(key, mime), deadline),
     );
 
     const result = await prisma.$transaction(async (tx) => {
@@ -544,6 +556,8 @@ export async function initializeManifestSubmission(
           current.audioMimeType !== item.question.audioMimeType || current.audioSizeBytes !== item.question.audioSizeBytes ||
           current.preparationSeconds !== item.question.preparationSeconds ||
           current.recordingSeconds !== item.question.recordingSeconds ||
+          !sameContent(current.cueCard, item.question.cueCard) ||
+          !sameContent(current.options, item.question.options) ||
           current.tasks.length !== item.question.tasks.length || current.tasks.some((task, index) =>
             task.id !== item.question.tasks[index]?.id || task.promptText !== item.question.tasks[index]?.promptText ||
             task.order !== item.question.tasks[index]?.order)
@@ -563,6 +577,8 @@ export async function initializeManifestSubmission(
             promptMediaStorageKey: item.question.audioStorageKey!,
             promptMediaMimeType: item.question.audioMimeType!,
             promptMediaSizeBytes: item.question.audioSizeBytes!,
+            ...(item.question.cueCard != null && { cueCard: item.question.cueCard }),
+            ...(item.question.options != null && { options: item.question.options }),
           },
         });
         for (const task of item.question.tasks) {
@@ -620,7 +636,7 @@ export async function initializeManifestSubmission(
       // back, preserving exactly one manifest for the key.
       if (idempotencyKey) {
         try {
-          const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline);
+          const replay = await replayStartIntent(studentId, idempotencyKey, signPromptMedia, deadline, signOptionIcon);
           if (replay) return replay;
         } catch (replayError) {
           observeInitializationFailure(replayError, observeFailure, {
@@ -668,6 +684,7 @@ export async function resumeManifestSubmission(
   dependencies: AssessmentInitializationDependencies = {},
 ) {
   const signPromptMedia = dependencies.signPromptMedia ?? createQuestionAudioViewUrlFromMetadata;
+  const signOptionIcon = dependencies.signOptionIcon ?? createOptionIconViewUrl;
   const now = dependencies.now ?? Date.now;
   const startedAt = dependencies.startedAt ?? now();
   const requestId = dependencies.requestId ?? randomUUID();
@@ -700,6 +717,8 @@ export async function resumeManifestSubmission(
       promptMediaSizeBytes: entry.promptMediaSizeBytes,
       sourceQuestionId: entry.sourceQuestionId,
       tasks: entry.tasks.map((task) => ({ deliveredOrder: task.deliveredOrder, deliveredText: task.deliveredText })),
+      cueCard: entry.cueCard,
+      options: entry.options,
     })),
   };
   let entries;
@@ -707,6 +726,7 @@ export async function resumeManifestSubmission(
     entries = await buildManifestDelivery(
       manifest,
       (key, mime) => withDeadline(signPromptMedia(key, mime), deadline),
+      (key, mime) => withDeadline(signOptionIcon(key, mime), deadline),
     );
   } catch (error) {
     if (!(error instanceof ManifestEvidenceUnavailableError)) throw error;

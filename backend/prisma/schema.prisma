@@ -197,6 +197,11 @@ model Question {
   testSet                   TestSet                    @relation(fields: [testSetId], references: [id], onDelete: Restrict)
   preparationSeconds        Int                        @default(30)
   recordingSeconds          Int                        @default(120)
+  // Structured onscreen content (PRD §3.2, FR-6.1). Shapes are validated in
+  // questionContent.ts: Part 2 cue card {topic, points[3]}; Part 3 options
+  // [4 × {title, bullets[2], icon}].
+  cueCard                   Json?
+  options                   Json?
   createdById               String?                    @db.Uuid
   createdBy                 User?                      @relation(fields: [createdById], references: [id], onDelete: SetNull)
   tasks                     Task[]
@@ -434,6 +439,8 @@ model ManifestEntry {
   promptMediaStorageKey String             @default("")
   promptMediaMimeType   String             @default("")
   promptMediaSizeBytes  Int                @default(0)
+  cueCard               Json? // Part 2 cue card as delivered
+  options               Json? // Part 3 options (with icon identities) as delivered
   sourceQuestionId      String             @db.Uuid
   sourceQuestion        Question           @relation(fields: [sourceQuestionId], references: [id], onDelete: Restrict)
   tasks                 ManifestTask[]

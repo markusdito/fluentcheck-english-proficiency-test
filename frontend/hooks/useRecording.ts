@@ -137,10 +137,12 @@ export function useRecording(): UseRecordingReturn {
       recorder.start(1000); // timeslice: 1000ms for duration tracking
       setState("recording");
 
-      // Track duration (counts upward — remaining is derived by the consumer)
+      // Track duration on a monotonic clock (counts upward — remaining is
+      // derived by the consumer) so delayed ticks never stretch speaking time.
+      const startedAt = performance.now();
       durationRef.current = setInterval(() => {
-        setDuration((prev) => prev + 1);
-      }, 1000);
+        setDuration(Math.floor((performance.now() - startedAt) / 1000));
+      }, 250);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start recording.");
       setState("error");

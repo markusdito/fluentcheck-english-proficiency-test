@@ -136,6 +136,8 @@ export const QuestionScalarFieldEnum = {
   testSetId: 'testSetId',
   preparationSeconds: 'preparationSeconds',
   recordingSeconds: 'recordingSeconds',
+  cueCard: 'cueCard',
+  options: 'options',
   createdById: 'createdById',
   audioStorageKey: 'audioStorageKey',
   audioMimeType: 'audioMimeType',
@@ -322,6 +324,8 @@ export const ManifestEntryScalarFieldEnum = {
   promptMediaStorageKey: 'promptMediaStorageKey',
   promptMediaMimeType: 'promptMediaMimeType',
   promptMediaSizeBytes: 'promptMediaSizeBytes',
+  cueCard: 'cueCard',
+  options: 'options',
   sourceQuestionId: 'sourceQuestionId',
   createdAt: 'createdAt'
 } as const

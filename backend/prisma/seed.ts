@@ -1,7 +1,18 @@
 import "dotenv/config";
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/client.js";
 import { Pool } from "pg";
+import { env } from "../src/config/env.js";
+import { r2Client } from "../src/config/r2.js";
+import { generateOptionIconKey } from "../src/service/questionContent.js";
+import { TEST_SETS, type SeedQuestion } from "./testSets.js";
+
+const assetDir = join(dirname(fileURLToPath(import.meta.url)), "seed-assets");
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -14,15 +25,8 @@ const prisma = new PrismaClient({
 async function main() {
   console.log("🌱 Starting seed...");
 
-  // Clean existing seed data
-  await prisma.score.deleteMany();
-  await prisma.examinerAssignment.deleteMany();
-  await prisma.payment.deleteMany();
-  await prisma.answer.deleteMany();
-  await prisma.submission.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.question.deleteMany();
-  await prisma.testSet.deleteMany();
+  // No cleanup: Submission manifests are immutable evidence (database
+  // triggers), so the seed only adds missing records and is safe to re-run.
 
   // Find or create an admin user to be the creator of questions
   let admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
@@ -67,78 +71,85 @@ async function main() {
   }
 
   // ──────────────────────────────────────────────
-  // DEMO TEST SET — one Question per delivery slot with PRD default timings.
-  // The full CEFR B1 Test Sets A–F are loaded separately.
+  // CEFR B1 TEST SETS A–F (PRD §3.3, FR-6.4). Prompt audio and option icons
+  // are committed in prisma/seed-assets and uploaded to R2, so every set is
+  // deliverable after seeding. Without R2 a Question stays a Draft until an
+  // admin uploads its media, or the seed is re-run. An existing active
+  // Question in a slot is kept as-is; only its missing media is uploaded.
   // ──────────────────────────────────────────────
-  const testSet = await prisma.testSet.create({ data: { code: "DEMO" } });
-  const demoQuestions = [
-    {
-      category: "PART_1A" as const,
-      preparationSeconds: 10,
-      recordingSeconds: 45,
-      tasks: ["Task 1A: Describe your plans for the next five years."],
-    },
-    {
-      category: "PART_1B" as const,
-      preparationSeconds: 10,
-      recordingSeconds: 45,
-      tasks: ["Task 1B: Explain how English is useful in your daily life."],
-    },
-    {
-      category: "PART_2" as const,
-      preparationSeconds: 60,
-      recordingSeconds: 90,
-      tasks: [
-        "Talk about a community action you took part in or would like to start.",
-        "Say what the action was and who was involved.",
-        "Explain why it mattered to you.",
-        "Describe what you would do differently next time.",
-      ],
-    },
-    {
-      category: "PART_3" as const,
-      preparationSeconds: 60,
-      recordingSeconds: 90,
-      tasks: ["Look at the four graduation project options. Select the ONE option you prefer and explain why."],
-    },
-    {
-      category: "PART_4" as const,
-      preparationSeconds: 15,
-      recordingSeconds: 60,
-      tasks: ["Task 4: Express your opinion on vocational skills versus a university degree."],
-    },
-  ];
-
-  console.log(`📝 Creating Test Set ${testSet.code} with ${demoQuestions.length} questions...`);
-
-  for (const q of demoQuestions) {
-    const created = await prisma.question.create({
-      data: {
-        category: q.category,
-        testSetId: testSet.id,
-        preparationSeconds: q.preparationSeconds,
-        recordingSeconds: q.recordingSeconds,
-        createdById: admin.id,
-        tasks: {
-          create: q.tasks.map((promptText, index) => ({ promptText, order: index + 1 })),
+  let drafts = 0;
+  for (const set of TEST_SETS) {
+    const testSet = await prisma.testSet.upsert({
+      where: { code: set.code },
+      update: {},
+      create: { code: set.code },
+    });
+    for (const q of set.questions) {
+      const existing = await prisma.question.findFirst({
+        where: { testSetId: testSet.id, category: q.category, deletedAt: null },
+      });
+      if (existing?.audioUploadStatus === "UPLOADED") {
+        console.log(`  ⏭️  [${set.code}/${q.category}] already seeded`);
+        continue;
+      }
+      const created = existing ?? await prisma.question.create({
+        data: {
+          category: q.category,
+          testSetId: testSet.id,
+          preparationSeconds: q.preparationSeconds,
+          recordingSeconds: q.recordingSeconds,
+          createdById: admin.id,
+          ...(q.cueCard && { cueCard: q.cueCard }),
+          ...(q.options && {
+            options: q.options.map(({ title, bullets }) => ({ title, bullets, icon: null })),
+          }),
+          tasks: { create: q.tasks.map((promptText, index) => ({ promptText, order: index + 1 })) },
         },
-      },
-      include: { tasks: true },
-    });
-    await prisma.question.update({
-      where: { id: created.id },
-      data: {
-        audioStorageKey: `questions/${created.id}/prompt.webm`,
-        audioMimeType: "audio/webm",
-        audioSizeBytes: 1,
-        audioUploadStatus: "UPLOADED",
-      },
-    });
-    console.log(`  ✅ Created: [${testSet.code}/${created.category}] — ${created.tasks.length} tasks`);
+      });
+      try {
+        await prisma.question.update({
+          where: { id: created.id },
+          data: await uploadSeedMedia(set.code, created.id, q),
+        });
+        console.log(`  ✅ [${set.code}/${q.category}] deliverable`);
+      } catch (error) {
+        drafts += 1;
+        console.warn(`  ⚠️  [${set.code}/${q.category}] Draft, media upload failed: ${(error as Error).message}`);
+      }
+    }
   }
 
   console.log("\n🎉 Seed completed successfully!");
-  console.log(`   Total questions: ${demoQuestions.length}`);
+  console.log(`   Test Sets: ${TEST_SETS.map((set) => set.code).join(", ")}`);
+  if (drafts > 0) {
+    console.log(`   ${drafts} Question(s) are Drafts: check R2 settings and re-run, or upload media in the admin question bank.`);
+  }
+}
+
+async function put(storageKey: string, file: string, mimeType: string) {
+  const body = readFileSync(join(assetDir, file));
+  await r2Client.send(
+    new PutObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey, Body: body, ContentType: mimeType }),
+  );
+  return body.length;
+}
+
+/** Upload the committed prompt audio and option icons; returns the Question's media fields. */
+async function uploadSeedMedia(setCode: string, questionId: string, q: SeedQuestion) {
+  const audioStorageKey = `questions/${questionId}/prompt.mp3`;
+  const audioSizeBytes = await put(audioStorageKey, `audio/${setCode}-${q.category}.mp3`, "audio/mpeg");
+  const options = q.options && await Promise.all(q.options.map(async ({ title, bullets, icon }, index) => {
+    const storageKey = generateOptionIconKey(questionId, index, randomUUID(), "image/png");
+    const sizeBytes = await put(storageKey, `icons/${icon}.png`, "image/png");
+    return { title, bullets, icon: { storageKey, mimeType: "image/png", sizeBytes } };
+  }));
+  return {
+    audioStorageKey,
+    audioMimeType: "audio/mpeg",
+    audioSizeBytes,
+    audioUploadStatus: "UPLOADED" as const,
+    ...(options && { options }),
+  };
 }
 
 main()

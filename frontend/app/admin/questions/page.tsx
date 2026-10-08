@@ -33,6 +33,7 @@ import { card, h2, h3, meta, primaryButton } from "@/components/student/styles";
 import { btnDanger, btnPrimary, btnSecondary, chip, empty, error as errorText, field, label, lead } from "@/components/admin/styles";
 import { AudioUploadButton } from "@/components/admin/AudioUploadButton";
 import { AudioUploadBadge } from "@/components/admin/AudioUploadBadge";
+import { QuestionContentEditor } from "@/components/admin/QuestionContentEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
@@ -88,8 +89,8 @@ function TestSetPanel({
       <h2 className={h3}>Test Sets</h2>
       <p className="mt-1 text-sm text-sn-muted">
         A Submission is delivered from one Test Set. A set is deliverable only when all five
-        slots hold an active question with uploaded prompt audio and at least one task;
-        otherwise it stays a draft.
+        slots hold an active question with uploaded prompt audio and at least one task, and
+        its Part 3 question has four options with icons; otherwise it stays a draft.
       </p>
       <div className={`${card} mt-4 space-y-4`}>
         {loading ? (
@@ -1007,6 +1008,22 @@ export default function AdminQuestionsPage() {
                     </p>
                   )}
                 </div>
+                {original && original.category === editCategory && (
+                  <QuestionContentEditor
+                    key={original.id}
+                    question={original}
+                    disabled={editLoading}
+                    onSaved={(updated) =>
+                      updateQuestions((current) =>
+                        current.map((q) =>
+                          q.id === updated.id
+                            ? { ...q, cueCard: updated.cueCard, options: updated.options }
+                            : q,
+                        ),
+                      )
+                    }
+                  />
+                )}
                 <TaskEditor
                   questionId={editingId}
                   tasks={editTasks}
@@ -1087,6 +1104,9 @@ export default function AdminQuestionsPage() {
                               <p className="text-[15px] leading-6">
                                 {q.tasks.length} task{q.tasks.length === 1 ? "" : "s"} ·{" "}
                                 {q.preparationSeconds}s prep · {q.recordingSeconds}s recording
+                                {q.category === "PART_2" && (q.cueCard ? ` · Cue card: ${q.cueCard.topic}` : " · No cue card")}
+                                {q.category === "PART_3" &&
+                                  ` · ${q.options?.filter((option) => option.icon).length ?? 0}/4 option icons`}
                               </p>
                               {q.tasks.length > 0 && (
                                 <ul className="mt-3 space-y-1.5">

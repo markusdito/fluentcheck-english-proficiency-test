@@ -2,6 +2,7 @@ import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
 import type { QuestionCategory } from "../generated/enums.js";
 import { ASSESSMENT_SLOTS, ELIGIBLE_QUESTION_WHERE } from "./assessmentSlots.js";
+import { hasDeliverableContent } from "./questionContent.js";
 
 const TEST_SET_CODE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{0,31}$/u;
 
@@ -66,10 +67,12 @@ export async function listTestSets(): Promise<TestSetReadiness[]> {
     }),
     prisma.question.findMany({
       where: ELIGIBLE_QUESTION_WHERE,
-      select: { id: true },
+      select: { id: true, category: true, options: true },
     }),
   ]);
-  const eligibleIds = new Set(eligible.map((question) => question.id));
+  const eligibleIds = new Set(
+    eligible.filter(hasDeliverableContent).map((question) => question.id),
+  );
 
   return testSets.map((testSet) => {
     const slots = ASSESSMENT_SLOTS.map((category) => {

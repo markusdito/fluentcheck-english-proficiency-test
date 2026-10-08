@@ -60,6 +60,14 @@ _Avoid_: Test question, exam question
 A sub-prompt belonging to a Question and answered within that Question's single recorded Answer.
 _Avoid_: Grading task, question assignment
 
+**Cue card**:
+The Part 2 onscreen content of a Question: a talk topic and exactly three points to include.
+_Avoid_: Prompt card, topic card
+
+**Decision option**:
+One of exactly four Part 3 choices of a Question, each a title, two bullets and an icon, always presented as text with its icon. The student chooses ONE.
+_Avoid_: Choice card, answer option
+
 **Delivery slot**:
 One of `PART_1A`, `PART_1B`, `PART_2`, `PART_3`, or `PART_4`, delivered in that order; every new Submission contains exactly one selected Question per Delivery slot. Legacy `PART_1` data is `PART_1A`.
 _Avoid_: Test section, question group, Required category
@@ -137,11 +145,11 @@ Creation of a non-empty, absolute HTTPS runtime-authorized URL for selected Prom
 _Avoid_: Prompt delivery verification, media availability check
 
 **Delivered prompt snapshot**:
-An immutable record of the Question content, timing, and Prompt media identity presented within one Submission.
+An immutable record of the Question content (Tasks, Cue card, Decision options with icon identities), timing, and Prompt media identity presented within one Submission.
 _Avoid_: Current question, question copy
 
 **Eligible question**:
-An active Question with available Prompt media that can be included in a new Submission. Tasks are optional enrichment, not a condition of eligibility.
+An active Question with available Prompt media that can be included in a new Submission; a Part 3 Question also needs all four Decision options with icons. Tasks are optional enrichment, not a condition of eligibility.
 _Avoid_: Ready question, test question
 
 **Draft question**:

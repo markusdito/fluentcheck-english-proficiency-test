@@ -14,14 +14,6 @@ export function areAllManifestEntriesUploaded(
   return entryIds.length > 0 && entryIds.every((entryId) => states[entryId]?.status === "uploaded");
 }
 
-/** Navigation is safe only after the current recording has been verified. */
-export function canAdvanceFromEntry(
-  entryId: string | undefined,
-  states: Record<string, QuestionUploadState>,
-): boolean {
-  return Boolean(entryId && states[entryId]?.status === "uploaded");
-}
-
 export function uploadStatusLabel(status: UploadStatus): string | null {
   switch (status) {
     case "finalizing": return "Saving recording...";

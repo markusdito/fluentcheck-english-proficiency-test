@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { ApiQuestion, QuestionCategory, TestQuestionWithAudio, TestSetRef } from "@/types/test";
+import type { ApiQuestion, CueCard, DeliveredOption, QuestionCategory, TestQuestionWithAudio, TestSetRef } from "@/types/test";
 
 interface QuestionsResponse {
   status: string;
@@ -50,6 +50,9 @@ export interface InitializedSubmission {
     promptMediaSizeBytes: number;
     promptMediaUrl: string;
     tasks: Array<{ order: number; promptText: string }>;
+    /** Absent on responses from older backends. */
+    cueCard?: CueCard | null;
+    options?: DeliveredOption[] | null;
   }>;
   uploadedEntryIds?: string[];
 }

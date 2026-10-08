@@ -22,7 +22,7 @@ const items = [
   {
     id: "again",
     q: "Can I record an answer again?",
-    a: "Yes. You can re-record a part while the session is open, and only the final take is kept. The server verifies size, duration, and type before an answer counts toward the submission.",
+    a: "No. Like a live speaking exam, each answer is recorded once: recording starts when preparation ends and stops when speaking time ends. You can replay each question's audio once. The server verifies size, duration, and type before an answer counts toward the submission.",
   },
   {
     id: "fee",

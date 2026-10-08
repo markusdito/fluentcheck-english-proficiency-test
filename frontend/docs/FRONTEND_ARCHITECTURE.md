@@ -94,7 +94,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /admin/questions | source=frontend/app/admin/questions/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /admin/questions | Administrator Test Set readiness (Draft or Deliverable per slot), Test Set creation, and Question and prompt-audio management per Test Set slot. |
+| /admin/questions | Administrator Test Set readiness (Draft or Deliverable per slot), Test Set creation, and Question and prompt-audio management per Test Set slot, including the Part 2 cue card and Part 3 options with icon upload (QuestionContentEditor). |
 
 <!-- page: /admin/settings | source=frontend/app/admin/settings/page.tsx -->
 | Route | Current behavior |
@@ -263,7 +263,9 @@ browser permission automatically once the student starts an assessment.
 
 ### Assessment and media
 
-PromptDisplay presents the manifest prompt and timing. RecordingTimer and
+PromptDisplay presents the manifest prompt and timing, including the Part 2
+cue card and the four Part 3 options (text with icon, with the instruction to
+choose ONE). RecordingTimer and
 WebcamPreview support the active recording state. QuestionAudioPlayer presents
 prompt audio. VideoPlayer and LazyAnswerMedia present stored answer media,
 including examiner/admin views.
