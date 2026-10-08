@@ -60,14 +60,13 @@ export function ExaminerDashboard({ name, email, assignments }: ExaminerDashboar
   const [filter, setFilter] = useState<Filter>("all");
   const rows = assignments.filter(matches[filter]);
   const count = (f: Filter) => assignments.filter(matches[f]).length;
-  const first = name.trim().split(/\s+/)[0];
 
   return (
     <PageShell name={name} email={email} label="Examiner" contentId="dashboard-content" skipLabel="Skip to dashboard content">
       <div className="max-w-[60ch]">
-        <h1 className={h2}>Examiner workspace</h1>
+        <h1 className={h2}>{name.trim() ? `${name.trim()} Workspace` : "Workspace"}</h1>
         <p className="mt-3 text-[15px] text-sn-muted">
-          Welcome back{first ? `, ${first}` : ""}. Score each assigned submission against the shared rubric. The
+          Score each assigned submission against the shared rubric. The
           final band is the mean of two independent examiners.
         </p>
       </div>
