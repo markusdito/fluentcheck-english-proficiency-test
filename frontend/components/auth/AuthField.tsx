@@ -42,7 +42,7 @@ export function AuthField({
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           className={cn(
-            "min-h-12 w-full rounded-xl border border-sn-fg/18 bg-sn-surface px-4 py-3 text-base text-sn-fg transition-[border-color,box-shadow] duration-200 ease-standard placeholder:text-sn-muted/70 hover:border-sn-fg/36 focus:border-sn-fg focus:shadow-[0_0_0_3px_rgb(38_38_38/0.1)] focus:outline-none disabled:opacity-60 aria-invalid:border-sn-danger aria-invalid:focus:shadow-[0_0_0_3px_color-mix(in_oklch,var(--color-sn-danger)_16%,transparent)] [&::-ms-clear]:hidden [&::-ms-reveal]:hidden",
+            "min-h-12 w-full rounded-xl border border-sn-fg/18 bg-sn-surface px-4 py-3 text-base text-sn-fg transition-[border-color,box-shadow] duration-200 ease-standard placeholder:text-sn-muted/70 hover:border-sn-fg/36 focus:border-sn-fg focus:shadow-[0_0_0_3px_rgb(38_38_38/0.1)] focus:outline-none! disabled:opacity-60 aria-invalid:border-sn-danger aria-invalid:focus:shadow-[0_0_0_3px_color-mix(in_oklch,var(--color-sn-danger)_16%,transparent)] [&::-ms-clear]:hidden [&::-ms-reveal]:hidden",
             reveal && "pr-14",
             className,
           )}

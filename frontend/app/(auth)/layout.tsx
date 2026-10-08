@@ -40,7 +40,7 @@ const backLink =
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-sn-bg font-albert text-base leading-[1.55] text-sn-fg antialiased **:focus-visible:outline-offset-3 **:focus-visible:outline-sn-fg">
+    <div className="flex min-h-screen flex-col bg-sn-bg font-albert text-base leading-[1.55] text-sn-fg antialiased **:focus-visible:outline-offset-3! **:focus-visible:outline-sn-fg!">
       <header className="flex items-center justify-between gap-4 px-4 py-3 sm:px-8 sm:py-[18px]">
         <Link href="/" aria-label="SpeakNusa home" className="inline-flex min-h-11 items-center">
           <span className="text-[17px] font-normal lowercase tracking-[-0.01em] min-[381px]:text-[19px]">
