@@ -144,7 +144,7 @@ async function main() {
         audioUploadStatus: "UPLOADED",
         ...("cueCard" in q && { cueCard: q.cueCard }),
         // Like the prompt audio above, demo icon identities are placeholders.
-        ...("options" in q && {
+        ...("options" in q && q.options && {
           options: q.options.map((option, index) => ({
             ...option,
             icon: {
