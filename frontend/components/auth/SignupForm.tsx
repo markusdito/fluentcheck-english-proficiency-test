@@ -2,13 +2,11 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { z } from "zod";
-import { CircleAlertIcon } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { FormField } from "@/components/ui/form-field";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthField } from "@/components/auth/AuthField";
+import { errorSummary, primaryButton } from "@/components/auth/styles";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { GoogleAuthError } from "@/components/auth/GoogleAuthError";
 import { useQueryClient } from "@tanstack/react-query";
@@ -45,13 +43,12 @@ export function SignupForm() {
   const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
 
-    function normalizeUsername(value: string): string {
-      return value.toLowerCase().replace(/[^a-z0-9_]/g, "");
-    }
+  function normalizeUsername(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+  }
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<SignupFormErrors>({});
   const [loading, setLoading] = useState(false);
@@ -112,21 +109,18 @@ export function SignupForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate aria-label="Sign up form">
-      {/* Server / general error */}
+    <div>
       <GoogleAuthError />
-      {error && (
-        <Alert variant="destructive" className="mb-6 items-start">
-          <CircleAlertIcon />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      <GoogleAuthButton returnTo="signup" dividerLabel="or use your email" />
 
-      <GoogleAuthButton returnTo="signup" />
+      <form onSubmit={handleSubmit} noValidate aria-label="Sign up form" className="grid gap-[18px]">
+        {error && (
+          <p role="alert" className={errorSummary}>
+            {error}
+          </p>
+        )}
 
-      <div className="mt-8 space-y-4">
-        {/* Username */}
-        <FormField
+        <AuthField
           id="name"
           label="Username"
           type="text"
@@ -138,18 +132,12 @@ export function SignupForm() {
             clearFieldError("username");
           }}
           error={fieldErrors.username?.[0]}
-          helperText="Lowercase letters, numbers, and underscores only — no spaces"
+          hint="Lowercase letters, numbers and underscores only."
           required
           disabled={loading}
-          icon={
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
-            </svg>
-          }
         />
 
-        {/* Email */}
-        <FormField
+        <AuthField
           id="email"
           label="Email"
           type="email"
@@ -163,57 +151,31 @@ export function SignupForm() {
           error={fieldErrors.email?.[0]}
           required
           disabled={loading}
-          icon={
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M2.5 5A2.5 2.5 0 015 2.5h10A2.5 2.5 0 0117.5 5v10a2.5 2.5 0 01-2.5 2.5H5A2.5 2.5 0 012.5 15V5zM5 4a1 1 0 00-1 1v.217l6 3.75 6-3.75V5a1 1 0 00-1-1H5z" />
-            </svg>
-          }
         />
 
-        {/* Password */}
-        <div>
-          <FormField
-            id="password"
-            label="Password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              clearFieldError("password");
-            }}
-            error={fieldErrors.password?.[0]}
-            helperText="Must be at least 8 characters"
-            required
-            disabled={loading}
-            icon={
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M10 1a4 4 0 00-4 4v2H5a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2V9a2 2 0 00-2-2h-1V5a4 4 0 00-4-4zm2 6V5a2 2 0 10-4 0v2h4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            }
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((prev) => !prev)}
-            className="mt-1.5 text-xs font-medium text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ink rounded"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? "Hide password" : "Show password"}
-          </button>
-        </div>
+        <AuthField
+          id="password"
+          label="Password"
+          reveal
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            clearFieldError("password");
+          }}
+          error={fieldErrors.password?.[0]}
+          hint="At least 8 characters."
+          required
+          disabled={loading}
+        >
+          <StrengthMeter score={passwordScore(password)} />
+        </AuthField>
 
-        {/* Confirm password */}
-        <FormField
+        <AuthField
           id="confirmPassword"
           label="Confirm password"
-          type={showPassword ? "text" : "password"}
+          reveal
           autoComplete="new-password"
-          placeholder="Re-enter your password"
           value={confirmPassword}
           onChange={(e) => {
             setConfirmPassword(e.target.value);
@@ -222,31 +184,46 @@ export function SignupForm() {
           error={fieldErrors.confirmPassword?.[0]}
           required
           disabled={loading}
-        />
-
-      </div>
-
-      {/* Submit */}
-      <Button
-        type="submit"
-        variant="default"
-        size="lg"
-        loading={loading}
-        className="mt-6 w-full"
-      >
-        Create account
-      </Button>
-
-      {/* Footer links */}
-      <p className="mt-6 text-center text-sm text-ink-soft">
-        Already have an account?{" "}
-        <Link
-          href="/login"
-          className="font-medium text-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ink rounded"
         >
-          Sign in
-        </Link>
-      </p>
-    </form>
+          {confirmPassword && confirmPassword === password && (
+            <p className="inline-flex items-center gap-1.5 text-[13px] text-sn-ink-green">
+              <Check className="size-3.5" strokeWidth={2.4} aria-hidden />
+              Passwords match
+            </p>
+          )}
+        </AuthField>
+
+        <button type="submit" disabled={loading} aria-busy={loading || undefined} className={primaryButton}>
+          {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
+          <span>{loading ? "Creating account…" : "Create account"}</span>
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/** 0 = empty, 1–4 = weak to strong. Visual only; the schema enforces the real rule. */
+export function passwordScore(p: string): number {
+  if (!p) return 0;
+  let s = 0;
+  if (p.length >= 8) s++;
+  if (/\d/.test(p) && /[a-z]/i.test(p)) s++;
+  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
+  if (/[^A-Za-z0-9]/.test(p) || p.length >= 14) s++;
+  return Math.max(1, s);
+}
+
+const meterColor = ["", "bg-sn-danger", "bg-sn-amber", "bg-sn-green", "bg-sn-ink-green"];
+
+function StrengthMeter({ score }: { score: number }) {
+  return (
+    <div aria-hidden="true" className="mt-1 grid grid-cols-4 gap-1">
+      {[1, 2, 3, 4].map((i) => (
+        <i
+          key={i}
+          className={`h-1 rounded-xs transition-colors duration-200 ease-standard ${i <= score ? meterColor[score] : "bg-sn-border"}`}
+        />
+      ))}
+    </div>
   );
 }
