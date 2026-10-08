@@ -135,8 +135,8 @@ export default function SubmissionResultPage({
   const created = new Date(submission.createdAt);
   const dateText = created.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const homeHref = user?.role === "ADMIN" ? "/admin" : "/dashboard";
-  const notes = submission.answers.flatMap((answer, index) =>
-    answer.score != null ? answer.comments.map((c) => ({ part: index + 1, text: c })) : [],
+  const notes = submission.answers.flatMap((answer) =>
+    answer.score != null ? answer.comments.map((c) => ({ part: categoryLabel(answer.questionCategory), text: c })) : [],
   );
 
   return (
@@ -237,21 +237,19 @@ export default function SubmissionResultPage({
                   <thead>
                     <tr className="text-[11px] uppercase tracking-[0.04em] text-sn-muted">
                       <th scope="col" className="border-b border-sn-border px-2 py-3 text-left font-medium sm:px-3.5">Part</th>
-                      <th scope="col" className="border-b border-sn-border px-2 py-3 text-left font-medium sm:px-3.5">Category</th>
                       {rubric6 &&
                         RUBRIC_CRITERIA.map((c) => (
                           <th key={c} scope="col" className="hidden border-b border-sn-border px-3.5 py-3 text-right font-medium md:table-cell">
-                            {CRITERION_LABELS[c].slice(0, 5)}.
+                            {CRITERION_LABELS[c]}
                           </th>
                         ))}
                       <th scope="col" className="border-b border-sn-border px-2 py-3 text-right font-medium sm:px-3.5">Mean</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {submission.answers.map((answer, index) => (
+                    {submission.answers.map((answer) => (
                       <tr key={answer.id} className="hover:bg-sn-fg/6">
-                        <td className="border-b border-sn-border px-2 py-3 tabular-nums sm:px-3.5">{String(index + 1).padStart(2, "0")}</td>
-                        <td className="border-b border-sn-border px-2 py-3 sm:px-3.5">{categoryLabel(answer.questionCategory)}</td>
+                        <th scope="row" className="border-b border-sn-border px-2 py-3 text-left font-normal sm:px-3.5">{categoryLabel(answer.questionCategory)}</th>
                         {rubric6 &&
                           RUBRIC_CRITERIA.map((c) => (
                             <td key={c} className="hidden border-b border-sn-border px-3.5 py-3 text-right tabular-nums md:table-cell">
@@ -276,7 +274,7 @@ export default function SubmissionResultPage({
               <ul className="mt-3 mb-0 list-none p-0">
                 {notes.map((n, i) => (
                   <li key={i} className="border-t border-sn-border py-4 first:border-t-0 first:pt-1">
-                    <p className={meta}>Part {String(n.part).padStart(2, "0")}</p>
+                    <p className={meta}>{n.part}</p>
                     <p className="mt-1 mb-0 text-[15px] text-sn-muted">{n.text}</p>
                   </li>
                 ))}
@@ -292,7 +290,7 @@ export default function SubmissionResultPage({
             submission.answers.map((answer, index) => (
               <div key={answer.id} className="border-t border-sn-border py-5">
                 <p className={`${meta} mb-3`}>
-                  Part {String(index + 1).padStart(2, "0")} · {categoryLabel(answer.questionCategory)}
+                  {categoryLabel(answer.questionCategory)}
                   {answer.durationSeconds != null ? ` · ${answer.durationSeconds}s` : ""}
                 </p>
                 <LazyAnswerMedia
