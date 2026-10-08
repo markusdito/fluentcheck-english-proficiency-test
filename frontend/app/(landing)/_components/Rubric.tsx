@@ -26,7 +26,7 @@ const rubric: { band: string; cells: [string, string, string, string] }[] = [
     cells: [
       "Understandable with some listener effort. Recurring sound and stress patterns.",
       "Noticeable pausing. Turns sustained but unevenly.",
-      "Adequate for familiar topics. Struggles with abstract Part 3.",
+      "Adequate for familiar topics. Struggles with abstract topics in Parts 3 and 4.",
       "Limited complex structures. Errors occur but meaning is clear.",
     ],
   },

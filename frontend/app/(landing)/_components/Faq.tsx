@@ -16,8 +16,8 @@ const items = [
   },
   {
     id: "parts",
-    q: "What are the three parts?",
-    a: "Part 1 Interview, Part 2 Long turn, and Part 3 Discussion. One question from each part per submission, always from the same set. Prompt text, timing, and prompt audio are snapshotted at delivery, so later question bank edits never rewrite a past session.",
+    q: "What are the four parts?",
+    a: "Part 1 Personal response (two short tasks, 1A and 1B), Part 2 Monologue from a cue card, Part 3 Decision-making between four options, and Part 4 Opinion. That is five recorded answers per submission, all from the same Test Set. Prompt text, timing, and prompt audio are snapshotted at delivery, so later question bank edits never rewrite a past session.",
   },
   {
     id: "again",
