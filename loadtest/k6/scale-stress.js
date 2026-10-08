@@ -42,12 +42,20 @@ export default function () {
   ensureLogin(__VU);
 
   const me = http.get(`${BASE_URL}/auth/me`, jsonParams("me", authHeaders()));
+  if (__VU === 1 && me.status !== 200) {
+    console.log(
+      `[scale] me failed: status=${me.status} ratelimit=${me.headers["ratelimit"] || me.headers["ratelimit-limit"]} body=${me.body}`,
+    );
+  }
   check(me, { "me 200": (r) => r.status === 200 });
 
   const dashboard = http.get(
     `${BASE_URL}/submissions`,
     jsonParams("dashboard", authHeaders()),
   );
+  if (__VU === 1 && dashboard.status !== 200) {
+    console.log(`[scale] dashboard failed: status=${dashboard.status} body=${dashboard.body}`);
+  }
   check(dashboard, { "dashboard 200": (r) => r.status === 200 });
 
   sleep(1.9);

@@ -15,26 +15,12 @@ import type {
   Paginated,
 } from "@/types/admin";
 import { queryKeys } from "@/lib/query-keys";
-import { Button } from "@/components/ui/button";
-import { FormField } from "@/components/ui/form-field";
-import { Loader2, SearchIcon } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
+import { card, h2, h3, meta, primaryButton, secondaryButton } from "@/components/student/styles";
+import { empty, error as errorText, field, label, lead, tableWrap, td, th, tr } from "@/components/admin/styles";
 
 const ROLE_OPTIONS = ["STUDENT", "EXAMINER", "ADMIN"];
+const roleLabel = (role: string) => role.charAt(0) + role.slice(1).toLowerCase();
 
 function removesExaminerCapability(currentRole: string, requestedRole: string) {
   return (
@@ -97,7 +83,7 @@ function TransitionImpactPanel({
 }) {
   if (preview.assignments.length === 0) {
     return (
-      <p className="mt-5 border border-dashed border-rule px-4 py-3 text-sm text-ink-soft">
+      <p className="mt-5 rounded-xl border border-dashed border-sn-border px-4 py-3 text-sm text-sn-muted">
         No open Examiner assignments need reassignment.
       </p>
     );
@@ -108,60 +94,51 @@ function TransitionImpactPanel({
       {preview.assignments.map((assignment) => (
         <div
           key={assignment.id}
-          className="border border-rule px-4 py-3"
+          className="rounded-xl border border-sn-border px-4 py-3"
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
+              <p className={meta}>
                 Slot {assignment.slot} · {assignment.status}
               </p>
-              <p className="mt-1 text-sm text-ink">
+              <p className="mt-1 text-sm text-sn-fg">
                 Current owner: {assignment.currentExaminer.username}
               </p>
-              <p className="mt-1 text-xs text-ink-soft">
+              <p className="mt-1 text-xs text-sn-muted">
                 Assignment {assignment.id} · Submission {assignment.submissionId}
               </p>
-              <p className="mt-1 text-xs text-ink-soft">
+              <p className="mt-1 text-xs text-sn-muted">
                 {assignment.transferEligible ? "Transfer eligible" : "Transfer blocked"} · {assignment.scoreCount} saved score{assignment.scoreCount === 1 ? "" : "s"}
               </p>
             </div>
             {assignment.status === "IN_PROGRESS" ? (
-              <p className="text-sm text-signal">
+              <p className="text-sm text-sn-clay">
                 Finish this assignment before changing the role.
               </p>
             ) : assignment.scoreCount > 0 ? (
-              <p className="text-sm text-signal">
+              <p className="text-sm text-sn-clay">
                 Saved-score assignments cannot be transferred.
               </p>
             ) : assignment.transferEligible ? (
               <div className="w-full sm:max-w-xs">
-                <p className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
+                <label className={label}>
                   Replacement Examiner
-                </p>
-                <Select
-                  value={reassignmentMap[assignment.id] || undefined}
-                  onValueChange={(replacementId) =>
-                    replacementId != null &&
-                    onReplacementChange(assignment.id, replacementId)
-                  }
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-full"
+                  <select
+                    className={field}
+                    value={reassignmentMap[assignment.id] ?? ""}
+                    onChange={(e) => onReplacementChange(assignment.id, e.target.value)}
                     aria-label={`Replacement for assignment ${assignment.id}`}
                   >
-                    <SelectValue placeholder="Choose an active Examiner" />
-                  </SelectTrigger>
-                  <SelectContent>
+                    <option value="" disabled>Choose an active Examiner</option>
                     {assignment.candidates.map((candidate) => (
-                      <SelectItem key={candidate.id} value={candidate.id}>
+                      <option key={candidate.id} value={candidate.id}>
                         {candidate.username} · {candidate.email}
-                      </SelectItem>
+                      </option>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </select>
+                </label>
                 {assignment.candidates.length === 0 && (
-                  <p className="mt-1.5 text-xs text-signal">
+                  <p className="mt-1.5 text-[13px] text-sn-clay">
                     No eligible replacement Examiner is available.
                   </p>
                 )}
@@ -170,7 +147,7 @@ function TransitionImpactPanel({
           </div>
         </div>
       ))}
-      {transitionError && <p className="text-sm text-signal">{transitionError}</p>}
+      {transitionError && <p className="text-sm text-sn-clay">{transitionError}</p>}
     </div>
   );
 }
@@ -297,69 +274,50 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="mark">People</p>
-        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
-          Users
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-ink-soft">
-          Manage user accounts and roles.
-        </p>
-      </div>
+      <h1 className={h2}>Users</h1>
+      <p className={lead}>Manage user accounts and roles.</p>
 
-      {/* Filters */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end">
-        <form onSubmit={handleSearch} className="flex w-full max-w-sm items-end gap-2">
-          <FormField
-            label="Search"
-            placeholder="Username or email"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            icon={<SearchIcon className="size-4" />}
-          />
-          <Button type="submit" size="sm">
+      <div className="mt-10 mb-6 flex flex-col gap-4 sm:flex-row sm:items-end">
+        <form onSubmit={handleSearch} className="flex w-full max-w-md items-end gap-2">
+          <label className={`${label} flex-1`}>
             Search
-          </Button>
+            <input
+              type="search"
+              className={field}
+              placeholder="Username or email"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+          <button type="submit" className={`${secondaryButton} max-sm:w-auto`}>
+            Search
+          </button>
         </form>
-        <div className="w-full max-w-xs">
-          <p className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft">
-            Role
-          </p>
-          <Select value={roleFilter} onValueChange={(role) => role != null && handleRoleFilterChange(role)}>
-            <SelectTrigger size="default" className="w-full">
-              <SelectValue placeholder="All" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All</SelectItem>
-              {ROLE_OPTIONS.map((role) => (
-                <SelectItem key={role} value={role}>
-                  {role}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <label className={`${label} w-full max-w-xs`}>
+          Role
+          <select className={field} value={roleFilter} onChange={(e) => handleRoleFilterChange(e.target.value)}>
+            <option value="ALL">All</option>
+            {ROLE_OPTIONS.map((role) => (
+              <option key={role} value={role}>{roleLabel(role)}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {pendingTransition && (
-        <div className="mb-6 border border-rule-strong bg-paper-raised p-5" role="dialog" aria-label="Review account transition">
-          <div className="flex flex-col gap-1">
-            <p className="mark text-xs">Review transition</p>
-            <h2 className="font-display text-xl font-medium text-ink">
-              Remove Examiner access from {pendingTransition.user.username}?
-            </h2>
-            <p className="text-sm leading-6 text-ink-soft">
-              Existing assigned work stays on the same submission and slot. Choose a distinct active Examiner for every transferable assignment.
-            </p>
-          </div>
+        <div className={`${card} mb-6`} role="dialog" aria-label="Review account transition">
+          <h2 className={h3}>Remove Examiner access from {pendingTransition.user.username}?</h2>
+          <p className="mt-2 text-[15px] text-sn-muted">
+            Existing assigned work stays on the same submission and slot. Choose a distinct active Examiner for every transferable assignment.
+          </p>
 
           {rolePreviewQuery.isPending ? (
-            <div className="mt-5 flex items-center gap-2 text-sm text-ink-soft">
+            <div className="mt-5 flex items-center gap-2 text-sm text-sn-muted">
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               Loading assignment impact…
             </div>
           ) : rolePreviewQuery.isError ? (
-            <p className="mt-5 text-sm text-signal">
+            <p className={`${errorText} mt-5`}>
               {roleTransitionErrorMessage(rolePreviewQuery.error)}
             </p>
           ) : rolePreviewQuery.data ? (
@@ -376,11 +334,13 @@ export default function AdminUsersPage() {
             />
           ) : null}
 
-          <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <Button variant="outline" onClick={cancelPendingTransition} disabled={roleBusy !== null}>
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <button type="button" className={secondaryButton} onClick={cancelPendingTransition} disabled={roleBusy !== null}>
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
+              type="button"
+              className={primaryButton}
               onClick={() =>
                 pendingTransition &&
                 void applyRoleChange(
@@ -389,63 +349,47 @@ export default function AdminUsersPage() {
                   reassignmentMap,
                 )
               }
-              loading={roleBusy === pendingTransition.user.id}
+              aria-busy={roleBusy === pendingTransition.user.id || undefined}
               disabled={
+                roleBusy !== null ||
                 rolePreviewQuery.isPending ||
                 rolePreviewQuery.isError ||
                 !rolePreviewQuery.data ||
                 !canApplyTransition(rolePreviewQuery.data, reassignmentMap)
               }
             >
+              {roleBusy === pendingTransition.user.id ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : null}
               Apply role change
-            </Button>
+            </button>
           </div>
         </div>
       )}
 
       {usersQuery.isError ? (
-        <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
-          <p className="text-sm text-ink-soft">
-            Failed to load users. Please try again.
-          </p>
-        </div>
+        <p className={empty}>Failed to load users. Please try again.</p>
       ) : usersQuery.isPending ? (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
+          <Loader2 className="size-8 animate-spin text-sn-muted" role="status" aria-label="Loading" />
         </div>
       ) : items.length === 0 ? (
-        <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-12 text-center">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-            No users found
-          </p>
-          <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-ink-soft">
-            Try adjusting your search or filters.
-          </p>
-        </div>
+        <p className={empty}>No users found. Try adjusting your search or filters.</p>
       ) : (
         <>
-          <div className="border border-rule bg-paper-raised">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="mark px-5 text-xs font-semibold">
-                    Username
-                  </TableHead>
-                  <TableHead className="mark px-5 text-xs font-semibold">
-                    Email
-                  </TableHead>
-                  <TableHead className="mark px-5 text-xs font-semibold">
-                    Role
-                  </TableHead>
-                  <TableHead className="mark px-5 text-xs font-semibold">
-                    State
-                  </TableHead>
-                  <TableHead className="mark px-5 text-xs font-semibold">
-                    Created
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <div className={tableWrap}>
+            <table className="w-full border-collapse">
+              <caption className="sr-only">Users</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className={th}>Username</th>
+                  <th scope="col" className={th}>Email</th>
+                  <th scope="col" className={th}>Role</th>
+                  <th scope="col" className={th}>State</th>
+                  <th scope="col" className={th}>Created</th>
+                </tr>
+              </thead>
+              <tbody>
                 {items.map((user) => {
                   const isSelf = user.id === currentAdminId;
                   const isDeactivated = user.deletedAt != null;
@@ -454,82 +398,62 @@ export default function AdminUsersPage() {
                       ? pendingTransition.role
                       : user.role;
                   return (
-                    <TableRow key={user.id}>
-                      <TableCell className="px-5 py-3.5 text-sm font-medium text-ink">
-                        {user.username}
-                      </TableCell>
-                      <TableCell className="px-5 py-3.5 text-sm text-ink-soft">
-                        {user.email}
-                      </TableCell>
-                      <TableCell className="px-5 py-3.5">
-                        <Select
+                    <tr key={user.id} className={tr}>
+                      <td className={`${td} font-medium`}>{user.username}</td>
+                      <td className={`${td} text-sn-muted`}>{user.email}</td>
+                      <td className={td}>
+                        <select
+                          className={`${field} w-36`}
+                          aria-label={`Role for ${user.username}`}
                           value={selectedRole}
-                          onValueChange={(role) =>
-                            role != null && handleRoleChange(user, role)
-                          }
+                          onChange={(e) => handleRoleChange(user, e.target.value)}
                           disabled={isSelf || isDeactivated || roleBusy !== null}
                         >
-                          <SelectTrigger size="sm" className="w-full max-w-36">
-                            <SelectValue placeholder="Role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROLE_OPTIONS.map((role) => (
-                              <SelectItem key={role} value={role}>
-                                {role}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          {ROLE_OPTIONS.map((role) => (
+                            <option key={role} value={role}>{roleLabel(role)}</option>
+                          ))}
+                        </select>
                         {roleError[user.id] && (
-                          <p className="mt-1.5 text-xs text-signal">
-                            {roleError[user.id]}
-                          </p>
+                          <p className="mt-1.5 text-[13px] text-sn-clay">{roleError[user.id]}</p>
                         )}
                         {roleSuccess[user.id] && (
-                          <p className="mt-1.5 text-xs text-ink-soft">
-                            {roleSuccess[user.id]}
-                          </p>
+                          <p className="mt-1.5 text-[13px] text-sn-muted">{roleSuccess[user.id]}</p>
                         )}
-                      </TableCell>
-                      <TableCell className="px-5 py-3.5 text-sm text-ink-soft">
-                        {isDeactivated ? "Deactivated" : "Active"}
-                      </TableCell>
-                      <TableCell className="px-5 py-3.5 text-sm text-ink-soft">
+                      </td>
+                      <td className={`${td} text-sn-muted`}>{isDeactivated ? "Deactivated" : "Active"}</td>
+                      <td className={`${td} whitespace-nowrap tabular-nums text-sn-muted`}>
                         {new Date(user.createdAt).toLocaleDateString("en-US", {
                           year: "numeric",
                           month: "short",
                           day: "numeric",
                         })}
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
 
-          {/* Pagination */}
-          <div className="mt-6 flex items-center justify-between">
-            <p className="text-sm text-ink-soft">
-              Page {page} of {Math.max(totalPages, 1)}
-            </p>
+          <div className="mt-6 flex items-center justify-between gap-4">
+            <p className={meta}>Page {page} of {Math.max(totalPages, 1)}</p>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
+              <button
+                type="button"
+                className={`${secondaryButton} max-sm:w-auto`}
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
                 Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
+              </button>
+              <button
+                type="button"
+                className={`${secondaryButton} max-sm:w-auto`}
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
                 Next
-              </Button>
+              </button>
             </div>
           </div>
         </>

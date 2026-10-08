@@ -1,50 +1,38 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Scissors, CircleAlertIcon } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useSession } from "@/hooks/useSession";
 import { queryKeys } from "@/lib/query-keys";
-import { Header } from "@/components/layout/Header";
-import { AccountMenu } from "@/components/layout/AccountMenu";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ScaleAwareScoreDisplay } from "@/components/results/ScaleAwareScoreDisplay";
-import {
-  DASHBOARD_PAGE_SIZE,
-  fetchDashboardStats,
-} from "@/lib/dashboard-api";
+import { DASHBOARD_PAGE_SIZE, fetchDashboardStats } from "@/lib/dashboard-api";
 import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { fetchAdminStats } from "@/lib/admin-api";
-import { adminNavigationItems } from "@/lib/admin-navigation";
+import { readReduceMotion, writeReduceMotion } from "@/lib/preferences";
 import type { SessionRole } from "@/types/auth";
+import { BackLink, PageShell, PageState } from "@/components/student/PageShell";
+import { initials } from "@/components/student/StudentNav";
+import { card, h2, h3, meta, primaryButton, secondaryButton } from "@/components/student/styles";
 
-const roleLabels: Record<SessionRole, { label: string; stamp: string }> = {
-  STUDENT: { label: "Candidate", stamp: "stamp--ink" },
-  EXAMINER: { label: "Examiner", stamp: "stamp--verified" },
-  ADMIN: { label: "Administrator", stamp: "stamp--signal" },
+const roleLabels: Record<SessionRole, string> = {
+  STUDENT: "Student",
+  EXAMINER: "Examiner",
+  ADMIN: "Admin",
 };
 
-const stubCopy: Record<SessionRole, string> = {
-  STUDENT:
-    "Your candidate number on the SpeakNusa record. Quote it in any correspondence with the jury.",
-  EXAMINER:
-    "Your examiner reference on the SpeakNusa record. Quote it in any correspondence about your assignments.",
-  ADMIN:
-    "Your administrator reference on the SpeakNusa record. Shown on audit entries you author.",
-};
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+const candidateNumber = (id: string) => `SN-${id.slice(0, 8).toUpperCase()}`;
 
-function candidateNumber(id: string) {
-  return `FC-${id.slice(0, 8).toUpperCase()}`;
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-1 border-t border-sn-border py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-5">
+      <dt className={meta}>{label}</dt>
+      <dd className="m-0 min-w-0 tabular-nums [overflow-wrap:anywhere] sm:text-right">{children}</dd>
+    </div>
+  );
 }
 
 export default function ProfilePage() {
@@ -67,264 +55,164 @@ export default function ProfilePage() {
     queryFn: ({ signal }) => fetchAdminStats(signal),
     enabled: user?.role === "ADMIN",
   });
-  const dashboard = dashboardQuery.data;
-  const assignments = assignmentsQuery.data ?? [];
-  const adminStats = adminStatsQuery.data;
+
+  // the checkbox only renders after the client-side session loads, so reading storage here is safe
+  const [reduceMotion, setReduceMotion] = useState(() =>
+    typeof window === "undefined" ? false : readReduceMotion(),
+  );
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 2400);
+    return () => clearTimeout(t);
+  }, [saved]);
 
   if (session.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="size-8 animate-spin text-ink-faint" role="status" aria-label="Loading" />
-          <p className="text-sm text-ink-soft">Opening your record…</p>
-        </div>
-      </div>
+      <PageState>
+        <Loader2 className="mx-auto size-8 animate-spin text-sn-muted" role="status" aria-label="Loading" />
+        <p className="mt-4 text-sm text-sn-muted">Opening your profile…</p>
+      </PageState>
     );
   }
 
   if (session.isError || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper p-4">
-        <div className="w-full max-w-sm">
-          <Alert variant="destructive" className="items-start">
-            <CircleAlertIcon />
-            <AlertTitle>Something went wrong</AlertTitle>
-            <AlertDescription>
-              Failed to load your record. Please try again.
-            </AlertDescription>
-          </Alert>
-          <Button className="mt-4 w-full" size="lg" onClick={() => window.location.reload()}>
-            Try again
-          </Button>
-        </div>
-      </div>
+      <PageState>
+        <h1 className={h3}>Something went wrong</h1>
+        <p className="mt-2 text-[15px] text-sn-muted">Failed to load your profile. Please try again.</p>
+        <button type="button" className={`${primaryButton} mt-5 w-full`} onClick={() => window.location.reload()}>
+          Try again
+        </button>
+      </PageState>
     );
   }
 
-  const roleInfo = roleLabels[user.role];
-  const toScore = assignments.filter(
-    (a) => a.status === "ASSIGNED" || a.status === "IN_PROGRESS"
-  ).length;
-  const userCount = adminStats
-    ? Object.values(adminStats.usersByRole).reduce((sum, n) => sum + n, 0)
-    : 0;
+  const homeHref = user.role === "ADMIN" ? "/admin" : "/dashboard";
+  const dashboard = dashboardQuery.data;
+  const assignments = assignmentsQuery.data ?? [];
+  const adminStats = adminStatsQuery.data;
+
+  const glance: Array<[string, string]> =
+    user.role === "STUDENT"
+      ? [
+          ["Tests taken", dashboard ? String(dashboard.totalTests) : "—"],
+          [
+            "Best band",
+            dashboard?.bestScore
+              ? dashboard.bestScore.scoringSystem === "RUBRIC_6"
+                ? dashboard.bestScore.value.toFixed(2)
+                : `${dashboard.bestScore.value}/100`
+              : "—",
+          ],
+        ]
+      : user.role === "EXAMINER"
+        ? [
+            ["Assigned submissions", String(assignments.length)],
+            [
+              "To score",
+              String(assignments.filter((a) => a.status === "ASSIGNED" || a.status === "IN_PROGRESS").length),
+            ],
+          ]
+        : [
+            ["Users", adminStats ? String(Object.values(adminStats.usersByRole).reduce((s, n) => s + n, 0)) : "—"],
+            ["Pending grading", adminStats ? String(adminStats.pendingGrading) : "—"],
+          ];
 
   return (
-    <div className="min-h-screen bg-paper">
-      <a
-        href="#profile-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
-      >
-        Skip to profile content
-      </a>
+    <PageShell
+      name={user.name}
+      email={user.email}
+      label={roleLabels[user.role]}
+      homeHref={homeHref}
+      contentId="profile-content"
+      skipLabel="Skip to profile content"
+    >
+      <div className="flex flex-col items-start gap-3">
+        <BackLink href={homeHref}>{user.role === "ADMIN" ? "Back to admin panel" : "Back to dashboard"}</BackLink>
+        <h1 className={h2}>Profile &amp; settings</h1>
+      </div>
 
-      <Header
-        logoHref="/dashboard"
-        actions={
-          <AccountMenu
-            name={user.name}
-            email={user.email}
-            isAdmin={user.role === "ADMIN"}
-            showDashboard={user.role !== "ADMIN"}
-            navigationItems={
-              user.role === "ADMIN"
-                ? adminNavigationItems.map((item) => ({
-                    href: item.href,
-                    label: item.label,
-                  }))
-                : undefined
-            }
-          />
-        }
-      />
+      <div className="mt-8 grid items-start gap-8 min-[921px]:grid-cols-[2fr_1fr]">
+        <div className="flex flex-col gap-7">
+          <section className={card} aria-labelledby="details-title">
+            <h2 id="details-title" className={h3}>Your details</h2>
+            <p className="mt-2 text-[15px] text-sn-muted">
+              These come from your sign-in account and can&apos;t be edited here yet.
+            </p>
+            <dl className="mt-3 mb-0">
+              <Row label="Full name">{user.name}</Row>
+              <Row label="Email">{user.email}</Row>
+              <Row label="Role">{roleLabels[user.role]}</Row>
+              <Row label="Candidate number">{candidateNumber(user.id)}</Row>
+              <Row label="Member since">{formatDate(user.createdAt)}</Row>
+            </dl>
+          </section>
 
-      <main id="profile-content" className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        {/* Heading */}
-        <div className="animate-rise">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">
-            Profile · {roleInfo.label} record
-          </p>
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-            <h1 className="font-display text-4xl font-medium tracking-tight text-ink sm:text-5xl">
-              {user.name}
-            </h1>
-            <span className={`stamp ${roleInfo.stamp}`}>{roleInfo.label}</span>
-          </div>
-          <p className="mt-2 text-[15px] leading-7 text-ink-soft">
-            Member since {formatDate(user.createdAt)}.
-          </p>
+          <section className={card} aria-labelledby="prefs-title">
+            <h2 id="prefs-title" className={h3}>Preferences</h2>
+            <p className="mt-3 min-h-[1.55em] text-sm text-sn-muted" role="status">
+              {saved ? "Saved." : ""}
+            </p>
+            <div className="flex items-center gap-5 pt-2">
+              <div className="grid min-w-0 flex-1 gap-0.5">
+                <label htmlFor="pref-motion" className="text-[15px] font-semibold">Reduce motion</label>
+                <p id="pref-motion-help" className="m-0 text-sm text-sn-muted">
+                  Turns off button and menu animation. Saved in this browser only.
+                </p>
+              </div>
+              <span className="grid size-11 shrink-0 place-items-center">
+                <input
+                  id="pref-motion"
+                  type="checkbox"
+                  className="size-[22px] cursor-pointer accent-sn-fg"
+                  aria-describedby="pref-motion-help"
+                  checked={reduceMotion}
+                  onChange={(e) => {
+                    setReduceMotion(e.target.checked);
+                    writeReduceMotion(e.target.checked);
+                    setSaved(true);
+                  }}
+                />
+              </span>
+            </div>
+          </section>
         </div>
 
-        {/* The record slip */}
-        <section
-          className="mt-10 border border-rule bg-paper-raised animate-rise"
-          style={{ animationDelay: "80ms" }}
-          aria-label="Your record"
-        >
-          {/* Sheet header strip */}
-          <div className="flex items-center justify-between gap-4 border-b border-rule px-5 py-3">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-              SpeakNusa · Speaking assessment
+        <aside className="flex flex-col gap-7">
+          <section className={card} aria-label="Account summary">
+            <div className="flex flex-col items-start gap-3">
+              <div
+                className="grid size-20 place-items-center rounded-full bg-sn-field-navy text-[28px] font-semibold text-sn-navy"
+                aria-hidden="true"
+              >
+                {initials(user.name)}
+              </div>
+              <div className="grid min-w-0 gap-0.5">
+                <span className="text-xl font-semibold leading-[1.3] [overflow-wrap:anywhere]">{user.name}</span>
+                <span className="text-[15px] text-sn-muted [overflow-wrap:anywhere]">{user.email}</span>
+              </div>
+            </div>
+            <dl className="mt-5 mb-0">
+              {glance.map(([label, value]) => (
+                <Row key={label} label={label}>{value}</Row>
+              ))}
+            </dl>
+          </section>
+
+          <section className={card} aria-labelledby="account-title">
+            <h2 id="account-title" className={h3}>Account</h2>
+            <p className="mt-2 text-[15px] text-sn-muted">
+              Signing out ends this session on this device. Your results stay in your account.
             </p>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-              No. {candidateNumber(user.id)}
-            </p>
-          </div>
-
-          {/* Printed fields */}
-          <dl className="divide-y divide-rule">
-            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[10rem_1fr] sm:items-center sm:gap-6">
-              <dt className="mark">Name</dt>
-              <dd className="font-mono text-[15px] text-ink">{user.name}</dd>
-            </div>
-            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[10rem_1fr] sm:items-center sm:gap-6">
-              <dt className="mark">Email</dt>
-              <dd className="truncate font-mono text-[15px] text-ink">{user.email}</dd>
-            </div>
-            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[10rem_1fr] sm:items-center sm:gap-6">
-              <dt className="mark">Role</dt>
-              <dd>
-                <span className={`stamp ${roleInfo.stamp}`}>{roleInfo.label}</span>
-              </dd>
-            </div>
-            <div className="grid gap-1 px-5 py-4 sm:grid-cols-[10rem_1fr] sm:items-center sm:gap-6">
-              <dt className="mark">Member since</dt>
-              <dd className="font-mono text-[15px] tabular-nums text-ink">
-                {formatDate(user.createdAt)}
-              </dd>
-            </div>
-          </dl>
-
-          {/* Tear-off stub */}
-          <div className="relative border-t border-dashed border-rule-strong">
-            <span className="absolute -top-2.5 left-6 flex size-5 items-center justify-center bg-paper-raised">
-              <Scissors className="size-3.5 text-ink-faint" aria-hidden="true" />
-            </span>
-            <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4 sm:px-6">
-              <div>
-                <p className="mark">Keep this portion</p>
-                <p className="mt-1 font-mono text-xl font-semibold tabular-nums text-ink">
-                  {candidateNumber(user.id)}
-                </p>
-              </div>
-              <p className="max-w-56 text-xs leading-5 text-ink-faint">
-                {stubCopy[user.role]}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* At a glance */}
-        {user.role === "STUDENT" && dashboard && (
-          <section className="mt-10" aria-label="Your record at a glance">
-            <p className="mark">At a glance</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">Tests taken</p>
-                <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-ink">
-                  {dashboard.totalTests}
-                </p>
-              </div>
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">Best band</p>
-                {dashboard.bestScore != null ? (
-                  <div className="mt-3">
-                    <ScaleAwareScoreDisplay score={dashboard.bestScore} />
-                  </div>
-                ) : (
-                  <p className="mt-2 font-mono text-sm text-ink-faint">No score yet</p>
-                )}
-              </div>
+            <div className="mt-5">
+              <button type="button" className={secondaryButton} onClick={() => void signOut(queryClient)}>
+                Sign out
+              </button>
             </div>
           </section>
-        )}
-
-        {user.role === "EXAMINER" && (
-          <section className="mt-10" aria-label="Your work at a glance">
-            <p className="mark">At a glance</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">Assigned submissions</p>
-                <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-ink">
-                  {assignments.length}
-                </p>
-              </div>
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">To score</p>
-                <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-ink">
-                  {toScore}
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {user.role === "ADMIN" && adminStats && (
-          <section className="mt-10" aria-label="Platform at a glance">
-            <p className="mark">Platform at a glance</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">Users</p>
-                <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-ink">
-                  {userCount}
-                </p>
-              </div>
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">Pending grading</p>
-                <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-ink">
-                  {adminStats.pendingGrading}
-                </p>
-              </div>
-              <div className="border border-rule bg-paper-raised px-6 py-5">
-                <p className="mark">Paid revenue</p>
-                <p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-ink">
-                  IDR {adminStats.paidRevenue.toLocaleString("id-ID")}
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Account actions */}
-        <section className="mt-10 border border-rule bg-paper-raised" aria-label="Account actions">
-          <div className="flex items-center justify-between gap-4 border-b border-rule px-5 py-4">
-            <div>
-              <p className="text-sm font-medium text-ink">
-                {user.role === "ADMIN" ? "Open the admin panel" : "Back to your work"}
-              </p>
-              <p className="mt-0.5 text-xs text-ink-faint">
-                {user.role === "ADMIN"
-                  ? "The admin panel holds users, submissions and questions."
-                  : user.role === "EXAMINER"
-                    ? "Assigned submissions are listed on your dashboard."
-                    : "Reports and new assessments live on your dashboard."}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              render={<Link href={user.role === "ADMIN" ? "/admin" : "/dashboard"} />}
-            >
-              {user.role === "ADMIN" ? "Admin panel" : "Dashboard"}
-            </Button>
-          </div>
-          <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-ink">Sign out</p>
-              <p className="mt-0.5 text-xs text-ink-faint">
-                Ends this session on this device. You can sign back in anytime.
-              </p>
-            </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => void signOut(queryClient)}
-            >
-              Sign out
-            </Button>
-          </div>
-        </section>
-      </main>
-    </div>
+        </aside>
+      </div>
+    </PageShell>
   );
 }

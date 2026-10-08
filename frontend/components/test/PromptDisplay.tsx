@@ -1,6 +1,7 @@
 "use client";
 
 import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
+import { meta } from "@/components/student/styles";
 
 interface PromptDisplayProps {
   questionNumber: number;
@@ -13,27 +14,26 @@ interface PromptDisplayProps {
 
 export function PromptDisplay({ questionNumber, totalQuestions, audioUrl, tasks, autoPlay, onAudioEnded }: PromptDisplayProps) {
   return (
-    <div className="border border-studio-rule bg-studio-panel p-5">
-      <span className="inline-flex items-center border border-studio-rule px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-studio-text/70">
+    <div>
+      <h2 className="text-balance text-[length:clamp(24px,3.4vw,34px)] font-bold leading-[1.15] tracking-[-0.015em]">
         Question {questionNumber} of {totalQuestions}
-      </span>
-      <div className="mt-3">
+      </h2>
+      <div className="my-5">
+        <p className={`${meta} mb-2`}>Question audio</p>
         <QuestionAudioPlayer audioUrl={audioUrl} autoPlay={autoPlay} onEnded={onAudioEnded} />
       </div>
       {tasks && tasks.length > 0 && (
-        <div className="mt-4 bg-studio p-4">
-          <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-studio-text/60">
-            Instructions
-          </p>
-          <ul className="space-y-1.5">
-            {tasks.map((task, index) => (
-              <li key={index} className="flex items-start gap-2 text-sm leading-6 text-studio-text/80">
-                <span className="mt-2 h-1 w-1 shrink-0 rounded-[1px] bg-studio-text/50" />
-                {task}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ol className="m-0 list-none p-0">
+          {tasks.map((task, index) => (
+            <li
+              key={index}
+              className="flex items-baseline gap-5 border-t border-sn-border py-3.5 first:border-sn-fg"
+            >
+              <span className="flex-none text-[13px] tabular-nums text-sn-muted">Q{index + 1}</span>
+              <p className="m-0 text-base">{task}</p>
+            </li>
+          ))}
+        </ol>
       )}
     </div>
   );

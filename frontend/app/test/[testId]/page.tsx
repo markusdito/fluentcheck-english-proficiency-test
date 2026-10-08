@@ -7,7 +7,23 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { WebcamPreview } from "@/components/test/WebcamPreview";
 import { PromptDisplay } from "@/components/test/PromptDisplay";
 import { RecordingTimer } from "@/components/test/RecordingTimer";
-import { Button } from "@/components/ui/button";
+import { TimerRing } from "@/components/test/TimerRing";
+import { formatClock } from "@/components/QuestionAudioPlayer";
+import { PageState } from "@/components/student/PageShell";
+import { Pill } from "@/components/student/StatusPill";
+import {
+  card,
+  container,
+  ghostButton,
+  h2,
+  h3,
+  meta,
+  primaryButton,
+  secondaryButton,
+} from "@/components/student/styles";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
+import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { abandonSubmission, completeSubmission } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
@@ -44,6 +60,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     videoError,
     audioError,
     monitorError,
+    micLevel,
     studentId,
     sessionPending,
     sessionError,
@@ -63,6 +80,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const [mediaRecoveryError, setMediaRecoveryError] = useState<string | null>(null);
   const [abandonPending, setAbandonPending] = useState(false);
   const [abandonError, setAbandonError] = useState<string | null>(null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   // Question phase
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -399,9 +417,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   };
 
   const handleAbandonTest = async () => {
-    if (!submissionId || abandonPending || !window.confirm("Leave this Assessment? Your current Submission will be abandoned.")) {
-      return;
-    }
+    if (!submissionId || abandonPending) return;
     setAbandonPending(true);
     setAbandonError(null);
     try {
@@ -425,114 +441,83 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Loading while the authenticated Student, media, and manifest are prepared.
   if (phase === "loading" && !fetchError && !sessionError && (sessionPending || (Boolean(studentId) && mediaReady))) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-studio">
-        <div className="text-center">
-          <Loader2 className="mx-auto size-8 animate-spin text-studio-text/70" />
-          <p className="mt-4 text-studio-text/70">Loading questions...</p>
-        </div>
-      </div>
+      <PageState>
+        <Loader2 className="mx-auto size-8 animate-spin text-sn-muted" aria-hidden="true" />
+        <p className="mt-4 text-sn-muted" role="status">Loading questions…</p>
+      </PageState>
     );
   }
 
   // Error fetching questions
   if (fetchError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
-        <div className="max-w-md text-center">
-          <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
-            Failed to load test
-          </h1>
-          <p className="mb-2 text-studio-text/70">{fetchError.message}</p>
-          {!fetchError.isSubmissionConflict && (
-            <p className="mb-6 text-sm text-studio-text/60">
-              Please check your connection and try again.
-            </p>
-          )}
-          <Button
-            variant="invert"
-            size="lg"
-            className="w-full"
-            onClick={() => {
-              window.location.href = "/dashboard";
-            }}
-          >
-            Return to dashboard
-          </Button>
-        </div>
-      </div>
+      <PageState>
+        <h1 className={h3}>Failed to load test</h1>
+        <p className="mt-3 text-sn-muted">{fetchError.message}</p>
+        {!fetchError.isSubmissionConflict && (
+          <p className="mt-2 text-sm text-sn-muted">Please check your connection and try again.</p>
+        )}
+        <button
+          type="button"
+          className={`${primaryButton} mt-6 w-full`}
+          onClick={() => {
+            window.location.href = "/dashboard";
+          }}
+        >
+          Return to dashboard
+        </button>
+      </PageState>
     );
   }
 
-  // Direct navigation or a full reload has no stream to inherit from the
-  // dashboard. Request it only from this explicit user action.
   if (sessionError || (!sessionPending && !studentId)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
-        <div className="max-w-md text-center">
-          <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
-            Session unavailable
-          </h1>
-          <p className="mb-6 text-studio-text/70">Please sign in again before starting an Assessment.</p>
-          <Button variant="invert" size="lg" className="w-full" onClick={() => window.location.reload()}>
-            Try again
-          </Button>
-        </div>
-      </div>
+      <PageState>
+        <h1 className={h3}>Session unavailable</h1>
+        <p className="mt-3 text-sn-muted">Please sign in again before starting an Assessment.</p>
+        <button type="button" className={`${primaryButton} mt-6 w-full`} onClick={() => window.location.reload()}>
+          Try again
+        </button>
+      </PageState>
     );
   }
 
   if (phase === "loading" && !mediaReady && !fetchError && !sessionPending && studentId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
-        <div className="max-w-md text-center">
-          <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
-            Camera & Microphone Required
-          </h1>
-          <p className="mb-6 text-studio-text/70">
-            This Assessment needs access to your webcam and microphone to record your responses.
-          </p>
-          <div className="mb-6 border border-studio-rule bg-studio-panel p-4 text-left text-sm text-studio-text/70">
-            <p className="mb-2 font-medium text-studio-text/80">Hardware status:</p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Webcam: {isVideoReady ? "ready" : videoError || "not ready"}</li>
-              <li>Microphone: {isAudioReady ? "ready" : audioError || "not ready"}</li>
-              {monitorError && <li>Mic monitor: unavailable; capture can continue</li>}
-            </ul>
-          </div>
-          <p className="text-sm text-studio-text/50">
-            Requesting access to your camera and microphone…
-          </p>
-          {mediaRecoveryError && <p className="mt-4 text-sm text-signal">{mediaRecoveryError}</p>}
-        </div>
-      </div>
+      <PageState>
+        <h1 className={h3}>Camera &amp; microphone required</h1>
+        <p className="mt-3 text-sn-muted">
+          This Assessment needs your webcam and microphone to record your responses.
+        </p>
+        <ul className="mt-5 list-none rounded-[10px] border border-sn-border bg-sn-surface p-4 text-left text-sm">
+          <li>Webcam: {isVideoReady ? "ready" : videoError || "not ready"}</li>
+          <li>Microphone: {isAudioReady ? "ready" : audioError || "not ready"}</li>
+          {monitorError && <li>Mic monitor: unavailable; capture can continue</li>}
+        </ul>
+        <p className="mt-4 text-sm text-sn-muted" role="status">Requesting access to your camera and microphone…</p>
+        {mediaRecoveryError && <p className="mt-3 text-sm text-sn-danger">{mediaRecoveryError}</p>}
+      </PageState>
     );
   }
 
   if (phase === "media-paused") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
-        <div className="max-w-md text-center">
-          <h1 className="mb-4 font-display text-2xl font-medium tracking-tight text-studio-text">
-            Camera or microphone disconnected
-          </h1>
-          <p className="mb-6 text-studio-text/70">
-            Your Submission is preserved. Reconnect both devices to repeat the current answer and continue.
-          </p>
-          <Button
-            variant="invert"
-            size="lg"
-            className="w-full"
-            onClick={() => void handleRecoverMedia()}
-            loading={mediaLoading}
-            disabled={mediaLoading}
-          >
-            Reconnect devices
-          </Button>
-          {(mediaRecoveryError || mediaFailureMessage) && (
-            <p className="mt-4 text-sm text-signal">{mediaRecoveryError || mediaFailureMessage}</p>
-          )}
-        </div>
-      </div>
+      <PageState>
+        <h1 className={h3}>Camera or microphone disconnected</h1>
+        <p className="mt-3 text-sn-muted">
+          Your Submission is preserved. Reconnect both devices to repeat the current answer and continue.
+        </p>
+        <button
+          type="button"
+          className={`${primaryButton} mt-6 w-full`}
+          onClick={() => void handleRecoverMedia()}
+          disabled={mediaLoading}
+        >
+          {mediaLoading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+          Reconnect devices
+        </button>
+        <p className="mt-4 text-sm text-sn-danger">{mediaRecoveryError || mediaFailureMessage}</p>
+      </PageState>
     );
   }
 
@@ -550,138 +535,116 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     const allDone = allUploaded && failedUploadsCount === 0 && submissionCompleted;
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-studio p-4">
-        <div className="w-full max-w-lg text-center">
-          <div className="mb-6">
-            {!allDone && (
-              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-md border border-amber-500/40 bg-amber-500/15">
-                <Loader2 className="mx-auto size-10 animate-spin text-studio-text/70" />
-              </div>
-            )}
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-studio-text/50">
-              All answers submitted
+      <TestShell>
+        <div className="flex flex-wrap items-center justify-between gap-5">
+          <div>
+            <h2 className={h2}>{allDone ? "All answers are submitted" : "Finishing your test"}</h2>
+            <p className={`${meta} mt-2`}>
+              {allDone ? "Session complete · ready for scoring" : "Keep this page open"}
             </p>
-            <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-studio-text">
-              Test complete.
-            </h1>
-            <p className="mt-2 text-studio-text/70">
-              You have answered all {totalQuestions} questions.
-            </p>
-            {!allDone && !completionError && (
-              <p className="mt-2 text-sm text-amber-400">
-                {completionPending
-                  ? "Finalizing your submission..."
-                  : `Uploading ${pendingUploadsCount} remaining video${pendingUploadsCount !== 1 ? "s" : ""}...`}
-              </p>
-            )}
-            {failedUploadsCount > 0 && (
-              <p className="mt-2 text-sm text-signal">
-                {failedUploadsCount} upload{failedUploadsCount !== 1 ? "s" : ""} failed. Please retry or contact support.
-              </p>
-            )}
-            {completionError && (
-              <div className="mt-2 border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
-                <p>Could not finalize this submission: {completionError}</p>
-                <Button className="mt-3" variant="outline" onClick={retryCompletion}>Retry submission</Button>
-              </div>
-            )}
           </div>
-          <div className="mb-8 border border-studio-rule bg-studio-panel p-6">
-            <div className="grid grid-cols-2 gap-4 text-left">
-              <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-studio-text/50">
-                  Questions answered
-                </p>
-                <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-studio-text">
-                  {completedQuestions.length}
-                </p>
-              </div>
-              <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-studio-text/50">
-                  Recordings
-                </p>
-                <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-studio-text">
-                  {completedQuestions.length}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3">
-            <Button
-              variant="invert"
-              size="lg"
-              className="w-full"
-              onClick={handleFinishTest}
-              disabled={!allDone}
-            >
-              {allDone ? "Return to dashboard" : `Uploading (${pendingUploadsCount} remaining)...`}
-            </Button>
-          </div>
+          {allDone && <Pill tone="green">Session complete</Pill>}
         </div>
-      </div>
+        <article className={`${card} mt-5`}>
+          <div className="flex flex-col">
+            {questions.map((q, i) => {
+              const st = getUploadStatus(uploadStates[q.id]);
+              return (
+                <div key={q.id} className="grid grid-cols-[1fr_auto] items-center gap-5 border-t border-sn-border py-5 first:border-t-0 first:pt-0">
+                  <h3 className="text-[17px] font-semibold">Question {i + 1}</h3>
+                  {st === "uploaded" ? (
+                    <Pill tone="green">Uploaded</Pill>
+                  ) : st === "error" ? (
+                    <Pill tone="clay">Failed</Pill>
+                  ) : (
+                    <Pill>{uploadStatusLabel(st) ?? "Waiting"}</Pill>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {!allDone && !completionError && (
+            <p className="mt-5 flex items-center gap-2 text-[15px] text-sn-muted" role="status">
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              {completionPending
+                ? "Finalizing your submission…"
+                : `Uploading ${pendingUploadsCount} remaining video${pendingUploadsCount !== 1 ? "s" : ""}…`}
+            </p>
+          )}
+          {failedUploadsCount > 0 && (
+            <p className="mt-5 text-[15px] text-sn-danger">
+              {failedUploadsCount} upload{failedUploadsCount !== 1 ? "s" : ""} failed. Please retry or contact support.
+            </p>
+          )}
+          {completionError && (
+            <div className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]">
+              <p className="m-0">Could not finalize this submission: {completionError}</p>
+              <button type="button" className={`${secondaryButton} mt-3`} onClick={retryCompletion}>
+                Retry submission
+              </button>
+            </div>
+          )}
+          <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-sn-border pt-5">
+            <button type="button" className={primaryButton} onClick={handleFinishTest} disabled={!allDone}>
+              {allDone ? "Return to dashboard" : `Uploading (${pendingUploadsCount} remaining)...`}
+            </button>
+          </div>
+        </article>
+      </TestShell>
     );
   }
 
   const uploadStatus = currentQuestion ? getUploadStatus(uploadStates[currentQuestion.id]) : "idle";
   const uploadStatusText = getUploadStatusText(uploadStatus);
+  const leaveDisabled = abandonPending || phase === "recording" || recordingMutationPending;
 
   return (
-    <div className="flex min-h-screen flex-col bg-studio">
-      {/* Top bar — question progress dots + upload indicators */}
-      <div className="flex items-center justify-between border-b border-studio-rule px-6 py-4">
-        <div className="flex items-center gap-2">
-          {questions.map((q, i) => {
-            const status = getUploadStatus(uploadStates[q.id]);
-            let dotColor = "bg-studio-rule";
-            if (i === currentQuestionIndex) dotColor = "bg-signal";
-            else if (completedQuestions.includes(q.id)) {
-              if (status === "uploaded") dotColor = "bg-verified";
-              else if (status === "error") dotColor = "bg-signal";
-              else if (status === "uploading" || status === "getting-url") dotColor = "bg-amber-500";
-              else dotColor = "bg-verified";
-            }
-            return (
-              <div
-                key={q.id}
-                className={`h-1.5 w-8 rounded-[1px] transition-colors ${dotColor}`}
-                title={`Upload: ${status}`}
-              />
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-studio-text/50">
+    <TestShell
+      action={
+        <button
+          type="button"
+          className={ghostButton}
+          onClick={() => setShowLeaveDialog(true)}
+          disabled={leaveDisabled}
+        >
+          Leave assessment
+        </button>
+      }
+    >
+      <section aria-labelledby="stage-head">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-5">
+          <p id="stage-head" className={meta}>
             Question {currentQuestionIndex + 1} of {totalQuestions}
+          </p>
+          <div className="flex items-center gap-2" aria-label="Progress">
+            {questions.map((q, i) => {
+              const status = getUploadStatus(uploadStates[q.id]);
+              const done = completedQuestions.includes(q.id);
+              return (
+                <span
+                  key={q.id}
+                  title={`Upload: ${status}`}
+                  className={cn(
+                    "h-1.5 w-8 rounded-full transition-colors",
+                    i === currentQuestionIndex
+                      ? "bg-sn-fg"
+                      : done && status === "error"
+                        ? "bg-sn-danger"
+                        : done
+                          ? "bg-sn-ink-green"
+                          : "bg-sn-border",
+                  )}
+                />
+              );
+            })}
+            <span className="ml-2 rounded-full bg-sn-fg/6 px-2.5 py-1 text-[11px] uppercase tracking-[0.04em] whitespace-nowrap text-sn-muted">
+              Prep {currentQuestion.prepTime} s · speak {currentQuestion.recordingDuration} s
+            </span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleAbandonTest()}
-            disabled={abandonPending || phase === "recording" || recordingMutationPending}
-            loading={abandonPending}
-          >
-            Leave assessment
-          </Button>
-        </div>
-      </div>
-
-      {/* Main content area */}
-      <div className="flex flex-1 flex-col lg:flex-row">
-        {/* Left side — webcam preview */}
-        <div className="flex flex-1 flex-col items-center justify-center p-4 lg:p-8">
-          <div className="w-full max-w-3xl">
-            <WebcamPreview
-              stream={stream}
-              isRecording={phase === "recording"}
-              className="aspect-video w-full border border-studio-rule"
-            />
-          </div>
         </div>
 
-        {/* Right side — question, timer, controls */}
-        <div className="flex w-full flex-col justify-center border-t border-studio-rule bg-studio-panel/60 p-6 lg:w-96 lg:border-l lg:border-t-0 lg:p-8">
-          <div className="space-y-6">
-            {/* Prompt display */}
+        <div className="grid items-start gap-x-8 min-[921px]:grid-cols-[minmax(0,1fr)_320px] min-[921px]:grid-rows-[auto_1fr]">
+          <div className="min-[921px]:col-start-1 min-[921px]:row-start-1">
             <PromptDisplay
               questionNumber={currentQuestionIndex + 1}
               totalQuestions={totalQuestions}
@@ -690,145 +653,161 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               autoPlay
               onAudioEnded={handlePromptAudioEnded}
             />
+          </div>
 
-            {/* Timer section */}
-            <div className="border border-studio-rule bg-studio-panel p-5">
-              {phase === "preparation" && (
-                <div className="text-center">
-                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-400">
-                    Preparation time
-                  </p>
-                  <p className="mt-2 font-mono text-5xl font-semibold tabular-nums text-studio-text">
-                    {prepCountdown.formatted}
-                  </p>
-                  <p className="mt-2 text-sm text-studio-text/60">
-                    Prepare your answer. Recording will start automatically.
-                  </p>
+          <WebcamPreview
+            stream={stream}
+            status={phase === "recording" ? "recording" : phase === "stopped" ? "saved" : "standby"}
+            className="mt-5 max-w-[360px] max-[640px]:max-w-none min-[921px]:sticky min-[921px]:top-[88px] min-[921px]:col-start-2 min-[921px]:row-span-2 min-[921px]:row-start-1 min-[921px]:mt-0 min-[921px]:max-w-none"
+          />
+
+          <div className="min-[921px]:col-start-1 min-[921px]:row-start-2">
+            {phase === "preparation" && (
+              <TimerRing
+                remaining={prepCountdown.seconds}
+                total={currentQuestion.prepTime}
+                title="Preparation"
+              >
+                <p className="mt-3 mb-0 max-w-[44ch] text-[15px] text-sn-muted">
+                  {prepCountdown.isRunning
+                    ? "Use this time to plan. Recording starts automatically when preparation ends."
+                    : "Preparation begins as soon as the question audio ends."}
+                </p>
+              </TimerRing>
+            )}
+            {phase === "recording" && (
+              <RecordingTimer elapsed={recDuration} maxSeconds={currentQuestion.recordingDuration}>
+                <div className="mt-3.5 flex h-[34px] items-center gap-[5px]" aria-hidden="true">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <span
+                      key={i}
+                      className="w-1.5 rounded-[3px] bg-sn-fg transition-[height] duration-75"
+                      style={{ height: `${Math.max(18, Math.min(100, micLevel * (0.6 + ((i * 37) % 5) / 6)))}%` }}
+                    />
+                  ))}
                 </div>
-              )}
-              {phase === "recording" && (
-                <RecordingTimer
-                  elapsed={recDuration}
-                  maxSeconds={currentQuestion.recordingDuration}
-                />
-              )}
-              {phase === "stopped" && (
-                <div className="text-center">
-                  <div className="mb-2 inline-flex items-center gap-2 border border-verified/40 px-3 py-1">
-                    <svg className="h-4 w-4 text-verified" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                    </svg>
-                    <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-verified">
-                      Recording saved
-                    </span>
-                  </div>
-                  <p className="text-sm text-studio-text/60">
-                    Duration: {Math.floor(recDuration / 60)}:{(recDuration % 60).toString().padStart(2, "0")}
-                  </p>
-                  {/* Upload status indicator */}
-                  {uploadStatusText && (
-                    <div className={`mt-2 text-xs ${
-                      uploadStatus === "error" ? "text-signal" :
-                      uploadStatus === "uploaded" ? "text-verified" :
-                      "text-amber-400"
-                    }`}>
-                      {uploadStatus === "uploading" || uploadStatus === "getting-url" ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Loader2 className="size-4 animate-spin" />
-                          {uploadStatusText}
-                        </span>
-                      ) : (
-                        uploadStatusText
-                      )}
-                    </div>
+                <p className={`${meta} mt-2.5`}>Input level · on-device monitor</p>
+              </RecordingTimer>
+            )}
+            {phase === "stopped" && (
+              <div className="mt-5 flex flex-wrap items-center gap-5">
+                <Pill tone={uploadStatus === "error" ? "clay" : uploadStatus === "uploaded" ? "green" : "plain"}>
+                  {uploadStatus === "error" ? "Upload failed" : "Recording saved"}
+                </Pill>
+                <p className="m-0 text-[15px]">
+                  Take captured · <span className="tabular-nums">{formatClock(recDuration)}</span>
+                  {uploadStatusText && uploadStatus !== "error" && (
+                    <span className="text-sn-muted"> · {uploadStatusText}</span>
                   )}
-                </div>
-              )}
-            </div>
-
-            {/* Error display */}
-            {recError && (
-              <div className="border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
-                {recError}
+                </p>
               </div>
             )}
 
-            {/* Upload error — show retry with actual error message */}
+            {recError && (
+              <p className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]">{recError}</p>
+            )}
+
             {uploadStatus === "error" && phase === "stopped" && (
-              <div className="border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
-                <p className="font-medium">Upload failed</p>
-                <p className="mt-1 text-xs text-signal/80">
+              <div className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]">
+                <p className="m-0 font-medium">Upload failed</p>
+                <p className="mt-1 mb-0 text-sm text-sn-muted">
                   {currentQuestion && getUploadError(uploadStates[currentQuestion.id])}
                 </p>
-                <p className="mt-2 text-xs">You can re-record this question and try again.</p>
+                <p className="mt-2 mb-0 text-sm">You can re-record this question and try again.</p>
               </div>
             )}
 
             {abandonError && (
-              <div className="border border-signal/30 bg-signal/10 p-3 text-sm text-signal">
+              <p className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]">
                 Could not leave this Assessment: {abandonError}
-              </div>
+              </p>
             )}
 
-            {/* Action buttons */}
-            <div className="space-y-3">
+            <div className="mt-8 flex flex-wrap items-center justify-end gap-3 border-t border-sn-border pt-5">
               {phase === "preparation" && (
                 <>
-                  <Button
-                    variant="invert"
-                    size="lg"
-                    className="w-full"
-                    onClick={handleStartRecording}
-                  >
+                  <p className={`${meta} mr-auto`}>Recording will auto-start in {prepCountdown.seconds}s</p>
+                  <button type="button" className={primaryButton} onClick={handleStartRecording}>
                     Start recording
-                  </Button>
-                  <p className="text-center text-xs text-studio-text/50">
-                    Recording will auto-start in {prepCountdown.seconds}s
-                  </p>
+                  </button>
                 </>
               )}
               {phase === "recording" && (
-                <Button
-                  variant="destructive"
-                  size="lg"
-                  className="w-full"
-                  onClick={handleStopRecording}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-sm bg-studio-text" />
-                    Stop answering
-                  </span>
-                </Button>
+                <button type="button" className={secondaryButton} onClick={handleStopRecording}>
+                  <span className="size-3 rounded-sm bg-sn-fg" aria-hidden="true" />
+                  Stop answering
+                </button>
               )}
               {phase === "stopped" && (
-                <div className="space-y-2">
-                  <Button
-                    variant="invert"
-                    size="lg"
-                    className="w-full"
+                <>
+                  {uploadStatus === "error" && (
+                    <button type="button" className={secondaryButton} onClick={() => retryUpload(currentQuestion.id)}>
+                      Re-record this question
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={primaryButton}
                     onClick={handleNextQuestion}
                     disabled={!canAdvanceFromEntry(currentQuestion?.id, uploadStates)}
                   >
-                    {currentQuestionIndex < totalQuestions - 1
-                      ? "Next question"
-                      : "Finish test"}
-                  </Button>
-                  {uploadStatus === "error" && (
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="w-full"
-                      onClick={() => retryUpload(currentQuestion.id)}
-                    >
-                      Re-record this question
-                    </Button>
-                  )}
-                </div>
+                    {currentQuestionIndex < totalQuestions - 1 ? "Next question" : "Finish test"}
+                  </button>
+                </>
               )}
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <AlertDialogContent className="max-w-[480px]! gap-0 rounded-2xl bg-sn-surface p-7 font-albert text-sn-fg ring-sn-border">
+          <AlertDialogTitle className={`${h3} mb-3`}>Leave the test and go to the dashboard?</AlertDialogTitle>
+          <AlertDialogDescription className="mb-3 text-[15px] text-sn-muted">
+            Leaving abandons this Submission. Answers already recorded are kept, and you will start a new Assessment next time.
+          </AlertDialogDescription>
+          <p className="mt-0 mb-5 text-[15px] text-sn-muted">The timer keeps running while this message is open.</p>
+          <div className="flex flex-wrap justify-end gap-3">
+            <AlertDialogPrimitive.Close className={secondaryButton}>Stay in the test</AlertDialogPrimitive.Close>
+            <button
+              type="button"
+              className={primaryButton}
+              disabled={abandonPending}
+              onClick={() => {
+                setShowLeaveDialog(false);
+                void handleAbandonTest();
+              }}
+            >
+              Abandon and leave
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+    </TestShell>
+  );
+}
+
+/** SpeakNusa test-runner frame: brand bar, narrow stage column, footer. */
+function TestShell({ action, children }: { action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-sn-bg font-albert text-base leading-[1.55] text-sn-fg antialiased">
+      <header className="sticky top-0 z-10 border-b border-sn-border bg-sn-bg/92 backdrop-blur-md">
+        <div className={`${container} flex items-center justify-between gap-3 py-3.5`}>
+          <span className="inline-flex items-baseline gap-2">
+            <span className="text-[17px] font-normal lowercase tracking-[-0.01em] min-[381px]:text-[19px]">
+              <b className="font-bold">speak</b>nusa
+            </span>
+            <span className={meta}>Test runner</span>
+          </span>
+          {action}
+        </div>
+      </header>
+      <main id="content" className={`${container} max-w-[960px]! py-12`}>
+        {children}
+      </main>
+      <footer className="mt-14 border-t border-sn-border py-14 text-[13px] text-sn-muted">
+        <div className={container}>© 2026 SpeakNusa · English speaking assessment</div>
+      </footer>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import userEvent from "@testing-library/user-event";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { SignupForm } from "@/components/auth/SignupForm";
+import { SignupForm, passwordScore } from "@/components/auth/SignupForm";
 
 const mocks = vi.hoisted(() => ({
   clear: vi.fn(),
@@ -117,7 +117,7 @@ describe("LoginForm", () => {
     expect(googleLink.compareDocumentPosition(emailField)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    expect(screen.getByRole("separator", { name: "or" })).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "or sign in with email" })).toBeInTheDocument();
 
     view.rerender(<LoginForm />);
     expect(screen.getByRole("alert")).toHaveTextContent("Google sign-in was cancelled");
@@ -163,6 +163,16 @@ describe("SignupForm", () => {
     expect(googleLink.compareDocumentPosition(usernameField)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    expect(screen.getByRole("separator", { name: "or" })).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "or use your email" })).toBeInTheDocument();
+  });
+});
+
+describe("passwordScore", () => {
+  it("rates empty, weak, and strong passwords", () => {
+    expect(passwordScore("")).toBe(0);
+    expect(passwordScore("abc")).toBe(1);
+    expect(passwordScore("abcdefg1")).toBe(2);
+    expect(passwordScore("Abcdefg1")).toBe(3);
+    expect(passwordScore("Abcdefg1!")).toBe(4);
   });
 });

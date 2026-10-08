@@ -48,8 +48,8 @@ vi.mock("@/components/layout/AccountMenu", () => ({
 vi.mock("@/components/hardware/CameraMicPermissionModal", () => ({
   CameraMicPermissionModal: () => null,
 }));
-vi.mock("@/components/examiner/AssignmentList", () => ({
-  AssignmentList: () => null,
+vi.mock("@/components/examiner/ExaminerDashboard", () => ({
+  ExaminerDashboard: () => null,
 }));
 vi.mock("@/components/results/ScaleAwareScoreDisplay", () => ({
   ScaleAwareScoreDisplay: () => null,
@@ -133,6 +133,7 @@ describe("Dashboard request gating", () => {
       });
 
     renderDashboard();
+    fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
     await screen.findByRole("link", { name: /Jan 2, 2026/i });
     fireEvent.click(await screen.findByRole("button", { name: "Next history page" }));
 

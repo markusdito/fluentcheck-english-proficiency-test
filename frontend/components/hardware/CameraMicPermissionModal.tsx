@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import { useAssessmentStart } from "@/components/providers/AssessmentStartProvider";
-import { Button } from "@/components/ui/button";
+import { Pill } from "@/components/student/StatusPill";
+import { h3, primaryButton, secondaryButton } from "@/components/student/styles";
 import { cn } from "@/lib/utils";
 
 interface CameraMicPermissionModalProps {
@@ -10,6 +12,15 @@ interface CameraMicPermissionModalProps {
   onClose: () => void;
   onComplete: () => void;
 }
+
+type DeviceStatus = "ready" | "error" | "loading" | "idle";
+
+const STATUS_PILL: Record<DeviceStatus, { tone: "green" | "clay" | "navy" | "plain"; label: string }> = {
+  ready: { tone: "green", label: "Ready" },
+  error: { tone: "clay", label: "Blocked" },
+  loading: { tone: "navy", label: "Checking" },
+  idle: { tone: "plain", label: "Waiting" },
+};
 
 export function CameraMicPermissionModal({
   open,
@@ -59,300 +70,149 @@ export function CameraMicPermissionModal({
     onClose();
   };
 
-  const handleComplete = () => {
-    onComplete();
-  };
-
-  const handleRequest = () => {
-    void requestPermissions();
-  };
-
-  const allChecksPassed = open && mediaReady;
-
-  const hasActivePermission = open && isAudioReady;
-
   if (!open) return null;
+
+  const statusOf = (ready: boolean, error: string | null | undefined): DeviceStatus =>
+    ready ? "ready" : error ? "error" : isLoading ? "loading" : "idle";
+  const cameraStatus = statusOf(isVideoReady, videoError);
+  const micStatus = statusOf(isAudioReady, audioError);
+  const hearing = isAudioReady && micLevel > 5;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-sn-fg/24 p-3 font-albert text-sn-fg animate-in fade-in-0 duration-200 sm:p-5"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Camera and microphone permissions"
     >
-      <div className="w-full max-w-lg border border-rule bg-paper-raised p-6 sm:p-8">
-        {/* Header */}
-        <div className="mb-6">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-            Hardware check
-          </p>
-          <h2 className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink">
-            Camera & Microphone
-          </h2>
-          <p className="mt-1.5 text-sm leading-6 text-ink-soft">
-            SpeakNusa needs access to your webcam and microphone to record your
-            speaking responses. Please grant permissions when prompted.
-          </p>
-        </div>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hw-check-title"
+        aria-describedby="hw-check-lead"
+        className="max-h-[calc(100dvh-24px)] w-full max-w-[560px] overflow-y-auto overscroll-contain rounded-2xl border border-sn-border bg-sn-surface px-5 py-6 animate-in fade-in-0 slide-in-from-bottom-3 zoom-in-[0.98] duration-240 ease-spring sm:max-h-[calc(100dvh-40px)] sm:p-7"
+      >
+        <h3 id="hw-check-title" className={cn(h3, "mb-3")}>
+          Before you start
+        </h3>
+        <p id="hw-check-lead" className="mb-5 text-[15px] text-sn-muted">
+          The test runs in one sitting and cannot be paused. Check these three things first.
+        </p>
 
-        {/* Webcam Preview */}
-        <div className="mb-5 overflow-hidden bg-studio">
+        <div className="overflow-hidden rounded-[10px] bg-sn-fg">
           {stream ? (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-48 w-full object-cover"
-            />
+            <video ref={videoRef} autoPlay playsInline muted className="aspect-video w-full object-cover" />
           ) : (
-            <div className="flex h-48 items-center justify-center bg-studio-panel">
-              <svg
-                className="h-12 w-12 text-studio-text/40"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+            <div className="grid aspect-video place-items-center text-sm text-sn-surface/60">
+              {isLoading ? "Waiting for camera…" : "Camera preview appears here"}
             </div>
           )}
         </div>
 
-        {/* Status Checks */}
-        <div className="mb-6 space-y-3">
-          <StatusRow
-            label="Webcam"
-            status={
-              isVideoReady
-                ? "success"
-                : videoError
-                  ? "error"
-                  : isLoading
-                    ? "loading"
-                    : "idle"
-            }
-            message={
-              isVideoReady
-                ? videoDevices[0]?.label || "Webcam ready"
-                : videoError || "Waiting for permission"
-            }
+        <div className="mt-3 mb-5 flex flex-col">
+          <CheckRow
+            title="Camera"
+            note={isVideoReady ? videoDevices[0]?.label || "Camera ready" : videoError || "Waiting for permission"}
+            error={cameraStatus === "error"}
+            status={<Pill tone={STATUS_PILL[cameraStatus].tone}>{STATUS_PILL[cameraStatus].label}</Pill>}
           />
-          <StatusRow
-            label="Microphone"
-            status={
-              isAudioReady
-                ? "success"
-                : audioError
-                  ? "error"
-                  : isLoading
-                    ? "loading"
-                    : "idle"
-            }
-            message={
-              isAudioReady
-                ? audioDevices[0]?.label || "Microphone ready"
-                : audioError || "Waiting for permission"
-            }
-          />
-
-          {/* Mic activity + sound bars */}
-          <div className="border border-rule bg-rule/30 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <span className="shrink-0">
-                {hasActivePermission ? (
-                  micLevel > 5 ? (
-                    <svg className="h-5 w-5 text-verified" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-                      <path d="M5.5 9.643a.75.75 0 00-1.5 0 4.751 4.751 0 109.5 0 .75.75 0 00-1.5 0 3.25 3.25 0 11-6.5 0z" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-                      <path d="M5.5 9.643a.75.75 0 00-1.5 0 4.751 4.751 0 109.5 0 .75.75 0 00-1.5 0 3.25 3.25 0 11-6.5 0z" />
-                    </svg>
-                  )
-                ) : (
-                  <div className="h-5 w-5 rounded-full border-2 border-rule" />
-                )}
-              </span>
-
-              <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink">Mic activity</p>
-                  <p
-                    className={cn(
-                      "truncate text-xs",
-                      !hasActivePermission
-                        ? "text-ink-soft"
-                        : micLevel > 5
-                          ? "text-verified"
-                          : "text-amber-500",
-                    )}
-                  >
-                    {!hasActivePermission
-                      ? "Microphone is not ready"
-                      : micLevel > 5
-                        ? "Microphone is picking up sound"
-                        : "Waiting for audio input..."}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-end gap-[3px]" aria-hidden="true">
-                  <SoundBar level={micLevel} index={0} />
-                  <SoundBar level={micLevel} index={1} />
-                  <SoundBar level={micLevel} index={2} />
-                  <SoundBar level={micLevel} index={3} />
-                  <SoundBar level={micLevel} index={4} />
-                  <SoundBar level={micLevel} index={5} />
-                  <SoundBar level={micLevel} index={6} />
-                  <SoundBar level={micLevel} index={7} />
-                </div>
+          <CheckRow
+            title="Microphone"
+            note={isAudioReady ? audioDevices[0]?.label || "Microphone ready" : audioError || "Waiting for permission"}
+            error={micStatus === "error"}
+            status={<Pill tone={STATUS_PILL[micStatus].tone}>{STATUS_PILL[micStatus].label}</Pill>}
+          >
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex h-7 items-end gap-[3px]" aria-hidden="true">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <SoundBar key={i} level={micLevel} index={i} />
+                ))}
               </div>
+              <p className="m-0 text-sm text-sn-muted" aria-live="polite">
+                {!isAudioReady
+                  ? "Input level shows once the microphone is ready."
+                  : hearing
+                    ? "Picking up your voice."
+                    : "Say a few words to check the input level."}
+              </p>
             </div>
-          </div>
+          </CheckRow>
+          <CheckRow
+            title="Quiet room"
+            note="Pick a place without background voices, and keep about 10 minutes free."
+            status={<Pill tone="navy">Reminder</Pill>}
+          />
         </div>
 
-        {/* Error / Retry */}
         {(videoError || audioError) && (
-          <div className="mb-6 border border-signal/30 bg-signal/5 p-4 text-sm text-signal">
-            <p className="font-medium">Hardware check needs attention</p>
-            <ul className="mt-1 space-y-1">
-              {videoError && <li>Webcam: {videoError}</li>}
+          <div role="alert" className="mb-5 rounded-[10px] bg-[color-mix(in_oklch,var(--color-sn-clay)_10%,white)] p-4">
+            <p className="m-0 mb-2 text-[15px] font-semibold">Hardware check needs attention</p>
+            <ul className="m-0 pl-5 text-[15px] text-sn-clay">
+              {videoError && <li>Camera: {videoError}</li>}
               {audioError && <li>Microphone: {audioError}</li>}
             </ul>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 border-signal/40 text-signal hover:bg-signal/10 hover:text-signal"
-              onClick={handleRequest}
-              loading={isLoading}
+            <button
+              type="button"
+              className={cn(secondaryButton, "mt-3")}
+              onClick={() => void requestPermissions()}
+              disabled={isLoading}
             >
+              {isLoading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
               Retry
-            </Button>
+            </button>
           </div>
         )}
 
         {monitorError && (
-          <div className="mb-6 border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-600">
-            {monitorError}
-          </div>
+          <p className="mb-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]">{monitorError}</p>
         )}
 
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-3">
-          <Button variant="ghost" onClick={handleClose} disabled={isLoading}>
-            Skip for now
-          </Button>
-          <Button
-            variant="default"
-            onClick={handleComplete}
-            disabled={!allChecksPassed || isLoading}
-            loading={isLoading}
-          >
+        <div className="flex flex-wrap justify-end gap-3 border-t border-sn-border pt-5">
+          <button type="button" className={secondaryButton} onClick={handleClose} disabled={isLoading}>
+            Not now
+          </button>
+          <button type="button" className={primaryButton} onClick={onComplete} disabled={!mediaReady || isLoading}>
+            {isLoading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
             Continue
-          </Button>
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/* Single animated sound bar */
-interface SoundBarProps {
-  level: number; // 0–100
-  index: number; // 0–7 bar index
-}
-
-function SoundBar({ level, index }: SoundBarProps) {
-  const threshold = (index + 1) * 12.5;
-  const active = level >= threshold;
-  const height = 12 + index * 2;
-  const bg = active ? "bg-verified" : "bg-rule-strong";
-
+function CheckRow({
+  title,
+  note,
+  status,
+  error,
+  children,
+}: {
+  title: string;
+  note: string;
+  status: ReactNode;
+  error?: boolean;
+  children?: ReactNode;
+}) {
   return (
-    <div
-      className={cn(
-        "w-[6px] rounded-full transition-all duration-75",
-        bg,
-        active ? "scale-y-100 opacity-100" : "scale-y-75 opacity-40",
-      )}
-      style={{ height: `${height}px` }}
-    />
+    <div className="grid grid-cols-[1fr_auto] items-start gap-5 border-t border-sn-border py-5 max-sm:grid-cols-1 max-sm:gap-2">
+      <div className="min-w-0">
+        <h4 className="mb-1 text-[17px] font-semibold">{title}</h4>
+        <p className={cn("m-0 truncate text-sm", error ? "text-sn-clay" : "text-sn-muted")}>{note}</p>
+        {children}
+      </div>
+      {status}
+    </div>
   );
 }
 
-/* Status indicator row */
-interface StatusRowProps {
-  label: string;
-  status: "success" | "warning" | "error" | "loading" | "idle";
-  message: string;
-}
-
-function StatusRow({ label, status, message }: StatusRowProps) {
-  const iconMap: Record<string, React.ReactNode> = {
-    success: (
-      <svg className="h-5 w-5 text-verified" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-        <path
-          fillRule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-          clipRule="evenodd"
-        />
-      </svg>
-    ),
-    warning: (
-      <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-        <path
-          fillRule="evenodd"
-          d="M8.485 3.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 3.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z"
-          clipRule="evenodd"
-        />
-      </svg>
-    ),
-    error: (
-      <svg className="h-5 w-5 text-signal" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-        <path
-          fillRule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-          clipRule="evenodd"
-        />
-      </svg>
-    ),
-    loading: (
-      <div className="h-5 w-5 animate-spin rounded-full border-2 border-rule border-t-ink" />
-    ),
-    idle: (
-      <div className="h-5 w-5 rounded-full border-2 border-rule" />
-    ),
-  };
-
+/* Single sound bar; lights up once the mic level passes its threshold. */
+function SoundBar({ level, index }: { level: number; index: number }) {
+  const active = level >= (index + 1) * 12.5;
   return (
-    <div className="flex items-center gap-3 border border-rule bg-rule/30 px-4 py-3">
-      <span className="shrink-0">{iconMap[status]}</span>
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-ink">{label}</p>
-        <p
-          className={cn(
-            "truncate text-xs",
-            status === "error"
-              ? "text-signal"
-              : status === "warning"
-                ? "text-amber-500"
-                : "text-ink-soft",
-          )}
-        >
-          {message}
-        </p>
-      </div>
-    </div>
+    <div
+      className={cn("w-[6px] rounded-full transition-colors duration-75", active ? "bg-sn-ink-green" : "bg-sn-border")}
+      style={{ height: `${12 + index * 2}px` }}
+    />
   );
 }

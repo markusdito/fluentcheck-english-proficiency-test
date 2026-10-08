@@ -22,7 +22,7 @@ export function RubricBreakdownView({
   return (
     <dl
       className={cn(
-        "grid border-y border-rule sm:grid-cols-2",
+        "grid border-y border-sn-border sm:grid-cols-2",
         className,
       )}
     >
@@ -31,17 +31,17 @@ export function RubricBreakdownView({
           key={criterion}
           className={cn(
             "flex items-center justify-between gap-4 py-2.5",
-            index % 2 === 0 ? "sm:pr-4" : "sm:border-l sm:border-rule sm:pl-4",
-            index < 2 && "border-b border-rule",
+            index % 2 === 0 ? "sm:pr-4" : "sm:border-l sm:border-sn-border sm:pl-4",
+            index < 2 && "border-b border-sn-border",
             index === 1 && "sm:border-b",
-            index === 2 && "border-b border-rule sm:border-b-0",
+            index === 2 && "border-b border-sn-border sm:border-b-0",
             compact ? "px-0" : "px-3 sm:px-0",
           )}
         >
-          <dt className="text-xs text-ink-soft">{LABELS[criterion]}</dt>
-          <dd className="font-mono text-sm font-semibold tabular-nums text-ink">
+          <dt className="text-xs text-sn-muted">{LABELS[criterion]}</dt>
+          <dd className="text-sm font-semibold tabular-nums text-sn-fg">
             {rubric[criterion].toFixed(2)}
-            <span className="font-normal text-ink-faint">/6</span>
+            <span className="font-normal text-sn-muted">/6</span>
           </dd>
         </div>
       ))}

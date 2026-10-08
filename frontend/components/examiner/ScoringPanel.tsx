@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeftIcon, CircleAlertIcon } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronLeftIcon } from "lucide-react";
 import type { AssignmentAnswer } from "@/types/examiner";
 import {
   RUBRIC_CRITERIA,
@@ -10,16 +10,14 @@ import {
   type ScoreSubmissionInput,
   type ScoringSystem,
 } from "@/types/scoring";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { card, focusRing, h3, primaryButton, secondaryButton } from "@/components/student/styles";
+import { cn } from "@/lib/cn";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ScoringPanelProps {
   answers: AssignmentAnswer[];
@@ -29,14 +27,11 @@ interface ScoringPanelProps {
   onSave: (score: ScoreSubmissionInput) => Promise<void>;
   onComplete: () => Promise<void>;
   isSubmitting: boolean;
+  /** Media for the current answer, shown above the rubric. */
+  children?: ReactNode;
 }
 
-interface BandSelection {
-  whole: string;
-  fraction: string;
-}
-
-type RubricDraft = Record<RubricCriterion, BandSelection>;
+type RubricDraft = Record<RubricCriterion, string>;
 
 interface AnswerScore {
   answerId: string;
@@ -46,68 +41,38 @@ interface AnswerScore {
   saved: boolean;
 }
 
-const CRITERION_COPY: Record<
-  RubricCriterion,
-  { label: string; description: string }
-> = {
-  pronunciation: {
-    label: "Pronunciation",
-    description: "Sound clarity, stress, and intonation",
-  },
-  fluency: {
-    label: "Fluency",
-    description: "Pace, flow, and coherence",
-  },
-  vocabulary: {
-    label: "Vocabulary",
-    description: "Range, precision, and appropriacy",
-  },
-  grammar: {
-    label: "Grammar",
-    description: "Accuracy, control, and complexity",
-  },
+const CRITERION_COPY: Record<RubricCriterion, { label: string; description: string }> = {
+  pronunciation: { label: "Pronunciation", description: "Sound clarity, stress, and intonation" },
+  fluency: { label: "Fluency", description: "Pace, flow, and coherence" },
+  vocabulary: { label: "Vocabulary", description: "Range, precision, and appropriacy" },
+  grammar: { label: "Grammar", description: "Accuracy, control, and complexity" },
 };
 
-const WHOLE_BANDS = ["1", "2", "3", "4", "5", "6"];
+// 1.0 … 6.0 in half bands
+const BANDS = Array.from({ length: 11 }, (_, i) => (1 + i / 2).toFixed(1));
 
-function bandSelection(value?: number): BandSelection {
-  if (value == null) return { whole: "", fraction: "" };
-  return {
-    whole: String(Math.floor(value)),
-    fraction: value % 1 === 0.5 ? "5" : "0",
-  };
-}
+const field = `min-h-11 w-full rounded-xl border border-sn-border bg-sn-surface px-3 py-2.5 text-[15px] text-sn-fg transition-colors hover:border-sn-fg/32 ${focusRing}`;
+const label = "grid gap-1.5 text-sm text-sn-muted";
+
+export const partLabel = (category: string) => category.replace(/_/g, " ");
 
 function rubricDraft(rubric?: RubricValues | null): RubricDraft {
+  const band = (v?: number) => (v == null ? "" : v.toFixed(1));
   return {
-    pronunciation: bandSelection(rubric?.pronunciation),
-    fluency: bandSelection(rubric?.fluency),
-    vocabulary: bandSelection(rubric?.vocabulary),
-    grammar: bandSelection(rubric?.grammar),
+    pronunciation: band(rubric?.pronunciation),
+    fluency: band(rubric?.fluency),
+    vocabulary: band(rubric?.vocabulary),
+    grammar: band(rubric?.grammar),
   };
-}
-
-function selectedBand(selection: BandSelection): number | null {
-  if (!selection.whole || !selection.fraction) return null;
-  return Number(selection.whole) + (selection.fraction === "5" ? 0.5 : 0);
 }
 
 function rubricValues(draft: RubricDraft): RubricValues | null {
-  const parsed = {} as RubricValues;
-  for (const criterion of RUBRIC_CRITERIA) {
-    const band = selectedBand(draft[criterion]);
-    if (band == null) return null;
-    parsed[criterion] = band;
-  }
-  return parsed;
+  if (RUBRIC_CRITERIA.some((c) => !draft[c])) return null;
+  return Object.fromEntries(RUBRIC_CRITERIA.map((c) => [c, Number(draft[c])])) as unknown as RubricValues;
 }
 
-function rubricAverage(rubric: RubricValues): number {
-  return (
-    RUBRIC_CRITERIA.reduce((total, criterion) => total + rubric[criterion], 0) /
-    RUBRIC_CRITERIA.length
-  );
-}
+const rubricAverage = (rubric: RubricValues) =>
+  RUBRIC_CRITERIA.reduce((total, c) => total + rubric[c], 0) / RUBRIC_CRITERIA.length;
 
 export function ScoringPanel({
   answers,
@@ -117,6 +82,7 @@ export function ScoringPanel({
   onSave,
   onComplete,
   isSubmitting,
+  children,
 }: ScoringPanelProps) {
   const [scores, setScores] = useState<AnswerScore[]>(() =>
     answers.map((answer) => ({
@@ -128,69 +94,30 @@ export function ScoringPanel({
     })),
   );
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const answer = answers[currentIndex];
   const score = scores[currentIndex];
   const savedCount = scores.filter((item) => item.saved).length;
 
-  const updateComment = (comment: string) => {
+  const update = (patch: Partial<AnswerScore>) =>
     setScores((current) =>
-      current.map((item, index) =>
-        index === currentIndex ? { ...item, comment, saved: false } : item,
-      ),
+      current.map((item, index) => (index === currentIndex ? { ...item, ...patch, saved: false } : item)),
     );
-  };
-
-  const updateLegacyValue = (value: string) => {
-    setScores((current) =>
-      current.map((item, index) =>
-        index === currentIndex ? { ...item, value, saved: false } : item,
-      ),
-    );
-  };
-
-  const updateRubric = (
-    criterion: RubricCriterion,
-    field: keyof BandSelection,
-    value: string,
-  ) => {
-    setScores((current) =>
-      current.map((item, index) => {
-        if (index !== currentIndex) return item;
-        const selection = item.rubric[criterion];
-        const nextSelection = {
-          ...selection,
-          [field]: value,
-          ...(field === "whole" && value === "6" ? { fraction: "0" } : {}),
-        };
-        return {
-          ...item,
-          saved: false,
-          rubric: { ...item.rubric, [criterion]: nextSelection },
-        };
-      }),
-    );
-  };
 
   if (!answer || !score) {
     return (
-      <div className="border border-dashed border-rule-strong bg-paper-raised px-6 py-10 text-center">
-        <p className="text-sm text-ink-soft">No questions available for marking.</p>
+      <div className={`${card} text-center`}>
+        <p className="text-[15px] text-sn-muted">No questions available for marking.</p>
       </div>
     );
   }
 
   const parsedRubric = rubricValues(score.rubric);
-  const completedRubrics = scores.flatMap((item) => {
-    const rubric = rubricValues(item.rubric);
-    return rubric ? [rubric] : [];
-  });
+  const completedRubrics = scores.flatMap((item) => rubricValues(item.rubric) ?? []);
   const overallPreview =
     completedRubrics.length === answers.length && completedRubrics.length > 0
-      ? completedRubrics.reduce(
-          (total, rubric) => total + rubricAverage(rubric),
-          0,
-        ) / completedRubrics.length
+      ? completedRubrics.reduce((total, rubric) => total + rubricAverage(rubric), 0) / completedRubrics.length
       : null;
   const isLastQuestion = currentIndex === answers.length - 1;
 
@@ -200,262 +127,192 @@ export function ScoringPanel({
     let payload: ScoreSubmissionInput;
     if (scoringSystem === "RUBRIC_6") {
       if (!parsedRubric) {
-        setError("Select all four rubric bands before saving this question.");
+        setError("Score all four criteria before saving this answer.");
         return;
       }
-      payload = {
-        answerId: score.answerId,
-        rubric: parsedRubric,
-        comment: score.comment.trim() || undefined,
-      };
+      payload = { answerId: score.answerId, rubric: parsedRubric, comment: score.comment.trim() || undefined };
     } else {
       const value = Number(score.value);
-      if (
-        score.value.trim().length === 0 ||
-        !Number.isFinite(value) ||
-        value < 0 ||
-        value > 100
-      ) {
+      if (score.value.trim().length === 0 || !Number.isFinite(value) || value < 0 || value > 100) {
         setError("Enter a legacy score between 0 and 100 before saving.");
         return;
       }
-      payload = {
-        answerId: score.answerId,
-        value,
-        comment: score.comment.trim() || undefined,
-      };
+      payload = { answerId: score.answerId, value, comment: score.comment.trim() || undefined };
     }
 
     try {
       await onSave(payload);
-      setScores((current) =>
-        current.map((item, index) =>
-          index === currentIndex ? { ...item, saved: true } : item,
-        ),
-      );
-
-      if (isLastQuestion) {
-        await onComplete();
-      } else {
-        onQuestionChange(currentIndex + 1);
-      }
+      setScores((current) => current.map((item, index) => (index === currentIndex ? { ...item, saved: true } : item)));
+      if (isLastQuestion) await onComplete();
+      else onQuestionChange(currentIndex + 1);
     } catch (submissionError) {
       setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : "This question could not be saved. Please try again.",
+        submissionError instanceof Error ? submissionError.message : "This answer could not be saved. Please try again.",
       );
     }
   };
 
   return (
-    <div className="w-full min-w-0 max-w-full border border-rule bg-paper-raised">
-      <div className="border-b border-rule px-5 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="mark">Marking</p>
-            <h3 className="mt-1.5 font-display text-xl font-medium tracking-tight text-ink">
-              Question {currentIndex + 1} of {answers.length}
-            </h3>
-            <p className="mt-1 text-xs leading-5 text-ink-soft">
-              {scoringSystem === "RUBRIC_6"
-                ? "Save this four-part rubric to continue."
-                : "Save this legacy score to continue."}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="mark">Progress</p>
-            <p className="mt-1 font-mono text-sm tabular-nums text-ink">
-              {savedCount}/{answers.length} saved
-            </p>
-          </div>
-        </div>
+    <div className="grid items-start gap-7 min-[921px]:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="flex min-w-0 flex-col gap-7">
+        {children}
+        <section className={card} aria-labelledby="rubric-title">
+          <h2 id="rubric-title" className={h3}>
+            Score {partLabel(answer.questionCategory)}
+          </h2>
 
-        <div
-          className="mt-4 grid gap-1"
-          style={{ gridTemplateColumns: `repeat(${answers.length}, minmax(0, 1fr))` }}
-          role="img"
-          aria-label={`${savedCount} of ${answers.length} questions saved`}
-        >
-          {scores.map((item, index) => (
-            <span
-              key={item.answerId}
-              aria-hidden="true"
-              className={
-                item.saved
-                  ? "h-1.5 bg-ink"
-                  : index === currentIndex
-                    ? "h-1.5 border border-ink bg-paper"
-                    : "h-1.5 bg-rule"
-              }
-            />
-          ))}
-        </div>
-      </div>
+          {scoringSystem === "RUBRIC_6" ? (
+            <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
+              {RUBRIC_CRITERIA.map((criterion) => (
+                <label key={criterion} className={label}>
+                  <span>
+                    <span className="font-medium text-sn-fg">{CRITERION_COPY[criterion].label}</span>
+                    <span className="block text-[13px]">{CRITERION_COPY[criterion].description}</span>
+                  </span>
+                  <select
+                    className={field}
+                    aria-label={`${CRITERION_COPY[criterion].label} band`}
+                    value={score.rubric[criterion]}
+                    onChange={(e) => update({ rubric: { ...score.rubric, [criterion]: e.target.value } })}
+                  >
+                    <option value="">Select</option>
+                    {BANDS.map((band) => (
+                      <option key={band} value={band}>{band}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <label className={`${label} mt-5 max-w-40`}>
+              Score (0–100)
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className={field}
+                value={score.value}
+                onChange={(e) => update({ value: e.target.value })}
+              />
+            </label>
+          )}
 
-      <section className="px-5 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
-              {answer.questionCategory.replace(/_/g, " ")}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            {score.saved && <p className="mark">Saved</p>}
-            {parsedRubric && (
-              <p className="mt-1 font-mono text-sm font-semibold tabular-nums text-ink">
-                {rubricAverage(parsedRubric).toFixed(2)}
-                <span className="font-normal text-ink-faint">/6</span>
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+            <label className={`${label} min-w-[220px] flex-1`}>
+              Optional comment
+              <input
+                type="text"
+                className={field}
+                value={score.comment}
+                onChange={(e) => update({ comment: e.target.value })}
+                placeholder="Brief feedback…"
+              />
+            </label>
+            {scoringSystem === "RUBRIC_6" && (
+              <p className="m-0 pb-2 text-xl font-semibold tabular-nums">
+                <span className="text-[15px] font-normal text-sn-muted">Answer mean </span>
+                {parsedRubric ? rubricAverage(parsedRubric).toFixed(2) : "·"}
               </p>
             )}
           </div>
-        </div>
-
-        {scoringSystem === "RUBRIC_6" ? (
-          <div className="mt-4 divide-y divide-rule border-y border-rule">
-            {RUBRIC_CRITERIA.map((criterion) => {
-              const selection = score.rubric[criterion];
-              const titleId = `${answer.id}-${criterion}-label`;
-              return (
-                <div
-                  key={criterion}
-                  className="grid min-h-20 items-center gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_8.75rem]"
-                >
-                  <div className="min-w-0">
-                    <p id={titleId} className="text-sm font-medium text-ink">
-                      {CRITERION_COPY[criterion].label}
-                    </p>
-                    <p className="mt-0.5 text-xs leading-5 text-ink-faint">
-                      {CRITERION_COPY[criterion].description}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select
-                      value={selection.whole || null}
-                      onValueChange={(value) =>
-                        value != null && updateRubric(criterion, "whole", value)
-                      }
-                    >
-                      <SelectTrigger
-                        className="h-10 w-full rounded-none"
-                        aria-label={`${CRITERION_COPY[criterion].label} whole band`}
-                      >
-                        <SelectValue placeholder="No." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {WHOLE_BANDS.map((band) => (
-                          <SelectItem key={band} value={band}>
-                            {band}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={selection.fraction || null}
-                      onValueChange={(value) =>
-                        value != null && updateRubric(criterion, "fraction", value)
-                      }
-                    >
-                      <SelectTrigger
-                        className="h-10 w-full rounded-none"
-                        aria-label={`${CRITERION_COPY[criterion].label} decimal band`}
-                      >
-                        <SelectValue placeholder="Dec." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">.0</SelectItem>
-                        <SelectItem value="5" disabled={selection.whole === "6"}>
-                          .5
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="mt-4 w-36">
-            <label
-              htmlFor={`score-${answer.id}`}
-              className="mb-1 block font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft"
-            >
-              Score (0–100)
-            </label>
-            <Input
-              id={`score-${answer.id}`}
-              type="number"
-              min={0}
-              max={100}
-              value={score.value}
-              onChange={(event) => updateLegacyValue(event.target.value)}
-              className="h-10 rounded-none"
-            />
-          </div>
-        )}
-
-        <div className="mt-4">
-          <label
-            htmlFor={`comment-${answer.id}`}
-            className="mb-1 block font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft"
-          >
-            Question comment (optional)
-          </label>
-          <Input
-            id={`comment-${answer.id}`}
-            type="text"
-            value={score.comment}
-            onChange={(event) => updateComment(event.target.value)}
-            placeholder="Brief feedback…"
-            className="h-10 rounded-none"
-          />
-        </div>
-
-        {overallPreview != null && isLastQuestion && (
-          <div className="mt-4 flex items-center justify-between border-t border-rule pt-4">
-            <p className="mark">Overall preview</p>
-            <p className="font-mono text-lg font-semibold tabular-nums text-ink">
-              {overallPreview.toFixed(2)}
-              <span className="text-xs font-normal text-ink-faint">/6</span>
-            </p>
-          </div>
-        )}
-      </section>
-
-      {error && (
-        <div className="px-5 pb-5">
-          <Alert variant="destructive" className="items-start">
-            <CircleAlertIcon />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-3 border-t border-rule px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <Button
-          variant="outline"
-          size="lg"
-          className="w-full sm:w-auto"
-          disabled={currentIndex === 0 || isSubmitting}
-          onClick={() => {
-            setError(null);
-            onQuestionChange(currentIndex - 1);
-          }}
-        >
-          <ChevronLeftIcon data-icon="inline-start" />
-          Previous
-        </Button>
-        <Button
-          variant="default"
-          size="lg"
-          className="w-full sm:w-auto"
-          loading={isSubmitting}
-          disabled={isSubmitting}
-          onClick={handleSave}
-        >
-          {isLastQuestion ? "Save & complete" : "Save & next question"}
-        </Button>
+        </section>
       </div>
+
+      <aside className={`${card} min-[921px]:sticky min-[921px]:top-24`} aria-labelledby="complete-title">
+        <h2 id="complete-title" className={h3}>Complete my scoring</h2>
+        <p className="mt-2 text-sm text-sn-muted">
+          Save every answer to finish. Scores lock once the last answer is saved.
+        </p>
+        <ul className="mt-4 grid list-none gap-1 p-0">
+          {scores.map((item, index) => (
+            <li key={item.answerId}>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => {
+                  setError(null);
+                  onQuestionChange(index);
+                }}
+                aria-current={index === currentIndex ? "step" : undefined}
+                className={cn(
+                  "flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent px-2 text-left text-[15px] transition-colors hover:bg-sn-fg/6",
+                  index === currentIndex ? "font-semibold text-sn-fg" : item.saved ? "text-sn-fg" : "text-sn-muted",
+                  focusRing,
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "grid size-[18px] shrink-0 place-items-center rounded-md border",
+                    item.saved ? "border-sn-ink-green bg-sn-ink-green" : "border-sn-border bg-sn-bg",
+                  )}
+                >
+                  {item.saved && (
+                    <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12.5l4.5 4.5L19 7.5" />
+                    </svg>
+                  )}
+                </span>
+                {partLabel(answers[index].questionCategory)} {item.saved ? "saved" : "not saved"}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-sm text-sn-muted" role="status">
+          {savedCount}/{answers.length} saved
+          {overallPreview != null && ` · overall preview ${overallPreview.toFixed(2)}`}
+        </p>
+
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-sn-danger">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-5 grid gap-3">
+          <button type="button" className={`${primaryButton} w-full`} disabled={isSubmitting} onClick={() => (isLastQuestion ? setConfirming(true) : void handleSave())}>
+            {isSubmitting ? "Saving…" : isLastQuestion ? "Save & complete" : "Save & next answer"}
+          </button>
+          <button
+            type="button"
+            className={`${secondaryButton} w-full`}
+            disabled={currentIndex === 0 || isSubmitting}
+            onClick={() => {
+              setError(null);
+              onQuestionChange(currentIndex - 1);
+            }}
+          >
+            <ChevronLeftIcon className="size-4" aria-hidden="true" />
+            Previous answer
+          </button>
+        </div>
+        <p className="mt-4 text-[13px] text-sn-muted">The final band is the mean of two independent examiners.</p>
+      </aside>
+
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent className="max-w-[440px]! gap-0 rounded-2xl bg-sn-surface p-7 font-albert text-sn-fg ring-sn-border">
+          <AlertDialogTitle className={h3}>Submit your scoring?</AlertDialogTitle>
+          <AlertDialogDescription className="mt-3 text-[15px] text-sn-muted">
+            Your scores become final and can&apos;t be edited. The other examiner scores independently and the report
+            shows the mean of both.
+          </AlertDialogDescription>
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <button type="button" className={secondaryButton} onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={primaryButton}
+              onClick={() => {
+                setConfirming(false);
+                void handleSave();
+              }}
+            >
+              Submit scoring
+            </button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

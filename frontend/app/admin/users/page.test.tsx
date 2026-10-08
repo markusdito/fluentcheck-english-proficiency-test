@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,38 +20,6 @@ vi.mock("@/lib/admin-api", () => ({
   fetchAdminUsers: mocks.fetchAdminUsers,
   fetchRoleTransitionPreview: mocks.fetchRoleTransitionPreview,
   updateUserRole: mocks.updateUserRole,
-}));
-
-vi.mock("@/components/ui/select", () => ({
-  Select: ({
-    children,
-    value,
-    onValueChange,
-    disabled,
-  }: {
-    children: ReactNode;
-    value?: string;
-    onValueChange?: (value: string) => void;
-    disabled?: boolean;
-  }) => (
-    <select
-      value={value ?? ""}
-      disabled={disabled}
-      onChange={(event) => onValueChange?.(event.target.value)}
-    >
-      {children}
-    </select>
-  ),
-  SelectTrigger: () => null,
-  SelectValue: () => null,
-  SelectContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  SelectItem: ({
-    value,
-    children,
-  }: {
-    value: string;
-    children: ReactNode;
-  }) => <option value={value}>{children}</option>,
 }));
 
 function renderPage() {

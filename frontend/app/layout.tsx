@@ -3,6 +3,7 @@ import { Newsreader, Public_Sans, Geist_Mono, Albert_Sans } from "next/font/goog
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AssessmentStartProvider } from "@/components/providers/AssessmentStartProvider";
+import { REDUCE_MOTION_SCRIPT } from "@/lib/preferences";
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -42,7 +43,12 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${newsreader.variable} ${publicSans.variable} ${geistMono.variable} ${albertSans.variable} h-full antialiased`}
+      // the inline script may add `reduce-motion` before hydration
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: REDUCE_MOTION_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <QueryProvider>
           <AssessmentStartProvider>

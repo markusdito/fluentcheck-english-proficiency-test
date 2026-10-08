@@ -3,16 +3,16 @@
 import { use } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { CircleAlertIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { fetchAdminSubmissionDetail } from "@/lib/admin-api";
 import { queryKeys } from "@/lib/query-keys";
 import { LazyAnswerMedia } from "@/components/media/LazyAnswerMedia";
 import { ScoreCard } from "@/components/results/ScoreCard";
 import { RubricBreakdownView } from "@/components/results/RubricBreakdownView";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { SubmissionStatus } from "@/components/ui/submission-status";
+import { StatusPill } from "@/components/student/StatusPill";
+import { BackLink } from "@/components/student/PageShell";
+import { card, h2, h3, meta, secondaryButton } from "@/components/student/styles";
 import { scoreMaximum } from "@/types/scoring";
 
 function formatDateTime(value: string) {
@@ -54,7 +54,7 @@ export default function AdminSubmissionDetailPage({
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2
-          className="size-8 animate-spin text-ink-faint"
+          className="size-8 animate-spin text-sn-muted"
           role="status"
           aria-label="Loading submission details"
         />
@@ -65,23 +65,16 @@ export default function AdminSubmissionDetailPage({
   if (submissionQuery.isError || !submission) {
     const error = submissionQuery.error;
     return (
-      <div className="mx-auto max-w-lg py-16">
-        <Alert variant="destructive" className="items-start">
-          <CircleAlertIcon />
-          <AlertTitle>Unable to open submission</AlertTitle>
-          <AlertDescription>
-            {error instanceof ApiError && error.statusCode === 404
-              ? "Submission not found."
-              : "Failed to load submission details. Please try again."}
-          </AlertDescription>
-        </Alert>
-        <Button
-          className="mt-4"
-          variant="outline"
-          render={<Link href="/admin/submissions" />}
-        >
+      <div className={`${card} mx-auto max-w-lg text-center`} role="alert">
+        <h1 className={h3}>Unable to open submission</h1>
+        <p className="mt-2 text-[15px] text-sn-muted">
+          {error instanceof ApiError && error.statusCode === 404
+            ? "Submission not found."
+            : "Failed to load submission details. Please try again."}
+        </p>
+        <Link href="/admin/submissions" className={`${secondaryButton} mt-5`}>
           Back to submissions
-        </Button>
+        </Link>
       </div>
     );
   }
@@ -93,58 +86,52 @@ export default function AdminSubmissionDetailPage({
 
   return (
     <div>
-      <header className="flex flex-wrap items-end justify-between gap-5">
+      <BackLink href="/admin/submissions">Back to submissions</BackLink>
+      <header className="mt-3 flex flex-wrap items-end justify-between gap-5">
         <div className="min-w-0">
-          <p className="mark">Submission details</p>
-          <h1 className="mt-2 truncate font-display text-3xl font-medium tracking-tight text-ink sm:text-4xl">
-            {submission.student.name}
-          </h1>
-          <p className="mt-1.5 text-sm text-ink-soft">{submission.student.email}</p>
+          <h1 className={`${h2} truncate`}>{submission.student.name}</h1>
+          <p className="mt-2 text-[15px] text-sn-muted">{submission.student.email}</p>
         </div>
-        <SubmissionStatus status={submission.status} />
+        <StatusPill status={submission.status} />
       </header>
 
-      <dl className="mt-8 grid border border-rule bg-paper-raised sm:grid-cols-3 sm:divide-x sm:divide-rule">
-        <div className="border-b border-rule px-5 py-4 sm:border-b-0">
-          <dt className="mark">Submission ID</dt>
-          <dd className="mt-2 break-all font-mono text-xs text-ink">
+      <dl className="mt-8 grid overflow-hidden rounded-2xl border border-sn-border bg-sn-surface sm:grid-cols-3 sm:divide-x sm:divide-sn-border">
+        <div className="border-b border-sn-border px-5 py-4 sm:border-b-0">
+          <dt className={meta}>Submission ID</dt>
+          <dd className="mt-2 break-all text-[15px] tabular-nums">
             {submission.id}
           </dd>
         </div>
-        <div className="border-b border-rule px-5 py-4 sm:border-b-0">
-          <dt className="mark">Created</dt>
-          <dd className="mt-2 font-mono text-xs text-ink">
+        <div className="border-b border-sn-border px-5 py-4 sm:border-b-0">
+          <dt className={meta}>Created</dt>
+          <dd className="mt-2 text-[15px] tabular-nums">
             {formatDateTime(submission.createdAt)}
           </dd>
         </div>
         <div className="px-5 py-4">
-          <dt className="mark">Last updated</dt>
-          <dd className="mt-2 font-mono text-xs text-ink">
+          <dt className={meta}>Last updated</dt>
+          <dd className="mt-2 text-[15px] tabular-nums">
             {formatDateTime(submission.updatedAt)}
           </dd>
         </div>
       </dl>
 
-      <section className="mt-10" aria-labelledby="payment-history-heading">
-        <p className="mark">Billing</p>
-        <h2
-          id="payment-history-heading"
-          className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink"
-        >
+      <section className="mt-14" aria-labelledby="payment-history-heading">
+        <h2 id="payment-history-heading" className={h3}>
           Payment history
         </h2>
 
         {!submission.paymentRequired && (
-          <div className="mt-4 flex flex-col gap-3 border border-rule bg-paper-raised px-5 py-4 sm:flex-row sm:items-center">
-            <SubmissionStatus status="WAIVED" />
-            <p className="text-sm leading-6 text-ink-soft">
+          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-sn-border bg-sn-surface px-5 py-4 sm:flex-row sm:items-center">
+            <StatusPill status="WAIVED" />
+            <p className="text-sm leading-6 text-sn-muted">
               Payment was not required when this test was completed.
             </p>
           </div>
         )}
 
         {submission.payments.length > 0 ? (
-          <div className="mt-4 divide-y divide-rule border border-rule bg-paper-raised">
+          <div className="mt-4 divide-y divide-sn-border rounded-2xl border border-sn-border bg-sn-surface">
             {submission.payments.map((payment) => {
               const reconciliationIdentifiers = [
                 ["Merchant reference", payment.merchantReference],
@@ -158,22 +145,22 @@ export default function AdminSubmissionDetailPage({
                   key={payment.id}
                   className="grid items-start gap-4 px-5 py-4 sm:grid-cols-[8rem_minmax(0,1fr)_minmax(11rem,auto)]"
                 >
-                  <SubmissionStatus status={payment.status} />
+                  <StatusPill status={payment.status} />
                   <div className="min-w-0">
-                    <p className="font-mono text-sm font-semibold tabular-nums text-ink">
+                    <p className="text-sm font-semibold tabular-nums text-sn-fg">
                       {formatAmount(payment.amount, payment.currency)}
                     </p>
-                    <p className="mt-1 text-xs text-ink-soft">
+                    <p className="mt-1 text-xs text-sn-muted">
                       {payment.provider ?? "Provider unavailable"}
                     </p>
                     {reconciliationIdentifiers.length > 0 && (
                       <dl className="mt-3 grid gap-x-5 gap-y-2 md:grid-cols-2">
                         {reconciliationIdentifiers.map(([label, value]) => (
                           <div key={label} className="min-w-0">
-                            <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
+                            <dt className="text-[10px] uppercase tracking-[0.1em] text-sn-muted">
                               {label}
                             </dt>
-                            <dd className="mt-0.5 break-all font-mono text-[11px] text-ink-soft">
+                            <dd className="mt-0.5 break-all text-[11px] text-sn-muted">
                               {value}
                             </dd>
                           </div>
@@ -182,11 +169,11 @@ export default function AdminSubmissionDetailPage({
                     )}
                   </div>
                   <div className="text-left sm:text-right">
-                    <p className="font-mono text-[11px] text-ink-soft">
+                    <p className="text-[11px] text-sn-muted">
                       Created {formatDateTime(payment.createdAt)}
                     </p>
                     {payment.paidAt && (
-                      <p className="mt-1 font-mono text-[11px] text-ink-faint">
+                      <p className="mt-1 text-[11px] text-sn-muted">
                         Paid {formatDateTime(payment.paidAt)}
                       </p>
                     )}
@@ -196,42 +183,38 @@ export default function AdminSubmissionDetailPage({
             })}
           </div>
         ) : submission.paymentRequired ? (
-          <div className="mt-4 border border-dashed border-rule-strong bg-paper-raised px-6 py-10 text-center">
-            <p className="text-sm text-ink-soft">No payment attempts recorded.</p>
+          <div className="mt-4 rounded-2xl border border-dashed border-sn-border bg-sn-surface px-6 py-10 text-center text-[15px]">
+            <p className="text-sm text-sn-muted">No payment attempts recorded.</p>
           </div>
         ) : null}
       </section>
 
-      <section className="mt-10" aria-labelledby="assignments-heading">
-        <p className="mark">Review team</p>
-        <h2
-          id="assignments-heading"
-          className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink"
-        >
+      <section className="mt-14" aria-labelledby="assignments-heading">
+        <h2 id="assignments-heading" className={h3}>
           Examiner assignments
         </h2>
 
         {submission.assignments.length > 0 ? (
-          <div className="mt-4 divide-y divide-rule border border-rule bg-paper-raised">
+          <div className="mt-4 divide-y divide-sn-border rounded-2xl border border-sn-border bg-sn-surface">
             {submission.assignments.map((assignment) => (
               <div
                 key={assignment.id}
                 className="grid items-center gap-4 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_8rem_minmax(11rem,auto)]"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink">
+                  <p className="truncate text-sm font-medium text-sn-fg">
                     {assignment.examiner.name}
                   </p>
-                  <p className="mt-1 truncate text-xs text-ink-soft">
+                  <p className="mt-1 truncate text-xs text-sn-muted">
                     {assignment.examiner.email}
                   </p>
                 </div>
-                <SubmissionStatus status={assignment.status} />
+                <StatusPill status={assignment.status} />
                 <div className="text-left sm:text-right">
-                  <p className="font-mono text-[11px] text-ink-soft">
+                  <p className="text-[11px] text-sn-muted">
                     Assigned {formatDateTime(assignment.createdAt)}
                   </p>
-                  <p className="mt-1 font-mono text-[11px] text-ink-faint">
+                  <p className="mt-1 text-[11px] text-sn-muted">
                     Updated {formatDateTime(assignment.updatedAt)}
                   </p>
                 </div>
@@ -239,18 +222,14 @@ export default function AdminSubmissionDetailPage({
             ))}
           </div>
         ) : (
-          <div className="mt-4 border border-dashed border-rule-strong bg-paper-raised px-6 py-10 text-center">
-            <p className="text-sm text-ink-soft">No examiners assigned.</p>
+          <div className="mt-4 rounded-2xl border border-dashed border-sn-border bg-sn-surface px-6 py-10 text-center text-[15px]">
+            <p className="text-sm text-sn-muted">No examiners assigned.</p>
           </div>
         )}
       </section>
 
-      <section className="mt-10" aria-labelledby="score-summary-heading">
-        <p className="mark">Result</p>
-        <h2
-          id="score-summary-heading"
-          className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink"
-        >
+      <section className="mt-14" aria-labelledby="score-summary-heading">
+        <h2 id="score-summary-heading" className={h3}>
           Score summary
         </h2>
         {hasScoreSurface ? (
@@ -263,36 +242,32 @@ export default function AdminSubmissionDetailPage({
             answers={submission.answers}
           />
         ) : (
-          <div className="mt-4 border border-dashed border-rule-strong bg-paper-raised px-6 py-10 text-center">
-            <p className="text-sm text-ink-soft">
+          <div className="mt-4 rounded-2xl border border-dashed border-sn-border bg-sn-surface px-6 py-10 text-center text-[15px]">
+            <p className="text-sm text-sn-muted">
               Scoring is not available for this submission yet.
             </p>
           </div>
         )}
       </section>
 
-      <section className="mt-10" aria-labelledby="answers-heading">
-        <p className="mark">Recorded work</p>
-        <h2
-          id="answers-heading"
-          className="mt-1.5 font-display text-2xl font-medium tracking-tight text-ink"
-        >
+      <section className="mt-14" aria-labelledby="answers-heading">
+        <h2 id="answers-heading" className={h3}>
           Answers
         </h2>
 
         {submission.answers.length > 0 ? (
-          <div className="mt-4 space-y-8">
+          <div className="mt-4 space-y-7">
             {submission.answers.map((answer, index) => (
-              <article key={answer.id} className="border border-rule bg-paper-raised">
-                <header className="flex flex-wrap items-start justify-between gap-4 border-b border-rule px-5 py-4">
+              <article key={answer.id} className="overflow-hidden rounded-2xl border border-sn-border bg-sn-surface">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b border-sn-border px-5 py-4">
                   <div className="min-w-0">
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-faint">
+                    <p className="text-[13px] uppercase tracking-[0.04em] text-sn-muted">
                       Question {index + 1} · {answer.questionCategory.replace(/_/g, " ")}
                     </p>
                     {answer.tasks.length > 0 && (
                       <ol className="mt-2 space-y-1">
                         {answer.tasks.map((task) => (
-                          <li key={task.id} className="text-sm leading-6 text-ink-soft">
+                          <li key={task.id} className="text-sm leading-6 text-sn-muted">
                             {task.order}. {task.promptText}
                           </li>
                         ))}
@@ -301,18 +276,18 @@ export default function AdminSubmissionDetailPage({
                   </div>
                   {answer.score != null ? (
                     <span className="shrink-0 text-right">
-                      <span className="block font-mono text-lg font-semibold tabular-nums text-ink">
+                      <span className="block text-lg font-semibold tabular-nums text-sn-fg">
                         {submission.scoringSystem === "RUBRIC_6"
                           ? answer.score.toFixed(2)
                           : answer.score}
-                        <span className="text-xs font-normal text-ink-faint">
+                        <span className="text-xs font-normal text-sn-muted">
                           /{scoreMax}
                         </span>
                       </span>
-                      <span className="text-[11px] text-ink-faint">average score</span>
+                      <span className="text-[11px] text-sn-muted">average score</span>
                     </span>
                   ) : (
-                    <SubmissionStatus status="AWAITING" />
+                    <StatusPill status="AWAITING" />
                   )}
                 </header>
 
@@ -326,9 +301,9 @@ export default function AdminSubmissionDetailPage({
                   />
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <SubmissionStatus status={answer.uploadStatus} />
+                    <StatusPill status={answer.uploadStatus} />
                     {answer.durationSeconds != null && (
-                      <p className="font-mono text-[11px] text-ink-faint">
+                      <p className="text-[11px] text-sn-muted">
                         Duration · {answer.durationSeconds}s
                       </p>
                     )}
@@ -336,15 +311,15 @@ export default function AdminSubmissionDetailPage({
 
                   {answer.rubric && (
                     <div className="mt-6">
-                      <p className="mb-2 mark">Rubric averages</p>
+                      <p className="mb-2 text-[13px] uppercase tracking-[0.04em] text-sn-muted">Rubric averages</p>
                       <RubricBreakdownView rubric={answer.rubric} compact />
                     </div>
                   )}
 
-                  <div className="mt-6 border-t border-rule pt-4">
-                    <p className="mark">Examiner scoring</p>
+                  <div className="mt-6 border-t border-sn-border pt-4">
+                    <p className={meta}>Examiner scoring</p>
                     {answer.scores.length > 0 ? (
-                      <div className="mt-2 divide-y divide-rule">
+                      <div className="mt-2 divide-y divide-sn-border">
                         {answer.scores.map((score) => (
                           <div
                             key={score.id}
@@ -352,18 +327,18 @@ export default function AdminSubmissionDetailPage({
                           >
                             <div className="flex items-start justify-between gap-4">
                               <div className="min-w-0">
-                                <p className="text-sm font-medium text-ink">
+                                <p className="text-sm font-medium text-sn-fg">
                                   {score.examinerName}
                                 </p>
-                                <p className="mt-1 text-sm leading-6 text-ink-soft">
+                                <p className="mt-1 text-sm leading-6 text-sn-muted">
                                   {score.comment || "No comment provided."}
                                 </p>
                               </div>
-                              <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-ink">
+                              <p className="shrink-0 text-sm font-semibold tabular-nums text-sn-fg">
                                 {submission.scoringSystem === "RUBRIC_6"
                                   ? score.value.toFixed(2)
                                   : score.value}
-                                <span className="font-normal text-ink-faint">
+                                <span className="font-normal text-sn-muted">
                                   /{scoreMax}
                                 </span>
                               </p>
@@ -379,7 +354,7 @@ export default function AdminSubmissionDetailPage({
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-2 text-sm text-ink-soft">No examiner scores yet.</p>
+                      <p className="mt-2 text-sm text-sn-muted">No examiner scores yet.</p>
                     )}
                   </div>
                 </div>
@@ -387,8 +362,8 @@ export default function AdminSubmissionDetailPage({
             ))}
           </div>
         ) : (
-          <div className="mt-4 border border-dashed border-rule-strong bg-paper-raised px-6 py-10 text-center">
-            <p className="text-sm text-ink-soft">No answers recorded.</p>
+          <div className="mt-4 rounded-2xl border border-dashed border-sn-border bg-sn-surface px-6 py-10 text-center text-[15px]">
+            <p className="text-sm text-sn-muted">No answers recorded.</p>
           </div>
         )}
       </section>

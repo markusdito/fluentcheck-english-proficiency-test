@@ -1,25 +1,15 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { Pill } from "@/components/student/StatusPill";
 
-/**
- * Status chip for a question's prompt audio upload state.
- */
+/** Status pill for a question's prompt audio upload state. */
 export function AudioUploadBadge({
   status,
 }: {
   status: "PENDING" | "UPLOADED" | "FAILED" | null;
 }) {
-  if (!status) {
-    return <Badge variant="status">No audio</Badge>;
-  }
-  return (
-    <Badge variant="status">
-      {status === "UPLOADED"
-        ? "Audio uploaded"
-        : status === "FAILED"
-          ? "Audio failed"
-          : "Audio pending"}
-    </Badge>
-  );
+  if (!status) return <Pill>No audio</Pill>;
+  if (status === "UPLOADED") return <Pill tone="green">Audio uploaded</Pill>;
+  if (status === "FAILED") return <Pill tone="clay">Audio failed</Pill>;
+  return <Pill tone="amber">Audio pending</Pill>;
 }

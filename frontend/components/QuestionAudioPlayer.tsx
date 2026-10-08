@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PauseIcon, PlayIcon, RotateCcwIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ghostButton, secondaryButton } from "@/components/student/styles";
+
+export function formatClock(totalSeconds: number) {
+  const s = Math.max(0, Math.ceil(totalSeconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 interface QuestionAudioPlayerProps {
   audioUrl: string | null;
@@ -24,6 +29,7 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: Qu
   const audioRef = useRef<HTMLAudioElement>(null);
   const [blockedUrl, setBlockedUrl] = useState<string | null>(null);
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
+  const [rawProgress, setRawProgress] = useState({ url: "", time: 0, duration: 0 });
 
   const playAudio = useCallback((restart: boolean) => {
     const audio = audioRef.current;
@@ -50,7 +56,7 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: Qu
 
   if (!audioUrl) {
     return (
-      <p className="text-sm text-ink-soft">
+      <p className="text-sm text-sn-muted">
         {compact ? "Audio pending" : "Audio not yet available for this question."}
       </p>
     );
@@ -58,6 +64,14 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: Qu
 
   const autoplayBlocked = blockedUrl === audioUrl;
   const isPlaying = playingUrl === audioUrl;
+  // Progress is keyed by URL so a question change starts the bar at zero.
+  const progress = rawProgress.url === audioUrl ? rawProgress : { time: 0, duration: 0 };
+  const trackProgress = (audio: HTMLAudioElement) =>
+    setRawProgress({
+      url: audioUrl,
+      time: audio.currentTime,
+      duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+    });
 
   return (
     <div className={compact || autoPlay ? "space-y-2" : ""}>
@@ -66,6 +80,8 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: Qu
         ref={audioRef}
         src={audioUrl}
         controls={!autoPlay}
+        onTimeUpdate={(e) => trackProgress(e.currentTarget)}
+        onLoadedMetadata={(e) => trackProgress(e.currentTarget)}
         onPlay={() => setPlayingUrl(audioUrl)}
         onPause={() => setPlayingUrl(null)}
         onEnded={() => {
@@ -76,48 +92,52 @@ export function QuestionAudioPlayer({ audioUrl, compact, autoPlay, onEnded }: Qu
         aria-hidden={autoPlay || undefined}
         className={autoPlay ? "hidden" : compact ? "h-9 w-full" : "w-full"}
       >
-        <p className="text-sm text-ink-soft">
+        <p className="text-sm text-sn-muted">
           Your browser does not support audio playback.
         </p>
       </audio>
       {autoPlay && (
-        <div className="space-y-2">
-          <div
-            className="flex flex-wrap items-center gap-3"
-            role="group"
-            aria-label="Question audio controls"
-          >
-            <Button
-              type="button"
-              variant="invert"
-              size="md"
-              aria-label={isPlaying ? "Pause question audio" : "Play question audio"}
-              onClick={() => {
-                if (isPlaying) {
-                  setPlayingUrl(null);
-                  audioRef.current?.pause();
-                } else {
-                  playAudio(false);
-                }
-              }}
-            >
-              {isPlaying ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
-              {isPlaying ? "Pause" : "Play"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              aria-label="Replay question audio from the beginning"
-              className="border-studio-rule bg-transparent text-studio-text hover:bg-studio-panel hover:text-studio-text"
-              onClick={() => playAudio(true)}
-            >
-              <RotateCcwIcon aria-hidden />
-              Replay
-            </Button>
+        <div>
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-5 border-y border-sn-border py-4 max-sm:grid-cols-1">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Question audio controls">
+              <button
+                type="button"
+                className={secondaryButton}
+                aria-label={isPlaying ? "Pause question audio" : "Play question audio"}
+                onClick={() => {
+                  if (isPlaying) {
+                    setPlayingUrl(null);
+                    audioRef.current?.pause();
+                  } else {
+                    playAudio(false);
+                  }
+                }}
+              >
+                {isPlaying ? <PauseIcon className="size-4" aria-hidden /> : <PlayIcon className="size-4" aria-hidden />}
+                {isPlaying ? "Pause" : "Play question"}
+              </button>
+              <button
+                type="button"
+                className={ghostButton}
+                aria-label="Replay question audio from the beginning"
+                onClick={() => playAudio(true)}
+              >
+                <RotateCcwIcon className="size-4" aria-hidden />
+                Replay
+              </button>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-sn-fg/6" aria-hidden="true">
+              <span
+                className="block h-full rounded-full bg-sn-fg"
+                style={{ width: `${progress.duration ? Math.min(100, (progress.time / progress.duration) * 100) : 0}%` }}
+              />
+            </div>
+            <span className="text-sm tabular-nums text-sn-muted">
+              {formatClock(progress.time)} / {formatClock(progress.duration)}
+            </span>
           </div>
           {autoplayBlocked && (
-            <p role="status" className="text-xs text-amber-400">
+            <p role="status" className="mt-2 text-[13px] text-sn-ink-amber">
               Autoplay blocked — select Play to hear the prompt.
             </p>
           )}

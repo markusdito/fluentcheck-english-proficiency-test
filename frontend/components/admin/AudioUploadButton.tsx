@@ -2,8 +2,8 @@
 
 import { useRef, useState, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, TriangleAlertIcon } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { btnSecondary } from "@/components/admin/styles";
+import { Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import {
   getQuestionAudioPresignedUrl,
@@ -69,8 +69,7 @@ export function AudioUploadButton({
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
-          variant="outline"
-          size="sm"
+          className={btnSecondary}
           disabled={disabled || state === "getting-url" || state === "uploading"}
           onClick={() => inputRef.current?.click()}
         >
@@ -84,17 +83,14 @@ export function AudioUploadButton({
           )}
         </Button>
         {state === "uploaded" && (
-          <span className="text-xs font-medium text-ink">Audio uploaded</span>
+          <span className="text-xs font-medium text-sn-fg">Audio uploaded</span>
         )}
         {fileName && (state === "idle" || state === "error") && (
-          <span className="font-mono text-xs text-ink-soft">{fileName}</span>
+          <span className="text-xs text-sn-muted">{fileName}</span>
         )}
       </div>
       {error && (
-        <Alert variant="destructive" className="items-start py-2">
-          <TriangleAlertIcon />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <p role="alert" className="text-sm text-sn-clay">{error}</p>
       )}
     </div>
   );
