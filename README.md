@@ -247,6 +247,18 @@ To create development questions and examiner records, you can run:
 npx prisma db seed
 ```
 
+The seed creates the CEFR B1 Test Sets A–F (`backend/prisma/testSets.ts`) and
+uploads their prompt audio and Part 3 option icons from
+`backend/prisma/seed-assets` to the configured R2 bucket, so every set is
+deliverable. If an upload fails, that Question stays a Draft; fix the R2
+settings and re-run, or upload the media from the admin question bank.
+
+The prompt audio files are text-to-speech drafts of the spec scripts. To use a
+studio recording, replace `seed-assets/audio/<set>-<slot>.mp3` with an MP3 of
+the same name. After changing a script or icon in `testSets.ts`, delete the
+affected file and run `npx tsx prisma/generateSeedAssets.ts` (needs
+`pip install edge-tts`, ImageMagick and the frontend dependencies).
+
 > [!CAUTION]
 > The current seed clears assessment data—including questions, submissions,
 > payments, assignments, answers, and scores—before recreating sample records.
