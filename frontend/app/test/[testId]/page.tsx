@@ -28,7 +28,7 @@ import { ApiError } from "@/lib/api";
 import { initializePractice, initializeTest } from "@/lib/test-initialization";
 import { slotLabel } from "@/lib/assessment-slots";
 import { clearAssessmentStartIntent } from "@/lib/assessment-start-intent";
-import { readConsent } from "@/lib/consent";
+import { clearConsent, readConsent } from "@/lib/consent";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
 import { areAllManifestEntriesUploaded, initializeUploadStates } from "@/lib/recording-upload-state";
@@ -543,7 +543,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                 type="button"
                 className={primaryButton}
                 onClick={() => {
-                  window.location.href = "/test/demo-test";
+                  // The real test needs its own consent and identity clip.
+                  clearConsent();
+                  stopStream();
+                  window.location.href = "/dashboard?start=real";
                 }}
               >
                 Take the real test

@@ -61,6 +61,14 @@ export default function DashboardPage() {
     setShowTutorial(dashboard.totalTests === 0 && !readTutorialSeen());
   }, [showTutorial, user?.role, dashboard]);
 
+  // "Take the real test" after practice lands here to run consent + system check.
+  useEffect(() => {
+    if (user?.role !== "STUDENT" || new URLSearchParams(window.location.search).get("start") !== "real") return;
+    router.replace("/dashboard");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStartTarget("/test/demo-test");
+  }, [router, user?.role]);
+
   const examinerAssignments = assignmentsQuery.data ?? [];
   const dataLoading =
     (user?.role === "STUDENT" && dashboardQuery.isPending) ||
