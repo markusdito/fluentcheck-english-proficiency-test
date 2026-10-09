@@ -28,6 +28,7 @@ import { ApiError } from "@/lib/api";
 import { initializePractice, initializeTest } from "@/lib/test-initialization";
 import { slotLabel } from "@/lib/assessment-slots";
 import { clearAssessmentStartIntent } from "@/lib/assessment-start-intent";
+import { clearConsent, readConsent } from "@/lib/consent";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
 import { areAllManifestEntriesUploaded, initializeUploadStates } from "@/lib/recording-upload-state";
@@ -46,6 +47,9 @@ type UploadState = Record<string, QuestionUploadState>;
 export default function TestPage({ params }: { params: Promise<{ testId: string }> }) {
   const { testId } = use(params);
   // Practice (PRD FR-3.3): same slot flow, takes discarded on the device.
+  // ponytail: practice is a separate optional run of the Practice_Question
+  // Test Set (offered to first-timers), not one sample slot inside every real
+  // test. Inline it before Task 1A if pilots show candidates skip it (#171).
   const practice = testId === "practice";
 
   // The authenticated app provider owns the single stream across the
@@ -66,6 +70,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     sessionError,
     isLoading: mediaLoading,
   } = useAssessmentStart();
+
+  // PRD FR-2.6: no capture and no Submission before informed consent, given
+  // in the dashboard's consent + system check.
+  const consentVersion = readConsent(studentId);
 
   const { blob, duration: recDuration, error: recError, startRecording, stopRecording, resetRecording } = useRecording();
 
@@ -114,12 +122,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Fetch questions + create/replay the Submission only after media is ready.
   useEffect(() => {
-    if (initCalled.current || sessionPending || !studentId || !mediaReady) return;
+    if (initCalled.current || sessionPending || !studentId || !mediaReady || !consentVersion) return;
     initCalled.current = true;
 
     const init = async () => {
       try {
-        const initialized = practice ? await initializePractice() : await initializeTest(studentId);
+        const initialized = practice ? await initializePractice() : await initializeTest(studentId, consentVersion);
         const states = initializeUploadStates(
           initialized.questions.map((question) => question.id),
           initialized.uploadedEntryIds,
@@ -141,7 +149,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     };
 
     init();
-  }, [mediaReady, practice, sessionPending, studentId]);
+  }, [consentVersion, mediaReady, practice, sessionPending, studentId]);
 
   // Recording starts automatically when preparation ends (PRD FR-3.5).
   const onPrepComplete = useCallback(() => {
@@ -166,11 +174,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const autoRecoverRef = useRef(false);
   useEffect(() => {
     const gateVisible =
-      phase === "loading" && !mediaReady && !fetchError && !sessionPending && Boolean(studentId);
+      phase === "loading" && !mediaReady && !fetchError && !sessionPending && Boolean(studentId) &&
+      Boolean(consentVersion);
     if (!gateVisible || autoRecoverRef.current || mediaLoading) return;
     autoRecoverRef.current = true;
     void handleRecoverMedia();
-  }, [phase, mediaReady, fetchError, sessionPending, studentId, mediaLoading, handleRecoverMedia]);
+  }, [phase, mediaReady, fetchError, sessionPending, studentId, consentVersion, mediaLoading, handleRecoverMedia]);
 
   // Device loss. While recording, the take ends with whatever was captured and
   // the flow advances as usual: it is never re-recorded. During preparation
@@ -412,7 +421,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     "Camera and microphone access is required to continue.";
 
   // Loading while the authenticated Student, media, and manifest are prepared.
-  if (phase === "loading" && !fetchError && !sessionError && (sessionPending || (Boolean(studentId) && mediaReady))) {
+  if (phase === "loading" && !fetchError && !sessionError && (sessionPending || (Boolean(studentId) && mediaReady && Boolean(consentVersion)))) {
     return (
       <PageState>
         <Loader2 className="mx-auto size-8 animate-spin text-sn-muted" aria-hidden="true" />
@@ -449,6 +458,28 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         <p className="mt-3 text-sn-muted">Please sign in again before starting an Assessment.</p>
         <button type="button" className={`${primaryButton} mt-6 w-full`} onClick={() => window.location.reload()}>
           Try again
+        </button>
+      </PageState>
+    );
+  }
+
+  if (phase === "loading" && !sessionPending && studentId && !consentVersion) {
+    return (
+      <PageState>
+        <h1 className={h3}>Consent and system check needed</h1>
+        <p className="mt-3 text-sn-muted">
+          Start from your dashboard to read the recording consent and check your camera, microphone
+          and voice before the test begins.
+        </p>
+        <button
+          type="button"
+          className={`${primaryButton} mt-6 w-full`}
+          onClick={() => {
+            stopStream();
+            window.location.href = "/dashboard";
+          }}
+        >
+          Return to dashboard
         </button>
       </PageState>
     );
@@ -515,7 +546,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                 type="button"
                 className={primaryButton}
                 onClick={() => {
-                  window.location.href = "/test/demo-test";
+                  // The real test needs its own consent and identity clip.
+                  clearConsent();
+                  stopStream();
+                  window.location.href = "/dashboard?start=real";
                 }}
               >
                 Take the real test

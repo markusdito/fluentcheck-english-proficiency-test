@@ -57,10 +57,13 @@ export interface InitializedSubmission {
   uploadedEntryIds?: string[];
 }
 
-export async function initializeSubmission(idempotencyKey: string): Promise<InitializedSubmission> {
+export async function initializeSubmission(
+  idempotencyKey: string,
+  consentVersion: string,
+): Promise<InitializedSubmission> {
   const res = await api.post<{ status: string; data: InitializedSubmission }>(
     "/submissions",
-    undefined,
+    { consentVersion },
     { headers: { "Idempotency-Key": idempotencyKey } },
   );
   return res.data;

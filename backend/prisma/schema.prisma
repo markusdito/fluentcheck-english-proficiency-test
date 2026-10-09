@@ -146,6 +146,8 @@ model User {
   normalizedEmail String    @unique
   password        String? // nullable for provider-only accounts; local passwords are bcrypt hashes
   googleSubject   String?   @unique // Google's stable subject; null for local-only accounts
+  fullName        String? // PRD FR-1.4: spoken in the system-check identity clip
+  studentNumber   String? // PRD FR-1.4: the student's own Student ID, not the account id
   role            Role      @default(STUDENT)
   createdAt       DateTime  @default(now()) @db.Timestamptz()
   updatedAt       DateTime  @updatedAt @db.Timestamptz()
@@ -247,6 +249,9 @@ model Submission {
   retentionStatus      SubmissionRetentionStatus @default(RETAINED)
   scoringSystem        ScoringSystem             @default(RUBRIC_6)
   paymentRequired      Boolean                   @default(true)
+  // PRD FR-2.6: informed consent recorded before any capture. Null on legacy rows.
+  consentedAt          DateTime?                 @db.Timestamptz()
+  consentVersion       String?
   answers              Answer[]
   manifest             SubmissionManifest?
   payments             Payment[]

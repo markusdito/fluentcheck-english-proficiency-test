@@ -71,6 +71,23 @@ const loginInputSchema = z.strictObject({
   rememberMe: z.boolean({ error: "rememberMe must be a boolean" }).default(false),
 });
 
+// PRD FR-1.4: full name and Student ID spoken in the system-check identity clip.
+export const profileSchema = z.strictObject({
+  fullName: z
+    .string({ error: "Full name must be a string" })
+    .trim()
+    .min(1, "Full name is required")
+    .max(100, "Full name must be at most 100 characters"),
+  studentNumber: z
+    .string({ error: "Student ID must be a string" })
+    .trim()
+    .min(1, "Student ID is required")
+    .max(32, "Student ID must be at most 32 characters")
+    .regex(/^[A-Za-z0-9./-]+$/u, "Student ID can only contain letters, numbers, dots, slashes, and dashes"),
+});
+
+export type ProfileInput = z.infer<typeof profileSchema>;
+
 export const registrationSchema = registrationInputSchema.transform((input) => ({
   ...input,
   normalizedEmail: normalizeEmail(input.email),

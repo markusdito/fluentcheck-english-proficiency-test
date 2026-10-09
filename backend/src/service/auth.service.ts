@@ -48,8 +48,18 @@ export async function findCurrentAccount(userId: string) {
             email: true,
             role: true,
             createdAt: true,
+            fullName: true,
+            studentNumber: true,
         },
     });
+}
+
+/** PRD FR-1.4: the identity the student speaks in the system-check clip. */
+export async function updateProfile(
+    userId: string,
+    profile: { fullName: string; studentNumber: string },
+) {
+    await prisma.user.update({ where: { id: userId }, data: profile });
 }
 
 export async function findUserForLogin(email: string) {

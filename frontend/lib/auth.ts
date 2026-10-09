@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { clearAssessmentStartIntent } from "./assessment-start-intent";
+import { clearConsent } from "./consent";
 import type { QueryClient } from "@tanstack/react-query";
 
 export async function signOut(queryClient?: QueryClient) {
@@ -7,6 +8,7 @@ export async function signOut(queryClient?: QueryClient) {
     await api.post("/auth/logout");
   } finally {
     clearAssessmentStartIntent();
+    clearConsent();
     queryClient?.clear();
     window.location.href = "/";
   }

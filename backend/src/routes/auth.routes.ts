@@ -1,9 +1,9 @@
 import express, { Router, type Request, type RequestHandler } from "express";
 import type { RateLimitRequestHandler } from "express-rate-limit";
-import { register, login, logout, getMe } from "../controllers/auth.controller.js";
+import { register, login, logout, getMe, updateMe } from "../controllers/auth.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import { validateAuthBody } from "../middleware/auth-validation.middleware.js";
-import { loginSchema, registrationSchema } from "../schemas/auth.schema.js";
+import { loginSchema, profileSchema, registrationSchema } from "../schemas/auth.schema.js";
 import {
   deriveRateLimitKey,
   type RateLimitIdentityResolver,
@@ -107,6 +107,7 @@ export function createAuthRouter(
   );
   router.post("/logout", logout);
   router.get("/me", verifyToken, getMe);
+  router.patch("/me", verifyToken, ...authBodyParsers, validateAuthBody(profileSchema), updateMe);
   if (googleAuthHandlers) {
     if (!runtime) {
       throw new Error("Google OAuth routes require a rate-limit runtime");

@@ -13,6 +13,7 @@ import { readReduceMotion, writeReduceMotion } from "@/lib/preferences";
 import type { SessionRole } from "@/types/auth";
 import { BackLink, PageShell, PageState } from "@/components/student/PageShell";
 import { initials } from "@/components/student/StudentNav";
+import { IdentityForm } from "@/components/student/IdentityForm";
 import { card, h2, h3, meta, primaryButton, secondaryButton } from "@/components/student/styles";
 
 const roleLabels: Record<SessionRole, string> = {
@@ -148,6 +149,16 @@ export default function ProfilePage() {
               <Row label="Member since">{formatDate(user.createdAt)}</Row>
             </dl>
           </section>
+
+          {user.role === "STUDENT" && (
+            <section className={card} aria-labelledby="identity-title">
+              <h2 id="identity-title" className={h3}>Identity for the speaking test</h2>
+              <p className="mt-2 mb-5 text-[15px] text-sn-muted">
+                In the system check you say &ldquo;My name is [full name] and my Student ID is [number].&rdquo;
+              </p>
+              <IdentityForm user={user} />
+            </section>
+          )}
 
           <section className={card} aria-labelledby="prefs-title">
             <h2 id="prefs-title" className={h3}>Preferences</h2>

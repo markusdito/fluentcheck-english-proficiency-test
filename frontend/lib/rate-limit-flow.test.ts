@@ -165,7 +165,7 @@ describe("frontend rate-limit flow contract", () => {
       email: "student@example.test",
       password: "correct-password",
     });
-    const initialized = await initializeSubmission("start-key-1");
+    const initialized = await initializeSubmission("start-key-1", "2026-10-09");
     for (const entry of initialized.entries) {
       const presigned = await getPresignedUrl(
         initialized.submissionId,
@@ -196,6 +196,7 @@ describe("frontend rate-limit flow contract", () => {
       method: "POST",
       credentials: "include",
       headers: { "Idempotency-Key": "start-key-1" },
+      body: JSON.stringify({ consentVersion: "2026-10-09" }),
     });
     expect(initialized.submissionId).toBe("submission-1");
     expect(fetchMock.mock.calls[3][0]).toBe("/backend-api/uploads/presigned-url");
