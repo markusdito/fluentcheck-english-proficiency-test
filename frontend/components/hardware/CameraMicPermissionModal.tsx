@@ -30,6 +30,8 @@ const STATUS_PILL: Record<DeviceStatus, { tone: "green" | "clay" | "navy" | "pla
 
 /** Long enough to say the identity sentence; the clip never leaves the device. */
 const TEST_CLIP_SECONDS = 10;
+/** Live meter level (0–100) that counts as voice when the clip cannot be decoded. */
+const LIVE_VOICE_LEVEL = 20;
 const WELCOME =
   "Welcome to the SpeakNusa speaking test. Put on your headset, check your microphone, then record a short test clip with your name and Student ID.";
 
@@ -81,6 +83,9 @@ export function CameraMicPermissionModal({
   const autoRequestedRef = useRef(false);
   const welcomedRef = useRef(false);
   const checkedBlobRef = useRef<Blob | null>(null);
+  // Loudest live meter reading during the clip: the fallback when the browser
+  // cannot decode the clip itself.
+  const clipPeakRef = useRef(0);
 
   const consentGiven = consented && readConsent(studentId) !== null;
   const supported = open && isRecordingSupported();
@@ -128,8 +133,11 @@ export function CameraMicPermissionModal({
     setClipUrl(url);
     setClipCheck("checking");
     let active = true;
+    const peak = clipPeakRef.current;
     void detectAudioPresence(blob).then((result) => {
-      if (active) setClipCheck(result === null ? "undecodable" : result ? "voice" : "silent");
+      if (!active) return;
+      const voiced = result ?? (peak >= LIVE_VOICE_LEVEL ? true : null);
+      setClipCheck(voiced === null ? "undecodable" : voiced ? "voice" : "silent");
     });
     return () => {
       active = false;
@@ -140,7 +148,12 @@ export function CameraMicPermissionModal({
     if (clipUrl) URL.revokeObjectURL(clipUrl);
   }, [clipUrl]);
 
+  useEffect(() => {
+    if (recording.state === "recording") clipPeakRef.current = Math.max(clipPeakRef.current, micLevel);
+  }, [recording.state, micLevel]);
+
   const resetClip = () => {
+    clipPeakRef.current = 0;
     recording.resetRecording();
     checkedBlobRef.current = null;
     setClipUrl(null);
