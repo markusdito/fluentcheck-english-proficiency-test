@@ -1,14 +1,14 @@
 "use client";
 
 import { slotLabel } from "@/lib/assessment-slots";
-import { useEffect, useRef, useState, use } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleCheckIcon, Loader2 } from "lucide-react";
 import {
   completeExaminerScoring,
   fetchExaminerAssignmentDetail,
-  saveExaminerAnswerScore,
+  saveExaminerScore,
 } from "@/lib/examiner-api";
 import { useSession } from "@/hooks/useSession";
 import { queryKeys } from "@/lib/query-keys";
@@ -41,7 +41,6 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const initializedAssignmentId = useRef<string | null>(null);
 
   useEffect(() => {
     if (user && !canWorkExistingAssignment) {
@@ -49,51 +48,19 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
     }
   }, [canWorkExistingAssignment, user]);
 
-  useEffect(() => {
-    if (!assignment || initializedAssignmentId.current === assignment.id) return;
-    initializedAssignmentId.current = assignment.id;
-    const firstUnsaved = assignment.answers.findIndex(
-      (answer) => answer.savedScore == null,
-    );
-    setCurrentQuestionIndex(
-      firstUnsaved >= 0
-        ? firstUnsaved
-        : Math.max(0, assignment.answers.length - 1),
-    );
-  }, [assignment]);
-
   const handleSaveScore = async (score: ScoreSubmissionInput) => {
     if (!assignment) return;
     setSubmitting(true);
 
     try {
-      await saveExaminerAnswerScore(assignmentId, score);
-      const rubric = "rubric" in score ? score.rubric : null;
-      const value =
-        "rubric" in score
-          ? (score.rubric.pronunciation +
-              score.rubric.fluency +
-              score.rubric.vocabulary +
-              score.rubric.grammar) /
-            4
-          : score.value;
+      await saveExaminerScore(assignmentId, score);
       const savedScore = {
-        value,
-        rubric,
+        value: "rubric" in score ? score.overall : score.value,
+        rubric: "rubric" in score ? score.rubric : null,
         comment: score.comment?.trim() || null,
       };
       queryClient.setQueryData<AssignmentDetail>(assignmentKey, (current) =>
-        current
-          ? {
-              ...current,
-              status: "IN_PROGRESS",
-              answers: current.answers.map((answer) =>
-                answer.id === score.answerId
-                  ? { ...answer, savedScore }
-                  : answer,
-              ),
-            }
-          : current,
+        current ? { ...current, status: "IN_PROGRESS", savedScore } : current,
       );
     } catch (error) {
       refreshExaminerWorkAfterOwnershipConflict(error, queryClient, assignmentKey);
@@ -211,6 +178,7 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
         <ScoringPanel
           answers={assignment.answers}
           scoringSystem={assignment.scoringSystem}
+          savedScore={assignment.savedScore}
           currentIndex={currentQuestionIndex}
           onQuestionChange={setCurrentQuestionIndex}
           onSave={handleSaveScore}

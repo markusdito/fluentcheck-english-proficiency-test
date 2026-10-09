@@ -43,25 +43,11 @@ export async function startExaminerAssignment(assignmentId: string): Promise<voi
   await api.put(`/examiner/assignments/${assignmentId}/start`);
 }
 
-export async function submitExaminerScores(
-  assignmentId: string,
-  scores: ScoreSubmissionInput[]
-): Promise<ScoringFinalizationResult> {
-  const response = await api.post<ScoringFinalizationResponse>(
-    `/examiner/assignments/${assignmentId}/scores`,
-    { scores },
-  );
-  return response.data;
-}
-
-export async function saveExaminerAnswerScore(
+export async function saveExaminerScore(
   assignmentId: string,
   score: ScoreSubmissionInput,
 ): Promise<void> {
-  await api.put(
-    `/examiner/assignments/${assignmentId}/scores/${score.answerId}`,
-    score,
-  );
+  await api.put(`/examiner/assignments/${assignmentId}/score`, score);
 }
 
 export async function completeExaminerScoring(

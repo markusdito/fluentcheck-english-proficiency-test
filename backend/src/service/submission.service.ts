@@ -18,6 +18,7 @@ import {
   average,
   averageRubrics,
   roundScore,
+  submissionResult,
   type RubricBreakdown,
   type ScoringSystemValue,
 } from "../utils/scoring.js";
@@ -161,7 +162,25 @@ async function readDynamicDashboardScores(
 
   const rows = await prisma.$queryRaw<DynamicDashboardScoreRow[]>`
     /* dashboard-dynamic-scores */
-    WITH answer_scores AS (
+    WITH page AS (
+      SELECT "id" FROM "Submission"
+      WHERE "id" IN (${Prisma.join(
+        submissionIds.map((id) => Prisma.sql`${id}::uuid`),
+      )})
+    ),
+    examiner_scores AS (
+      -- One whole-Submission Score per completed Examiner assignment.
+      SELECT
+        ea."submissionId" AS "submissionId",
+        AVG(s."value") AS "score"
+      FROM "ExaminerAssignment" AS ea
+      JOIN "Score" AS s ON s."assignmentId" = ea."id" AND s."answerId" IS NULL
+      WHERE ea."status" = 'COMPLETED'
+        AND ea."submissionId" IN (SELECT "id" FROM page)
+      GROUP BY ea."submissionId"
+      HAVING COUNT(*) = 2
+    ),
+    answer_scores AS (
       SELECT
         a."submissionId" AS "submissionId",
         a."id" AS "answerId",
@@ -169,9 +188,7 @@ async function readDynamicDashboardScores(
         COUNT(s."id")::int AS "scoreCount"
       FROM "Answer" AS a
       LEFT JOIN "Score" AS s ON s."answerId" = a."id"
-      WHERE a."submissionId" IN (${Prisma.join(
-        submissionIds.map((id) => Prisma.sql`${id}::uuid`),
-      )})
+      WHERE a."submissionId" IN (SELECT "id" FROM page)
       GROUP BY a."submissionId", a."id"
     ),
     complete_submission_scores AS (
@@ -183,8 +200,10 @@ async function readDynamicDashboardScores(
       HAVING COUNT(*) > 0
         AND COUNT(*) FILTER (WHERE "scoreCount" > 0) = COUNT(*)
     )
-    SELECT "submissionId", "score"
-    FROM complete_submission_scores
+    SELECT "submissionId", "score" FROM examiner_scores
+    UNION ALL
+    -- Legacy per-Answer Scores keep their original aggregation.
+    SELECT "submissionId", "score" FROM complete_submission_scores
   `;
 
   return new Map(
@@ -258,6 +277,8 @@ export interface SubmissionDetail {
   scoringSystem: ScoringSystemValue;
   testSet: DeliveredTestSet | null;
   rubric: RubricBreakdown | null;
+  /** Written feedback from both Examiners' whole-Submission Scores. */
+  comments: string[];
   createdAt: Date;
   answers: AnswerDetail[];
 }
@@ -412,6 +433,22 @@ export async function getSubmissionDetail(
       certificate: {
         select: { finalScore: true },
       },
+      assignments: {
+        select: {
+          status: true,
+          scores: {
+            where: { answerId: null },
+            select: {
+              value: true,
+              pronunciation: true,
+              fluency: true,
+              vocabulary: true,
+              grammar: true,
+              comment: true,
+            },
+          },
+        },
+      },
       answers: {
         include: {
           question: {
@@ -525,24 +562,33 @@ export async function getSubmissionDetail(
     })
   );
 
+  const result = submissionResult(submission.assignments, submission.scoringSystem);
   const scoredAnswers = submission.answers.flatMap((answer) => {
     const score = average(answer.scores.map((item) => Number(item.value)));
     return score == null ? [] : [score];
   });
-  const calculatedOverallScore =
-    (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
-    answers.length > 0 &&
-    scoredAnswers.length === answers.length
+  const calculatedOverallScore = result
+    ? result.score
+    : (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
+        answers.length > 0 &&
+        scoredAnswers.length === answers.length
       ? average(scoredAnswers)
       : null;
   const answerRubrics = answers.flatMap((answer) =>
     answer.rubric ? [answer.rubric] : [],
   );
-  const rubric =
-    submission.scoringSystem === "RUBRIC_6" &&
-    answerRubrics.length === answers.length
+  const rubric = result
+    ? result.rubric
+    : submission.scoringSystem === "RUBRIC_6" &&
+        answerRubrics.length === answers.length
       ? averageRubrics(answerRubrics)
       : null;
+  const comments = result
+    ? submission.assignments.flatMap(({ scores }) => {
+        const trimmed = scores[0]?.comment?.trim();
+        return trimmed ? [trimmed] : [];
+      })
+    : [];
 
   return {
     id: submission.id,
@@ -553,6 +599,7 @@ export async function getSubmissionDetail(
     scoringSystem: submission.scoringSystem,
     testSet: deliveredTestSet(submission.manifest),
     rubric,
+    comments,
     createdAt: submission.createdAt,
     answers,
   };

@@ -31,11 +31,13 @@ export interface AssignmentAnswer {
   tasks: ExaminerTask[];
   durationSeconds: number | null;
   videoUrl: string | null;
-  savedScore: {
-    value: number;
-    rubric: RubricValues | null;
-    comment: string | null;
-  } | null;
+}
+
+/** The Examiner's whole-Submission Score; `value` is the overall band. */
+export interface SavedScore {
+  value: number;
+  rubric: RubricValues | null;
+  comment: string | null;
 }
 
 export interface AssignmentDetail {
@@ -47,6 +49,7 @@ export interface AssignmentDetail {
   scoringSystem: ScoringSystem;
   testSet: TestSetRef | null;
   answers: AssignmentAnswer[];
+  savedScore: SavedScore | null;
   createdAt: string;
   updatedAt: string;
 }

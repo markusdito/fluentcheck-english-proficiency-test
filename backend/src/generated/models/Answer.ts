@@ -610,9 +610,9 @@ export type AnswerSumOrderByAggregateInput = {
   proofVersion?: Prisma.SortOrder
 }
 
-export type AnswerScalarRelationFilter = {
-  is?: Prisma.AnswerWhereInput
-  isNot?: Prisma.AnswerWhereInput
+export type AnswerNullableScalarRelationFilter = {
+  is?: Prisma.AnswerWhereInput | null
+  isNot?: Prisma.AnswerWhereInput | null
 }
 
 export type AnswerCreateNestedManyWithoutQuestionInput = {
@@ -747,10 +747,12 @@ export type AnswerCreateNestedOneWithoutScoresInput = {
   connect?: Prisma.AnswerWhereUniqueInput
 }
 
-export type AnswerUpdateOneRequiredWithoutScoresNestedInput = {
+export type AnswerUpdateOneWithoutScoresNestedInput = {
   create?: Prisma.XOR<Prisma.AnswerCreateWithoutScoresInput, Prisma.AnswerUncheckedCreateWithoutScoresInput>
   connectOrCreate?: Prisma.AnswerCreateOrConnectWithoutScoresInput
   upsert?: Prisma.AnswerUpsertWithoutScoresInput
+  disconnect?: Prisma.AnswerWhereInput | boolean
+  delete?: Prisma.AnswerWhereInput | boolean
   connect?: Prisma.AnswerWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.AnswerUpdateToOneWithWhereWithoutScoresInput, Prisma.AnswerUpdateWithoutScoresInput>, Prisma.AnswerUncheckedUpdateWithoutScoresInput>
 }

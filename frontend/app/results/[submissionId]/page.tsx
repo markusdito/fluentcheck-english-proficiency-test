@@ -136,9 +136,13 @@ export default function SubmissionResultPage({
   const created = new Date(submission.createdAt);
   const dateText = created.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   const homeHref = user?.role === "ADMIN" ? "/admin" : "/dashboard";
-  const notes = submission.answers.flatMap((answer) =>
-    answer.score != null ? answer.comments.map((c) => ({ part: categoryLabel(answer.questionCategory), text: c })) : [],
-  );
+  // Legacy Submissions were scored per Answer; new ones have one Score per Examiner.
+  const legacyPerAnswer = submission.answers.some((answer) => answer.score != null);
+  const notes = legacyPerAnswer
+    ? submission.answers.flatMap((answer) =>
+        answer.score != null ? answer.comments.map((c) => ({ part: categoryLabel(answer.questionCategory), text: c })) : [],
+      )
+    : (submission.comments ?? []).map((text, i) => ({ part: `Examiner ${i + 1}`, text }));
 
   return (
     <PageShell
@@ -212,7 +216,7 @@ export default function SubmissionResultPage({
                 <div className="mt-3 flex flex-wrap items-baseline gap-4">
                   <div className={`${statNum} text-[length:clamp(56px,8vw,96px)]`}>{fmt(overall)}</div>
                   <p className="m-0 max-w-[28ch] text-[15px] text-sn-muted">
-                    Out of {scoreMax}. {rubric6 ? "Mean of every stored score across answers and examiners." : ""}
+                    Out of {scoreMax}. {rubric6 ? "Mean of two independent examiners' bands for your whole test." : ""}
                   </p>
                 </div>
               ) : (
@@ -231,7 +235,7 @@ export default function SubmissionResultPage({
             </article>
           )}
 
-          {submission.answers.length > 0 && !awaitingPayment && (
+          {legacyPerAnswer && !awaitingPayment && (
             <article className={card}>
               <h2 className={h3}>Per answer breakdown</h2>
               <div className="mt-3 overflow-x-auto">

@@ -15,7 +15,6 @@ describe("VideoReviewer", () => {
         tasks: [],
         durationSeconds: 20,
         videoUrl: "https://media.example/answer-1.webm",
-        savedScore: null,
       },
       {
         id: "answer-2",
@@ -27,7 +26,6 @@ describe("VideoReviewer", () => {
         tasks: [],
         durationSeconds: 30,
         videoUrl: "https://media.example/answer-2.webm",
-        savedScore: null,
       },
     ];
 

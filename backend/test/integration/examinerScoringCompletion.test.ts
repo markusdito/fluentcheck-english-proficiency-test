@@ -171,18 +171,22 @@ async function createAssignmentSet(
   return assignments.sort((left, right) => left.slot - right.slot);
 }
 
-async function saveScores(assignmentId: string, answerIds: string[], count = answerIds.length) {
-  await prisma.score.createMany({
-    data: answerIds.slice(0, count).map((answerId) => ({
+/** Store the Examiner's one whole-Submission Score directly. */
+async function saveScores(assignmentId: string) {
+  await prisma.score.create({
+    data: {
       assignmentId,
-      answerId,
       value: 4,
       pronunciation: 4,
       fluency: 4,
       vocabulary: 4,
       grammar: 4,
-    })),
+    },
   });
+}
+
+async function storedScore(assignmentId: string) {
+  return prisma.score.findFirst({ where: { assignmentId, answerId: null } });
 }
 
 function examinerCookie(examinerId: string) {
@@ -210,54 +214,32 @@ async function complete(assignmentId: string, examinerId: string) {
   });
 }
 
-async function submit(
-  assignmentId: string,
-  examinerId: string,
-  scores: unknown[],
-) {
-  return fetch(`${baseUrl}/api/examiner/assignments/${assignmentId}/scores`, {
-    method: "POST",
-    headers: {
-      Cookie: examinerCookie(examinerId),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ scores }),
-  });
-}
-
-async function saveScore(
-  assignmentId: string,
-  examinerId: string,
-  answerId: string,
-  band = 4,
-) {
-  return fetch(`${baseUrl}/api/examiner/assignments/${assignmentId}/scores/${answerId}`, {
-    method: "PUT",
-    headers: {
-      Cookie: examinerCookie(examinerId),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      rubric: {
-        pronunciation: band,
-        fluency: band,
-        vocabulary: band,
-        grammar: band,
-      },
-    }),
-  });
-}
-
-function rubricScores(answerIds: string[], band = 4) {
-  return answerIds.map((answerId) => ({
-    answerId,
+function scoreBody(band = 4, overall: unknown = band) {
+  return {
     rubric: {
       pronunciation: band,
       fluency: band,
       vocabulary: band,
       grammar: band,
     },
-  }));
+    overall,
+  };
+}
+
+async function saveScore(
+  assignmentId: string,
+  examinerId: string,
+  band = 4,
+  body: unknown = scoreBody(band),
+) {
+  return fetch(`${baseUrl}/api/examiner/assignments/${assignmentId}/score`, {
+    method: "PUT",
+    headers: {
+      Cookie: examinerCookie(examinerId),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
 }
 
 async function completionPayload(response: Response) {
@@ -271,16 +253,16 @@ async function errorPayload(response: Response) {
 test("manual completion keeps the first assignment in SCORING and reaches SCORED after the second", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first, second] = await createAssignmentSet(submission.id, one, two);
-  await saveScores(first.id, answers.map((answer) => answer.id));
+  await saveScores(first.id);
 
   const firstResponse = await complete(first.id, one.id);
   assert.equal(firstResponse.status, 200);
   assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: first.id } }))?.status, "COMPLETED");
   assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORING");
 
-  await saveScores(second.id, answers.map((answer) => answer.id));
+  await saveScores(second.id);
   const secondResponse = await complete(second.id, two.id);
   assert.equal(secondResponse.status, 200);
   assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORED");
@@ -289,16 +271,15 @@ test("manual completion keeps the first assignment in SCORING and reaches SCORED
 test("concurrent manual completions serialize on the owning Submission", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first, second] = await createAssignmentSet(
     submission.id,
     one,
     two,
     ["IN_PROGRESS", "IN_PROGRESS"],
   );
-  const answerIds = answers.map((answer) => answer.id);
-  await saveScores(first.id, answerIds);
-  await saveScores(second.id, answerIds);
+  await saveScores(first.id);
+  await saveScores(second.id);
 
   const responses = await Promise.all([
     complete(first.id, one.id),
@@ -320,9 +301,9 @@ test("manual completion never downgrades an already terminal Submission", async 
   for (const terminalStatus of ["SCORED", "CERTIFIED"] as const) {
     const one = await createExaminer("one");
     const two = await createExaminer("two");
-    const { submission, answers } = await createScoringSubmission(terminalStatus);
+    const { submission } = await createScoringSubmission(terminalStatus);
     const [first] = await createAssignmentSet(submission.id, one, two);
-    await saveScores(first.id, answers.map((answer) => answer.id));
+    await saveScores(first.id);
 
     const response = await complete(first.id, one.id);
     assert.equal(response.status, 409);
@@ -331,29 +312,31 @@ test("manual completion never downgrades an already terminal Submission", async 
   }
 });
 
-test("manual completion rejects incomplete Score drafts without mutation", async () => {
+test("manual completion rejects a missing Score without mutation", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
   const { submission, answers } = await createScoringSubmission();
   const [first] = await createAssignmentSet(submission.id, one, two);
-  await saveScores(first.id, answers.map((answer) => answer.id), answers.length - 1);
+  // Legacy per-Answer Scores never count as the whole-Submission Score.
+  await prisma.score.createMany({
+    data: answers.map((answer) => ({ assignmentId: first.id, answerId: answer.id, value: 4, pronunciation: 4, fluency: 4, vocabulary: 4, grammar: 4 })),
+  });
 
   const response = await complete(first.id, one.id);
   assert.equal(response.status, 400);
   assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: first.id } }))?.status, "IN_PROGRESS");
-  assert.equal(await prisma.score.count({ where: { assignmentId: first.id } }), answers.length - 1);
   assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORING");
 });
 
 test("manual completion rejects an invalid stored Score without mutation", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first] = await createAssignmentSet(submission.id, one, two);
-  await saveScores(first.id, answers.map((answer) => answer.id));
+  await saveScores(first.id);
   await prisma.score.updateMany({
     where: { assignmentId: first.id },
-    data: { value: 99 },
+    data: { value: 4.25 },
   });
 
   const response = await complete(first.id, one.id);
@@ -365,9 +348,9 @@ test("manual completion rejects an invalid stored Score without mutation", async
 test("manual completion re-reads Score drafts after waiting for the Submission lock", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first] = await createAssignmentSet(submission.id, one, two);
-  await saveScores(first.id, answers.map((answer) => answer.id));
+  await saveScores(first.id);
 
   const client = new Client({ connectionString: container.getConnectionUri() });
   await client.connect();
@@ -392,11 +375,11 @@ test("manual completion re-reads Score drafts after waiting for the Submission l
 
 test("manual completion rejects a malformed assignment set without mutation", async () => {
   const one = await createExaminer("one");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first] = await prisma.examinerAssignment.createManyAndReturn({
     data: [{ submissionId: submission.id, examinerId: one.id, slot: 1, status: "IN_PROGRESS" }],
   });
-  await saveScores(first.id, answers.map((answer) => answer.id));
+  await saveScores(first.id);
 
   const response = await complete(first.id, one.id);
   assert.equal(response.status, 409);
@@ -407,9 +390,9 @@ test("manual completion rejects a malformed assignment set without mutation", as
 test("manual completion rejects an invalid Submission lifecycle without mutation", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission("PAID");
+  const { submission } = await createScoringSubmission("PAID");
   const [first] = await createAssignmentSet(submission.id, one, two);
-  await saveScores(first.id, answers.map((answer) => answer.id));
+  await saveScores(first.id);
 
   const response = await complete(first.id, one.id);
   assert.equal(response.status, 409);
@@ -417,93 +400,53 @@ test("manual completion rejects an invalid Submission lifecycle without mutation
   assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "PAID");
 });
 
-test("bulk completion commits Scores and reports the authoritative lifecycle result", async () => {
+test("saving and completing reports the authoritative lifecycle result", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first, second] = await createAssignmentSet(submission.id, one, two);
-  const scores = rubricScores(answers.map((answer) => answer.id));
 
-  const firstResponse = await submit(first.id, one.id, scores);
+  assert.equal((await saveScore(first.id, one.id, 4)).status, 200);
+  const firstResponse = await complete(first.id, one.id);
   assert.equal(firstResponse.status, 200);
   assert.deepEqual((await completionPayload(firstResponse)).data, {
     outcome: "COMPLETED",
     assignmentStatus: "COMPLETED",
     submissionStatus: "SCORING",
   });
-  assert.equal(await prisma.score.count({ where: { assignmentId: first.id } }), answers.length);
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORING");
+  assert.equal(await prisma.score.count({ where: { assignmentId: first.id } }), 1);
 
-  const secondResponse = await submit(second.id, two.id, scores);
+  assert.equal((await saveScore(second.id, two.id, 5)).status, 200);
+  const secondResponse = await complete(second.id, two.id);
   assert.equal(secondResponse.status, 200);
   assert.deepEqual((await completionPayload(secondResponse)).data, {
     outcome: "COMPLETED",
     assignmentStatus: "COMPLETED",
     submissionStatus: "SCORED",
   });
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORED");
 });
 
-test("concurrent bulk completions converge on SCORED", async () => {
+test("an Examiner has exactly one Score per Submission", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
-  const [first, second] = await createAssignmentSet(
-    submission.id,
-    one,
-    two,
-    ["IN_PROGRESS", "IN_PROGRESS"],
-  );
-  const scores = rubricScores(answers.map((answer) => answer.id));
+  const { submission } = await createScoringSubmission();
+  const [first] = await createAssignmentSet(submission.id, one, two);
 
-  const responses = await Promise.all([
-    submit(first.id, one.id, scores),
-    submit(second.id, two.id, scores),
-  ]);
-  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 200]);
-  assert.deepEqual(
-    (await Promise.all(responses.map(completionPayload))).map((payload) => payload.data.outcome).sort(),
-    ["COMPLETED", "COMPLETED"],
-  );
-  assert.deepEqual(
-    (await prisma.examinerAssignment.findMany({
-      where: { submissionId: submission.id },
-      orderBy: { slot: "asc" },
-      select: { status: true },
-    })).map((assignment) => assignment.status),
-    ["COMPLETED", "COMPLETED"],
-  );
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORED");
-});
-
-test("mixed manual and bulk completion uses one lifecycle boundary", async () => {
-  const one = await createExaminer("one");
-  const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
-  const [first, second] = await createAssignmentSet(
-    submission.id,
-    one,
-    two,
-    ["IN_PROGRESS", "IN_PROGRESS"],
-  );
-  const answerIds = answers.map((answer) => answer.id);
-  await saveScores(first.id, answerIds);
-
-  const [manualResponse, bulkResponse] = await Promise.all([
-    complete(first.id, one.id),
-    submit(second.id, two.id, rubricScores(answerIds)),
-  ]);
-  assert.deepEqual([manualResponse.status, bulkResponse.status].sort(), [200, 200]);
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORED");
+  assert.equal((await saveScore(first.id, one.id, 4)).status, 200);
+  assert.equal((await saveScore(first.id, one.id, 5, scoreBody(5, 5.5))).status, 200);
+  assert.equal(await prisma.score.count({ where: { assignmentId: first.id } }), 1);
+  const score = await storedScore(first.id);
+  assert.equal(Number(score?.value), 5.5);
+  assert.equal(Number(score?.grammar), 5);
+  await assert.rejects(saveScores(first.id));
 });
 
 test("manual completion is a deterministic replay with authoritative statuses", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first] = await createAssignmentSet(submission.id, one, two);
-  const answerIds = answers.map((answer) => answer.id);
-  await saveScores(first.id, answerIds);
+  await saveScores(first.id);
   const scoresBeforeReplay = await prisma.score.findMany({
     where: { assignmentId: first.id },
     orderBy: { answerId: "asc" },
@@ -528,58 +471,26 @@ test("manual completion is a deterministic replay with authoritative statuses", 
   );
 });
 
-test("bulk completion replay ignores a different Score payload and preserves frozen Scores", async () => {
-  const one = await createExaminer("one");
-  const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
-  const [first] = await createAssignmentSet(submission.id, one, two);
-  const answerIds = answers.map((answer) => answer.id);
-  const originalResponse = await submit(first.id, one.id, rubricScores(answerIds, 4));
-  assert.equal(originalResponse.status, 200);
-  const scoresBeforeReplay = await prisma.score.findMany({
-    where: { assignmentId: first.id },
-    orderBy: { answerId: "asc" },
-    select: { answerId: true, value: true, pronunciation: true, fluency: true, vocabulary: true, grammar: true },
-  });
-
-  const replay = await submit(first.id, one.id, rubricScores(answerIds, 5));
-  assert.equal(replay.status, 200);
-  assert.deepEqual((await completionPayload(replay)).data, {
-    outcome: "ALREADY_COMPLETED",
-    assignmentStatus: "COMPLETED",
-    submissionStatus: "SCORING",
-  });
-  assert.deepEqual(
-    await prisma.score.findMany({
-      where: { assignmentId: first.id },
-      orderBy: { answerId: "asc" },
-      select: { answerId: true, value: true, pronunciation: true, fluency: true, vocabulary: true, grammar: true },
-    }),
-    scoresBeforeReplay,
-  );
-});
-
 test("completed assignment replays preserve SCORED and CERTIFIED Submission statuses", async () => {
   for (const terminalStatus of ["SCORED", "CERTIFIED"] as const) {
     const one = await createExaminer("one");
     const two = await createExaminer("two");
-    const { submission, answers } = await createScoringSubmission(terminalStatus);
+    const { submission } = await createScoringSubmission(terminalStatus);
     const [first, second] = await createAssignmentSet(
       submission.id,
       one,
       two,
       ["COMPLETED", "COMPLETED"],
     );
-    const answerIds = answers.map((answer) => answer.id);
-    await saveScores(first.id, answerIds);
-    await saveScores(second.id, answerIds);
+    await saveScores(first.id);
+    await saveScores(second.id);
 
-    const manualReplay = await complete(first.id, one.id);
-    const bulkReplay = await submit(second.id, two.id, rubricScores(answerIds, 5));
-    assert.equal(manualReplay.status, 200);
-    assert.equal(bulkReplay.status, 200);
-    assert.equal((await completionPayload(manualReplay)).data.submissionStatus, terminalStatus);
-    assert.equal((await completionPayload(bulkReplay)).data.submissionStatus, terminalStatus);
+    const firstReplay = await complete(first.id, one.id);
+    const secondReplay = await complete(second.id, two.id);
+    assert.equal(firstReplay.status, 200);
+    assert.equal(secondReplay.status, 200);
+    assert.equal((await completionPayload(firstReplay)).data.submissionStatus, terminalStatus);
+    assert.equal((await completionPayload(secondReplay)).data.submissionStatus, terminalStatus);
     assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, terminalStatus);
   }
 });
@@ -587,47 +498,40 @@ test("completed assignment replays preserve SCORED and CERTIFIED Submission stat
 test("Score drafts can be created and replaced before completion, then are frozen", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first, second] = await createAssignmentSet(submission.id, one, two);
-  const answerId = answers[0].id;
 
-  for (const answer of answers) {
-    const response = await saveScore(second.id, two.id, answer.id, 4);
-    assert.equal(response.status, 200);
-  }
-  const replacement = await saveScore(second.id, two.id, answerId, 5);
-  assert.equal(replacement.status, 200);
+  assert.equal((await saveScore(second.id, two.id, 4)).status, 200);
+  assert.equal((await saveScore(second.id, two.id, 5)).status, 200);
   assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: second.id } }))?.status, "IN_PROGRESS");
-  assert.equal(Number((await prisma.score.findUnique({ where: { assignmentId_answerId: { assignmentId: second.id, answerId } } }))?.value), 5);
+  assert.equal(Number((await storedScore(second.id))?.value), 5);
 
-  await saveScores(first.id, answers.map((answer) => answer.id));
+  await saveScores(first.id);
   await complete(first.id, one.id);
   await complete(second.id, two.id);
-  const frozenSave = await saveScore(second.id, two.id, answerId, 6);
+  const frozenSave = await saveScore(second.id, two.id, 6);
   assert.equal(frozenSave.status, 409);
   assert.equal((await errorPayload(frozenSave)).code, "DRAFT_FROZEN");
-  assert.equal(Number((await prisma.score.findUnique({ where: { assignmentId_answerId: { assignmentId: second.id, answerId } } }))?.value), 5);
+  assert.equal(Number((await storedScore(second.id))?.value), 5);
 });
 
 test("a Score save ordered before completion is included by finalization", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first, second] = await createAssignmentSet(
     submission.id,
     one,
     two,
     ["IN_PROGRESS", "ASSIGNED"],
   );
-  const answerId = answers[answers.length - 1].id;
-  await saveScores(first.id, answers.map((answer) => answer.id), answers.length - 1);
   const client = new Client({ connectionString: container.getConnectionUri() });
   await client.connect();
   try {
     await client.query("BEGIN");
     await client.query('SELECT "id" FROM "Submission" WHERE "id" = $1 FOR UPDATE', [submission.id]);
 
-    const savePromise = saveScore(first.id, one.id, answerId, 5);
+    const savePromise = saveScore(first.id, one.id, 5);
     await new Promise((resolve) => setTimeout(resolve, 100));
     const completionPromise = complete(first.id, one.id);
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -637,7 +541,7 @@ test("a Score save ordered before completion is included by finalization", async
     assert.equal(saveResponse.status, 200);
     assert.equal(completionResponse.status, 200);
     assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: first.id } }))?.status, "COMPLETED");
-    assert.equal(Number((await prisma.score.findUnique({ where: { assignmentId_answerId: { assignmentId: first.id, answerId } } }))?.value), 5);
+    assert.equal(Number((await storedScore(first.id))?.value), 5);
   } finally {
     await client.query("ROLLBACK").catch(() => undefined);
     await client.end();
@@ -647,16 +551,14 @@ test("a Score save ordered before completion is included by finalization", async
 test("a Score save ordered after completion is rejected without changing frozen Scores", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first, second] = await createAssignmentSet(
     submission.id,
     one,
     two,
     ["IN_PROGRESS", "ASSIGNED"],
   );
-  const answerIds = answers.map((answer) => answer.id);
-  await saveScores(first.id, answerIds);
-  const answerId = answerIds[0];
+  await saveScores(first.id);
   const client = new Client({ connectionString: container.getConnectionUri() });
   await client.connect();
   try {
@@ -665,7 +567,7 @@ test("a Score save ordered after completion is rejected without changing frozen 
 
     const completionPromise = complete(first.id, one.id);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    const savePromise = saveScore(first.id, one.id, answerId, 5);
+    const savePromise = saveScore(first.id, one.id, 5);
     await new Promise((resolve) => setTimeout(resolve, 100));
     await client.query("COMMIT");
 
@@ -673,52 +575,35 @@ test("a Score save ordered after completion is rejected without changing frozen 
     assert.equal(completionResponse.status, 200);
     assert.equal(saveResponse.status, 409);
     assert.equal((await errorPayload(saveResponse)).code, "DRAFT_FROZEN");
-    assert.equal(Number((await prisma.score.findUnique({ where: { assignmentId_answerId: { assignmentId: first.id, answerId } } }))?.value), 4);
+    assert.equal(Number((await storedScore(first.id))?.value), 4);
   } finally {
     await client.query("ROLLBACK").catch(() => undefined);
     await client.end();
   }
 });
 
-test("bulk validation rejects incomplete coverage without partial writes", async () => {
+test("saving rejects a missing criterion, a missing overall band, and non-half-band values", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first] = await createAssignmentSet(submission.id, one, two);
-  const response = await submit(first.id, one.id, rubricScores(answers.map((answer) => answer.id).slice(0, -1)));
 
-  assert.equal(response.status, 400);
-  assert.equal((await errorPayload(response)).code, "VALIDATION_ERROR");
+  for (const body of [
+    { rubric: { pronunciation: 4, fluency: 4, vocabulary: 4 }, overall: 4 },
+    { rubric: scoreBody().rubric },
+    scoreBody(4, 4.25),
+    scoreBody(4, 6.5),
+    { ...scoreBody(), rubric: { ...scoreBody().rubric, grammar: 3.75 } },
+  ]) {
+    const response = await saveScore(first.id, one.id, 4, body);
+    assert.equal(response.status, 400, JSON.stringify(body));
+    assert.equal((await errorPayload(response)).code, "VALIDATION_ERROR");
+  }
   assert.equal(await prisma.score.count({ where: { assignmentId: first.id } }), 0);
   assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: first.id } }))?.status, "IN_PROGRESS");
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORING");
 });
 
-test("bulk validation rejects an incomplete rubric without partial writes", async () => {
-  const one = await createExaminer("one");
-  const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
-  const [first] = await createAssignmentSet(submission.id, one, two);
-  const answerIds = answers.map((answer) => answer.id);
-  const validScores = rubricScores(answerIds);
-  const invalidScores: unknown[] = [
-    validScores[0],
-    {
-      answerId: answerIds[1],
-      rubric: { pronunciation: 4, fluency: 4, vocabulary: 4 },
-    },
-    ...validScores.slice(2),
-  ];
-
-  const response = await submit(first.id, one.id, invalidScores);
-  assert.equal(response.status, 400);
-  assert.equal((await errorPayload(response)).code, "VALIDATION_ERROR");
-  assert.equal(await prisma.score.count({ where: { assignmentId: first.id } }), 0);
-  assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: first.id } }))?.status, "IN_PROGRESS");
-  assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORING");
-});
-
-test("manual and bulk completion fail closed for non-scoring Submission lifecycles", async () => {
+test("completion fails closed for non-scoring Submission lifecycles", async () => {
   for (const submissionStatus of [
     "IN_PROGRESS",
     "AWAITING_PAYMENT",
@@ -727,18 +612,14 @@ test("manual and bulk completion fail closed for non-scoring Submission lifecycl
   ] as const) {
     const one = await createExaminer("one");
     const two = await createExaminer("two");
-    const { submission, answers } = await createScoringSubmission(submissionStatus);
+    const { submission } = await createScoringSubmission(submissionStatus);
     const [first] = await createAssignmentSet(submission.id, one, two);
-    const answerIds = answers.map((answer) => answer.id);
-    await saveScores(first.id, answerIds);
+    await saveScores(first.id);
 
     const manualResponse = await complete(first.id, one.id);
     assert.equal(manualResponse.status, 409);
     assert.equal((await errorPayload(manualResponse)).code, "INVALID_LIFECYCLE");
-    const bulkResponse = await submit(first.id, one.id, rubricScores(answerIds, 5));
-    assert.equal(bulkResponse.status, 409);
-    assert.equal((await errorPayload(bulkResponse)).code, "INVALID_LIFECYCLE");
-    assert.equal(await prisma.score.count({ where: { assignmentId: first.id } }), answers.length);
+    assert.equal(await prisma.score.count({ where: { assignmentId: first.id } }), 1);
     assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: first.id } }))?.status, "IN_PROGRESS");
     assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, submissionStatus);
   }
@@ -747,23 +628,19 @@ test("manual and bulk completion fail closed for non-scoring Submission lifecycl
 test("a SCORING Submission with two completed assignments requires explicit repair", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission("SCORING");
+  const { submission } = await createScoringSubmission("SCORING");
   const [first, second] = await createAssignmentSet(
     submission.id,
     one,
     two,
     ["COMPLETED", "COMPLETED"],
   );
-  const answerIds = answers.map((answer) => answer.id);
-  await saveScores(first.id, answerIds);
-  await saveScores(second.id, answerIds);
+  await saveScores(first.id);
+  await saveScores(second.id);
 
   const manualResponse = await complete(first.id, one.id);
   assert.equal(manualResponse.status, 409);
   assert.equal((await errorPayload(manualResponse)).code, "INVALID_LIFECYCLE");
-  const bulkResponse = await submit(second.id, two.id, rubricScores(answerIds, 5));
-  assert.equal(bulkResponse.status, 409);
-  assert.equal((await errorPayload(bulkResponse)).code, "INVALID_LIFECYCLE");
   assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORING");
 });
 
@@ -803,7 +680,7 @@ async function changeAssignmentConstraints(action: "drop" | "restore") {
   }
 }
 
-test("manual and bulk completion fail closed for malformed Examiner assignment sets", async () => {
+test("completion fails closed for malformed Examiner assignment sets", async () => {
   const submissionIds: string[] = [];
   await changeAssignmentConstraints("drop");
   try {
@@ -811,7 +688,7 @@ test("manual and bulk completion fail closed for malformed Examiner assignment s
       const one = await createExaminer("one");
       const two = await createExaminer("two");
       const third = shape === "excess" ? await createExaminer("three") : undefined;
-      const { submission, answers } = await createScoringSubmission();
+      const { submission } = await createScoringSubmission();
       submissionIds.push(submission.id);
       const rows = [
         { id: crypto.randomUUID(), submissionId: submission.id, examinerId: one.id, slot: 1, status: "IN_PROGRESS" },
@@ -836,14 +713,10 @@ test("manual and bulk completion fail closed for malformed Examiner assignment s
       ];
       await insertMalformedAssignments(rows);
       const target = rows[0];
-      const answerIds = answers.map((answer) => answer.id);
-
+  
       const manualResponse = await complete(target.id, one.id);
       assert.equal(manualResponse.status, 409, shape);
       assert.equal((await errorPayload(manualResponse)).code, "INVALID_ASSIGNMENT_SET", shape);
-      const bulkResponse = await submit(target.id, one.id, rubricScores(answerIds));
-      assert.equal(bulkResponse.status, 409, shape);
-      assert.equal((await errorPayload(bulkResponse)).code, "INVALID_ASSIGNMENT_SET", shape);
       assert.equal(await prisma.score.count({ where: { assignmentId: target.id } }), 0, shape);
       assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: target.id } }))?.status, "IN_PROGRESS", shape);
       assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, "SCORING", shape);
@@ -858,22 +731,18 @@ test("terminal Submissions with incomplete assignment sets require explicit repa
   for (const submissionStatus of ["SCORED", "CERTIFIED"] as const) {
     const one = await createExaminer("one");
     const two = await createExaminer("two");
-    const { submission, answers } = await createScoringSubmission(submissionStatus);
+    const { submission } = await createScoringSubmission(submissionStatus);
     const [first, second] = await createAssignmentSet(
       submission.id,
       one,
       two,
       ["COMPLETED", "IN_PROGRESS"],
     );
-    const answerIds = answers.map((answer) => answer.id);
-    await saveScores(first.id, answerIds);
+    await saveScores(first.id);
 
     const manualResponse = await complete(first.id, one.id);
     assert.equal(manualResponse.status, 409);
     assert.equal((await errorPayload(manualResponse)).code, "INVALID_LIFECYCLE");
-    const bulkResponse = await submit(first.id, one.id, rubricScores(answerIds, 5));
-    assert.equal(bulkResponse.status, 409);
-    assert.equal((await errorPayload(bulkResponse)).code, "INVALID_LIFECYCLE");
     assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: first.id } }))?.status, "COMPLETED");
     assert.equal((await prisma.examinerAssignment.findUnique({ where: { id: second.id } }))?.status, "IN_PROGRESS");
     assert.equal((await prisma.submission.findUnique({ where: { id: submission.id } }))?.status, submissionStatus);
@@ -883,28 +752,21 @@ test("terminal Submissions with incomplete assignment sets require explicit repa
 test("unknown assignments remain 404 and another Examiner remains unauthorized", async () => {
   const one = await createExaminer("one");
   const two = await createExaminer("two");
-  const { submission, answers } = await createScoringSubmission();
+  const { submission } = await createScoringSubmission();
   const [first] = await createAssignmentSet(submission.id, one, two);
-  const answerIds = answers.map((answer) => answer.id);
   const unknownAssignmentId = crypto.randomUUID();
 
   const unknownComplete = await complete(unknownAssignmentId, one.id);
   assert.equal(unknownComplete.status, 404);
   assert.equal((await errorPayload(unknownComplete)).code, "ASSIGNMENT_NOT_FOUND");
-  const unknownBulk = await submit(unknownAssignmentId, one.id, rubricScores(answerIds));
-  assert.equal(unknownBulk.status, 404);
-  assert.equal((await errorPayload(unknownBulk)).code, "ASSIGNMENT_NOT_FOUND");
-  const unknownSave = await saveScore(unknownAssignmentId, one.id, answerIds[0]);
+  const unknownSave = await saveScore(unknownAssignmentId, one.id);
   assert.equal(unknownSave.status, 404);
   assert.equal((await errorPayload(unknownSave)).code, "ASSIGNMENT_NOT_FOUND");
 
   const unauthorizedComplete = await complete(first.id, two.id);
   assert.equal(unauthorizedComplete.status, 403);
   assert.equal((await errorPayload(unauthorizedComplete)).code, "UNAUTHORIZED");
-  const unauthorizedBulk = await submit(first.id, two.id, rubricScores(answerIds));
-  assert.equal(unauthorizedBulk.status, 403);
-  assert.equal((await errorPayload(unauthorizedBulk)).code, "UNAUTHORIZED");
-  const unauthorizedSave = await saveScore(first.id, two.id, answerIds[0]);
+  const unauthorizedSave = await saveScore(first.id, two.id);
   assert.equal(unauthorizedSave.status, 403);
   assert.equal((await errorPayload(unauthorizedSave)).code, "UNAUTHORIZED");
 });
