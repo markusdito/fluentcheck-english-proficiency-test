@@ -332,7 +332,7 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 3. Length of the "scoring period" retention window before deletion, and what happens to recordings of Submissions that never get paid.
 4. Integrity: preparation is not recorded, so brief Part 2 paper notes are only visible if the student reads them on camera while answering. Are notes allowed while speaking in Part 2, or only during preparation?
 5. Can a student end a response early ("Done speaking"), or must every slot run to the full speaking time?
-6. Practice item content and timing. Store the practice recording later? (Deferred until a concrete need, e.g. support tickets or pilot analysis.)
+6. Practice item content and timing (v1: admin-edited `Practice_Question` Test Set). Should practice become one in-flow sample slot before Task 1A in every real test instead of an optional run? Store the practice recording later? (Deferred until a concrete need, e.g. support tickets or pilot analysis.)
 7. Browser crash or device power loss mid-test: currently abandons like a deliberate exit. Should it be treated as a network-loss resume instead?
 8. Grace period before a silent heartbeat counts as abandonment (FR-2.8).
 9. Safari WebM playback: record MP4 where the browser supports it vs server transcode to MP4/H.264+AAC?
