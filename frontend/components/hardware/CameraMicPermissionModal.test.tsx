@@ -1,6 +1,5 @@
 import { StrictMode, type PropsWithChildren } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CameraMicPermissionModal } from "./CameraMicPermissionModal";
@@ -10,9 +9,6 @@ import {
 } from "@/components/providers/AssessmentStartProvider";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { clearConsent, readConsent } from "@/lib/consent";
-
-const presence = vi.hoisted(() => ({ detectAudioPresence: vi.fn() }));
-vi.mock("@/lib/audio-presence", () => presence);
 
 const originalMediaDevices = navigator.mediaDevices;
 
@@ -126,12 +122,6 @@ async function acceptConsent(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "I agree" }));
 }
 
-async function recordVoicedClip(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: "Record Test" }));
-  await user.click(await screen.findByRole("button", { name: /^Stop/ }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Start Assessment" })).toBeEnabled());
-}
-
 function TestMediaProvider({
   children,
   overrides,
@@ -165,7 +155,6 @@ describe("CameraMicPermissionModal", () => {
     vi.restoreAllMocks();
     clearConsent();
     installRecorder();
-    presence.detectAudioPresence.mockReset().mockResolvedValue(true);
   });
 
   it("lets a student retry denied permissions and continue after both devices are found", async () => {
@@ -200,7 +189,7 @@ describe("CameraMicPermissionModal", () => {
     await user.click(screen.getByRole("button", { name: "Retry" }));
 
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
-    await recordVoicedClip(user);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Start Assessment" })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: "Start Assessment" }));
 
     expect(onComplete).toHaveBeenCalledOnce();
@@ -292,7 +281,7 @@ describe("CameraMicPermissionModal", () => {
     await acceptConsent(user);
     await waitFor(() => {
       expect(getUserMedia).toHaveBeenCalledOnce();
-      expect(screen.getByRole("button", { name: "Record Test" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Start Assessment" })).toBeEnabled();
     });
 
     view.unmount();
@@ -303,12 +292,10 @@ describe("CameraMicPermissionModal", () => {
     expect(audio.context.close).toHaveBeenCalledOnce();
   });
 
-  it("keeps Start Assessment disabled until speech is detected in the test clip", async () => {
+  it("enables Start Assessment once camera and microphone are live, with no test clip", async () => {
     const user = userEvent.setup();
-    const getUserMedia = vi.fn().mockResolvedValue(createStream().stream);
-    installMediaDevices(getUserMedia, vi.fn().mockResolvedValue([]));
+    installMediaDevices(vi.fn().mockResolvedValue(createStream().stream), vi.fn().mockResolvedValue([]));
     installAudioMonitor();
-    presence.detectAudioPresence.mockResolvedValueOnce(false);
     const onComplete = vi.fn();
 
     render(
@@ -317,42 +304,12 @@ describe("CameraMicPermissionModal", () => {
       </TestMediaProvider>,
     );
     await acceptConsent(user);
-    expect(await screen.findByText(/My name is/)).toHaveTextContent(
-      "My name is Casey Putri and my Student ID is 2024-001.",
-    );
-    const start = screen.getByRole("button", { name: "Start Assessment" });
-    expect(start).toBeDisabled();
-
-    await user.click(await screen.findByRole("button", { name: "Record Test" }));
-    await user.click(await screen.findByRole("button", { name: /^Stop/ }));
-    expect(await screen.findByText(/could not hear your voice/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Test clip playback")).toHaveAttribute("src", "blob:clip");
-    expect(start).toBeDisabled();
-
-    await user.click(screen.getByRole("button", { name: "Record again" }));
-    await user.click(await screen.findByRole("button", { name: /^Stop/ }));
+    const start = await screen.findByRole("button", { name: "Start Assessment" });
     await waitFor(() => expect(start).toBeEnabled());
+    expect(screen.queryByRole("button", { name: "Record Test" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Welcome to the SpeakNusa/)).not.toBeInTheDocument();
     await user.click(start);
     expect(onComplete).toHaveBeenCalledOnce();
-  });
-
-  it("asks for full name and Student ID before the test clip when the profile lacks them", async () => {
-    const user = userEvent.setup();
-    installMediaDevices(vi.fn().mockResolvedValue(createStream().stream), vi.fn().mockResolvedValue([]));
-    installAudioMonitor();
-    const media = { student: { ...identityStudent, fullName: null, studentNumber: null } };
-
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <TestMediaProvider overrides={media}>
-          <CameraMicPermissionModal open onClose={vi.fn()} onComplete={vi.fn()} />
-        </TestMediaProvider>
-      </QueryClientProvider>,
-    );
-    await acceptConsent(user);
-    expect(await screen.findByLabelText("Full name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Student ID")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Record Test" })).toBeDisabled());
   });
 
   it("tells an unsupported browser so after consent instead of requesting devices", async () => {
