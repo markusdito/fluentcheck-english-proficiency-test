@@ -37,10 +37,10 @@ describe("initializeTest", () => {
       }],
     });
 
-    const initialization = await initializeTest("student-1");
+    const initialization = await initializeTest("student-1", "v1");
 
     expect(mocks.initializeSubmission).toHaveBeenCalledTimes(1);
-    expect(mocks.initializeSubmission).toHaveBeenCalledWith(expect.any(String));
+    expect(mocks.initializeSubmission).toHaveBeenCalledWith(expect.any(String), "v1");
     expect(JSON.parse(window.sessionStorage.getItem("fluentcheck.assessment-start-key")!)).toEqual({
       studentId: "student-1",
       key: expect.any(String),
@@ -72,7 +72,7 @@ describe("initializeTest", () => {
       entries: [],
     });
 
-    const result = await initializeTest("student-1");
+    const result = await initializeTest("student-1", "v1");
 
     expect(mocks.resumeActiveSubmission).toHaveBeenCalledOnce();
     expect(result.submissionId).toBe("resumed-submission");
@@ -90,7 +90,7 @@ describe("initializeTest", () => {
     );
     mocks.resumeActiveSubmission.mockRejectedValueOnce(unavailable);
 
-    await expect(initializeTest("student-1")).rejects.toBe(unavailable);
+    await expect(initializeTest("student-1", "v1")).rejects.toBe(unavailable);
   });
 
   it("rotates a stale start intent once after the server closes its Submission", async () => {
@@ -109,7 +109,7 @@ describe("initializeTest", () => {
         entries: [],
       });
 
-    const result = await initializeTest("student-1");
+    const result = await initializeTest("student-1", "v1");
 
     expect(result.submissionId).toBe("new-submission");
     expect(mocks.initializeSubmission).toHaveBeenCalledTimes(2);
@@ -134,8 +134,8 @@ describe("initializeTest", () => {
       entries: [],
     });
 
-    await initializeTest("student-1");
+    await initializeTest("student-1", "v1");
 
-    expect(mocks.initializeSubmission).toHaveBeenCalledWith(expect.not.stringMatching(/^foreign-key$/));
+    expect(mocks.initializeSubmission).toHaveBeenCalledWith(expect.not.stringMatching(/^foreign-key$/), "v1");
   });
 });

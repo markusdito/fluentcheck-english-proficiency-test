@@ -25,6 +25,20 @@ function getSupportedMimeType(): string {
   return "video/webm";
 }
 
+/**
+ * Supported-browser check (PRD FR-3.2): Answers need webcam + mic capture and
+ * a MediaRecorder that can produce one of the Answer video formats.
+ */
+export function isRecordingSupported(): boolean {
+  if (typeof window === "undefined" || !window.isSecureContext) return false;
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return false;
+  try {
+    return MIME_TYPES.some((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+  } catch {
+    return false;
+  }
+}
+
 export function useRecording(): UseRecordingReturn {
   const [state, setState] = useState<RecordingState>("idle");
   const [blob, setBlob] = useState<Blob | null>(null);

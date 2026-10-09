@@ -82,10 +82,10 @@ async function resumeAfterConflict(originalError: ApiError): Promise<Initialized
   }
 }
 
-export async function initializeTest(studentId: string): Promise<InitializedTest> {
+export async function initializeTest(studentId: string, consentVersion: string): Promise<InitializedTest> {
   let key = getOrCreateAssessmentStartIntent(studentId);
   try {
-    return mapInitializedTest(await initializeSubmission(key));
+    return mapInitializedTest(await initializeSubmission(key, consentVersion));
   } catch (error) {
     if (isActiveSubmissionConflict(error)) {
       return resumeAfterConflict(error);
@@ -94,7 +94,7 @@ export async function initializeTest(studentId: string): Promise<InitializedTest
     if (isClosedOrForeignStartIntent(error)) {
       key = rotateAssessmentStartIntent(studentId);
       try {
-        return mapInitializedTest(await initializeSubmission(key));
+        return mapInitializedTest(await initializeSubmission(key, consentVersion));
       } catch (retryError) {
         if (isActiveSubmissionConflict(retryError)) {
           return resumeAfterConflict(retryError);

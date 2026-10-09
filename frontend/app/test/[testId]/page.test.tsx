@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CONSENT_TEXT_VERSION, clearConsent, storeConsent } from "@/lib/consent";
 import TestPage from "./page";
 
 const mocks = vi.hoisted(() => ({
@@ -175,6 +176,7 @@ describe("TestPage strict exam flow", () => {
   let onComplete: () => void = () => {};
 
   beforeEach(() => {
+    storeConsent("student-1");
     mocks.completeSubmission.mockResolvedValue(undefined);
     mocks.confirmUpload.mockResolvedValue(undefined);
     mocks.getPresignedUrl.mockResolvedValue({
@@ -363,5 +365,21 @@ describe("TestPage strict exam flow", () => {
 
     expect(await screen.findByRole("heading", { name: "Session unavailable" })).toBeInTheDocument();
     expect(mocks.initializeTest).not.toHaveBeenCalled();
+  });
+
+  it("starts no capture and no Submission without informed consent (FR-2.6)", async () => {
+    clearConsent();
+    Object.assign(mocks.assessmentStart, { mediaReady: false, isAudioReady: false, isVideoReady: false });
+
+    await renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Consent and system check needed" })).toBeInTheDocument();
+    expect(mocks.requestPermissions).not.toHaveBeenCalled();
+    expect(mocks.initializeTest).not.toHaveBeenCalled();
+  });
+
+  it("sends the accepted consent version when creating the Submission", async () => {
+    await renderPage();
+    await waitFor(() => expect(mocks.initializeTest).toHaveBeenCalledWith("student-1", CONSENT_TEXT_VERSION));
   });
 });
