@@ -47,6 +47,9 @@ type UploadState = Record<string, QuestionUploadState>;
 export default function TestPage({ params }: { params: Promise<{ testId: string }> }) {
   const { testId } = use(params);
   // Practice (PRD FR-3.3): same slot flow, takes discarded on the device.
+  // ponytail: practice is a separate optional run of the Practice_Question
+  // Test Set (offered to first-timers), not one sample slot inside every real
+  // test. Inline it before Task 1A if pilots show candidates skip it (#171).
   const practice = testId === "practice";
 
   // The authenticated app provider owns the single stream across the
