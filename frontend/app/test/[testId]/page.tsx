@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { abandonSubmission, completeSubmission } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
-import { initializeTest } from "@/lib/test-initialization";
+import { initializePractice, initializeTest } from "@/lib/test-initialization";
 import { slotLabel } from "@/lib/assessment-slots";
 import { clearAssessmentStartIntent } from "@/lib/assessment-start-intent";
 import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
@@ -44,8 +44,9 @@ const PENDING_UPLOAD: UploadStatus[] = ["blob-ready", "signing", "getting-url", 
 type UploadState = Record<string, QuestionUploadState>;
 
 export default function TestPage({ params }: { params: Promise<{ testId: string }> }) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { testId } = use(params);
+  // Practice (PRD FR-3.3): same slot flow, takes discarded on the device.
+  const practice = testId === "practice";
 
   // The authenticated app provider owns the single stream across the
   // permission UI and this route. Assessment initialization waits for live
@@ -118,7 +119,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
     const init = async () => {
       try {
-        const initialized = await initializeTest(studentId);
+        const initialized = practice ? await initializePractice() : await initializeTest(studentId);
         const states = initializeUploadStates(
           initialized.questions.map((question) => question.id),
           initialized.uploadedEntryIds,
@@ -140,7 +141,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     };
 
     init();
-  }, [mediaReady, sessionPending, studentId]);
+  }, [mediaReady, practice, sessionPending, studentId]);
 
   // Recording starts automatically when preparation ends (PRD FR-3.5).
   const onPrepComplete = useCallback(() => {
@@ -320,10 +321,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   useEffect(() => {
     if ((phase !== "recording" && phase !== "finalizing") || !currentQuestion) return;
     const entryId = currentQuestion.id;
-    if (blob && blob.size > 0) {
-      takesRef.current.set(entryId, { blob, durationSeconds: recDuration });
+    if (practice && (blob || recError)) {
+      // ponytail: practice takes are dropped, never uploaded (PRD FR-3.3).
       // The blob arrives from MediaRecorder's asynchronous onstop callback.
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEntryStatus(entryId, { status: "uploaded" });
+    } else if (blob && blob.size > 0) {
+      takesRef.current.set(entryId, { blob, durationSeconds: recDuration });
       setEntryStatus(entryId, { status: "blob-ready" });
       dispatchEntryMachine({ entryId, event: { type: "START_RECORDING" } });
       dispatchEntryMachine({ entryId, event: { type: "STOP_REQUESTED" } });
@@ -343,7 +347,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     } else {
       setPhase("completed");
     }
-  }, [blob, recError, phase, currentQuestion, currentQuestionIndex, totalQuestions, recDuration, resetRecording, setEntryStatus, startUpload]);
+  }, [blob, recError, phase, practice, currentQuestion, currentQuestionIndex, totalQuestions, recDuration, resetRecording, setEntryStatus, startUpload]);
 
   const allUploaded = areAllManifestEntriesUploaded(
     questions.map((question) => question.id),
@@ -353,7 +357,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Once every slot is recorded and every Answer verified, leave IN_PROGRESS.
   // The server re-checks the exact verified Answer set.
   useEffect(() => {
-    if (phase !== "completed" || !allUploaded || submissionCompleted || completionPending || completionError) return;
+    if (practice || phase !== "completed" || !allUploaded || submissionCompleted || completionPending || completionError) return;
     const sid = submissionIdRef.current;
     if (!sid) return;
 
@@ -366,7 +370,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         setCompletionError(message);
       })
       .finally(() => setCompletionPending(false));
-  }, [phase, allUploaded, submissionCompleted, completionPending, completionError]);
+  }, [phase, practice, allUploaded, submissionCompleted, completionPending, completionError]);
 
   const retryCompletion = () => {
     setCompletionError(null);
@@ -376,11 +380,16 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const handleFinishTest = () => {
     // The coordinator owns synchronous track cleanup and monitor teardown.
     stopStream();
-    clearAssessmentStartIntent();
+    if (!practice) clearAssessmentStartIntent();
     window.location.href = "/dashboard";
   };
 
   const handleAbandonTest = async () => {
+    if (practice) {
+      stopStream();
+      window.location.href = "/dashboard";
+      return;
+    }
     if (!submissionId || abandonPending) return;
     setAbandonPending(true);
     setAbandonError(null);
@@ -415,7 +424,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   if (fetchError) {
     return (
       <PageState>
-        <h1 className={h3}>Failed to load test</h1>
+        <h1 className={h3}>{practice ? "Practice unavailable" : "Failed to load test"}</h1>
         <p className="mt-3 text-sn-muted">{fetchError.message}</p>
         {!fetchError.isSubmissionConflict && (
           <p className="mt-2 text-sm text-sn-muted">Please check your connection and try again.</p>
@@ -484,11 +493,41 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     );
   }
 
-  const screenTitle = `SPEAKNUSA SPEAKING ASSESSMENT${testSetCode ? ` — TEST SET ${testSetCode}` : ""}`;
+  const screenTitle = practice
+    ? "SPEAKNUSA PRACTICE TEST — NOT SCORED, NOTHING IS SAVED"
+    : `SPEAKNUSA SPEAKING ASSESSMENT${testSetCode ? ` — TEST SET ${testSetCode}` : ""}`;
 
   // Every slot is recorded. The completion screen appears only once all
   // Answers are verified and the Submission has left IN_PROGRESS (FR-5.4).
   if (phase === "completed") {
+    if (practice) {
+      return (
+        <TestShell title={screenTitle}>
+          <article className={card}>
+            <Pill tone="green">Practice complete</Pill>
+            <h2 className={`${h2} mt-4`}>Nice work. You have tried all {totalQuestions} parts.</h2>
+            <p className="mt-3 max-w-[60ch] text-pretty text-sn-muted">
+              The real test works exactly the same way, with different questions. Your practice
+              answers were not saved or scored. Practise again as often as you like.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-sn-border pt-5">
+              <button
+                type="button"
+                className={primaryButton}
+                onClick={() => {
+                  window.location.href = "/test/demo-test";
+                }}
+              >
+                Take the real test
+              </button>
+              <button type="button" className={secondaryButton} onClick={handleFinishTest}>
+                Return to dashboard
+              </button>
+            </div>
+          </article>
+        </TestShell>
+      );
+    }
     if (allUploaded && submissionCompleted) {
       return (
         <TestShell title={screenTitle}>
@@ -581,9 +620,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
           type="button"
           className={ghostButton}
           onClick={() => setShowLeaveDialog(true)}
-          disabled={abandonPending || recordingMutationPending}
+          disabled={abandonPending || (!practice && recordingMutationPending)}
         >
-          Leave assessment
+          {practice ? "Leave practice" : "Leave assessment"}
         </button>
       }
     >
@@ -676,9 +715,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
         <AlertDialogContent className="max-w-[480px]! gap-0 rounded-2xl bg-sn-surface p-7 font-albert text-sn-fg ring-sn-border">
-          <AlertDialogTitle className={`${h3} mb-3`}>Leave the test and go to the dashboard?</AlertDialogTitle>
+          <AlertDialogTitle className={`${h3} mb-3`}>
+            {practice ? "Leave practice and go to the dashboard?" : "Leave the test and go to the dashboard?"}
+          </AlertDialogTitle>
           <AlertDialogDescription className="mb-3 text-[15px] text-sn-muted">
-            Leaving abandons this Submission. Answers already recorded are kept, and you will start a new Assessment next time.
+            {practice
+              ? "Nothing from practice is saved. You can practise again or take the real test any time."
+              : "Leaving abandons this Submission. Answers already recorded are kept, and you will start a new Assessment next time."}
           </AlertDialogDescription>
           <p className="mt-0 mb-5 text-[15px] text-sn-muted">The timer keeps running while this message is open.</p>
           <div className="flex flex-wrap justify-end gap-3">
@@ -692,7 +735,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                 void handleAbandonTest();
               }}
             >
-              Abandon and leave
+              {practice ? "Leave practice" : "Abandon and leave"}
             </button>
           </div>
         </AlertDialogContent>

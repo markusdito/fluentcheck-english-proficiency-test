@@ -1,4 +1,4 @@
-import { initializeSubmission, resumeActiveSubmission } from "@/lib/test-api";
+import { fetchPractice, initializeSubmission, resumeActiveSubmission } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
 import {
   getOrCreateAssessmentStartIntent,
@@ -7,29 +7,46 @@ import {
 import type { Prompt, TestSetRef } from "@/types/test";
 
 export interface InitializedTest {
-  submissionId: string;
+  /** Null for a practice run, which creates no Submission. */
+  submissionId: string | null;
   testSet: TestSetRef | null;
   questions: Prompt[];
   uploadedEntryIds: string[];
 }
 
-function mapInitializedTest(initialized: Awaited<ReturnType<typeof initializeSubmission>>): InitializedTest {
+type InitializedSubmission = Awaited<ReturnType<typeof initializeSubmission>>;
+
+function mapEntries(entries: InitializedSubmission["entries"]): Prompt[] {
+  return entries.map((entry) => ({
+    id: entry.id,
+    category: entry.category,
+    audioUrl: entry.promptMediaUrl,
+    tasks: entry.tasks.map((task) => task.promptText),
+    task: entry.tasks.map((task) => task.promptText).join("\n"),
+    prepTime: entry.preparationSeconds,
+    recordingDuration: entry.recordingSeconds,
+    order: entry.deliveryPosition,
+    cueCard: entry.cueCard ?? null,
+    options: entry.options ?? null,
+  }));
+}
+
+function mapInitializedTest(initialized: InitializedSubmission): InitializedTest {
   return {
     submissionId: initialized.submissionId,
     testSet: initialized.testSet ?? null,
     uploadedEntryIds: initialized.uploadedEntryIds ?? [],
-    questions: initialized.entries.map((entry) => ({
-      id: entry.id,
-      category: entry.category,
-      audioUrl: entry.promptMediaUrl,
-      tasks: entry.tasks.map((task) => task.promptText),
-      task: entry.tasks.map((task) => task.promptText).join("\n"),
-      prepTime: entry.preparationSeconds,
-      recordingDuration: entry.recordingSeconds,
-      order: entry.deliveryPosition,
-      cueCard: entry.cueCard ?? null,
-      options: entry.options ?? null,
-    })),
+    questions: mapEntries(initialized.entries),
+  };
+}
+
+export async function initializePractice(): Promise<InitializedTest> {
+  const practice = await fetchPractice();
+  return {
+    submissionId: null,
+    testSet: practice.testSet ?? null,
+    uploadedEntryIds: [],
+    questions: mapEntries(practice.entries),
   };
 }
 
