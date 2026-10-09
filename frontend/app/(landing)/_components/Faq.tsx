@@ -32,7 +32,7 @@ const items = [
   {
     id: "score",
     q: "How is my speaking scored?",
-    a: "Four criteria scored separately: pronunciation, fluency, vocabulary, and grammar. Each takes half band values from 1.0 to 6.0. The overall for one answer is the arithmetic mean of the four criteria.",
+    a: "Four criteria scored separately: pronunciation, fluency, vocabulary, and grammar. Each examiner listens to your whole test and gives each criterion, plus an overall band, a half band value from 1.0 to 6.0. Your result is the mean of the two examiners' bands.",
   },
   {
     id: "examiners",

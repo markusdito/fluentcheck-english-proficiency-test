@@ -320,7 +320,7 @@ test("an Examiner promoted to ADMIN keeps access to existing work while new assi
   const promoted = await createUser("promoted", "EXAMINER");
   const secondExaminer = await createUser("second_examiner", "EXAMINER");
   const thirdExaminer = await createUser("third_examiner", "EXAMINER");
-  const { answers, assignments } = await createLegacyScoringAssignment(
+  const { assignments } = await createLegacyScoringAssignment(
     promoted.id,
     secondExaminer.id,
   );
@@ -345,20 +345,18 @@ test("an Examiner promoted to ADMIN keeps access to existing work while new assi
   );
   assert.equal(detail.status, 200);
 
-  for (const answer of answers) {
-    const score = await fetch(
-      `${baseUrl}/api/examiner/assignments/${assignments[0].id}/scores/${answer.id}`,
-      {
-        method: "PUT",
-        headers: {
-          Cookie: promotedCookie,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ value: 88 }),
+  const score = await fetch(
+    `${baseUrl}/api/examiner/assignments/${assignments[0].id}/score`,
+    {
+      method: "PUT",
+      headers: {
+        Cookie: promotedCookie,
+        "Content-Type": "application/json",
       },
-    );
-    assert.equal(score.status, 200);
-  }
+      body: JSON.stringify({ value: 88 }),
+    },
+  );
+  assert.equal(score.status, 200);
 
   const completion = await fetch(
     `${baseUrl}/api/examiner/assignments/${assignments[0].id}/complete`,
@@ -428,7 +426,7 @@ test("role-transition preview drives an exact reassignment and replay is idempot
   const target = await createUser("target", "EXAMINER");
   const currentPeer = await createUser("current_peer", "EXAMINER");
   const replacement = await createUser("replacement", "EXAMINER");
-  const { answers, assignments } = await createLegacyScoringAssignment(
+  const { assignments } = await createLegacyScoringAssignment(
     target.id,
     currentPeer.id,
   );
@@ -533,7 +531,7 @@ test("role-transition preview drives an exact reassignment and replay is idempot
   );
   assert.equal(start.status, 200);
   const score = await fetch(
-    `${baseUrl}/api/examiner/assignments/${assignments[0].id}/scores/${answers[0].id}`,
+    `${baseUrl}/api/examiner/assignments/${assignments[0].id}/score`,
     {
       method: "PUT",
       headers: {
@@ -892,7 +890,7 @@ test("score saving and account deactivation serialize on ownership", async () =>
   const target = await createUser("target", "EXAMINER");
   const currentPeer = await createUser("current_peer", "EXAMINER");
   const replacement = await createUser("replacement", "EXAMINER");
-  const { answers, assignments } = await createLegacyScoringAssignment(
+  const { assignments } = await createLegacyScoringAssignment(
     target.id,
     currentPeer.id,
   );
@@ -904,10 +902,7 @@ test("score saving and account deactivation serialize on ownership", async () =>
   );
 
   const [saveResult, transitionResult] = await Promise.allSettled([
-    saveExaminerScore(assignments[0].id, target.id, {
-      answerId: answers[0].id,
-      value: 91,
-    }),
+    saveExaminerScore(assignments[0].id, target.id, { value: 91 }),
     deactivateAccount(target.id, admin.id, {
       reassignmentMap: { [assignments[0].id]: replacement.id },
     }),
@@ -929,48 +924,6 @@ test("score saving and account deactivation serialize on ownership", async () =>
       (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } })).examinerId,
       replacement.id,
     );
-  }
-});
-
-test("bulk scoring and account transition serialize without stale finalization", async () => {
-  const admin = await createUser("admin", "ADMIN");
-  const target = await createUser("target", "EXAMINER");
-  const currentPeer = await createUser("current_peer", "EXAMINER");
-  const replacement = await createUser("replacement", "EXAMINER");
-  const { answers, assignments } = await createLegacyScoringAssignment(
-    target.id,
-    currentPeer.id,
-  );
-  const { AccountTransitionError, transitionAccountRole } = await import(
-    "../../src/service/accountTransition.service.js"
-  );
-  const { ScoringFinalizationError, submitExaminerScores } = await import(
-    "../../src/service/examiner.service.js"
-  );
-  const scores = answers.map((answer) => ({ answerId: answer.id, value: 91 }));
-
-  const [finalizeResult, transitionResult] = await Promise.allSettled([
-    submitExaminerScores(assignments[0].id, target.id, scores),
-    transitionAccountRole(target.id, admin.id, "STUDENT", {
-      reassignmentMap: { [assignments[0].id]: replacement.id },
-    }),
-  ]);
-
-  if (finalizeResult.status === "fulfilled") {
-    assert.equal(transitionResult.status, "rejected");
-    assert.ok(transitionResult.reason instanceof AccountTransitionError);
-    assert.equal(transitionResult.reason.code, "INVALID_REASSIGNMENT");
-    const assignment = await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } });
-    assert.equal(assignment.status, "COMPLETED");
-    assert.equal(assignment.examinerId, target.id);
-    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "EXAMINER");
-  } else {
-    assert.equal(transitionResult.status, "fulfilled");
-    assert.ok(finalizeResult.reason instanceof ScoringFinalizationError);
-    assert.equal(finalizeResult.reason.code, "UNAUTHORIZED");
-    const assignment = await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } });
-    assert.equal(assignment.examinerId, replacement.id);
-    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role, "STUDENT");
   }
 });
 

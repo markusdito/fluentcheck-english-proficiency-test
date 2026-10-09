@@ -27,7 +27,7 @@ const roles: { seat: string; title: string; body: string; label: string; tone: s
   {
     seat: "Examiner",
     title: "Work an assigned queue",
-    body: "Play verified recordings, enter four criteria per answer, and complete a scoring that can no longer be edited.",
+    body: "Play verified recordings, give the whole submission four criterion bands and an overall band, and complete a scoring that can no longer be edited.",
     label: "Examiner: headphones beside four criterion score bars",
     tone: "text-sn-ink-green [--art-field:var(--color-sn-field-green)] [--art-glow:var(--color-sn-green)]",
     art: (

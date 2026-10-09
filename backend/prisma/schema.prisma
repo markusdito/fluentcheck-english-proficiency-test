@@ -572,9 +572,9 @@ model Score {
   id            String             @id @default(uuid()) @db.Uuid
   assignmentId  String             @db.Uuid
   assignment    ExaminerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  answerId      String             @db.Uuid
-  answer        Answer             @relation(fields: [answerId], references: [id], onDelete: Cascade)
-  value         Decimal            @db.Decimal(6, 3) // legacy score or server-derived rubric mean
+  answerId      String?            @db.Uuid // null: the Examiner's one Score for the whole Submission; set: legacy per-Answer Score
+  answer        Answer?            @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  value         Decimal            @db.Decimal(6, 3) // Examiner-entered overall band; legacy rows: 0-100 or per-Answer rubric mean
   pronunciation Decimal?           @db.Decimal(2, 1)
   fluency       Decimal?           @db.Decimal(2, 1)
   vocabulary    Decimal?           @db.Decimal(2, 1)
@@ -583,7 +583,8 @@ model Score {
   createdAt     DateTime           @default(now()) @db.Timestamptz()
   updatedAt     DateTime           @updatedAt @db.Timestamptz()
 
-  @@unique([assignmentId, answerId]) // an examiner scores each answer exactly once
+  @@unique([assignmentId, answerId]) // legacy: an examiner scored each answer exactly once
+  @@unique([assignmentId], where: { answerId: null }) // exactly one whole-Submission Score per assignment
   @@index([answerId])
 }
 
