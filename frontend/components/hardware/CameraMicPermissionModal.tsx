@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
-import { Loader2, Mic, Square } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAssessmentStart } from "@/components/providers/AssessmentStartProvider";
 import { Pill } from "@/components/student/StatusPill";
-import { IdentityForm, hasIdentity } from "@/components/student/IdentityForm";
 import { h3, primaryButton, secondaryButton } from "@/components/student/styles";
-import { useRecording, isRecordingSupported } from "@/hooks/useRecording";
-import { detectAudioPresence } from "@/lib/audio-presence";
+import { isRecordingSupported } from "@/hooks/useRecording";
 import { CONSENT_POINTS, readConsent, storeConsent } from "@/lib/consent";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +16,6 @@ interface CameraMicPermissionModalProps {
 }
 
 type DeviceStatus = "ready" | "error" | "loading" | "idle";
-type ClipCheck = "idle" | "checking" | "voice" | "silent" | "undecodable";
 
 const STATUS_PILL: Record<DeviceStatus, { tone: "green" | "clay" | "navy" | "plain"; label: string }> = {
   ready: { tone: "green", label: "Ready" },
@@ -28,18 +24,13 @@ const STATUS_PILL: Record<DeviceStatus, { tone: "green" | "clay" | "navy" | "pla
   idle: { tone: "plain", label: "Waiting" },
 };
 
-/** Long enough to say the identity sentence; the clip never leaves the device. */
-const TEST_CLIP_SECONDS = 10;
-/** Live meter level (0–100) that counts as voice when the clip cannot be decoded. */
-const LIVE_VOICE_LEVEL = 20;
-const WELCOME =
-  "Welcome to the SpeakNusa speaking test. Put on your headset, check your microphone, then record a short test clip with your name and Student ID.";
 
 /**
  * PRD §4.1 steps 3–4: informed consent (FR-2.6), then the system check
- * (FR-3.1–3.2): live camera + microphone, welcome audio, identity test clip
- * with playback, level meter and supported-browser check. Start Assessment is
- * enabled only once the clip contains audible speech and the camera is live.
+ * (FR-3.1–3.2): live camera + microphone, level meter and supported-browser
+ * check. Start Assessment is enabled once both devices are live.
+ * ponytail: no identity test clip or welcome audio; the Answer videos are the
+ * identity evidence.
  */
 export function CameraMicPermissionModal({
   open,
@@ -61,15 +52,11 @@ export function CameraMicPermissionModal({
     requestPermissions,
     stopStream,
     studentId,
-    student,
   } = useAssessmentStart();
-  const recording = useRecording();
 
   // Consent is asked on every start, before any capture is requested.
   const [consented, setConsented] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [clipUrl, setClipUrl] = useState<string | null>(null);
-  const [clipCheck, setClipCheck] = useState<ClipCheck>("idle");
   const [wasOpen, setWasOpen] = useState(open);
   if (wasOpen !== open) {
     setWasOpen(open);
@@ -81,11 +68,6 @@ export function CameraMicPermissionModal({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const autoRequestedRef = useRef(false);
-  const welcomedRef = useRef(false);
-  const checkedBlobRef = useRef<Blob | null>(null);
-  // Loudest live meter reading during the clip: the fallback when the browser
-  // cannot decode the clip itself.
-  const clipPeakRef = useRef(0);
 
   const consentGiven = consented && readConsent(studentId) !== null;
   const supported = open && isRecordingSupported();
@@ -106,72 +88,14 @@ export function CameraMicPermissionModal({
     void requestPermissions();
   }, [checking, mediaReady, isLoading, requestPermissions]);
 
-  // Welcome prompt audio, read by the browser voice when one is available.
-  useEffect(() => {
-    if (!checking || welcomedRef.current || typeof speechSynthesis === "undefined") return;
-    welcomedRef.current = true;
-    try {
-      speechSynthesis.speak(new SpeechSynthesisUtterance(WELCOME));
-    } catch {
-      // The welcome text stays on screen.
-    }
-    return () => {
-      try {
-        speechSynthesis.cancel();
-      } catch {
-        // Nothing playing.
-      }
-    };
-  }, [checking]);
-
-  // Validate the finished test clip for audible speech.
-  const { blob } = recording;
-  useEffect(() => {
-    if (!blob || checkedBlobRef.current === blob) return;
-    checkedBlobRef.current = blob;
-    const url = URL.createObjectURL(blob);
-    setClipUrl(url);
-    setClipCheck("checking");
-    let active = true;
-    const peak = clipPeakRef.current;
-    void detectAudioPresence(blob).then((result) => {
-      if (!active) return;
-      const voiced = result ?? (peak >= LIVE_VOICE_LEVEL ? true : null);
-      setClipCheck(voiced === null ? "undecodable" : voiced ? "voice" : "silent");
-    });
-    return () => {
-      active = false;
-    };
-  }, [blob]);
-
-  useEffect(() => () => {
-    if (clipUrl) URL.revokeObjectURL(clipUrl);
-  }, [clipUrl]);
-
-  useEffect(() => {
-    if (recording.state === "recording") clipPeakRef.current = Math.max(clipPeakRef.current, micLevel);
-  }, [recording.state, micLevel]);
-
-  const resetClip = () => {
-    clipPeakRef.current = 0;
-    recording.resetRecording();
-    checkedBlobRef.current = null;
-    setClipUrl(null);
-    setClipCheck("idle");
-  };
-
   const handleClose = () => {
-    resetClip();
     stopStream();
     onClose();
   };
 
   if (!open) return null;
 
-  const recordingClip = recording.state === "recording" || recording.state === "preparing";
-  const finalizing = recording.state === "finalizing";
-  const identityReady = hasIdentity(student);
-  const canStart = mediaReady && !isLoading && clipCheck === "voice" && !recordingClip;
+  const canStart = mediaReady && !isLoading;
 
   const statusOf = (ready: boolean, error: string | null | undefined): DeviceStatus =>
     ready ? "ready" : error ? "error" : isLoading ? "loading" : "idle";
@@ -262,10 +186,8 @@ export function CameraMicPermissionModal({
 
   return shell(
     "System check",
-    "The test runs in one sitting and cannot be paused. Check your camera, microphone and voice first.",
+    "The test runs in one sitting and cannot be paused. Check your camera and microphone first.",
     <>
-      <p className="mb-4 rounded-[10px] bg-sn-field-navy p-4 text-[15px]">{WELCOME}</p>
-
       <div className="overflow-hidden rounded-[10px] bg-sn-fg">
         {stream ? (
           <video ref={videoRef} autoPlay playsInline muted className="aspect-video w-full object-cover" />
@@ -304,57 +226,6 @@ export function CameraMicPermissionModal({
             </p>
           </div>
         </CheckRow>
-        <CheckRow
-          title="Test clip"
-          note="Record yourself saying the sentence below, then play it back."
-          status={<ClipPill check={clipCheck} recording={recordingClip || finalizing} />}
-        >
-          {identityReady ? (
-            <p className="mt-3 mb-0 rounded-[10px] border border-sn-border p-3 text-[15px]">
-              &ldquo;My name is <strong>{student?.fullName}</strong> and my Student ID is{" "}
-              <strong>{student?.studentNumber}</strong>.&rdquo;
-            </p>
-          ) : (
-            <div className="mt-3 rounded-[10px] border border-sn-border p-4">
-              <p className="m-0 mb-3 text-sm text-sn-muted">
-                Add your full name and Student ID first. They are saved to your{" "}
-                <Link href="/profile" className="underline">profile</Link>.
-              </p>
-              {student && <IdentityForm user={student} submitLabel="Save details" />}
-            </div>
-          )}
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            {recordingClip ? (
-              <button type="button" className={secondaryButton} onClick={recording.stopRecording}>
-                <Square className="size-4" aria-hidden="true" />
-                Stop ({Math.max(0, TEST_CLIP_SECONDS - recording.duration)}s)
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={secondaryButton}
-                disabled={!mediaReady || !identityReady || finalizing || !stream}
-                onClick={() => {
-                  if (!stream) return;
-                  resetClip();
-                  recording.startRecording(stream, TEST_CLIP_SECONDS);
-                }}
-              >
-                <Mic className="size-4" aria-hidden="true" />
-                {clipUrl ? "Record again" : "Record Test"}
-              </button>
-            )}
-          </div>
-          {clipUrl && !recordingClip && (
-            <div className="mt-3">
-              <p className="m-0 mb-1 text-sm font-semibold">Playback Audio</p>
-              <audio controls src={clipUrl} className="w-full" aria-label="Test clip playback" />
-            </div>
-          )}
-          <p className="mt-2 mb-0 text-sm text-sn-muted" aria-live="polite">
-            {clipMessage(clipCheck, recording.error)}
-          </p>
-        </CheckRow>
       </div>
 
       {(videoError || audioError) && (
@@ -385,10 +256,7 @@ export function CameraMicPermissionModal({
       <button
         type="button"
         className={primaryButton}
-        onClick={() => {
-          resetClip();
-          onComplete();
-        }}
+        onClick={onComplete}
         disabled={!canStart}
       >
         {isLoading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
@@ -396,30 +264,6 @@ export function CameraMicPermissionModal({
       </button>
     </>,
   );
-}
-
-function clipMessage(check: ClipCheck, error: string | null): string {
-  if (error) return error;
-  switch (check) {
-    case "checking":
-      return "Checking your clip for sound…";
-    case "voice":
-      return "We heard you clearly. You can start the assessment.";
-    case "silent":
-      return "We could not hear your voice. Check that your microphone is not muted, move closer and record again.";
-    case "undecodable":
-      return "This browser could not check the clip. Record again, or switch to the latest Chrome.";
-    default:
-      return "Start Assessment unlocks once we hear your voice in the clip.";
-  }
-}
-
-function ClipPill({ check, recording }: { check: ClipCheck; recording: boolean }) {
-  if (recording) return <Pill tone="navy">Recording</Pill>;
-  if (check === "voice") return <Pill tone="green">Voice heard</Pill>;
-  if (check === "silent" || check === "undecodable") return <Pill tone="clay">No voice</Pill>;
-  if (check === "checking") return <Pill tone="navy">Checking</Pill>;
-  return <Pill tone="plain">Waiting</Pill>;
 }
 
 function CheckRow({

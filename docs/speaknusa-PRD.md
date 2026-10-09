@@ -30,7 +30,7 @@ SpeakNusa is an English speaking proficiency assessment targeting **CEFR B1**, b
 This PRD defines the v1 test experience end-to-end:
 
 ```
-consent → system check (mic + camera + identity) → practice item →
+consent → system check (mic + camera) → practice item →
 Part 1 (1A, 1B) → Part 2 → Part 3 → Part 4 → upload → completion →
 (payment / waiver) → examiner assignment → rubric scoring (1–6) → result report
 
@@ -131,8 +131,8 @@ Test Sets A–F must be **piloted** to verify equal difficulty before launch. Un
 1. Sign up / log in (local or Google).
 2. Dashboard → **Start new assessment**. System enforces at most one `IN_PROGRESS` Submission per student (an existing one is resumed, not duplicated). Earlier Submissions still in payment or scoring do **not** block a new Assessment and no warning is shown.
 3. **Informed consent**: student reads and accepts that every answer is recorded as webcam video (camera + microphone), what they are used for, who can view them, and that they are deleted after the scoring period (UU PDP). No recording starts before consent.
-4. **System check** (1–2 min): welcome prompt audio plays; student grants microphone and camera permission, adjusts the headset mic, presses **Record Test** and says *"My name is [Full Name] and my Student ID is [Number]."*, plays it back, and watches the audio level meter. The **Start Assessment** button stays disabled until the system detects audio in the test clip and the camera stream is live.
-5. **Practice item**: one unscored sample task to get familiar with the screen, prompt audio, countdowns and recording indicator. *Implemented in v1 as an optional, separate practice run of all 5 slots from the `Practice_Question` Test Set, offered to first-time students before their first real test; it has its own consent + system check and the real test runs a fresh one.*
+4. **System check** (under 1 min): student grants microphone and camera permission, adjusts the headset mic and watches the audio level meter. The **Start Assessment** button stays disabled until the camera and microphone streams are live. No identity test clip is recorded; the Answer videos are the identity evidence.
+5. **Practice item**: one unscored sample task to get familiar with the screen, prompt audio, countdowns and recording indicator.
 6. **Parts 1–4**, for each slot in order (1A → 1B → 2 → 3 → 4):
    1. Prompt audio plays and the onscreen content appears. The student may replay the prompt audio once (2 plays total).
    2. Preparation countdown runs.
@@ -164,7 +164,7 @@ Manage users/roles, Test Sets A–F + prompt audio + Part 3 option icons, paymen
 - FR-1.1 Local register/login with bcrypt-hashed passwords + Google Authorization Code + PKCE, same JWT session boundary.
 - FR-1.2 `rememberMe` controls session vs 7-day persistent cookie; logout clears it.
 - FR-1.3 Server-enforced roles on every route.
-- FR-1.4 Student profile holds full name and Student ID used in the identity check.
+- FR-1.4 Student profile holds full name and Student ID.
 
 ### FR-2 Assessment lifecycle (Submission)
 
@@ -181,7 +181,7 @@ Manage users/roles, Test Sets A–F + prompt audio + Part 3 option icons, paymen
 ### FR-3 Video capture & test flow (core v1 scope)
 
 - FR-3.1 Pre-recording **media readiness** gate: microphone and camera streams must be live before the Assessment starts.
-- FR-3.2 System check screen: welcome prompt audio, headset/mic instructions, permission state, **Record Test** (name + Student ID), **Playback Audio**, live **audio level** meter (device monitor — advisory only), supported-browser check. **Start Assessment** is enabled only after the system validates audio presence in the test clip.
+- FR-3.2 System check screen: camera preview, permission state, live **audio level** meter (device monitor — advisory only), supported-browser check. **Start Assessment** is enabled once the camera and microphone are live.
 - FR-3.3 Practice item: one unscored sample task using the real slot UI (prompt audio, prep countdown, auto-record, indicator). In v1 the practice recording is discarded on the device: not uploaded, not stored, not shown to examiners. Storing it is deferred until a concrete need appears (§11).
 - FR-3.4 Prompt audio: plays automatically when a slot opens; the student may replay it **once** (2 plays max per slot). Onscreen text, cue card or options are always visible as a text alternative.
 - FR-3.5 Recording via browser `MediaRecorder`:
@@ -319,7 +319,7 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 
 ## 10. Milestones (suggested)
 
-1. **M1 — Test flow**: consent, system check (mic + camera + identity), practice item, 5-slot strict auto-record flow, prompt replay limit, presigned upload, verified answers, completion screen.
+1. **M1 — Test flow**: consent, system check (mic + camera), practice item, 5-slot strict auto-record flow, prompt replay limit, presigned upload, verified answers, completion screen.
 2. **M2 — Integrity & failures**: integrity concerns on Answer videos, audited video access, partial-recording capture, network-loss resume, deliberate-exit abandon, flags, admin confirm/dismiss, void + free retake credit.
 3. **M3 — Pipeline**: payment/waiver, 2-examiner assignment, whole-Submission scoring UI per Examiner with the 2-Examiner mean on the report with rubric validation, unblocked retakes.
 4. **M4 — Content & results**: Test Sets A–F seeded, result report, admin queues, telemetry.
@@ -344,7 +344,7 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 ## 12. Acceptance criteria (v1)
 
 - [ ] Student completes consent, system check, practice item and all 4 Parts (5 Answer videos) end-to-end on Chrome and Safari.
-- [ ] Start Assessment stays disabled until audio is detected in the test clip and the camera is live.
+- [ ] Start Assessment stays disabled until the camera and microphone are live.
 - [ ] Recording starts automatically at the end of preparation and stops + advances at the end of speaking time; no re-record is possible.
 - [ ] Prompt audio cannot be played more than 2 times per slot.
 - [ ] A connection, camera or microphone failure during speaking time produces a saved partial recording flagged for manual review, never an automatic zero.

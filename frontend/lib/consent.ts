@@ -3,7 +3,7 @@
  * this version on the Submission and refuses a start without it, so bump it
  * together with CONSENT_TEXT_VERSION in the backend whenever the text changes.
  */
-export const CONSENT_TEXT_VERSION = "2026-10-09";
+export const CONSENT_TEXT_VERSION = "2026-10-09.2";
 
 export const CONSENT_POINTS: Array<{ title: string; body: string }> = [
   {
@@ -21,10 +21,6 @@ export const CONSENT_POINTS: Array<{ title: string; body: string }> = [
   {
     title: "How long it is kept",
     body: "Answer videos are deleted after the scoring period, in line with Indonesia's Personal Data Protection Law (UU PDP). Your result stays in your account.",
-  },
-  {
-    title: "System check clip",
-    body: "The test clip you record in the system check stays on this device and is never uploaded.",
   },
 ];
 
