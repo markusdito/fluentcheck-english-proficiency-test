@@ -52,7 +52,9 @@ export function ScoreCard({
   const value = score != null ? Number(score) : Number.NaN;
   const hasScore = Number.isFinite(value) && value >= 0;
   const maximum = scoreMaximum(scoringSystem);
-  const pendingCount = answers.filter((answer) => answer.score == null).length;
+  // Legacy Submissions were scored per Answer; new ones have one Score per Examiner.
+  const perAnswer = answers.some((answer) => answer.score != null);
+  const pendingCount = perAnswer ? answers.filter((answer) => answer.score == null).length : 0;
 
   return (
     <div className={cn("overflow-hidden rounded-2xl border border-sn-border bg-sn-surface", className)}>
@@ -99,11 +101,12 @@ export function ScoreCard({
 
         {scoringSystem === "RUBRIC_6" && rubric && (
           <div className="mt-6">
-            <p className="mb-2 text-[13px] uppercase tracking-[0.04em] text-sn-muted">Rubric averages</p>
+            <p className="mb-2 text-[13px] uppercase tracking-[0.04em] text-sn-muted">Two-examiner means</p>
             <RubricBreakdownView rubric={rubric} compact />
           </div>
         )}
 
+        {perAnswer && (
         <dl className="mt-6 divide-y divide-sn-border border-y border-sn-border">
           {answers.map((answer, index) => (
             <div
@@ -144,11 +147,12 @@ export function ScoreCard({
             </div>
           ))}
         </dl>
+        )}
 
         <p className="mt-5 text-[13px] uppercase tracking-[0.04em] text-sn-muted">
           {pendingCount > 0
             ? `${pendingCount} answer${pendingCount === 1 ? "" : "s"} awaiting review`
-            : "Marked by two SpeakNusa examiners"}
+            : "Mean of two independent SpeakNusa examiners"}
         </p>
       </div>
     </div>

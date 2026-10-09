@@ -234,7 +234,7 @@ export type ScoreGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
 export type ScoreGroupByOutputType = {
   id: string
   assignmentId: string
-  answerId: string
+  answerId: string | null
   value: runtime.Decimal
   pronunciation: runtime.Decimal | null
   fluency: runtime.Decimal | null
@@ -271,7 +271,7 @@ export type ScoreWhereInput = {
   NOT?: Prisma.ScoreWhereInput | Prisma.ScoreWhereInput[]
   id?: Prisma.UuidFilter<"Score"> | string
   assignmentId?: Prisma.UuidFilter<"Score"> | string
-  answerId?: Prisma.UuidFilter<"Score"> | string
+  answerId?: Prisma.UuidNullableFilter<"Score"> | string | null
   value?: Prisma.DecimalFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -281,13 +281,13 @@ export type ScoreWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Score"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Score"> | Date | string
   assignment?: Prisma.XOR<Prisma.ExaminerAssignmentScalarRelationFilter, Prisma.ExaminerAssignmentWhereInput>
-  answer?: Prisma.XOR<Prisma.AnswerScalarRelationFilter, Prisma.AnswerWhereInput>
+  answer?: Prisma.XOR<Prisma.AnswerNullableScalarRelationFilter, Prisma.AnswerWhereInput> | null
 }
 
 export type ScoreOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   assignmentId?: Prisma.SortOrder
-  answerId?: Prisma.SortOrder
+  answerId?: Prisma.SortOrderInput | Prisma.SortOrder
   value?: Prisma.SortOrder
   pronunciation?: Prisma.SortOrderInput | Prisma.SortOrder
   fluency?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -302,12 +302,12 @@ export type ScoreOrderByWithRelationInput = {
 
 export type ScoreWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  assignmentId?: string
   assignmentId_answerId?: Prisma.ScoreAssignmentIdAnswerIdCompoundUniqueInput
   AND?: Prisma.ScoreWhereInput | Prisma.ScoreWhereInput[]
   OR?: Prisma.ScoreWhereInput[]
   NOT?: Prisma.ScoreWhereInput | Prisma.ScoreWhereInput[]
-  assignmentId?: Prisma.UuidFilter<"Score"> | string
-  answerId?: Prisma.UuidFilter<"Score"> | string
+  answerId?: Prisma.UuidNullableFilter<"Score"> | string | null
   value?: Prisma.DecimalFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -317,13 +317,13 @@ export type ScoreWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Score"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Score"> | Date | string
   assignment?: Prisma.XOR<Prisma.ExaminerAssignmentScalarRelationFilter, Prisma.ExaminerAssignmentWhereInput>
-  answer?: Prisma.XOR<Prisma.AnswerScalarRelationFilter, Prisma.AnswerWhereInput>
-}, "id" | "assignmentId_answerId">
+  answer?: Prisma.XOR<Prisma.AnswerNullableScalarRelationFilter, Prisma.AnswerWhereInput> | null
+}, "id" | "assignmentId_answerId" | "assignmentId">
 
 export type ScoreOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   assignmentId?: Prisma.SortOrder
-  answerId?: Prisma.SortOrder
+  answerId?: Prisma.SortOrderInput | Prisma.SortOrder
   value?: Prisma.SortOrder
   pronunciation?: Prisma.SortOrderInput | Prisma.SortOrder
   fluency?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -345,7 +345,7 @@ export type ScoreScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ScoreScalarWhereWithAggregatesInput | Prisma.ScoreScalarWhereWithAggregatesInput[]
   id?: Prisma.UuidWithAggregatesFilter<"Score"> | string
   assignmentId?: Prisma.UuidWithAggregatesFilter<"Score"> | string
-  answerId?: Prisma.UuidWithAggregatesFilter<"Score"> | string
+  answerId?: Prisma.UuidNullableWithAggregatesFilter<"Score"> | string | null
   value?: Prisma.DecimalWithAggregatesFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: Prisma.DecimalNullableWithAggregatesFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: Prisma.DecimalNullableWithAggregatesFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -367,13 +367,13 @@ export type ScoreCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutScoresInput
-  answer: Prisma.AnswerCreateNestedOneWithoutScoresInput
+  answer?: Prisma.AnswerCreateNestedOneWithoutScoresInput
 }
 
 export type ScoreUncheckedCreateInput = {
   id?: string
   assignmentId: string
-  answerId: string
+  answerId?: string | null
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -395,13 +395,13 @@ export type ScoreUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutScoresNestedInput
-  answer?: Prisma.AnswerUpdateOneRequiredWithoutScoresNestedInput
+  answer?: Prisma.AnswerUpdateOneWithoutScoresNestedInput
 }
 
 export type ScoreUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
-  answerId?: Prisma.StringFieldUpdateOperationsInput | string
+  answerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -415,7 +415,7 @@ export type ScoreUncheckedUpdateInput = {
 export type ScoreCreateManyInput = {
   id?: string
   assignmentId: string
-  answerId: string
+  answerId?: string | null
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -441,7 +441,7 @@ export type ScoreUpdateManyMutationInput = {
 export type ScoreUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   assignmentId?: Prisma.StringFieldUpdateOperationsInput | string
-  answerId?: Prisma.StringFieldUpdateOperationsInput | string
+  answerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -683,7 +683,7 @@ export type ScoreScalarWhereInput = {
   NOT?: Prisma.ScoreScalarWhereInput | Prisma.ScoreScalarWhereInput[]
   id?: Prisma.UuidFilter<"Score"> | string
   assignmentId?: Prisma.UuidFilter<"Score"> | string
-  answerId?: Prisma.UuidFilter<"Score"> | string
+  answerId?: Prisma.UuidNullableFilter<"Score"> | string | null
   value?: Prisma.DecimalFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: Prisma.DecimalNullableFilter<"Score"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -704,12 +704,12 @@ export type ScoreCreateWithoutAssignmentInput = {
   comment?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  answer: Prisma.AnswerCreateNestedOneWithoutScoresInput
+  answer?: Prisma.AnswerCreateNestedOneWithoutScoresInput
 }
 
 export type ScoreUncheckedCreateWithoutAssignmentInput = {
   id?: string
-  answerId: string
+  answerId?: string | null
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -800,7 +800,7 @@ export type ScoreUncheckedUpdateManyWithoutAnswerInput = {
 
 export type ScoreCreateManyAssignmentInput = {
   id?: string
-  answerId: string
+  answerId?: string | null
   value: runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -821,12 +821,12 @@ export type ScoreUpdateWithoutAssignmentInput = {
   comment?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  answer?: Prisma.AnswerUpdateOneRequiredWithoutScoresNestedInput
+  answer?: Prisma.AnswerUpdateOneWithoutScoresNestedInput
 }
 
 export type ScoreUncheckedUpdateWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  answerId?: Prisma.StringFieldUpdateOperationsInput | string
+  answerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -839,7 +839,7 @@ export type ScoreUncheckedUpdateWithoutAssignmentInput = {
 
 export type ScoreUncheckedUpdateManyWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  answerId?: Prisma.StringFieldUpdateOperationsInput | string
+  answerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   value?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   pronunciation?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   fluency?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
@@ -865,7 +865,7 @@ export type ScoreSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   createdAt?: boolean
   updatedAt?: boolean
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
-  answer?: boolean | Prisma.AnswerDefaultArgs<ExtArgs>
+  answer?: boolean | Prisma.Score$answerArgs<ExtArgs>
 }, ExtArgs["result"]["score"]>
 
 export type ScoreSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -881,7 +881,7 @@ export type ScoreSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   createdAt?: boolean
   updatedAt?: boolean
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
-  answer?: boolean | Prisma.AnswerDefaultArgs<ExtArgs>
+  answer?: boolean | Prisma.Score$answerArgs<ExtArgs>
 }, ExtArgs["result"]["score"]>
 
 export type ScoreSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -897,7 +897,7 @@ export type ScoreSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   createdAt?: boolean
   updatedAt?: boolean
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
-  answer?: boolean | Prisma.AnswerDefaultArgs<ExtArgs>
+  answer?: boolean | Prisma.Score$answerArgs<ExtArgs>
 }, ExtArgs["result"]["score"]>
 
 export type ScoreSelectScalar = {
@@ -917,27 +917,27 @@ export type ScoreSelectScalar = {
 export type ScoreOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "assignmentId" | "answerId" | "value" | "pronunciation" | "fluency" | "vocabulary" | "grammar" | "comment" | "createdAt" | "updatedAt", ExtArgs["result"]["score"]>
 export type ScoreInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
-  answer?: boolean | Prisma.AnswerDefaultArgs<ExtArgs>
+  answer?: boolean | Prisma.Score$answerArgs<ExtArgs>
 }
 export type ScoreIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
-  answer?: boolean | Prisma.AnswerDefaultArgs<ExtArgs>
+  answer?: boolean | Prisma.Score$answerArgs<ExtArgs>
 }
 export type ScoreIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
-  answer?: boolean | Prisma.AnswerDefaultArgs<ExtArgs>
+  answer?: boolean | Prisma.Score$answerArgs<ExtArgs>
 }
 
 export type $ScorePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Score"
   objects: {
     assignment: Prisma.$ExaminerAssignmentPayload<ExtArgs>
-    answer: Prisma.$AnswerPayload<ExtArgs>
+    answer: Prisma.$AnswerPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     assignmentId: string
-    answerId: string
+    answerId: string | null
     value: runtime.Decimal
     pronunciation: runtime.Decimal | null
     fluency: runtime.Decimal | null
@@ -1341,7 +1341,7 @@ readonly fields: ScoreFieldRefs;
 export interface Prisma__ScoreClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   assignment<T extends Prisma.ExaminerAssignmentDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>>): Prisma.Prisma__ExaminerAssignmentClient<runtime.Types.Result.GetResult<Prisma.$ExaminerAssignmentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  answer<T extends Prisma.AnswerDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AnswerDefaultArgs<ExtArgs>>): Prisma.Prisma__AnswerClient<runtime.Types.Result.GetResult<Prisma.$AnswerPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  answer<T extends Prisma.Score$answerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Score$answerArgs<ExtArgs>>): Prisma.Prisma__AnswerClient<runtime.Types.Result.GetResult<Prisma.$AnswerPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1780,6 +1780,25 @@ export type ScoreDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Interna
    * Limit how many Scores to delete.
    */
   limit?: number
+}
+
+/**
+ * Score.answer
+ */
+export type Score$answerArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Answer
+   */
+  select?: Prisma.AnswerSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Answer
+   */
+  omit?: Prisma.AnswerOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AnswerInclude<ExtArgs> | null
+  where?: Prisma.AnswerWhereInput
 }
 
 /**

@@ -42,6 +42,7 @@ test("submission detail hydrates any answer count from one submission query", as
         scoringSystem: "RUBRIC_6",
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         certificate: null,
+        assignments: [],
         answers: Array.from({ length: 12 }, (_, index) => ({
           id: `answer-${index}`,
           questionId: `question-${index}`,

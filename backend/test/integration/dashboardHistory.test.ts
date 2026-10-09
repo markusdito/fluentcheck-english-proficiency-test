@@ -235,6 +235,36 @@ async function addAnswerScores(
   }
 }
 
+/** Two completed Examiners, each with one whole-Submission Score. */
+async function addExaminerScores(
+  submission: Awaited<ReturnType<typeof createSubmission>>,
+  overallBands: [number, number],
+) {
+  for (const [index, overall] of overallBands.entries()) {
+    const email = `wh${index}-${submission.submission.id}@example.test`;
+    const examiner = await prisma.user.create({
+      data: {
+        username: `wh${index}_${submission.submission.id.replaceAll("-", "")}`,
+        email,
+        normalizedEmail: email,
+        password: "unused",
+        role: "EXAMINER",
+      },
+    });
+    await prisma.examinerAssignment.create({
+      data: {
+        submissionId: submission.submission.id,
+        examinerId: examiner.id,
+        slot: index + 1,
+        status: "COMPLETED",
+        scores: {
+          create: { value: overall, pronunciation: 4, fluency: 4, vocabulary: 4, grammar: 4 },
+        },
+      },
+    });
+  }
+}
+
 function cookieFor(userId: string) {
   const token = jwt.sign({ id: userId }, process.env.JWT_SECRET!);
   return `jwt=${token}`;
@@ -418,6 +448,13 @@ test("computes global aggregates and dynamic page scores without detail collecti
     "SCORED",
     "RUBRIC_6",
   );
+  const whole = await createSubmission(
+    student.id,
+    "2026-02-28T00:00:00.000Z",
+    "SCORED",
+    "RUBRIC_6",
+  );
+  await addExaminerScores(whole, [4.5, 5]);
   await createSubmission(
     student.id,
     "2026-03-05T00:00:00.000Z",
@@ -428,7 +465,7 @@ test("computes global aggregates and dynamic page scores without detail collecti
   assert.equal(response.status, 200);
   const data = (await response.json()).data;
 
-  assert.equal(data.totalTests, 4);
+  assert.equal(data.totalTests, 5);
   assert.deepEqual(data.bestScore, {
     value: 5.5,
     scoringSystem: "RUBRIC_6",
@@ -440,6 +477,8 @@ test("computes global aggregates and dynamic page scores without detail collecti
   assert.equal(summaries.get(rubric.submission.id).score, "5.5");
   assert.equal(summaries.get(legacy.submission.id).score, "99");
   assert.equal(summaries.get(incomplete.submission.id).score, null);
+  // Mean of the two Examiners' overall bands, not of Answers or criteria.
+  assert.equal(summaries.get(whole.submission.id).score, "4.75");
   assert.deepEqual(Object.keys(summaries.get(dynamic.submission.id)).sort(), [
     "createdAt",
     "id",

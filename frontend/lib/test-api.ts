@@ -66,6 +66,14 @@ export async function initializeSubmission(idempotencyKey: string): Promise<Init
   return res.data;
 }
 
+/** Unscored practice run from the Practice Test Set; creates no Submission. */
+export async function fetchPractice(): Promise<Pick<InitializedSubmission, "testSet" | "entries">> {
+  const res = await api.get<{ status: string; data: Pick<InitializedSubmission, "testSet" | "entries"> }>(
+    "/submissions/practice",
+  );
+  return res.data;
+}
+
 /** Resume the student's current manifest when a fresh tab has lost its key. */
 export async function resumeActiveSubmission(): Promise<InitializedSubmission> {
   const res = await api.get<{ status: string; data: InitializedSubmission }>("/submissions/active");

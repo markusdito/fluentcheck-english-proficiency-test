@@ -225,6 +225,30 @@ export default function AdminSubmissionDetailPage({
                     Updated {formatDateTime(assignment.updatedAt)}
                   </p>
                 </div>
+                {assignment.score && (
+                  <div className="sm:col-span-3">
+                    <p className="text-sm font-semibold tabular-nums text-sn-fg">
+                      {submission.scoringSystem === "RUBRIC_6" ? "Overall band " : "Score "}
+                      {submission.scoringSystem === "RUBRIC_6"
+                        ? assignment.score.value.toFixed(1)
+                        : assignment.score.value}
+                      <span className="font-normal text-sn-muted">/{scoreMax}</span>
+                      {assignment.status !== "COMPLETED" && (
+                        <span className="font-normal text-sn-muted"> · draft</span>
+                      )}
+                    </p>
+                    {assignment.score.rubric && (
+                      <RubricBreakdownView
+                        rubric={{ ...assignment.score.rubric, overall: assignment.score.value }}
+                        compact
+                        className="mt-3"
+                      />
+                    )}
+                    <p className="mt-2 text-sm leading-6 text-sn-muted">
+                      {assignment.score.comment || "No comment provided."}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

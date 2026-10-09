@@ -130,7 +130,7 @@ const steps: Step[] = [
   {
     tone: "bg-sn-field-navy text-sn-navy",
     title: "Read your report",
-    desc: "One overall band, four criterion bands, a breakdown per answer, and written comments from both examiners.",
+    desc: "One overall band and four criterion bands, each the mean of two independent examiners, plus written comments from both.",
     icon: (
       <svg {...iconProps}>
         <path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5" />

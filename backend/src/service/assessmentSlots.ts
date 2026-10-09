@@ -24,6 +24,16 @@ export const SLOT_DEFAULT_TIMING: Record<
   PART_4: { preparationSeconds: 15, recordingSeconds: 60 },
 };
 
+/**
+ * Test Set reserved for the unscored practice run (PRD FR-3.3). Never delivered
+ * as a real Assessment; practice recordings stay on the device.
+ */
+export const PRACTICE_TEST_SET_CODE = "Practice_Question";
+/** Case-insensitive: an admin rename upper-cases codes to PRACTICE_QUESTION. */
+export const PRACTICE_TEST_SET_WHERE = {
+  code: { equals: PRACTICE_TEST_SET_CODE, mode: "insensitive" },
+} as const;
+
 /** Legacy three-slot manifests created before Test Sets. Readable, never delivered. */
 export const LEGACY_MANIFEST_VERSION = 1;
 /** Five-slot manifests delivered from one Test Set. */

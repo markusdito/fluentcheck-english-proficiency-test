@@ -20,14 +20,14 @@ export interface RubricBreakdown extends RubricValues {
   overall: number;
 }
 
+/** An Examiner's one Score for the whole Submission: 4 criteria + their own overall band. */
 export interface RubricScoreInput {
-  answerId: string;
   rubric: RubricValues;
+  overall: number;
   comment?: string;
 }
 
 export interface LegacyScoreInput {
-  answerId: string;
   value: number;
   comment?: string;
 }

@@ -5,7 +5,6 @@ import {
   completeExaminerScoring,
   saveExaminerScore,
   startExaminerAssignment,
-  submitExaminerScores,
   ScoringFinalizationError,
   type ScoreInput,
 } from "../service/examiner.service.js";
@@ -84,12 +83,6 @@ export async function startAssignment(req: Request, res: Response) {
   }
 }
 
-interface ScoreBody {
-  scores: ScoreInput[];
-}
-
-type SingleScoreBody = Omit<ScoreInput, "answerId">;
-
 function scoringErrorStatus(error: unknown): number {
   if (error instanceof ScoringFinalizationError) {
     if (error.code === "ASSIGNMENT_NOT_FOUND") return 404;
@@ -120,27 +113,26 @@ function sendScoringError(
   });
 }
 
-/** PUT /api/examiner/assignments/:id/scores/:answerId */
+/** PUT /api/examiner/assignments/:id/score — the Examiner's one Score for the whole Submission. */
 export async function saveScore(req: Request, res: Response) {
   try {
     const assignmentId = req.params.id as string;
-    const answerId = req.params.answerId as string;
-    if (!assignmentId || !answerId) {
+    if (!assignmentId) {
       res.status(400).json({
-        error: "Assignment ID and answer ID are required",
+        error: "Assignment ID is required",
         code: "VALIDATION_ERROR",
       });
       return;
     }
 
-    const body = (req.body ?? {}) as SingleScoreBody;
+    const body = (req.body ?? {}) as ScoreInput;
     await saveExaminerScore(assignmentId, req.user!.id, {
-      answerId,
       value: body.value,
       rubric: body.rubric,
+      overall: body.overall,
       comment: body.comment,
     });
-    res.status(200).json({ status: "success", message: "Question score saved" });
+    res.status(200).json({ status: "success", message: "Score saved" });
   } catch (error) {
     sendScoringError(res, error, "Failed to save score");
   }
@@ -162,38 +154,5 @@ export async function completeScoring(req: Request, res: Response) {
     res.status(200).json({ status: "success", data: result });
   } catch (error) {
     sendScoringError(res, error, "Failed to complete scoring");
-  }
-}
-
-/**
- * POST /api/examiner/assignments/:id/scores
- * Submit scores for all answers in an assignment.
- */
-export async function submitScores(req: Request, res: Response) {
-  try {
-    const assignmentId = req.params.id as string;
-    const examinerId = req.user!.id;
-    const { scores } = (req.body ?? {}) as Partial<ScoreBody>;
-
-    if (!assignmentId) {
-      res.status(400).json({ error: "Assignment ID is required" });
-      return;
-    }
-
-    if (!scores || !Array.isArray(scores) || scores.length === 0) {
-      res.status(400).json({
-        error: "scores array is required and must not be empty",
-        code: "VALIDATION_ERROR",
-      });
-      return;
-    }
-
-    const result = await submitExaminerScores(assignmentId, examinerId, scores);
-    res.status(200).json({
-      status: "success",
-      data: result,
-    });
-  } catch (error) {
-    sendScoringError(res, error, "Failed to submit scores");
   }
 }

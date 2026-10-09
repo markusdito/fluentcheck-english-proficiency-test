@@ -18,6 +18,8 @@ import {
 } from "../service/manifestSubmissionInitialization.service.js";
 import { createStudentPromptAudioViewUrl } from "../service/upload.service.js";
 import { getRequestId } from "../middleware/request-id.middleware.js";
+import { buildPracticeDelivery } from "../service/test-question-delivery.service.js";
+import { ManifestEvidenceUnavailableError } from "../service/submissionManifestDelivery.service.js";
 
 function sendAssessmentUnavailable(res: Response) {
   res.setHeader("Retry-After", "5");
@@ -109,6 +111,23 @@ export async function resumeActiveSubmission(req: Request, res: Response) {
     }
     const message = error instanceof Error ? error.message : "Assessment unavailable";
     res.status(404).json({ error: message });
+  }
+}
+
+/** GET /api/submissions/practice — unscored practice run; creates no Submission. */
+export async function getPracticeDelivery(_req: Request, res: Response) {
+  try {
+    const data = await buildPracticeDelivery();
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).json({ status: "success", data });
+  } catch (error) {
+    if (error instanceof ManifestEvidenceUnavailableError) {
+      console.error("Practice delivery unavailable", { diagnostics: error.diagnostics });
+      sendAssessmentUnavailable(res);
+      return;
+    }
+    console.error("Error preparing practice:", error);
+    res.status(500).json({ error: "Failed to prepare practice" });
   }
 }
 

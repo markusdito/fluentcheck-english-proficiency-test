@@ -113,6 +113,12 @@ export interface AdminSubmissionAssignment {
     name: string;
     email: string;
   };
+  /** This Examiner's whole-Submission Score (admin-only). */
+  score: {
+    value: number;
+    rubric: RubricValues | null;
+    comment: string | null;
+  } | null;
 }
 
 export interface AdminAnswerScore {
@@ -227,6 +233,7 @@ export interface AdminQuestion {
 }
 import type {
   RubricBreakdown,
+  RubricValues,
   ScoringSystem,
 } from "@/types/scoring";
 import type { CueCard, QuestionCategory, TestSetRef } from "@/types/test";

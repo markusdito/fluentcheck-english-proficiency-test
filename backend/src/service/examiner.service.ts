@@ -7,11 +7,10 @@ import {
 } from "./upload.service.js";
 import {
   ScoreValidationError,
-  calculateRubricOverall,
   readStoredRubric,
   roundScore,
-  validateAnswerCoverage,
   validateLegacyScore,
+  validateOverallBand,
   validateRubricValues,
   type RubricValues,
   type ScoringSystemValue,
@@ -49,11 +48,13 @@ export interface AssignmentAnswer {
   tasks: { id: string; promptText: string; order: number }[];
   durationSeconds: number | null;
   videoUrl: string | null;
-  savedScore: {
-    value: number;
-    rubric: RubricValues | null;
-    comment: string | null;
-  } | null;
+}
+
+/** The Examiner's one Score for the whole Submission; `value` is the overall band. */
+export interface SavedScore {
+  value: number;
+  rubric: RubricValues | null;
+  comment: string | null;
 }
 
 export interface AssignmentDetail {
@@ -65,6 +66,7 @@ export interface AssignmentDetail {
   scoringSystem: ScoringSystemValue;
   testSet: DeliveredTestSet | null;
   answers: AssignmentAnswer[];
+  savedScore: SavedScore | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -454,6 +456,18 @@ export async function getExaminerAssignmentDetail(
   const assignment = await prisma.examinerAssignment.findUnique({
     where: { id: assignmentId },
     include: {
+      scores: {
+        where: { answerId: null },
+        take: 1,
+        select: {
+          value: true,
+          pronunciation: true,
+          fluency: true,
+          vocabulary: true,
+          grammar: true,
+          comment: true,
+        },
+      },
       submission: {
         include: {
           manifest: {
@@ -497,18 +511,6 @@ export async function getExaminerAssignmentDetail(
                   },
                 },
               },
-              scores: {
-                where: { assignmentId },
-                take: 1,
-                select: {
-                  value: true,
-                  pronunciation: true,
-                  fluency: true,
-                  vocabulary: true,
-                  grammar: true,
-                  comment: true,
-                },
-              },
             },
             orderBy: { createdAt: "asc" },
           },
@@ -536,6 +538,7 @@ export async function getExaminerAssignmentDetail(
   }
   if (!manifest) assertLegacySubmissionEvidence(manifest);
 
+  const saved = assignment.scores[0];
   const answers: AssignmentAnswer[] = await Promise.all(
     assignment.submission.answers.map(async (answer) => {
       const manifestEntry = manifest?.entries.find((entry) => entry.id === answer.manifestEntryId);
@@ -585,13 +588,6 @@ export async function getExaminerAssignmentDetail(
           : answer.question!.tasks,
         durationSeconds: answer.durationSeconds,
         videoUrl,
-        savedScore: answer.scores[0]
-          ? {
-              value: roundScore(Number(answer.scores[0].value)),
-              rubric: readStoredRubric(answer.scores[0]),
-              comment: answer.scores[0].comment,
-            }
-          : null,
       };
     })
   );
@@ -605,6 +601,13 @@ export async function getExaminerAssignmentDetail(
     scoringSystem: assignment.submission.scoringSystem,
     testSet: deliveredTestSet(manifest),
     answers,
+    savedScore: saved
+      ? {
+          value: roundScore(Number(saved.value)),
+          rubric: readStoredRubric(saved),
+          comment: saved.comment,
+        }
+      : null,
     createdAt: assignment.createdAt,
     updatedAt: assignment.updatedAt,
   };
@@ -681,10 +684,14 @@ export async function startExaminerAssignment(
   });
 }
 
+/**
+ * One Score for the whole Submission. RUBRIC_6 needs the 4 criteria and the
+ * Examiner's own `overall` band; LEGACY_100 needs `value`.
+ */
 export interface ScoreInput {
-  answerId: string;
   value?: number;
   rubric?: RubricValues;
+  overall?: number;
   comment?: string;
 }
 
@@ -706,7 +713,6 @@ export class ScoringFinalizationError extends Error {
 }
 
 interface ValidatedScoreInput {
-  answerId: string;
   value: number;
   rubric: RubricValues | null;
   comment: string | null;
@@ -724,8 +730,8 @@ function validateScoreInput(
   score: ScoreInput,
   scoringSystem: ScoringSystemValue,
 ): ValidatedScoreInput {
-  if (!score || typeof score.answerId !== "string") {
-    throw new ScoreValidationError("Every score must include an answerId");
+  if (!score || typeof score !== "object") {
+    throw new ScoreValidationError("A score is required");
   }
 
   if (score.comment !== undefined && typeof score.comment !== "string") {
@@ -737,15 +743,13 @@ function validateScoreInput(
   if (scoringSystem === "RUBRIC_6") {
     const rubric = validateRubricValues(score.rubric);
     return {
-      answerId: score.answerId,
-      value: calculateRubricOverall(rubric),
+      value: validateOverallBand(score.overall),
       rubric,
       comment,
     };
   }
 
   return {
-    answerId: score.answerId,
     value: validateLegacyScore(score.value),
     rubric: null,
     comment,
@@ -776,12 +780,10 @@ function validateStoredScore(
   if (scoringSystem === "RUBRIC_6") {
     const rubric = readStoredRubric(score);
     if (rubric == null) {
-      throw new ScoreValidationError("Every answer must have a complete rubric");
+      throw new ScoreValidationError("The Score must have a complete rubric");
     }
     validateRubricValues(rubric);
-    if (Number(score.value) !== calculateRubricOverall(rubric)) {
-      throw new ScoreValidationError("Stored rubric score has an invalid overall value");
-    }
+    validateOverallBand(Number(score.value));
     return;
   }
 
@@ -872,10 +874,10 @@ function assertValidScoringLifecycle(
   }
 }
 
-async function finalizeExaminerScoring(
+/** Complete an assignment only after its whole-Submission Score is saved. */
+export async function completeExaminerScoring(
   assignmentId: string,
   examinerId: string,
-  scores?: ScoreInput[],
 ): Promise<ScoringFinalizationResult> {
   const submissionId = await findAssignmentSubmissionId(assignmentId);
 
@@ -888,7 +890,6 @@ async function finalizeExaminerScoring(
         status: true,
         retentionStatus: true,
         scoringSystem: true,
-        answers: { select: { id: true } },
       },
     });
     const assignments = await tx.examinerAssignment.findMany({
@@ -900,8 +901,8 @@ async function finalizeExaminerScoring(
         slot: true,
         status: true,
         scores: {
+          where: { answerId: null },
           select: {
-            answerId: true,
             value: true,
             pronunciation: true,
             fluency: true,
@@ -947,40 +948,11 @@ async function finalizeExaminerScoring(
       );
     }
 
-    let validatedScores: ValidatedScoreInput[] = [];
-    if (scores === undefined) {
-      validateAnswerCoverage(
-        submission.answers.map((answer) => answer.id),
-        assignment.scores.map((score) => score.answerId),
-      );
-      for (const score of assignment.scores) {
-        validateStoredScore(score, submission.scoringSystem);
-      }
-    } else {
-      validateAnswerCoverage(
-        submission.answers.map((answer) => answer.id),
-        scores.map((score) => score?.answerId),
-      );
-      validatedScores = scores.map((score) =>
-        validateScoreInput(score, submission.scoringSystem),
-      );
-      for (const score of validatedScores) {
-        await tx.score.upsert({
-          where: {
-            assignmentId_answerId: {
-              assignmentId,
-              answerId: score.answerId,
-            },
-          },
-          update: scoreWriteData(score),
-          create: {
-            assignmentId,
-            answerId: score.answerId,
-            ...scoreWriteData(score),
-          },
-        });
-      }
+    const [score] = assignment.scores;
+    if (!score) {
+      throw new ScoreValidationError("Save the Score before completing this assignment");
     }
+    validateStoredScore(score, submission.scoringSystem);
 
     await tx.examinerAssignment.update({
       where: { id: assignmentId },
@@ -1009,7 +981,7 @@ async function finalizeExaminerScoring(
   });
 }
 
-/** Save one answer score without completing the examiner assignment. */
+/** Save the Examiner's whole-Submission Score draft without completing the assignment. */
 export async function saveExaminerScore(
   assignmentId: string,
   examinerId: string,
@@ -1030,10 +1002,6 @@ export async function saveExaminerScore(
           select: {
             scoringSystem: true,
             retentionStatus: true,
-            answers: {
-              where: { id: score.answerId },
-              select: { id: true },
-            },
           },
         },
       },
@@ -1066,29 +1034,26 @@ export async function saveExaminerScore(
         "Assignment is not active",
       );
     }
-    if (assignment.submission.answers.length !== 1) {
-      throw new ScoreValidationError("A score references an answer outside this assignment");
-    }
-
     const validated = validateScoreInput(
       score,
       assignment.submission.scoringSystem,
     );
 
-    await tx.score.upsert({
-      where: {
-        assignmentId_answerId: {
-          assignmentId,
-          answerId: validated.answerId,
-        },
-      },
-      update: scoreWriteData(validated),
-      create: {
-        assignmentId,
-        answerId: validated.answerId,
-        ...scoreWriteData(validated),
-      },
+    // The Submission row lock serializes writers, so find-then-write is safe.
+    const existing = await tx.score.findFirst({
+      where: { assignmentId, answerId: null },
+      select: { id: true },
     });
+    if (existing) {
+      await tx.score.update({
+        where: { id: existing.id },
+        data: scoreWriteData(validated),
+      });
+    } else {
+      await tx.score.create({
+        data: { assignmentId, ...scoreWriteData(validated) },
+      });
+    }
 
     if (assignment.status === "ASSIGNED") {
       await tx.examinerAssignment.update({
@@ -1097,24 +1062,4 @@ export async function saveExaminerScore(
       });
     }
   });
-}
-
-/** Complete an assignment only after every answer has a saved score. */
-export async function completeExaminerScoring(
-  assignmentId: string,
-  examinerId: string,
-): Promise<ScoringFinalizationResult> {
-  return finalizeExaminerScoring(assignmentId, examinerId);
-}
-
-/**
- * Submit scores for all answers in an assignment.
- * Scores, assignment completion, and Submission status share one transaction.
- */
-export async function submitExaminerScores(
-  assignmentId: string,
-  examinerId: string,
-  scores: ScoreInput[]
-): Promise<ScoringFinalizationResult> {
-  return finalizeExaminerScoring(assignmentId, examinerId, scores);
 }

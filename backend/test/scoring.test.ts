@@ -2,12 +2,43 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   ScoreValidationError,
+  aggregateExaminerScores,
   aggregateStoredScores,
   calculateRubricOverall,
   isValidRubricBand,
   validateAnswerCoverage,
+  validateOverallBand,
   validateRubricValues,
 } from "../src/utils/scoring.js";
+
+test("submission result is the mean of the two examiners' entered bands", () => {
+  const result = aggregateExaminerScores(
+    [
+      // overall bands are entered, not derived from the criteria
+      { value: 4.5, pronunciation: 4, fluency: 4.5, vocabulary: 5, grammar: 3.5 },
+      { value: 5, pronunciation: 4.5, fluency: 5, vocabulary: 4.5, grammar: 4 },
+    ],
+    "RUBRIC_6",
+  );
+
+  assert.deepEqual(result, {
+    score: 4.75,
+    rubric: {
+      pronunciation: 4.25,
+      fluency: 4.75,
+      vocabulary: 4.75,
+      grammar: 3.75,
+      overall: 4.75,
+    },
+  });
+});
+
+test("requires a half-band overall band", () => {
+  assert.equal(validateOverallBand(5.5), 5.5);
+  for (const band of [undefined, 0.5, 4.25, 6.5, "5"]) {
+    assert.throws(() => validateOverallBand(band), ScoreValidationError);
+  }
+});
 
 test("accepts every half band from 1.0 through 6.0", () => {
   for (let band = 1; band <= 6; band += 0.5) {

@@ -58,6 +58,8 @@ export interface SubmissionDetail {
   scoringSystem: ScoringSystem;
   testSet: TestSetRef | null;
   rubric: RubricBreakdown | null;
+  /** Written feedback from both Examiners. */
+  comments: string[];
   createdAt: string;
   answers: AnswerDetail[];
 }

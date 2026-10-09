@@ -2,8 +2,7 @@
 
 import { slotLabel } from "@/lib/assessment-slots";
 import { useState, type ReactNode } from "react";
-import { ChevronLeftIcon } from "lucide-react";
-import type { AssignmentAnswer } from "@/types/examiner";
+import type { AssignmentAnswer, SavedScore } from "@/types/examiner";
 import {
   RUBRIC_CRITERIA,
   type RubricCriterion,
@@ -12,7 +11,6 @@ import {
   type ScoringSystem,
 } from "@/types/scoring";
 import { card, focusRing, h3, primaryButton, secondaryButton } from "@/components/student/styles";
-import { cn } from "@/lib/cn";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -23,6 +21,8 @@ import {
 interface ScoringPanelProps {
   answers: AssignmentAnswer[];
   scoringSystem: ScoringSystem;
+  /** The Examiner's saved whole-Submission Score draft, if any. */
+  savedScore: SavedScore | null;
   currentIndex: number;
   onQuestionChange: (index: number) => void;
   onSave: (score: ScoreSubmissionInput) => Promise<void>;
@@ -33,14 +33,6 @@ interface ScoringPanelProps {
 }
 
 type RubricDraft = Record<RubricCriterion, string>;
-
-interface AnswerScore {
-  answerId: string;
-  value: string;
-  rubric: RubricDraft;
-  comment: string;
-  saved: boolean;
-}
 
 const CRITERION_COPY: Record<RubricCriterion, { label: string; description: string }> = {
   pronunciation: { label: "Pronunciation", description: "Sound clarity, stress, and intonation" },
@@ -57,8 +49,9 @@ const label = "grid gap-1.5 text-sm text-sn-muted";
 
 export const partLabel = slotLabel;
 
+const band = (v?: number | null) => (v == null ? "" : v.toFixed(1));
+
 function rubricDraft(rubric?: RubricValues | null): RubricDraft {
-  const band = (v?: number) => (v == null ? "" : v.toFixed(1));
   return {
     pronunciation: band(rubric?.pronunciation),
     fluency: band(rubric?.fluency),
@@ -72,12 +65,25 @@ function rubricValues(draft: RubricDraft): RubricValues | null {
   return Object.fromEntries(RUBRIC_CRITERIA.map((c) => [c, Number(draft[c])])) as unknown as RubricValues;
 }
 
-const rubricAverage = (rubric: RubricValues) =>
-  RUBRIC_CRITERIA.reduce((total, c) => total + rubric[c], 0) / RUBRIC_CRITERIA.length;
+function BandSelect({ name, value, onChange }: { name: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <select className={field} aria-label={`${name} band`} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">Select</option>
+      {BANDS.map((b) => (
+        <option key={b} value={b}>{b}</option>
+      ))}
+    </select>
+  );
+}
 
+/**
+ * One Score for the whole Submission: the Examiner watches every Answer, then
+ * enters the 4 criteria and their own overall band once.
+ */
 export function ScoringPanel({
   answers,
   scoringSystem,
+  savedScore,
   currentIndex,
   onQuestionChange,
   onSave,
@@ -85,70 +91,56 @@ export function ScoringPanel({
   isSubmitting,
   children,
 }: ScoringPanelProps) {
-  const [scores, setScores] = useState<AnswerScore[]>(() =>
-    answers.map((answer) => ({
-      answerId: answer.id,
-      value: answer.savedScore ? String(answer.savedScore.value) : "",
-      rubric: rubricDraft(answer.savedScore?.rubric),
-      comment: answer.savedScore?.comment ?? "",
-      saved: answer.savedScore != null,
-    })),
+  const rubric6 = scoringSystem === "RUBRIC_6";
+  const [rubric, setRubric] = useState<RubricDraft>(() => rubricDraft(savedScore?.rubric));
+  // RUBRIC_6: the overall band; LEGACY_100: the 0–100 score.
+  const [overall, setOverall] = useState(() =>
+    savedScore ? (rubric6 ? band(savedScore.value) : String(savedScore.value)) : "",
   );
+  const [comment, setComment] = useState(savedScore?.comment ?? "");
+  const [saved, setSaved] = useState(savedScore != null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  const answer = answers[currentIndex];
-  const score = scores[currentIndex];
-  const savedCount = scores.filter((item) => item.saved).length;
+  const touch = () => setSaved(false);
 
-  const update = (patch: Partial<AnswerScore>) =>
-    setScores((current) =>
-      current.map((item, index) => (index === currentIndex ? { ...item, ...patch, saved: false } : item)),
-    );
-
-  if (!answer || !score) {
+  if (answers.length === 0) {
     return (
       <div className={`${card} text-center`}>
-        <p className="text-[15px] text-sn-muted">No questions available for marking.</p>
+        <p className="text-[15px] text-sn-muted">No answers available for marking.</p>
       </div>
     );
   }
 
-  const parsedRubric = rubricValues(score.rubric);
-  const completedRubrics = scores.flatMap((item) => rubricValues(item.rubric) ?? []);
-  const overallPreview =
-    completedRubrics.length === answers.length && completedRubrics.length > 0
-      ? completedRubrics.reduce((total, rubric) => total + rubricAverage(rubric), 0) / completedRubrics.length
-      : null;
-  const isLastQuestion = currentIndex === answers.length - 1;
-
-  const handleSave = async () => {
-    setError(null);
-
-    let payload: ScoreSubmissionInput;
-    if (scoringSystem === "RUBRIC_6") {
-      if (!parsedRubric) {
-        setError("Score all four criteria before saving this answer.");
-        return;
+  const buildPayload = (): ScoreSubmissionInput | null => {
+    const trimmed = comment.trim() || undefined;
+    if (rubric6) {
+      const values = rubricValues(rubric);
+      if (!values || !overall) {
+        setError("Score all four criteria and the overall band.");
+        return null;
       }
-      payload = { answerId: score.answerId, rubric: parsedRubric, comment: score.comment.trim() || undefined };
-    } else {
-      const value = Number(score.value);
-      if (score.value.trim().length === 0 || !Number.isFinite(value) || value < 0 || value > 100) {
-        setError("Enter a legacy score between 0 and 100 before saving.");
-        return;
-      }
-      payload = { answerId: score.answerId, value, comment: score.comment.trim() || undefined };
+      return { rubric: values, overall: Number(overall), comment: trimmed };
     }
+    const value = Number(overall);
+    if (overall.trim().length === 0 || !Number.isFinite(value) || value < 0 || value > 100) {
+      setError("Enter a legacy score between 0 and 100.");
+      return null;
+    }
+    return { value, comment: trimmed };
+  };
 
+  const save = async (complete: boolean) => {
+    setError(null);
+    const payload = buildPayload();
+    if (!payload) return;
     try {
       await onSave(payload);
-      setScores((current) => current.map((item, index) => (index === currentIndex ? { ...item, saved: true } : item)));
-      if (isLastQuestion) await onComplete();
-      else onQuestionChange(currentIndex + 1);
+      setSaved(true);
+      if (complete) await onComplete();
     } catch (submissionError) {
       setError(
-        submissionError instanceof Error ? submissionError.message : "This answer could not be saved. Please try again.",
+        submissionError instanceof Error ? submissionError.message : "The score could not be saved. Please try again.",
       );
     }
   };
@@ -157,12 +149,29 @@ export function ScoringPanel({
     <div className="grid items-start gap-7 min-[921px]:grid-cols-[minmax(0,1fr)_300px]">
       <div className="flex min-w-0 flex-col gap-7">
         {children}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Answers">
+          {answers.map((a, i) => (
+            <button
+              key={a.id}
+              type="button"
+              aria-pressed={i === currentIndex}
+              onClick={() => onQuestionChange(i)}
+              className={`${secondaryButton} aria-pressed:border-sn-fg aria-pressed:bg-sn-fg/6`}
+            >
+              {partLabel(a.questionCategory)}
+            </button>
+          ))}
+        </div>
+
         <section className={card} aria-labelledby="rubric-title">
           <h2 id="rubric-title" className={h3}>
-            Score {partLabel(answer.questionCategory)}
+            Score the whole submission
           </h2>
+          <p className="mt-2 text-sm text-sn-muted">
+            Watch all {answers.length} answers, then give one band per criterion and your overall band.
+          </p>
 
-          {scoringSystem === "RUBRIC_6" ? (
+          {rubric6 ? (
             <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
               {RUBRIC_CRITERIA.map((criterion) => (
                 <label key={criterion} className={label}>
@@ -170,19 +179,30 @@ export function ScoringPanel({
                     <span className="font-medium text-sn-fg">{CRITERION_COPY[criterion].label}</span>
                     <span className="block text-[13px]">{CRITERION_COPY[criterion].description}</span>
                   </span>
-                  <select
-                    className={field}
-                    aria-label={`${CRITERION_COPY[criterion].label} band`}
-                    value={score.rubric[criterion]}
-                    onChange={(e) => update({ rubric: { ...score.rubric, [criterion]: e.target.value } })}
-                  >
-                    <option value="">Select</option>
-                    {BANDS.map((band) => (
-                      <option key={band} value={band}>{band}</option>
-                    ))}
-                  </select>
+                  <BandSelect
+                    name={CRITERION_COPY[criterion].label}
+                    value={rubric[criterion]}
+                    onChange={(value) => {
+                      touch();
+                      setRubric({ ...rubric, [criterion]: value });
+                    }}
+                  />
                 </label>
               ))}
+              <label className={`${label} sm:col-span-2`}>
+                <span>
+                  <span className="font-medium text-sn-fg">Overall band</span>
+                  <span className="block text-[13px]">Your own judgement of the whole submission</span>
+                </span>
+                <BandSelect
+                  name="Overall"
+                  value={overall}
+                  onChange={(value) => {
+                    touch();
+                    setOverall(value);
+                  }}
+                />
+              </label>
             </div>
           ) : (
             <label className={`${label} mt-5 max-w-40`}>
@@ -192,76 +212,38 @@ export function ScoringPanel({
                 min={0}
                 max={100}
                 className={field}
-                value={score.value}
-                onChange={(e) => update({ value: e.target.value })}
+                value={overall}
+                onChange={(e) => {
+                  touch();
+                  setOverall(e.target.value);
+                }}
               />
             </label>
           )}
 
-          <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-            <label className={`${label} min-w-[220px] flex-1`}>
-              Optional comment
-              <input
-                type="text"
-                className={field}
-                value={score.comment}
-                onChange={(e) => update({ comment: e.target.value })}
-                placeholder="Brief feedback…"
-              />
-            </label>
-            {scoringSystem === "RUBRIC_6" && (
-              <p className="m-0 pb-2 text-xl font-semibold tabular-nums">
-                <span className="text-[15px] font-normal text-sn-muted">Answer mean </span>
-                {parsedRubric ? rubricAverage(parsedRubric).toFixed(2) : "·"}
-              </p>
-            )}
-          </div>
+          <label className={`${label} mt-4`}>
+            Optional comment
+            <textarea
+              rows={3}
+              className={field}
+              value={comment}
+              onChange={(e) => {
+                touch();
+                setComment(e.target.value);
+              }}
+              placeholder="Feedback on the whole submission…"
+            />
+          </label>
         </section>
       </div>
 
       <aside className={`${card} min-[921px]:sticky min-[921px]:top-24`} aria-labelledby="complete-title">
         <h2 id="complete-title" className={h3}>Complete my scoring</h2>
         <p className="mt-2 text-sm text-sn-muted">
-          Save every answer to finish. Scores lock once the last answer is saved.
+          Save a draft anytime. Your score locks once you submit.
         </p>
-        <ul className="mt-4 grid list-none gap-1 p-0">
-          {scores.map((item, index) => (
-            <li key={item.answerId}>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={() => {
-                  setError(null);
-                  onQuestionChange(index);
-                }}
-                aria-current={index === currentIndex ? "step" : undefined}
-                className={cn(
-                  "flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent px-2 text-left text-[15px] transition-colors hover:bg-sn-fg/6",
-                  index === currentIndex ? "font-semibold text-sn-fg" : item.saved ? "text-sn-fg" : "text-sn-muted",
-                  focusRing,
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "grid size-[18px] shrink-0 place-items-center rounded-md border",
-                    item.saved ? "border-sn-ink-green bg-sn-ink-green" : "border-sn-border bg-sn-bg",
-                  )}
-                >
-                  {item.saved && (
-                    <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12.5l4.5 4.5L19 7.5" />
-                    </svg>
-                  )}
-                </span>
-                {partLabel(answers[index].questionCategory)} {item.saved ? "saved" : "not saved"}
-              </button>
-            </li>
-          ))}
-        </ul>
         <p className="mt-3 text-sm text-sn-muted" role="status">
-          {savedCount}/{answers.length} saved
-          {overallPreview != null && ` · overall preview ${overallPreview.toFixed(2)}`}
+          {saved ? "Draft saved" : "Unsaved changes"}
         </p>
 
         {error && (
@@ -271,30 +253,23 @@ export function ScoringPanel({
         )}
 
         <div className="mt-5 grid gap-3">
-          <button type="button" className={`${primaryButton} w-full`} disabled={isSubmitting} onClick={() => (isLastQuestion ? setConfirming(true) : void handleSave())}>
-            {isSubmitting ? "Saving…" : isLastQuestion ? "Save & complete" : "Save & next answer"}
+          <button type="button" className={`${primaryButton} w-full`} disabled={isSubmitting} onClick={() => setConfirming(true)}>
+            {isSubmitting ? "Saving…" : "Save & complete"}
           </button>
-          <button
-            type="button"
-            className={`${secondaryButton} w-full`}
-            disabled={currentIndex === 0 || isSubmitting}
-            onClick={() => {
-              setError(null);
-              onQuestionChange(currentIndex - 1);
-            }}
-          >
-            <ChevronLeftIcon className="size-4" aria-hidden="true" />
-            Previous answer
+          <button type="button" className={`${secondaryButton} w-full`} disabled={isSubmitting} onClick={() => void save(false)}>
+            Save draft
           </button>
         </div>
-        <p className="mt-4 text-[13px] text-sn-muted">The final band is the mean of two independent examiners.</p>
+        <p className="mt-4 text-[13px] text-sn-muted">
+          The student&apos;s band is the mean of your score and the other examiner&apos;s.
+        </p>
       </aside>
 
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent className="max-w-[440px]! gap-0 rounded-2xl bg-sn-surface p-7 font-albert text-sn-fg ring-sn-border">
           <AlertDialogTitle className={h3}>Submit your scoring?</AlertDialogTitle>
           <AlertDialogDescription className="mt-3 text-[15px] text-sn-muted">
-            Your scores become final and can&apos;t be edited. The other examiner scores independently and the report
+            Your score becomes final and can&apos;t be edited. The other examiner scores independently and the report
             shows the mean of both.
           </AlertDialogDescription>
           <div className="mt-6 flex flex-wrap justify-end gap-3">
@@ -306,7 +281,7 @@ export function ScoringPanel({
               className={primaryButton}
               onClick={() => {
                 setConfirming(false);
-                void handleSave();
+                void save(true);
               }}
             >
               Submit scoring

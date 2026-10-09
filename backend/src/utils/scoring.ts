@@ -147,6 +147,51 @@ export function averageRubrics(rubrics: RubricValues[]): RubricBreakdown | null 
   };
 }
 
+export function validateOverallBand(value: unknown): number {
+  if (!isValidRubricBand(value)) {
+    throw new ScoreValidationError(
+      "overall must be a half-band value between 1.0 and 6.0",
+    );
+  }
+  return value;
+}
+
+/**
+ * Submission result from the Examiners' whole-Submission Scores: each criterion
+ * and the overall band are the mean of the Examiners' values. The overall band
+ * is the mean of the entered overall bands, never derived from the criteria.
+ */
+export function aggregateExaminerScores(
+  scores: StoredScoreValues[],
+  scoringSystem: ScoringSystemValue,
+): { score: number | null; rubric: RubricBreakdown | null } {
+  const { score, rubric } = aggregateStoredScores(scores, scoringSystem);
+  return {
+    score,
+    rubric: rubric && score != null ? { ...rubric, overall: score } : null,
+  };
+}
+
+/**
+ * Mean of the Examiners' whole-Submission Scores, or null until both
+ * Examiner assignments are completed with one Score each.
+ */
+export function submissionResult(
+  assignments: { status: string; scores: StoredScoreValues[] }[],
+  scoringSystem: ScoringSystemValue,
+): { score: number | null; rubric: RubricBreakdown | null } | null {
+  if (
+    assignments.length !== 2 ||
+    assignments.some(({ status, scores }) => status !== "COMPLETED" || scores.length !== 1)
+  ) {
+    return null;
+  }
+  return aggregateExaminerScores(
+    assignments.map(({ scores }) => scores[0]!),
+    scoringSystem,
+  );
+}
+
 export function aggregateStoredScores(
   scores: StoredScoreValues[],
   scoringSystem: ScoringSystemValue,

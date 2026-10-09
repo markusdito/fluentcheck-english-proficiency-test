@@ -262,14 +262,11 @@ All examiner routes require an authenticated EXAMINER or ADMIN account.
 <!-- route: PUT /api/examiner/assignments/:id/start | source=backend/src/routes/examiner.routes.ts -->
 | PUT | /api/examiner/assignments/:id/start | EXAMINER or ADMIN | Starts an assigned review. |
 
-<!-- route: PUT /api/examiner/assignments/:id/scores/:answerId | source=backend/src/routes/examiner.routes.ts -->
-| PUT | /api/examiner/assignments/:id/scores/:answerId | EXAMINER or ADMIN | Saves a mutable Score draft for one Answer. |
+<!-- route: PUT /api/examiner/assignments/:id/score | source=backend/src/routes/examiner.routes.ts -->
+| PUT | /api/examiner/assignments/:id/score | EXAMINER or ADMIN | Saves the Examiner's mutable whole-Submission Score draft (4 criteria + overall band). |
 
 <!-- route: POST /api/examiner/assignments/:id/complete | source=backend/src/routes/examiner.routes.ts -->
-| POST | /api/examiner/assignments/:id/complete | EXAMINER or ADMIN | Finalizes one assignment after complete score coverage. |
-
-<!-- route: POST /api/examiner/assignments/:id/scores | source=backend/src/routes/examiner.routes.ts -->
-| POST | /api/examiner/assignments/:id/scores | EXAMINER or ADMIN | Finalizes the assignment with a score set. |
+| POST | /api/examiner/assignments/:id/complete | EXAMINER or ADMIN | Finalizes one assignment once its Score is saved. |
 
 ### Administrator routes
 
@@ -407,20 +404,23 @@ automatic queue or loop described as current behavior.
 
 ### Independent scoring finalization
 
-Each assignment scores the delivered Answers independently. RUBRIC_6 scores
-use pronunciation, fluency, vocabulary, and grammar on integer or half-band
-values from 1.0 through 6.0; the overall value is the mean of the four
-criteria. LEGACY_100 remains supported for historical scoring.
+Each assignment records exactly one Score for the whole Submission (a Score
+row with no `answerId`, unique per assignment). RUBRIC_6 Scores hold
+pronunciation, fluency, vocabulary, grammar, and an Examiner-entered overall
+band (stored in `value`), all half-band values from 1.0 through 6.0; the
+overall band is not derived from the criteria.
 
-Finalization locks the Submission, re-reads the assignment set and Scores,
-requires slots 1 and 2 plus complete Answer coverage, and commits the
-assignment. Repeating a completed finalization is an ALREADY_COMPLETED
-successful no-op. Invalid history fails closed. The Submission remains
-SCORING after one completed assignment and becomes SCORED after both.
+Finalization locks the Submission, re-reads the assignment set and Score,
+requires slots 1 and 2 plus a valid saved Score, and commits the assignment.
+Repeating a completed finalization is an ALREADY_COMPLETED successful no-op.
+Invalid history fails closed. The Submission remains SCORING after one
+completed assignment and becomes SCORED after both.
 
-Planned (PRD v0.3.1 FR-9, #177): each Examiner records one Score per
-Submission with an Examiner-entered overall band instead of one Score per
-Answer, and the Submission result is the mean of the two Examiners' Scores.
+The Submission result is the mean of the two Examiners' Scores: overall band =
+mean of the two overall bands, each criterion = mean of the two Examiners'
+bands, unrounded to half-bands. Nothing is shown until both assignments are
+completed. Submissions scored per Answer before this change (and LEGACY_100)
+keep their original per-Answer aggregation.
 
 ## 6. Authentication, authorization, and request protection
 

@@ -14,6 +14,7 @@ import {
   abandonSubmissionById,
   resumeActiveSubmission,
   getStudentPromptAudioUrl,
+  getPracticeDelivery,
 } from "../controllers/submission.controller.js";
 
 export function createSubmissionRouter(runtime?: RateLimitRuntime) {
@@ -40,6 +41,7 @@ export function createSubmissionRouter(runtime?: RateLimitRuntime) {
     startSubmission,
   );
   router.get("/active", verifyToken, resumeActiveSubmission);
+  router.get("/practice", verifyToken, getPracticeDelivery);
   router.get("/:id/prompts/:manifestEntryId", verifyToken, getStudentPromptAudioUrl);
 
   // Get a single submission with answers and video URLs (requires authentication)

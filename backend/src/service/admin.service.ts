@@ -18,6 +18,7 @@ import {
   calculateRubricOverall,
   readStoredRubric,
   roundScore,
+  submissionResult,
 } from "../utils/scoring.js";
 import {
   assertLegacyAnswerQuestion,
@@ -174,6 +175,17 @@ export async function getAdminSubmissionDetail(submissionId: string) {
           examiner: {
             select: { id: true, username: true, email: true },
           },
+          scores: {
+            where: { answerId: null },
+            select: {
+              value: true,
+              pronunciation: true,
+              fluency: true,
+              vocabulary: true,
+              grammar: true,
+              comment: true,
+            },
+          },
         },
       },
       certificate: {
@@ -312,22 +324,25 @@ export async function getAdminSubmissionDetail(submissionId: string) {
     })
   );
 
+  const result = submissionResult(submission.assignments, submission.scoringSystem);
   const answerScores = submission.answers.flatMap((answer) => {
     const score = average(answer.scores.map((item) => Number(item.value)));
     return score == null ? [] : [score];
   });
-  const calculatedOverallScore =
-    (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
-    answers.length > 0 &&
-    answerScores.length === answers.length
+  const calculatedOverallScore = result
+    ? result.score
+    : (submission.status === "SCORED" || submission.status === "CERTIFIED") &&
+        answers.length > 0 &&
+        answerScores.length === answers.length
       ? average(answerScores)
       : null;
   const answerRubrics = answers.flatMap((answer) =>
     answer.rubric ? [answer.rubric] : [],
   );
-  const rubric =
-    submission.scoringSystem === "RUBRIC_6" &&
-    answerRubrics.length === answers.length
+  const rubric = result
+    ? result.rubric
+    : submission.scoringSystem === "RUBRIC_6" &&
+        answerRubrics.length === answers.length
       ? averageRubrics(answerRubrics)
       : null;
 
@@ -367,6 +382,14 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         name: assignment.examiner.username,
         email: assignment.examiner.email,
       },
+      // Admin-only: this Examiner's whole-Submission Score (draft or final).
+      score: assignment.scores[0]
+        ? {
+            value: roundScore(Number(assignment.scores[0].value)),
+            rubric: readStoredRubric(assignment.scores[0]),
+            comment: assignment.scores[0].comment?.trim() || null,
+          }
+        : null,
     })),
     answers,
   };

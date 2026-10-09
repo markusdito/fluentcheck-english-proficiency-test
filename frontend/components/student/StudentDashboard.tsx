@@ -17,6 +17,7 @@ interface StudentDashboardProps {
   onPrev: () => void;
   onNext: () => void;
   onStart: () => void;
+  onTutorial: () => void;
 }
 
 const tab = `-mb-px min-h-11 cursor-pointer border-0 border-b-2 border-transparent bg-transparent px-0.5 py-3 text-[15px] font-medium text-sn-muted transition-colors duration-200 hover:text-sn-fg data-active:border-sn-fg data-active:text-sn-fg ${focusRing}`;
@@ -31,6 +32,7 @@ export function StudentDashboard({
   onPrev,
   onNext,
   onStart,
+  onTutorial,
 }: StudentDashboardProps) {
   const subs = dashboard?.submissions ?? [];
   const latestScored = subs.find((s) => s.score != null);
@@ -47,7 +49,7 @@ export function StudentDashboard({
         </Tabs.List>
 
         <Tabs.Panel value="overview" className="flex flex-col gap-7 pt-8 outline-none">
-          <StartCard onStart={onStart} />
+          <StartCard onStart={onStart} onTutorial={onTutorial} />
           <div className="grid items-stretch gap-7 sm:grid-cols-2">
             <LatestResultCard sub={latestScored} />
             <RecentCard subs={subs.slice(0, 3)} />
