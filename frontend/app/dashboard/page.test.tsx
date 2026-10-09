@@ -177,9 +177,48 @@ describe("Dashboard request gating", () => {
     const start = await screen.findByRole("button", { name: "Start speaking test" });
     expect(start).toBeEnabled();
     fireEvent.click(start);
+    // Returning student (3 real tests): no practice prompt.
+    expect(screen.queryByRole("dialog", { name: "Practise first?" })).toBeNull();
 
     await waitFor(() => expect(mocks.permissionModalOpen).toBe(true));
     expect(screen.queryByText(/still being reviewed/i)).toBeNull();
+  });
+
+  it("greets a first-time student with the tutorial and remembers dismissal", async () => {
+    mocks.user = { ...baseUser, role: "STUDENT" };
+    // Node 26 exposes an undefined native localStorage that shadows jsdom's.
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    });
+
+    const { unmount } = renderDashboard();
+    expect(await screen.findByRole("dialog", { name: "The test in one sitting" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("dialog", { name: "Listen to the question" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    unmount();
+
+    renderDashboard();
+    await screen.findByRole("button", { name: "Start speaking test" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "How it works" }));
+    expect(await screen.findByRole("dialog", { name: "The test in one sitting" })).toBeInTheDocument();
+  });
+
+  it("asks practice or real test after Start, then opens the hardware check", async () => {
+    mocks.user = { ...baseUser, role: "STUDENT" };
+    mocks.permissionModalOpen = false;
+    vi.stubGlobal("localStorage", { getItem: () => "1", setItem: () => {} });
+
+    renderDashboard();
+    fireEvent.click(await screen.findByRole("button", { name: "Start speaking test" }));
+    expect(await screen.findByRole("dialog", { name: "Practise first?" })).toBeInTheDocument();
+    expect(mocks.permissionModalOpen).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /Practice test/ }));
+    await waitFor(() => expect(mocks.permissionModalOpen).toBe(true));
   });
 
   it("requests only assignment data for examiners", async () => {

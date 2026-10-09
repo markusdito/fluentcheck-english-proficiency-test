@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { Pill } from "./StatusPill";
-import { card, h3, meta, primaryButton } from "./styles";
+import { card, h3, meta, primaryButton, secondaryButton } from "./styles";
 
 const parts = [
   { title: "Part 1 · Personal response", body: "Tasks 1A and 1B: two short answers about familiar topics, 45 seconds each." },
@@ -15,7 +15,7 @@ const stats = [
   { fig: "1", cap: "sitting, start to end" },
 ];
 
-export function StartCard({ onStart }: { onStart: () => void }) {
+export function StartCard({ onStart, onTutorial }: { onStart: () => void; onTutorial: () => void }) {
   return (
     <article className={card}>
       <p className={meta}>Speaking test · one sitting</p>
@@ -63,7 +63,10 @@ export function StartCard({ onStart }: { onStart: () => void }) {
         </p>
       </div>
 
-      <div className="mt-5 flex justify-end">
+      <div className="mt-5 flex flex-wrap justify-end gap-3">
+        <button className={secondaryButton} type="button" onClick={onTutorial}>
+          How it works
+        </button>
         <button className={primaryButton} type="button" onClick={onStart}>
           Start speaking test
         </button>

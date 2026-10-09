@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   confirmUpload: vi.fn(),
   getPresignedUrl: vi.fn(),
   initializeTest: vi.fn(),
+  initializePractice: vi.fn(),
   requestPermissions: vi.fn(),
   abandonSubmission: vi.fn(),
   resetRecording: vi.fn(),
@@ -78,6 +79,7 @@ vi.mock("@/hooks/useCountdown", () => ({
 
 vi.mock("@/lib/test-initialization", () => ({
   initializeTest: mocks.initializeTest,
+  initializePractice: mocks.initializePractice,
 }));
 
 vi.mock("@/lib/test-api", () => ({
@@ -114,7 +116,7 @@ const questions = ["PART_1A", "PART_1B", "PART_2", "PART_3", "PART_4"].map((cate
   options: null,
 }));
 
-const params = Promise.resolve({ testId: "test-1" });
+let params = Promise.resolve({ testId: "test-1" });
 type PageView = ReturnType<typeof render>;
 
 function deferred<T>() {
@@ -207,6 +209,29 @@ describe("TestPage strict exam flow", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    params = Promise.resolve({ testId: "test-1" });
+  });
+
+  it("runs practice from the Practice Test Set without a Submission, uploads or completion", async () => {
+    params = Promise.resolve({ testId: "practice" });
+    mocks.initializePractice.mockResolvedValue({
+      submissionId: null,
+      testSet: { id: "set-practice", code: "Practice_Question" },
+      questions,
+      uploadedEntryIds: [],
+    });
+    const view = await renderPage();
+    expect(
+      await screen.findByRole("heading", { name: "SPEAKNUSA PRACTICE TEST — NOT SCORED, NOTHING IS SAVED" }),
+    ).toBeInTheDocument();
+    for (let index = 0; index < 5; index += 1) await recordCurrentSlot(view, onComplete);
+
+    expect(await screen.findByRole("heading", { name: /tried all 5 parts/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take the real test" })).toBeInTheDocument();
+    expect(mocks.startRecording).toHaveBeenCalledTimes(5);
+    expect(mocks.initializeTest).not.toHaveBeenCalled();
+    expect(mocks.getPresignedUrl).not.toHaveBeenCalled();
+    expect(mocks.completeSubmission).not.toHaveBeenCalled();
   });
 
   it("shows the Test Set title and Part/Task header with no manual recording controls", async () => {
@@ -234,6 +259,21 @@ describe("TestPage strict exam flow", () => {
     expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
     expect(mocks.completeSubmission).not.toHaveBeenCalled();
     confirm.resolve(undefined);
+  });
+
+  it("lets the student stop recording early, then uploads and advances", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    expect(screen.queryByRole("button", { name: /stop and submit/i })).not.toBeInTheDocument();
+
+    await act(async () => onComplete());
+    await userEvent.click(await screen.findByRole("button", { name: /stop and submit answer/i }));
+    expect(mocks.stopRecording).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /saving answer/i })).toBeDisabled();
+
+    await setFinalizedBlob(view, 5);
+    await waitFor(() => expect(mocks.getPresignedUrl).toHaveBeenCalledWith("submission-1", "entry-1", "video/webm"));
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
   });
 
   it("blocks navigation while a background upload is pending", async () => {

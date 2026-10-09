@@ -13,6 +13,8 @@ import { fetchExaminerAssignments } from "@/lib/examiner-api";
 import { ExaminerDashboard } from "@/components/examiner/ExaminerDashboard";
 import { CameraMicPermissionModal } from "@/components/hardware/CameraMicPermissionModal";
 import { StudentDashboard } from "@/components/student/StudentDashboard";
+import { TestTutorial, readTutorialSeen } from "@/components/student/TestTutorial";
+import { PracticeChoiceDialog } from "@/components/student/PracticeChoiceDialog";
 import { PageState } from "@/components/student/PageShell";
 import { h3, primaryButton } from "@/components/student/styles";
 import type { ExaminerAssignmentSummary } from "@/types/examiner";
@@ -21,7 +23,12 @@ import { queryKeys } from "@/lib/query-keys";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  // The device check leads to the real test or the practice run.
+  const [startTarget, setStartTarget] = useState<"/test/demo-test" | "/test/practice" | null>(null);
+  // "Start speaking test" first asks: practice run or the real test.
+  const [showChoice, setShowChoice] = useState(false);
+  // null = not decided yet; first-timers (no past tests, never dismissed) get it on load.
+  const [showTutorial, setShowTutorial] = useState<boolean | null>(null);
   const [historyCursors, setHistoryCursors] = useState<string[]>([]);
   const session = useSession({ required: true });
   const user = session.data;
@@ -47,6 +54,13 @@ export default function DashboardPage() {
   }, [router, user?.role]);
 
   const dashboard = dashboardQuery.data;
+
+  useEffect(() => {
+    if (showTutorial !== null || user?.role !== "STUDENT" || !dashboard) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowTutorial(dashboard.totalTests === 0 && !readTutorialSeen());
+  }, [showTutorial, user?.role, dashboard]);
+
   const examinerAssignments = assignmentsQuery.data ?? [];
   const dataLoading =
     (user?.role === "STUDENT" && dashboardQuery.isPending) ||
@@ -85,15 +99,37 @@ export default function DashboardPage() {
 
   const isExaminer = user?.role === "EXAMINER";
 
+  // Only students who never took a real test are offered practice first;
+  // practice creates no Submission, so it never counts toward totalTests.
+  const startTest = () => {
+    if (dashboard?.totalTests === 0) setShowChoice(true);
+    else setStartTarget("/test/demo-test");
+  };
+
   const modals = (
-    <CameraMicPermissionModal
-      open={showPermissionModal}
-      onClose={() => setShowPermissionModal(false)}
-      onComplete={() => {
-        setShowPermissionModal(false);
-        router.push("/test/demo-test");
-      }}
-    />
+    <>
+      <TestTutorial
+        open={showTutorial === true}
+        onClose={() => setShowTutorial(false)}
+        onStart={startTest}
+      />
+      <PracticeChoiceDialog
+        open={showChoice}
+        onClose={() => setShowChoice(false)}
+        onChoose={(practice) => {
+          setShowChoice(false);
+          setStartTarget(practice ? "/test/practice" : "/test/demo-test");
+        }}
+      />
+      <CameraMicPermissionModal
+        open={startTarget !== null}
+        onClose={() => setStartTarget(null)}
+        onComplete={() => {
+          if (startTarget) router.push(startTarget);
+          setStartTarget(null);
+        }}
+      />
+    </>
   );
 
   if (!isExaminer) {
@@ -115,7 +151,8 @@ export default function DashboardPage() {
             const nextCursor = dashboard?.pagination.nextCursor;
             if (nextCursor) setHistoryCursors((cursors) => [...cursors, nextCursor]);
           }}
-          onStart={() => setShowPermissionModal(true)}
+          onStart={startTest}
+          onTutorial={() => setShowTutorial(true)}
         />
         {modals}
       </>

@@ -8,6 +8,7 @@ import {
   ASSESSMENT_SLOTS,
   CURRENT_MANIFEST_VERSION,
   ELIGIBLE_QUESTION_WHERE,
+  PRACTICE_TEST_SET_WHERE,
 } from "./assessmentSlots.js";
 import {
   buildManifestDelivery,
@@ -414,7 +415,7 @@ export async function initializeManifestSubmission(
     const candidateSets = await Promise.all(
       CATEGORIES.map(async (category) => {
         const candidates = (await prisma.question.findMany({
-          where: { ...ELIGIBLE_QUESTION_WHERE, category },
+          where: { ...ELIGIBLE_QUESTION_WHERE, category, testSet: { NOT: PRACTICE_TEST_SET_WHERE } },
           orderBy: { id: "asc" },
           include: {
             tasks: {
