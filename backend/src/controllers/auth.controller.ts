@@ -9,8 +9,9 @@ import {
     authenticateUser,
     createUser,
     findUserForLogin,
+    updateProfile,
 } from "../service/auth.service.js";
-import type { LoginInput, RegistrationInput } from "../schemas/auth.schema.js";
+import type { LoginInput, ProfileInput, RegistrationInput } from "../schemas/auth.schema.js";
 
 const REGISTRATION_CONFLICT_ERROR = "Unable to create account with these details";
 
@@ -109,8 +110,30 @@ export async function getMe(req: Request, res: Response) {
                 name: user.username,
                 email: user.email,
                 role: user.role,
-                createdAt: user.createdAt
+                createdAt: user.createdAt,
+                fullName: user.fullName,
+                studentNumber: user.studentNumber,
             }
         }
     })
+}
+
+// PATCH /api/auth/me — set the full name and Student ID (PRD FR-1.4)
+export async function updateMe(req: Request, res: Response) {
+    const user = req.user!;
+    const profile = req.body as ProfileInput;
+    await updateProfile(user.id, profile);
+    res.status(200).json({
+        status: "success",
+        data: {
+            user: {
+                id: user.id,
+                name: user.username,
+                email: user.email,
+                role: user.role,
+                createdAt: user.createdAt,
+                ...profile,
+            },
+        },
+    });
 }

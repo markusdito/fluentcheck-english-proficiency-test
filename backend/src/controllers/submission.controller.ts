@@ -12,6 +12,7 @@ import {
   ActiveSubmissionConflictError,
   AssessmentUnavailableError,
   AssessmentStartIntentClosedError,
+  CONSENT_TEXT_VERSION,
   IdempotencyKeyConflictError,
   initializeManifestSubmission,
   resumeManifestSubmission,
@@ -38,10 +39,22 @@ function sendAssessmentUnavailable(res: Response) {
 export async function startSubmission(req: Request, res: Response) {
   try {
     const userId = req.user!.id;
+    // PRD FR-2.6: no Submission (and so no recording) without informed
+    // consent to the current consent text.
+    const consentVersion = (req.body as { consentVersion?: unknown } | undefined)?.consentVersion;
+    if (consentVersion !== CONSENT_TEXT_VERSION) {
+      res.status(400).json({
+        error: "Informed consent to the current consent text is required",
+        code: "CONSENT_REQUIRED",
+        retryable: false,
+        consentVersion: CONSENT_TEXT_VERSION,
+      });
+      return;
+    }
     const submission = await initializeManifestSubmission(
       userId,
       req.header("Idempotency-Key") ?? undefined,
-      { requestId: getRequestId(res) },
+      { requestId: getRequestId(res), consentVersion },
     );
     res.setHeader("Cache-Control", "no-store");
     res.status(201).json({

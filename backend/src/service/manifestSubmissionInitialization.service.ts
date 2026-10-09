@@ -50,7 +50,15 @@ export class AssessmentUnavailableError extends Error {
   }
 }
 
+/**
+ * PRD FR-2.6: version of the informed-consent text shown before capture. Bump
+ * it (and the frontend copy in lib/consent.ts) whenever that text changes.
+ */
+export const CONSENT_TEXT_VERSION = "2026-10-09";
+
 export interface AssessmentInitializationDependencies {
+  /** Consent text version the student accepted; recorded on a new Submission. */
+  consentVersion?: string;
   chooseIndex?: (length: number) => number;
   signPromptMedia?: (storageKey: string, mimeType: string) => Promise<string>;
   signOptionIcon?: (storageKey: string, mimeType: string) => Promise<string>;
@@ -534,7 +542,14 @@ export async function initializeManifestSubmission(
       });
       if (!testSet) throw new EligibilityConflictError();
       const submission = await tx.submission.create({
-        data: { studentId, status: "IN_PROGRESS" },
+        data: {
+          studentId,
+          status: "IN_PROGRESS",
+          ...(dependencies.consentVersion && {
+            consentedAt: new Date(),
+            consentVersion: dependencies.consentVersion,
+          }),
+        },
       });
       const manifest = await tx.submissionManifest.create({
         data: {

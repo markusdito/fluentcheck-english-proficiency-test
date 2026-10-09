@@ -221,6 +221,18 @@ describe("Dashboard request gating", () => {
     await waitFor(() => expect(mocks.permissionModalOpen).toBe(true));
   });
 
+  it("opens consent + system check for the real test when arriving from practice", async () => {
+    mocks.user = { ...baseUser, role: "STUDENT" };
+    mocks.permissionModalOpen = false;
+    vi.stubGlobal("localStorage", { getItem: () => "1", setItem: () => {} });
+    window.history.replaceState(null, "", "/dashboard?start=real");
+
+    renderDashboard();
+    await waitFor(() => expect(mocks.permissionModalOpen).toBe(true));
+    expect(mocks.replace).toHaveBeenCalledWith("/dashboard");
+    window.history.replaceState(null, "", "/");
+  });
+
   it("requests only assignment data for examiners", async () => {
     mocks.user = { ...baseUser, role: "EXAMINER" };
     renderDashboard();

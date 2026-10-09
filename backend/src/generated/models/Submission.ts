@@ -31,6 +31,8 @@ export type SubmissionMinAggregateOutputType = {
   retentionStatus: $Enums.SubmissionRetentionStatus | null
   scoringSystem: $Enums.ScoringSystem | null
   paymentRequired: boolean | null
+  consentedAt: Date | null
+  consentVersion: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -42,6 +44,8 @@ export type SubmissionMaxAggregateOutputType = {
   retentionStatus: $Enums.SubmissionRetentionStatus | null
   scoringSystem: $Enums.ScoringSystem | null
   paymentRequired: boolean | null
+  consentedAt: Date | null
+  consentVersion: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -53,6 +57,8 @@ export type SubmissionCountAggregateOutputType = {
   retentionStatus: number
   scoringSystem: number
   paymentRequired: number
+  consentedAt: number
+  consentVersion: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -66,6 +72,8 @@ export type SubmissionMinAggregateInputType = {
   retentionStatus?: true
   scoringSystem?: true
   paymentRequired?: true
+  consentedAt?: true
+  consentVersion?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -77,6 +85,8 @@ export type SubmissionMaxAggregateInputType = {
   retentionStatus?: true
   scoringSystem?: true
   paymentRequired?: true
+  consentedAt?: true
+  consentVersion?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -88,6 +98,8 @@ export type SubmissionCountAggregateInputType = {
   retentionStatus?: true
   scoringSystem?: true
   paymentRequired?: true
+  consentedAt?: true
+  consentVersion?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -172,6 +184,8 @@ export type SubmissionGroupByOutputType = {
   retentionStatus: $Enums.SubmissionRetentionStatus
   scoringSystem: $Enums.ScoringSystem
   paymentRequired: boolean
+  consentedAt: Date | null
+  consentVersion: string | null
   createdAt: Date
   updatedAt: Date
   _count: SubmissionCountAggregateOutputType | null
@@ -204,6 +218,8 @@ export type SubmissionWhereInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFilter<"Submission"> | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFilter<"Submission"> | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
+  consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -226,6 +242,8 @@ export type SubmissionOrderByWithRelationInput = {
   retentionStatus?: Prisma.SortOrder
   scoringSystem?: Prisma.SortOrder
   paymentRequired?: Prisma.SortOrder
+  consentedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  consentVersion?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   student?: Prisma.UserOrderByWithRelationInput
@@ -251,6 +269,8 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFilter<"Submission"> | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFilter<"Submission"> | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
+  consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -273,6 +293,8 @@ export type SubmissionOrderByWithAggregationInput = {
   retentionStatus?: Prisma.SortOrder
   scoringSystem?: Prisma.SortOrder
   paymentRequired?: Prisma.SortOrder
+  consentedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  consentVersion?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.SubmissionCountOrderByAggregateInput
@@ -290,6 +312,8 @@ export type SubmissionScalarWhereWithAggregatesInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusWithAggregatesFilter<"Submission"> | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemWithAggregatesFilter<"Submission"> | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolWithAggregatesFilter<"Submission"> | boolean
+  consentedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
+  consentVersion?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Submission"> | Date | string
 }
@@ -300,6 +324,8 @@ export type SubmissionCreateInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -322,6 +348,8 @@ export type SubmissionUncheckedCreateInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -342,6 +370,8 @@ export type SubmissionUpdateInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -364,6 +394,8 @@ export type SubmissionUncheckedUpdateInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -385,6 +417,8 @@ export type SubmissionCreateManyInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -395,6 +429,8 @@ export type SubmissionUpdateManyMutationInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -406,6 +442,8 @@ export type SubmissionUncheckedUpdateManyInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -427,6 +465,8 @@ export type SubmissionCountOrderByAggregateInput = {
   retentionStatus?: Prisma.SortOrder
   scoringSystem?: Prisma.SortOrder
   paymentRequired?: Prisma.SortOrder
+  consentedAt?: Prisma.SortOrder
+  consentVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -438,6 +478,8 @@ export type SubmissionMaxOrderByAggregateInput = {
   retentionStatus?: Prisma.SortOrder
   scoringSystem?: Prisma.SortOrder
   paymentRequired?: Prisma.SortOrder
+  consentedAt?: Prisma.SortOrder
+  consentVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -449,6 +491,8 @@ export type SubmissionMinOrderByAggregateInput = {
   retentionStatus?: Prisma.SortOrder
   scoringSystem?: Prisma.SortOrder
   paymentRequired?: Prisma.SortOrder
+  consentedAt?: Prisma.SortOrder
+  consentVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -675,6 +719,8 @@ export type SubmissionCreateWithoutStudentInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
@@ -695,6 +741,8 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -745,6 +793,8 @@ export type SubmissionScalarWhereInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFilter<"Submission"> | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFilter<"Submission"> | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
+  consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
 }
@@ -755,6 +805,8 @@ export type SubmissionCreateWithoutRetentionHoldsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -776,6 +828,8 @@ export type SubmissionUncheckedCreateWithoutRetentionHoldsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -811,6 +865,8 @@ export type SubmissionUpdateWithoutRetentionHoldsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -832,6 +888,8 @@ export type SubmissionUncheckedUpdateWithoutRetentionHoldsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -851,6 +909,8 @@ export type SubmissionCreateWithoutPurgeRequestsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -872,6 +932,8 @@ export type SubmissionUncheckedCreateWithoutPurgeRequestsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -907,6 +969,8 @@ export type SubmissionUpdateWithoutPurgeRequestsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -928,6 +992,8 @@ export type SubmissionUncheckedUpdateWithoutPurgeRequestsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -947,6 +1013,8 @@ export type SubmissionCreateWithoutPurgeObjectsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -968,6 +1036,8 @@ export type SubmissionUncheckedCreateWithoutPurgeObjectsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1003,6 +1073,8 @@ export type SubmissionUpdateWithoutPurgeObjectsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1024,6 +1096,8 @@ export type SubmissionUncheckedUpdateWithoutPurgeObjectsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1043,6 +1117,8 @@ export type SubmissionCreateWithoutRetentionAuditEventsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1064,6 +1140,8 @@ export type SubmissionUncheckedCreateWithoutRetentionAuditEventsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1099,6 +1177,8 @@ export type SubmissionUpdateWithoutRetentionAuditEventsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1120,6 +1200,8 @@ export type SubmissionUncheckedUpdateWithoutRetentionAuditEventsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1139,6 +1221,8 @@ export type SubmissionCreateWithoutStartIntentInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1160,6 +1244,8 @@ export type SubmissionUncheckedCreateWithoutStartIntentInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1195,6 +1281,8 @@ export type SubmissionUpdateWithoutStartIntentInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1216,6 +1304,8 @@ export type SubmissionUncheckedUpdateWithoutStartIntentInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1235,6 +1325,8 @@ export type SubmissionCreateWithoutManifestInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1256,6 +1348,8 @@ export type SubmissionUncheckedCreateWithoutManifestInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1291,6 +1385,8 @@ export type SubmissionUpdateWithoutManifestInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1312,6 +1408,8 @@ export type SubmissionUncheckedUpdateWithoutManifestInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1331,6 +1429,8 @@ export type SubmissionCreateWithoutAnswersInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1352,6 +1452,8 @@ export type SubmissionUncheckedCreateWithoutAnswersInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
@@ -1387,6 +1489,8 @@ export type SubmissionUpdateWithoutAnswersInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1408,6 +1512,8 @@ export type SubmissionUncheckedUpdateWithoutAnswersInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
@@ -1427,6 +1533,8 @@ export type SubmissionCreateWithoutPaymentsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1448,6 +1556,8 @@ export type SubmissionUncheckedCreateWithoutPaymentsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1483,6 +1593,8 @@ export type SubmissionUpdateWithoutPaymentsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1504,6 +1616,8 @@ export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1523,6 +1637,8 @@ export type SubmissionCreateWithoutAssignmentsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1544,6 +1660,8 @@ export type SubmissionUncheckedCreateWithoutAssignmentsInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1579,6 +1697,8 @@ export type SubmissionUpdateWithoutAssignmentsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1600,6 +1720,8 @@ export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1619,6 +1741,8 @@ export type SubmissionCreateWithoutCertificateInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1640,6 +1764,8 @@ export type SubmissionUncheckedCreateWithoutCertificateInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1675,6 +1801,8 @@ export type SubmissionUpdateWithoutCertificateInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1696,6 +1824,8 @@ export type SubmissionUncheckedUpdateWithoutCertificateInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1715,6 +1845,8 @@ export type SubmissionCreateManyStudentInput = {
   retentionStatus?: $Enums.SubmissionRetentionStatus
   scoringSystem?: $Enums.ScoringSystem
   paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1725,6 +1857,8 @@ export type SubmissionUpdateWithoutStudentInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
@@ -1745,6 +1879,8 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1765,6 +1901,8 @@ export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1861,6 +1999,8 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   retentionStatus?: boolean
   scoringSystem?: boolean
   paymentRequired?: boolean
+  consentedAt?: boolean
+  consentVersion?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1884,6 +2024,8 @@ export type SubmissionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   retentionStatus?: boolean
   scoringSystem?: boolean
   paymentRequired?: boolean
+  consentedAt?: boolean
+  consentVersion?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1896,6 +2038,8 @@ export type SubmissionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   retentionStatus?: boolean
   scoringSystem?: boolean
   paymentRequired?: boolean
+  consentedAt?: boolean
+  consentVersion?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1908,11 +2052,13 @@ export type SubmissionSelectScalar = {
   retentionStatus?: boolean
   scoringSystem?: boolean
   paymentRequired?: boolean
+  consentedAt?: boolean
+  consentVersion?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "status" | "retentionStatus" | "scoringSystem" | "paymentRequired" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
+export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "status" | "retentionStatus" | "scoringSystem" | "paymentRequired" | "consentedAt" | "consentVersion" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
 export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   answers?: boolean | Prisma.Submission$answersArgs<ExtArgs>
@@ -1956,6 +2102,8 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     retentionStatus: $Enums.SubmissionRetentionStatus
     scoringSystem: $Enums.ScoringSystem
     paymentRequired: boolean
+    consentedAt: Date | null
+    consentVersion: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["submission"]>
@@ -2398,6 +2546,8 @@ export interface SubmissionFieldRefs {
   readonly retentionStatus: Prisma.FieldRef<"Submission", 'SubmissionRetentionStatus'>
   readonly scoringSystem: Prisma.FieldRef<"Submission", 'ScoringSystem'>
   readonly paymentRequired: Prisma.FieldRef<"Submission", 'Boolean'>
+  readonly consentedAt: Prisma.FieldRef<"Submission", 'DateTime'>
+  readonly consentVersion: Prisma.FieldRef<"Submission", 'String'>
   readonly createdAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Submission", 'DateTime'>
 }
