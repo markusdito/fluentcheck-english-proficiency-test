@@ -2174,6 +2174,8 @@ export const UserScalarFieldEnum = {
   normalizedEmail: 'normalizedEmail',
   password: 'password',
   googleSubject: 'googleSubject',
+  fullName: 'fullName',
+  studentNumber: 'studentNumber',
   role: 'role',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -2246,6 +2248,8 @@ export const SubmissionScalarFieldEnum = {
   retentionStatus: 'retentionStatus',
   scoringSystem: 'scoringSystem',
   paymentRequired: 'paymentRequired',
+  consentedAt: 'consentedAt',
+  consentVersion: 'consentVersion',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

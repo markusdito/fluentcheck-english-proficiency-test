@@ -157,12 +157,45 @@ test("/me resolves the active account once and returns its safe current projecti
           email: "current_student@example.test",
           role: "STUDENT",
           createdAt: user.createdAt.toISOString(),
+          fullName: null,
+          studentNumber: null,
         },
       },
     });
     assert.equal(counts.findFirst, 1);
     assert.equal(counts.findUnique, 0);
   });
+});
+
+test("a student sets full name and Student ID for the identity check (FR-1.4)", async () => {
+  const user = await createUser("profile_student");
+  const patch = (body: unknown) =>
+    fetch(`${baseUrl}/api/auth/me`, {
+      method: "PATCH",
+      headers: { Cookie: cookieFor(user.id), "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  const invalid = await patch({ fullName: " ", studentNumber: "12 34" });
+  assert.equal(invalid.status, 400);
+  assert.deepEqual(Object.keys((await invalid.json()).errors).sort(), ["fullName", "studentNumber"]);
+  assert.equal((await patch({ fullName: "A", studentNumber: "1", role: "ADMIN" })).status, 400);
+
+  const updated = await patch({ fullName: "  Siti Rahma ", studentNumber: "2024-001" });
+  assert.equal(updated.status, 200);
+  assert.equal((await updated.json()).data.user.fullName, "Siti Rahma");
+
+  const me = await (await request("GET", "/auth/me", cookieFor(user.id))).json();
+  assert.equal(me.data.user.fullName, "Siti Rahma");
+  assert.equal(me.data.user.studentNumber, "2024-001");
+  assert.equal(me.data.user.role, "STUDENT");
+
+  const anonymous = await fetch(`${baseUrl}/api/auth/me`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fullName: "X", studentNumber: "1" }),
+  });
+  assert.equal(anonymous.status, 401);
 });
 
 test("missing, invalid, and deactivated authentication share one stable response", async () => {

@@ -19,6 +19,7 @@ let resumeManifestSubmission: typeof import("../../src/service/manifestSubmissio
 let AssessmentUnavailableError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").AssessmentUnavailableError;
 let IdempotencyKeyConflictError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").IdempotencyKeyConflictError;
 let ActiveSubmissionConflictError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").ActiveSubmissionConflictError;
+let CONSENT_TEXT_VERSION: string;
 let AssessmentStartIntentClosedError: typeof import("../../src/service/manifestSubmissionInitialization.service.js").AssessmentStartIntentClosedError;
 let app: Express;
 let server: Server;
@@ -49,6 +50,7 @@ before(async () => {
     IdempotencyKeyConflictError,
     ActiveSubmissionConflictError,
     AssessmentStartIntentClosedError,
+    CONSENT_TEXT_VERSION,
   } = await import("../../src/service/manifestSubmissionInitialization.service.js"));
   const { createApp } = await import("../../src/server.js");
   app = createApp();
@@ -211,7 +213,9 @@ test("unavailable assessment persists no Submission", async () => {
     headers: {
       Cookie: `jwt=${jwt.sign({ id: student.id }, process.env.JWT_SECRET!)}`,
       "Idempotency-Key": "http-empty-key",
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({ consentVersion: CONSENT_TEXT_VERSION }),
   });
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("retry-after"), "5");
@@ -862,6 +866,7 @@ test("http start supersedes a stale unfinished attempt and active serves the edi
     fetch(`${baseUrl}/api/submissions`, {
       method: "POST",
       headers: { Cookie: cookie, "Idempotency-Key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ consentVersion: CONSENT_TEXT_VERSION }),
     });
 
   const firstResponse = await start("http-stale-key");
@@ -903,6 +908,33 @@ test("http start supersedes a stale unfinished attempt and active serves the edi
   const activeResponse = await fetch(`${baseUrl}/api/submissions/active`, { headers: { Cookie: cookie } });
   assert.equal(activeResponse.status, 200);
   assert.equal((await activeResponse.json()).data.submissionId, second.submissionId);
+});
+
+test("http start requires informed consent and records it on the Submission", async () => {
+  const student = await createStudent();
+  await createUploadedBank("consent task");
+  const cookie = `jwt=${jwt.sign({ id: student.id }, process.env.JWT_SECRET!)}`;
+  const start = (body?: unknown) =>
+    fetch(`${baseUrl}/api/submissions`, {
+      method: "POST",
+      headers: { Cookie: cookie, "Idempotency-Key": crypto.randomUUID(), "Content-Type": "application/json" },
+      ...(body !== undefined && { body: JSON.stringify(body) }),
+    });
+
+  for (const body of [undefined, {}, { consentVersion: "outdated" }]) {
+    const refused = await start(body);
+    assert.equal(refused.status, 400);
+    assert.equal((await refused.json()).code, "CONSENT_REQUIRED");
+  }
+  assert.equal(await prisma.submission.count({ where: { studentId: student.id } }), 0);
+
+  const before = Date.now();
+  const accepted = await start({ consentVersion: CONSENT_TEXT_VERSION });
+  assert.equal(accepted.status, 201);
+  const { submissionId } = (await accepted.json()).data;
+  const stored = await prisma.submission.findUniqueOrThrow({ where: { id: submissionId } });
+  assert.equal(stored.consentVersion, CONSENT_TEXT_VERSION);
+  assert.ok(stored.consentedAt && stored.consentedAt.getTime() >= before - 1000);
 });
 
 test("the Practice Test Set is never delivered as a real Assessment and serves practice without a Submission", async () => {
