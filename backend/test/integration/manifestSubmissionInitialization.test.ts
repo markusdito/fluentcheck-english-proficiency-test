@@ -904,3 +904,42 @@ test("http start supersedes a stale unfinished attempt and active serves the edi
   assert.equal(activeResponse.status, 200);
   assert.equal((await activeResponse.json()).data.submissionId, second.submissionId);
 });
+
+test("the Practice Test Set is never delivered as a real Assessment and serves practice without a Submission", async () => {
+  await prisma.question.updateMany({ data: { deletedAt: new Date() } });
+  const practice = await prisma.testSet.upsert({
+    where: { code: "Practice_Question" },
+    update: {},
+    create: { code: "Practice_Question" },
+  });
+  const addPractice = async () => {
+    for (const category of SLOTS) await createEligibleQuestion(practice.id, category, `${category} practice task`);
+  };
+  await addPractice();
+
+  // Practice alone is not a deliverable Assessment.
+  const student = await createStudent();
+  await assert.rejects(
+    initializeManifestSubmission(student.id, "practice-only-key", { chooseIndex: () => 0, signPromptMedia }),
+    AssessmentUnavailableError,
+  );
+
+  // With a real set present, every start picks the real set.
+  const [real] = await createUploadedBank("real task");
+  await addPractice();
+  const lengths: number[] = [];
+  const result = await initializeManifestSubmission(student.id, "practice-real-key", {
+    chooseIndex: (length) => (lengths.push(length), length - 1),
+    signPromptMedia,
+  });
+  assert.deepEqual(lengths, [1]);
+  assert.equal(result.testSet?.id, real!.id);
+
+  const { buildPracticeDelivery } = await import("../../src/service/test-question-delivery.service.js");
+  const before = await prisma.submission.count();
+  const delivery = await buildPracticeDelivery(signPromptMedia, signPromptMedia);
+  assert.equal(delivery.testSet.id, practice.id);
+  assert.deepEqual(delivery.entries.map((entry) => entry.category), [...SLOTS]);
+  assert.deepEqual(delivery.entries.map((entry) => entry.tasks[0]!.promptText), SLOTS.map((c) => `${c} practice task`));
+  assert.equal(await prisma.submission.count(), before);
+});
