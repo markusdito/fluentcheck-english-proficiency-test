@@ -132,7 +132,7 @@ Test Sets A–F must be **piloted** to verify equal difficulty before launch. Un
 2. Dashboard → **Start new assessment**. System enforces at most one `IN_PROGRESS` Submission per student (an existing one is resumed, not duplicated). Earlier Submissions still in payment or scoring do **not** block a new Assessment and no warning is shown.
 3. **Informed consent**: student reads and accepts that every answer is recorded as webcam video (camera + microphone), what they are used for, who can view them, and that they are deleted after the scoring period (UU PDP). No recording starts before consent.
 4. **System check** (1–2 min): welcome prompt audio plays; student grants microphone and camera permission, adjusts the headset mic, presses **Record Test** and says *"My name is [Full Name] and my Student ID is [Number]."*, plays it back, and watches the audio level meter. The **Start Assessment** button stays disabled until the system detects audio in the test clip and the camera stream is live.
-5. **Practice item**: one unscored sample task to get familiar with the screen, prompt audio, countdowns and recording indicator.
+5. **Practice item**: one unscored sample task to get familiar with the screen, prompt audio, countdowns and recording indicator. *Implemented in v1 as an optional, separate practice run of all 5 slots from the `Practice_Question` Test Set, offered to first-time students before their first real test; it has its own consent + system check and the real test runs a fresh one.*
 6. **Parts 1–4**, for each slot in order (1A → 1B → 2 → 3 → 4):
    1. Prompt audio plays and the onscreen content appears. The student may replay the prompt audio once (2 plays total).
    2. Preparation countdown runs.
@@ -332,7 +332,7 @@ Given `RUBRIC_CRITERIA = [pronunciation, fluency, vocabulary, grammar]`:
 3. Length of the "scoring period" retention window before deletion, and what happens to recordings of Submissions that never get paid.
 4. Integrity: preparation is not recorded, so brief Part 2 paper notes are only visible if the student reads them on camera while answering. Are notes allowed while speaking in Part 2, or only during preparation?
 5. Can a student end a response early ("Done speaking"), or must every slot run to the full speaking time?
-6. Practice item content and timing. Store the practice recording later? (Deferred until a concrete need, e.g. support tickets or pilot analysis.)
+6. Practice item content and timing (v1: admin-edited `Practice_Question` Test Set). Should practice become one in-flow sample slot before Task 1A in every real test instead of an optional run? Store the practice recording later? (Deferred until a concrete need, e.g. support tickets or pilot analysis.)
 7. Browser crash or device power loss mid-test: currently abandons like a deliberate exit. Should it be treated as a network-loss resume instead?
 8. Grace period before a silent heartbeat counts as abandonment (FR-2.8).
 9. Safari WebM playback: record MP4 where the browser supports it vs server transcode to MP4/H.264+AAC?
