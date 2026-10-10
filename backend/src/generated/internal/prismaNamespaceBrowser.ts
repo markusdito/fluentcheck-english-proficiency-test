@@ -71,6 +71,7 @@ export const ModelName = {
   Answer: 'Answer',
   SubmissionFlag: 'SubmissionFlag',
   RetakeCredit: 'RetakeCredit',
+  SubmissionPaymentWaiver: 'SubmissionPaymentWaiver',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
   ExaminerAssignmentReassignment: 'ExaminerAssignmentReassignment',
@@ -419,6 +420,17 @@ export const RetakeCreditScalarFieldEnum = {
 export type RetakeCreditScalarFieldEnum = (typeof RetakeCreditScalarFieldEnum)[keyof typeof RetakeCreditScalarFieldEnum]
 
 
+export const SubmissionPaymentWaiverScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  adminId: 'adminId',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type SubmissionPaymentWaiverScalarFieldEnum = (typeof SubmissionPaymentWaiverScalarFieldEnum)[keyof typeof SubmissionPaymentWaiverScalarFieldEnum]
+
+
 export const PaymentScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
@@ -459,6 +471,7 @@ export const ExaminerAssignmentReassignmentScalarFieldEnum = {
   newExaminerId: 'newExaminerId',
   actingAdminId: 'actingAdminId',
   reason: 'reason',
+  note: 'note',
   createdAt: 'createdAt'
 } as const
 

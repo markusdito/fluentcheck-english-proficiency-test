@@ -404,6 +404,7 @@ export const ModelName = {
   Answer: 'Answer',
   SubmissionFlag: 'SubmissionFlag',
   RetakeCredit: 'RetakeCredit',
+  SubmissionPaymentWaiver: 'SubmissionPaymentWaiver',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
   ExaminerAssignmentReassignment: 'ExaminerAssignmentReassignment',
@@ -424,7 +425,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "submissionFlag" | "retakeCredit" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
+    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "submissionFlag" | "retakeCredit" | "submissionPaymentWaiver" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1908,6 +1909,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    SubmissionPaymentWaiver: {
+      payload: Prisma.$SubmissionPaymentWaiverPayload<ExtArgs>
+      fields: Prisma.SubmissionPaymentWaiverFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SubmissionPaymentWaiverFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SubmissionPaymentWaiverFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        findFirst: {
+          args: Prisma.SubmissionPaymentWaiverFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SubmissionPaymentWaiverFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        findMany: {
+          args: Prisma.SubmissionPaymentWaiverFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>[]
+        }
+        create: {
+          args: Prisma.SubmissionPaymentWaiverCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        createMany: {
+          args: Prisma.SubmissionPaymentWaiverCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SubmissionPaymentWaiverCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>[]
+        }
+        delete: {
+          args: Prisma.SubmissionPaymentWaiverDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        update: {
+          args: Prisma.SubmissionPaymentWaiverUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        deleteMany: {
+          args: Prisma.SubmissionPaymentWaiverDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SubmissionPaymentWaiverUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SubmissionPaymentWaiverUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>[]
+        }
+        upsert: {
+          args: Prisma.SubmissionPaymentWaiverUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        aggregate: {
+          args: Prisma.SubmissionPaymentWaiverAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSubmissionPaymentWaiver>
+        }
+        groupBy: {
+          args: Prisma.SubmissionPaymentWaiverGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionPaymentWaiverGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SubmissionPaymentWaiverCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionPaymentWaiverCountAggregateOutputType> | number
+        }
+      }
+    }
     Payment: {
       payload: Prisma.$PaymentPayload<ExtArgs>
       fields: Prisma.PaymentFieldRefs
@@ -2642,6 +2717,17 @@ export const RetakeCreditScalarFieldEnum = {
 export type RetakeCreditScalarFieldEnum = (typeof RetakeCreditScalarFieldEnum)[keyof typeof RetakeCreditScalarFieldEnum]
 
 
+export const SubmissionPaymentWaiverScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  adminId: 'adminId',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type SubmissionPaymentWaiverScalarFieldEnum = (typeof SubmissionPaymentWaiverScalarFieldEnum)[keyof typeof SubmissionPaymentWaiverScalarFieldEnum]
+
+
 export const PaymentScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
@@ -2682,6 +2768,7 @@ export const ExaminerAssignmentReassignmentScalarFieldEnum = {
   newExaminerId: 'newExaminerId',
   actingAdminId: 'actingAdminId',
   reason: 'reason',
+  note: 'note',
   createdAt: 'createdAt'
 } as const
 
@@ -3251,6 +3338,7 @@ export type GlobalOmitConfig = {
   answer?: Prisma.AnswerOmit
   submissionFlag?: Prisma.SubmissionFlagOmit
   retakeCredit?: Prisma.RetakeCreditOmit
+  submissionPaymentWaiver?: Prisma.SubmissionPaymentWaiverOmit
   payment?: Prisma.PaymentOmit
   examinerAssignment?: Prisma.ExaminerAssignmentOmit
   examinerAssignmentReassignment?: Prisma.ExaminerAssignmentReassignmentOmit

@@ -242,6 +242,7 @@ export type SubmissionWhereInput = {
   flags?: Prisma.SubmissionFlagListRelationFilter
   retakeCreditGranted?: Prisma.XOR<Prisma.RetakeCreditNullableScalarRelationFilter, Prisma.RetakeCreditWhereInput> | null
   retakeCreditRedeemed?: Prisma.XOR<Prisma.RetakeCreditNullableScalarRelationFilter, Prisma.RetakeCreditWhereInput> | null
+  paymentWaiver?: Prisma.XOR<Prisma.SubmissionPaymentWaiverNullableScalarRelationFilter, Prisma.SubmissionPaymentWaiverWhereInput> | null
   answers?: Prisma.AnswerListRelationFilter
   manifest?: Prisma.XOR<Prisma.SubmissionManifestNullableScalarRelationFilter, Prisma.SubmissionManifestWhereInput> | null
   payments?: Prisma.PaymentListRelationFilter
@@ -271,6 +272,7 @@ export type SubmissionOrderByWithRelationInput = {
   flags?: Prisma.SubmissionFlagOrderByRelationAggregateInput
   retakeCreditGranted?: Prisma.RetakeCreditOrderByWithRelationInput
   retakeCreditRedeemed?: Prisma.RetakeCreditOrderByWithRelationInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverOrderByWithRelationInput
   answers?: Prisma.AnswerOrderByRelationAggregateInput
   manifest?: Prisma.SubmissionManifestOrderByWithRelationInput
   payments?: Prisma.PaymentOrderByRelationAggregateInput
@@ -303,6 +305,7 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   flags?: Prisma.SubmissionFlagListRelationFilter
   retakeCreditGranted?: Prisma.XOR<Prisma.RetakeCreditNullableScalarRelationFilter, Prisma.RetakeCreditWhereInput> | null
   retakeCreditRedeemed?: Prisma.XOR<Prisma.RetakeCreditNullableScalarRelationFilter, Prisma.RetakeCreditWhereInput> | null
+  paymentWaiver?: Prisma.XOR<Prisma.SubmissionPaymentWaiverNullableScalarRelationFilter, Prisma.SubmissionPaymentWaiverWhereInput> | null
   answers?: Prisma.AnswerListRelationFilter
   manifest?: Prisma.XOR<Prisma.SubmissionManifestNullableScalarRelationFilter, Prisma.SubmissionManifestWhereInput> | null
   payments?: Prisma.PaymentListRelationFilter
@@ -367,6 +370,7 @@ export type SubmissionCreateInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -395,6 +399,7 @@ export type SubmissionUncheckedCreateInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -423,6 +428,7 @@ export type SubmissionUpdateInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -451,6 +457,7 @@ export type SubmissionUncheckedUpdateInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -784,6 +791,20 @@ export type SubmissionUpdateOneWithoutRetakeCreditRedeemedNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutRetakeCreditRedeemedInput, Prisma.SubmissionUpdateWithoutRetakeCreditRedeemedInput>, Prisma.SubmissionUncheckedUpdateWithoutRetakeCreditRedeemedInput>
 }
 
+export type SubmissionCreateNestedOneWithoutPaymentWaiverInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedCreateWithoutPaymentWaiverInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutPaymentWaiverInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+}
+
+export type SubmissionUpdateOneRequiredWithoutPaymentWaiverNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedCreateWithoutPaymentWaiverInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutPaymentWaiverInput
+  upsert?: Prisma.SubmissionUpsertWithoutPaymentWaiverInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutPaymentWaiverInput, Prisma.SubmissionUpdateWithoutPaymentWaiverInput>, Prisma.SubmissionUncheckedUpdateWithoutPaymentWaiverInput>
+}
+
 export type SubmissionCreateNestedOneWithoutPaymentsInput = {
   create?: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentsInput, Prisma.SubmissionUncheckedCreateWithoutPaymentsInput>
   connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutPaymentsInput
@@ -841,6 +862,7 @@ export type SubmissionCreateWithoutStudentInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -868,6 +890,7 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -940,6 +963,7 @@ export type SubmissionCreateWithoutRetentionHoldsInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -967,6 +991,7 @@ export type SubmissionUncheckedCreateWithoutRetentionHoldsInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1010,6 +1035,7 @@ export type SubmissionUpdateWithoutRetentionHoldsInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1037,6 +1063,7 @@ export type SubmissionUncheckedUpdateWithoutRetentionHoldsInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1064,6 +1091,7 @@ export type SubmissionCreateWithoutPurgeRequestsInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1091,6 +1119,7 @@ export type SubmissionUncheckedCreateWithoutPurgeRequestsInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1134,6 +1163,7 @@ export type SubmissionUpdateWithoutPurgeRequestsInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1161,6 +1191,7 @@ export type SubmissionUncheckedUpdateWithoutPurgeRequestsInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1188,6 +1219,7 @@ export type SubmissionCreateWithoutPurgeObjectsInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1215,6 +1247,7 @@ export type SubmissionUncheckedCreateWithoutPurgeObjectsInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1258,6 +1291,7 @@ export type SubmissionUpdateWithoutPurgeObjectsInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1285,6 +1319,7 @@ export type SubmissionUncheckedUpdateWithoutPurgeObjectsInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1312,6 +1347,7 @@ export type SubmissionCreateWithoutRetentionAuditEventsInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1339,6 +1375,7 @@ export type SubmissionUncheckedCreateWithoutRetentionAuditEventsInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1382,6 +1419,7 @@ export type SubmissionUpdateWithoutRetentionAuditEventsInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1409,6 +1447,7 @@ export type SubmissionUncheckedUpdateWithoutRetentionAuditEventsInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1436,6 +1475,7 @@ export type SubmissionCreateWithoutStartIntentInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1463,6 +1503,7 @@ export type SubmissionUncheckedCreateWithoutStartIntentInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1506,6 +1547,7 @@ export type SubmissionUpdateWithoutStartIntentInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1533,6 +1575,7 @@ export type SubmissionUncheckedUpdateWithoutStartIntentInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1560,6 +1603,7 @@ export type SubmissionCreateWithoutManifestInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
@@ -1587,6 +1631,7 @@ export type SubmissionUncheckedCreateWithoutManifestInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1630,6 +1675,7 @@ export type SubmissionUpdateWithoutManifestInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
@@ -1657,6 +1703,7 @@ export type SubmissionUncheckedUpdateWithoutManifestInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1684,6 +1731,7 @@ export type SubmissionCreateWithoutAnswersInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
@@ -1711,6 +1759,7 @@ export type SubmissionUncheckedCreateWithoutAnswersInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1754,6 +1803,7 @@ export type SubmissionUpdateWithoutAnswersInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
@@ -1781,6 +1831,7 @@ export type SubmissionUncheckedUpdateWithoutAnswersInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1807,6 +1858,7 @@ export type SubmissionCreateWithoutFlagsInput = {
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1834,6 +1886,7 @@ export type SubmissionUncheckedCreateWithoutFlagsInput = {
   updatedAt?: Date | string
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1877,6 +1930,7 @@ export type SubmissionUpdateWithoutFlagsInput = {
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1904,6 +1958,7 @@ export type SubmissionUncheckedUpdateWithoutFlagsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1931,6 +1986,7 @@ export type SubmissionCreateWithoutRetakeCreditGrantedInput = {
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1958,6 +2014,7 @@ export type SubmissionUncheckedCreateWithoutRetakeCreditGrantedInput = {
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1990,6 +2047,7 @@ export type SubmissionCreateWithoutRetakeCreditRedeemedInput = {
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -2017,6 +2075,7 @@ export type SubmissionUncheckedCreateWithoutRetakeCreditRedeemedInput = {
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -2060,6 +2119,7 @@ export type SubmissionUpdateWithoutRetakeCreditGrantedInput = {
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -2087,6 +2147,7 @@ export type SubmissionUncheckedUpdateWithoutRetakeCreditGrantedInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2125,6 +2186,7 @@ export type SubmissionUpdateWithoutRetakeCreditRedeemedInput = {
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -2152,6 +2214,135 @@ export type SubmissionUncheckedUpdateWithoutRetakeCreditRedeemedInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionCreateWithoutPaymentWaiverInput = {
+  id?: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionUncheckedCreateWithoutPaymentWaiverInput = {
+  id?: string
+  studentId: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionCreateOrConnectWithoutPaymentWaiverInput = {
+  where: Prisma.SubmissionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedCreateWithoutPaymentWaiverInput>
+}
+
+export type SubmissionUpsertWithoutPaymentWaiverInput = {
+  update: Prisma.XOR<Prisma.SubmissionUpdateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedUpdateWithoutPaymentWaiverInput>
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedCreateWithoutPaymentWaiverInput>
+  where?: Prisma.SubmissionWhereInput
+}
+
+export type SubmissionUpdateToOneWithWhereWithoutPaymentWaiverInput = {
+  where?: Prisma.SubmissionWhereInput
+  data: Prisma.XOR<Prisma.SubmissionUpdateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedUpdateWithoutPaymentWaiverInput>
+}
+
+export type SubmissionUpdateWithoutPaymentWaiverInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionUncheckedUpdateWithoutPaymentWaiverInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  studentId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2180,6 +2371,7 @@ export type SubmissionCreateWithoutPaymentsInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
@@ -2207,6 +2399,7 @@ export type SubmissionUncheckedCreateWithoutPaymentsInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -2250,6 +2443,7 @@ export type SubmissionUpdateWithoutPaymentsInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
@@ -2277,6 +2471,7 @@ export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2304,6 +2499,7 @@ export type SubmissionCreateWithoutAssignmentsInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -2331,6 +2527,7 @@ export type SubmissionUncheckedCreateWithoutAssignmentsInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -2374,6 +2571,7 @@ export type SubmissionUpdateWithoutAssignmentsInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -2401,6 +2599,7 @@ export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2428,6 +2627,7 @@ export type SubmissionCreateWithoutCertificateInput = {
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -2455,6 +2655,7 @@ export type SubmissionUncheckedCreateWithoutCertificateInput = {
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -2498,6 +2699,7 @@ export type SubmissionUpdateWithoutCertificateInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -2525,6 +2727,7 @@ export type SubmissionUncheckedUpdateWithoutCertificateInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2565,6 +2768,7 @@ export type SubmissionUpdateWithoutStudentInput = {
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -2592,6 +2796,7 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
   retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2729,6 +2934,7 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   flags?: boolean | Prisma.Submission$flagsArgs<ExtArgs>
   retakeCreditGranted?: boolean | Prisma.Submission$retakeCreditGrantedArgs<ExtArgs>
   retakeCreditRedeemed?: boolean | Prisma.Submission$retakeCreditRedeemedArgs<ExtArgs>
+  paymentWaiver?: boolean | Prisma.Submission$paymentWaiverArgs<ExtArgs>
   answers?: boolean | Prisma.Submission$answersArgs<ExtArgs>
   manifest?: boolean | Prisma.Submission$manifestArgs<ExtArgs>
   payments?: boolean | Prisma.Submission$paymentsArgs<ExtArgs>
@@ -2795,6 +3001,7 @@ export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   flags?: boolean | Prisma.Submission$flagsArgs<ExtArgs>
   retakeCreditGranted?: boolean | Prisma.Submission$retakeCreditGrantedArgs<ExtArgs>
   retakeCreditRedeemed?: boolean | Prisma.Submission$retakeCreditRedeemedArgs<ExtArgs>
+  paymentWaiver?: boolean | Prisma.Submission$paymentWaiverArgs<ExtArgs>
   answers?: boolean | Prisma.Submission$answersArgs<ExtArgs>
   manifest?: boolean | Prisma.Submission$manifestArgs<ExtArgs>
   payments?: boolean | Prisma.Submission$paymentsArgs<ExtArgs>
@@ -2821,6 +3028,7 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     flags: Prisma.$SubmissionFlagPayload<ExtArgs>[]
     retakeCreditGranted: Prisma.$RetakeCreditPayload<ExtArgs> | null
     retakeCreditRedeemed: Prisma.$RetakeCreditPayload<ExtArgs> | null
+    paymentWaiver: Prisma.$SubmissionPaymentWaiverPayload<ExtArgs> | null
     answers: Prisma.$AnswerPayload<ExtArgs>[]
     manifest: Prisma.$SubmissionManifestPayload<ExtArgs> | null
     payments: Prisma.$PaymentPayload<ExtArgs>[]
@@ -3243,6 +3451,7 @@ export interface Prisma__SubmissionClient<T, Null = never, ExtArgs extends runti
   flags<T extends Prisma.Submission$flagsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$flagsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionFlagPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   retakeCreditGranted<T extends Prisma.Submission$retakeCreditGrantedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$retakeCreditGrantedArgs<ExtArgs>>): Prisma.Prisma__RetakeCreditClient<runtime.Types.Result.GetResult<Prisma.$RetakeCreditPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   retakeCreditRedeemed<T extends Prisma.Submission$retakeCreditRedeemedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$retakeCreditRedeemedArgs<ExtArgs>>): Prisma.Prisma__RetakeCreditClient<runtime.Types.Result.GetResult<Prisma.$RetakeCreditPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  paymentWaiver<T extends Prisma.Submission$paymentWaiverArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$paymentWaiverArgs<ExtArgs>>): Prisma.Prisma__SubmissionPaymentWaiverClient<runtime.Types.Result.GetResult<Prisma.$SubmissionPaymentWaiverPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   answers<T extends Prisma.Submission$answersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$answersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AnswerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   manifest<T extends Prisma.Submission$manifestArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$manifestArgs<ExtArgs>>): Prisma.Prisma__SubmissionManifestClient<runtime.Types.Result.GetResult<Prisma.$SubmissionManifestPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   payments<T extends Prisma.Submission$paymentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -3754,6 +3963,25 @@ export type Submission$retakeCreditRedeemedArgs<ExtArgs extends runtime.Types.Ex
    */
   include?: Prisma.RetakeCreditInclude<ExtArgs> | null
   where?: Prisma.RetakeCreditWhereInput
+}
+
+/**
+ * Submission.paymentWaiver
+ */
+export type Submission$paymentWaiverArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionPaymentWaiver
+   */
+  select?: Prisma.SubmissionPaymentWaiverSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionPaymentWaiver
+   */
+  omit?: Prisma.SubmissionPaymentWaiverOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionPaymentWaiverInclude<ExtArgs> | null
+  where?: Prisma.SubmissionPaymentWaiverWhereInput
 }
 
 /**

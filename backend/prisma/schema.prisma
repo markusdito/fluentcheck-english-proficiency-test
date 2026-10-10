@@ -188,6 +188,7 @@ model User {
   flagsRaised            SubmissionFlag[]                 @relation("FlagRaisedBy")
   flagsResolved          SubmissionFlag[]                 @relation("FlagResolvedBy")
   retakeCredits          RetakeCredit[]
+  paymentWaivers         SubmissionPaymentWaiver[]
 
   @@index([role])
 }
@@ -281,6 +282,7 @@ model Submission {
   flags                SubmissionFlag[]
   retakeCreditGranted  RetakeCredit?             @relation("RetakeCreditVoided")
   retakeCreditRedeemed RetakeCredit?             @relation("RetakeCreditRedeemed")
+  paymentWaiver        SubmissionPaymentWaiver?
   answers              Answer[]
   manifest             SubmissionManifest?
   payments             Payment[]
@@ -587,6 +589,20 @@ model RetakeCredit {
   @@index([studentId, redeemedSubmissionId])
 }
 
+// An Admin waived payment for one Submission (PRD FR-7.3). The row is the
+// audit record; a Submission is waived at most once.
+model SubmissionPaymentWaiver {
+  id           String     @id @default(uuid()) @db.Uuid
+  submissionId String     @unique @db.Uuid
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  adminId      String     @db.Uuid
+  admin        User       @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  reason       String
+  createdAt    DateTime   @default(now()) @db.Timestamptz()
+
+  @@index([adminId])
+}
+
 model Payment {
   id                    String        @id @default(uuid()) @db.Uuid
   submissionId          String        @db.Uuid
@@ -639,7 +655,8 @@ model ExaminerAssignmentReassignment {
   newExaminer        User               @relation("ReassignmentNewExaminer", fields: [newExaminerId], references: [id], onDelete: Restrict)
   actingAdminId      String             @db.Uuid
   actingAdmin        User               @relation("ReassignmentActingAdmin", fields: [actingAdminId], references: [id], onDelete: Restrict)
-  reason             String
+  reason             String // ACCOUNT_ROLE_TRANSITION, ACCOUNT_DEACTIVATION or ADMIN_REASSIGNMENT
+  note               String? // the Admin's reason for a standalone ADMIN_REASSIGNMENT
   createdAt          DateTime           @default(now()) @db.Timestamptz()
 
   @@index([assignmentId, createdAt])

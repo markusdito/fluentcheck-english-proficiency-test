@@ -30,6 +30,11 @@ import {
   dismissSubmissionFlag,
   listFlags,
 } from "../controllers/submissionFlag.controller.js";
+import {
+  listQueues,
+  reassignAssignment,
+  waivePayment,
+} from "../controllers/adminOps.controller.js";
 
 const router = Router();
 
@@ -41,6 +46,9 @@ router.get("/users/:id/role-transition-preview", getRoleTransitionPreview);
 router.put("/users/:id/role", updateUserRole);
 router.get("/examiners", getExaminers);
 router.post("/submissions/:id/assign", assignSubmission);
+router.post("/submissions/:id/payment-waiver", waivePayment);
+router.post("/assignments/:id/reassign", reassignAssignment);
+router.get("/queues", listQueues);
 router.post("/submissions/:id/purge-request", requestPurge);
 router.post("/submissions/:id/retention-holds", addRetentionHold);
 router.get("/submissions/purge-requests/:id", getPurgeRequest);

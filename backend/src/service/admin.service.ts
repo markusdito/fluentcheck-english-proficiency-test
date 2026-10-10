@@ -32,6 +32,7 @@ import {
   type AccountTransitionResult,
   type AccountTransitionPreview,
 } from "./accountTransition.service.js";
+import { isReassignable } from "./adminOps.service.js";
 
 export interface ListUsersParams {
   page: number;
@@ -168,6 +169,9 @@ export async function getAdminSubmissionDetail(submissionId: string) {
       },
       retakeCreditGranted: { select: { redeemedSubmissionId: true, redeemedAt: true } },
       retakeCreditRedeemed: { select: { voidedSubmissionId: true } },
+      paymentWaiver: {
+        select: { reason: true, createdAt: true, admin: { select: { username: true } } },
+      },
       payments: {
         orderBy: { createdAt: "desc" },
         select: {
@@ -194,6 +198,19 @@ export async function getAdminSubmissionDetail(submissionId: string) {
           updatedAt: true,
           examiner: {
             select: { id: true, username: true, email: true },
+          },
+          _count: { select: { scores: true } },
+          reassignmentHistory: {
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            select: {
+              id: true,
+              reason: true,
+              note: true,
+              createdAt: true,
+              previousExaminer: { select: { username: true } },
+              newExaminer: { select: { username: true } },
+              actingAdmin: { select: { username: true } },
+            },
           },
           scores: {
             where: { answerId: null },
@@ -401,6 +418,14 @@ export async function getAdminSubmissionDetail(submissionId: string) {
       resolvedBy: flag.resolvedBy?.username ?? null,
     })),
     retakeCredit: submission.retakeCreditGranted,
+    // Audit of an Admin's per-Submission payment waiver (PRD FR-7.3).
+    paymentWaiver: submission.paymentWaiver
+      ? {
+          reason: submission.paymentWaiver.reason,
+          createdAt: submission.paymentWaiver.createdAt,
+          adminName: submission.paymentWaiver.admin.username,
+        }
+      : null,
     waivedByRetakeCreditFrom: submission.retakeCreditRedeemed?.voidedSubmissionId ?? null,
     assignments: submission.assignments.map((assignment) => ({
       id: assignment.id,
@@ -412,6 +437,16 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         name: assignment.examiner.username,
         email: assignment.examiner.email,
       },
+      reassignable: isReassignable(submission.status, assignment.status, assignment._count.scores),
+      reassignmentHistory: assignment.reassignmentHistory.map((entry) => ({
+        id: entry.id,
+        reason: entry.reason,
+        note: entry.note,
+        createdAt: entry.createdAt,
+        previousExaminerName: entry.previousExaminer.username,
+        newExaminerName: entry.newExaminer.username,
+        actingAdminName: entry.actingAdmin.username,
+      })),
       // Admin-only: this Examiner's whole-Submission Score (draft or final).
       score: assignment.scores[0]
         ? {
