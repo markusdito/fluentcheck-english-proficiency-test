@@ -16,6 +16,13 @@ const ACCOUNT_STATE_SELECT = {
   deletedAt: true,
 } as const;
 
+// The password column is read only to learn whether a local credential exists;
+// the hash is discarded immediately and never leaves resolveInTransaction.
+const EMAIL_MATCH_SELECT = {
+  ...ACCOUNT_STATE_SELECT,
+  password: true,
+} as const;
+
 const MAX_USERNAME_LENGTH = 50;
 const MAX_ACCOUNT_RESOLUTION_ATTEMPTS = 4;
 const GOOGLE_ISSUERS = new Set([
@@ -232,11 +239,13 @@ async function resolveInTransaction(
     };
   }
 
-  const byEmail = await database.user.findUnique({
+  const emailMatch = await database.user.findUnique({
     where: { normalizedEmail },
-    select: ACCOUNT_STATE_SELECT,
+    select: EMAIL_MATCH_SELECT,
   });
-  if (byEmail) {
+  if (emailMatch) {
+    const { password, ...byEmail } = emailMatch;
+    const hasLocalPassword = password !== null;
     if (byEmail.deletedAt) {
       throw new GoogleAccountResolutionError("account_inactive");
     }
@@ -252,12 +261,20 @@ async function resolveInTransaction(
         createdAt: byEmail.createdAt,
       };
     }
-    if (!isAuthoritativeEmail(identity, normalizedEmail)) {
+    // Local registration does not prove email ownership, so a password
+    // account may have been pre-registered by someone else. Never hand it to
+    // the Google identity; the owner must sign in with email and password.
+    if (hasLocalPassword || !isAuthoritativeEmail(identity, normalizedEmail)) {
       throw new GoogleAccountResolutionError("account_conflict");
     }
 
     const linked = await database.user.updateMany({
-      where: { id: byEmail.id, googleSubject: null, deletedAt: null },
+      where: {
+        id: byEmail.id,
+        googleSubject: null,
+        password: null,
+        deletedAt: null,
+      },
       data: { googleSubject: subject },
     });
     if (linked.count !== 1) throw new GoogleAccountResolutionRetry();
