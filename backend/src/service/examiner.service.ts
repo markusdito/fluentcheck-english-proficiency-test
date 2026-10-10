@@ -47,6 +47,8 @@ export interface AssignmentAnswer {
   audioUrl: string | null;
   tasks: { id: string; promptText: string; order: number }[];
   durationSeconds: number | null;
+  technicalFailure: boolean;
+  technicalFailureReason: string | null;
   videoUrl: string | null;
 }
 
@@ -601,6 +603,8 @@ export async function getExaminerAssignmentDetail(
           ? manifestEntry.tasks.map((task) => ({ id: task.id, promptText: task.deliveredText, order: task.deliveredOrder }))
           : answer.question!.tasks,
         durationSeconds: answer.durationSeconds,
+        technicalFailure: answer.technicalFailure,
+        technicalFailureReason: answer.technicalFailureReason,
         videoUrl,
       };
     })

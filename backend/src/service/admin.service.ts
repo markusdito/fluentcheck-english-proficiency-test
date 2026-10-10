@@ -332,6 +332,8 @@ export async function getAdminSubmissionDetail(submissionId: string) {
           : answer.question!.tasks,
         audioUrl,
         durationSeconds: answer.durationSeconds,
+        technicalFailure: answer.technicalFailure,
+        technicalFailureReason: answer.technicalFailureReason,
         uploadStatus: answer.uploadStatus,
         videoUrl,
         score: scoreSummary.score,

@@ -471,6 +471,8 @@ export async function createPresignedUpload(
         verifiedAt: null,
         observedMimeType: null,
         proofVersion: null,
+        technicalFailure: false,
+        technicalFailureReason: null,
       },
       create: {
         submissionId,
@@ -497,16 +499,34 @@ export async function createPresignedUpload(
   return { presignedUrl, storageKey, answerId: answer.id };
 }
 
+/** Below this observed size a take is treated as short or silent (PRD FR-3.8). */
+export const MIN_VERIFIED_ANSWER_BYTES = 8192;
+export const SHORT_RECORDING_REASON = "Recording is shorter than 8 KB; it may be short or silent";
+
+export type AnswerTechnicalFailure = {
+  type: "TECHNICAL_FAILURE" | "CAMERA_DROP";
+  reason: string;
+};
+
+export type ConfirmUploadResult = {
+  technicalFailure: boolean;
+  technicalFailureReason: string | null;
+};
+
 /**
  * Confirm that a video has been uploaded to R2.
- * Updates the Answer record with upload status, size, and duration.
+ * Size comes from storage, never the client. A client-reported failure
+ * (recorder error, camera/mic/connection loss) or an object under 8 KB marks
+ * the Answer `technicalFailure` and opens one flag on the Submission, so the
+ * take is kept for manual review instead of being re-recorded (PRD FR-3.7,
+ * FR-3.8). A zero-byte object is accepted only with a client-reported failure.
  */
 export async function confirmUpload(
   submissionId: string,
   manifestEntryId: string,
   userId: string,
-  _metadata?: { sizeBytes?: number; durationSeconds?: number }
-): Promise<void> {
+  clientFailure?: AnswerTechnicalFailure,
+): Promise<ConfirmUploadResult> {
   // Verify the submission belongs to the user
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
@@ -519,42 +539,78 @@ export async function confirmUpload(
 
   const answer = await prisma.answer.findUnique({
     where: { manifestEntryId },
-    select: { id: true, storageKey: true, bucket: true, mimeType: true, uploadStatus: true, submissionId: true, verifiedAt: true },
+    select: {
+      id: true, storageKey: true, bucket: true, mimeType: true, uploadStatus: true, submissionId: true,
+      verifiedAt: true, technicalFailure: true, technicalFailureReason: true,
+    },
   });
   if (!answer || answer.submissionId !== submissionId) throw new Error("Manifest entry not found");
-  if (answer.uploadStatus === "UPLOADED" && answer.verifiedAt) return;
+  if (answer.uploadStatus === "UPLOADED" && answer.verifiedAt) {
+    return { technicalFailure: answer.technicalFailure, technicalFailureReason: answer.technicalFailureReason };
+  }
   if (answer.uploadStatus !== "PENDING") throw new Error("Answer upload is not pending");
   if (!VIDEO_KEY_RE.test(answer.storageKey)) throw new Error("Invalid video storage key");
   const observed = await headObject(answer.storageKey, answer.mimeType);
-  if (!observed.exists || observed.contentLength <= 0) throw new Error("Video not found in storage");
+  const minBytes = clientFailure ? 0 : 1;
+  if (!observed.exists || observed.contentLength < minBytes) throw new Error("Video not found in storage");
   if (observed.contentLength > MAX_ANSWER_SIZE_BYTES) throw new Error("Video exceeds maximum size");
   if (!observed.contentType || observed.contentType !== answer.mimeType) {
     throw new Error("Video content-type mismatch");
   }
-  const updated = await prisma.answer.updateMany({
-    where: {
-      id: answer.id,
-      submissionId,
-      uploadStatus: "PENDING",
-      submission: { status: "IN_PROGRESS", retentionStatus: "RETAINED" },
-    },
-    data: {
-      uploadStatus: "UPLOADED",
-      sizeBytes: observed.contentLength,
-      durationSeconds: null,
-      observedMimeType: answer.mimeType,
-      proofVersion: 1,
-      verifiedAt: new Date(),
-    },
+  const failure: AnswerTechnicalFailure | null = clientFailure
+    ?? (observed.contentLength < MIN_VERIFIED_ANSWER_BYTES
+      ? { type: "TECHNICAL_FAILURE", reason: SHORT_RECORDING_REASON }
+      : null);
+
+  const confirmed = await prisma.$transaction(async (tx) => {
+    // Same lock as completeSubmission: the Answer and its flag commit together
+    // before completion evaluates evidence and open flags.
+    await tx.$queryRaw`SELECT "id" FROM "Submission" WHERE "id" = ${submissionId} FOR UPDATE`;
+    const updated = await tx.answer.updateMany({
+      where: {
+        id: answer.id,
+        submissionId,
+        uploadStatus: "PENDING",
+        submission: { status: "IN_PROGRESS", retentionStatus: "RETAINED" },
+      },
+      data: {
+        uploadStatus: "UPLOADED",
+        sizeBytes: observed.contentLength,
+        durationSeconds: null,
+        observedMimeType: answer.mimeType,
+        proofVersion: 1,
+        verifiedAt: new Date(),
+        technicalFailure: failure !== null,
+        technicalFailureReason: failure?.reason ?? null,
+      },
+    });
+    if (updated.count !== 1) return false;
+    if (failure) {
+      await tx.submissionFlag.create({
+        data: {
+          submissionId,
+          type: failure.type,
+          source: "STUDENT_DEVICE",
+          reason: failure.reason,
+          answerId: answer.id,
+          manifestEntryId,
+          raisedById: userId,
+        },
+      });
+    }
+    return true;
   });
-  if (updated.count !== 1) {
+  if (!confirmed) {
     const current = await prisma.answer.findUnique({
       where: { id: answer.id },
-      select: { uploadStatus: true, verifiedAt: true },
+      select: { uploadStatus: true, verifiedAt: true, technicalFailure: true, technicalFailureReason: true },
     });
-    if (current?.uploadStatus === "UPLOADED" && current.verifiedAt) return;
+    if (current?.uploadStatus === "UPLOADED" && current.verifiedAt) {
+      return { technicalFailure: current.technicalFailure, technicalFailureReason: current.technicalFailureReason };
+    }
     throw new Error("Submission is not in progress");
   }
+  return { technicalFailure: failure !== null, technicalFailureReason: failure?.reason ?? null };
 }
 
 /**
