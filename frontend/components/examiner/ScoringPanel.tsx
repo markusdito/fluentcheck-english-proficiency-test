@@ -28,6 +28,8 @@ interface ScoringPanelProps {
   onSave: (score: ScoreSubmissionInput) => Promise<void>;
   onComplete: () => Promise<void>;
   isSubmitting: boolean;
+  /** An open flag pauses scoring: saving and completing are disabled. */
+  paused?: boolean;
   /** Media for the current answer, shown above the rubric. */
   children?: ReactNode;
 }
@@ -44,7 +46,7 @@ const CRITERION_COPY: Record<RubricCriterion, { label: string; description: stri
 // 1.0 … 6.0 in half bands
 const BANDS = Array.from({ length: 11 }, (_, i) => (1 + i / 2).toFixed(1));
 
-const field = `min-h-11 w-full rounded-xl border border-sn-border bg-sn-surface px-3 py-2.5 text-[15px] text-sn-fg transition-colors hover:border-sn-fg/32 ${focusRing}`;
+export const field = `min-h-11 w-full rounded-xl border border-sn-border bg-sn-surface px-3 py-2.5 text-[15px] text-sn-fg transition-colors hover:border-sn-fg/32 ${focusRing}`;
 const label = "grid gap-1.5 text-sm text-sn-muted";
 
 export const partLabel = slotLabel;
@@ -89,6 +91,7 @@ export function ScoringPanel({
   onSave,
   onComplete,
   isSubmitting,
+  paused = false,
   children,
 }: ScoringPanelProps) {
   const rubric6 = scoringSystem === "RUBRIC_6";
@@ -253,10 +256,10 @@ export function ScoringPanel({
         )}
 
         <div className="mt-5 grid gap-3">
-          <button type="button" className={`${primaryButton} w-full`} disabled={isSubmitting} onClick={() => setConfirming(true)}>
+          <button type="button" className={`${primaryButton} w-full`} disabled={isSubmitting || paused} onClick={() => setConfirming(true)}>
             {isSubmitting ? "Saving…" : "Save & complete"}
           </button>
-          <button type="button" className={`${secondaryButton} w-full`} disabled={isSubmitting} onClick={() => void save(false)}>
+          <button type="button" className={`${secondaryButton} w-full`} disabled={isSubmitting || paused} onClick={() => void save(false)}>
             Save draft
           </button>
         </div>
