@@ -158,7 +158,7 @@ function createStoreUnavailableError(
   return new RateLimitStoreUnavailableError(policy.name, policy.failureMode);
 }
 
-function createSafeStore(
+export function createSafeStore(
   store: Store,
   policy: RateLimitPolicy,
   reportFailure: RateLimitFailureReporter,
@@ -183,7 +183,21 @@ function createSafeStore(
     localKeys: store.localKeys,
     prefix: policy.prefix,
     increment: (key) => call("increment", () => store.increment(key)),
-    decrement: (key) => call("decrement", () => store.decrement(key)),
+    // express-rate-limit runs decrement fire-and-forget after the response
+    // finishes (skipSuccessfulRequests / skipFailedRequests), with no catch.
+    // A rejection here would surface as an unhandledRejection and take the
+    // process down, so report the failure and resolve instead.
+    decrement: async (key) => {
+      try {
+        await store.decrement(key);
+      } catch {
+        notifyStoreFailure(reportFailure, {
+          policyName: policy.name,
+          failureMode: policy.failureMode,
+          operation: "decrement",
+        });
+      }
+    },
     resetKey: (key) => call("resetKey", () => store.resetKey(key)),
   };
 
