@@ -667,7 +667,7 @@ export async function issueAnswerVideoUrl(
 }
 
 /** Sign already-authorized answer metadata without querying Prisma. */
-export async function createVideoViewUrlFromMetadata(
+async function createVideoViewUrlFromMetadata(
   storageKey: string,
   bucket?: string | null,
   mimeType?: string | null,
