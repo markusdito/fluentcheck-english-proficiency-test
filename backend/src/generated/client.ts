@@ -132,6 +132,11 @@ export type AppSettings = Prisma.AppSettingsModel
  */
 export type Answer = Prisma.AnswerModel
 /**
+ * Model AnswerMediaViewEvent
+ * 
+ */
+export type AnswerMediaViewEvent = Prisma.AnswerMediaViewEventModel
+/**
  * Model SubmissionFlag
  * 
  */

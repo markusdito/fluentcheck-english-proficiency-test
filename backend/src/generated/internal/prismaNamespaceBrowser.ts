@@ -69,6 +69,7 @@ export const ModelName = {
   ManifestTask: 'ManifestTask',
   AppSettings: 'AppSettings',
   Answer: 'Answer',
+  AnswerMediaViewEvent: 'AnswerMediaViewEvent',
   SubmissionFlag: 'SubmissionFlag',
   RetakeCredit: 'RetakeCredit',
   Payment: 'Payment',
@@ -385,6 +386,22 @@ export const AnswerScalarFieldEnum = {
 } as const
 
 export type AnswerScalarFieldEnum = (typeof AnswerScalarFieldEnum)[keyof typeof AnswerScalarFieldEnum]
+
+
+export const AnswerMediaViewEventScalarFieldEnum = {
+  id: 'id',
+  answerId: 'answerId',
+  submissionId: 'submissionId',
+  viewerId: 'viewerId',
+  viewerRole: 'viewerRole',
+  context: 'context',
+  assignmentId: 'assignmentId',
+  flagId: 'flagId',
+  storageKey: 'storageKey',
+  createdAt: 'createdAt'
+} as const
+
+export type AnswerMediaViewEventScalarFieldEnum = (typeof AnswerMediaViewEventScalarFieldEnum)[keyof typeof AnswerMediaViewEventScalarFieldEnum]
 
 
 export const SubmissionFlagScalarFieldEnum = {

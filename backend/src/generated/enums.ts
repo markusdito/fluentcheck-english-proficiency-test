@@ -187,6 +187,15 @@ export const PromptMediaCleanupObjectStatus = {
 export type PromptMediaCleanupObjectStatus = (typeof PromptMediaCleanupObjectStatus)[keyof typeof PromptMediaCleanupObjectStatus]
 
 
+export const AnswerMediaViewContext = {
+  EXAMINER_ASSIGNMENT: 'EXAMINER_ASSIGNMENT',
+  ADMIN_SUBMISSION: 'ADMIN_SUBMISSION',
+  ADMIN_FLAG_REVIEW: 'ADMIN_FLAG_REVIEW'
+} as const
+
+export type AnswerMediaViewContext = (typeof AnswerMediaViewContext)[keyof typeof AnswerMediaViewContext]
+
+
 export const RetentionAuditAction = {
   RETENTION_HOLD_CREATED: 'RETENTION_HOLD_CREATED',
   RETENTION_HOLD_RELEASED: 'RETENTION_HOLD_RELEASED',
