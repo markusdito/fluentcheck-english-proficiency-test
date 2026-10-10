@@ -352,7 +352,7 @@ All administrator routes require an authenticated ADMIN account.
 | GET | /api/admin/submissions | ADMIN | Lists submissions for administration. |
 
 <!-- route: GET /api/admin/submissions/:id | source=backend/src/routes/admin.routes.ts -->
-| GET | /api/admin/submissions/:id | ADMIN | Returns administrator submission detail, including `paymentWaiver` and, per assignment, `reassignable` and `reassignmentHistory`. |
+| GET | /api/admin/submissions/:id | ADMIN | Returns administrator submission detail; Answers in slot order with audited (`ADMIN_SUBMISSION`) video URLs, `paymentWaiver`, and, per assignment, `reassignable` and `reassignmentHistory`. |
 
 <!-- route: GET /api/admin/stats | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/stats | ADMIN | Returns administrator statistics. |
@@ -516,6 +516,11 @@ mean of the two overall bands, each criterion = mean of the two Examiners'
 bands, unrounded to half-bands. Nothing is shown until both assignments are
 completed. Submissions scored per Answer before this change (and LEGACY_100)
 keep their original per-Answer aggregation.
+
+An open flag pauses scoring: while the Submission is `FLAG_REVIEW` or has an
+unresolved flag, start, Score draft save, and finalization are rejected with
+409 `OPEN_FLAG`. Either assigned Examiner may still raise an integrity concern.
+Dismissing the last open flag returns the Submission to `SCORING`.
 
 ### Admin review queues
 

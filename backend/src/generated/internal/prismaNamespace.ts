@@ -426,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "submissionFlag" | "retakeCredit" | "submissionPaymentWaiver" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
+    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "answerMediaViewEvent" | "submissionFlag" | "retakeCredit" | "submissionPaymentWaiver" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {

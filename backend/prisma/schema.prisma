@@ -196,6 +196,7 @@ model User {
   flagsResolved          SubmissionFlag[]                 @relation("FlagResolvedBy")
   retakeCredits          RetakeCredit[]
   paymentWaivers         SubmissionPaymentWaiver[]
+  answerMediaViews       AnswerMediaViewEvent[]
 
   @@index([role])
 }
