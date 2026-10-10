@@ -9,7 +9,8 @@ import {
 } from "./examiner.service.js";
 import {
   createQuestionAudioViewUrlFromMetadata,
-  createVideoViewUrlFromMetadata,
+  issueAnswerVideoUrl,
+  type AnswerVideoViewer,
 } from "./upload.service.js";
 import {
   aggregateStoredScores,
@@ -120,7 +121,7 @@ export async function listAdminSubmissions(params: ListSubmissionsParams) {
  * Fetch a complete read-only submission view for an authenticated admin.
  * Authorization is enforced by the admin router before this service is called.
  */
-export async function getAdminSubmissionDetail(submissionId: string) {
+export async function getAdminSubmissionDetail(submissionId: string, viewer: AnswerVideoViewer) {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     include: {
@@ -134,6 +135,7 @@ export async function getAdminSubmissionDetail(submissionId: string) {
             select: {
               id: true,
               category: true,
+              deliveryPosition: true,
               preparationSeconds: true,
               recordingSeconds: true,
               promptMediaStorageKey: true,
@@ -280,23 +282,17 @@ export async function getAdminSubmissionDetail(submissionId: string) {
   }
   if (!manifest) assertLegacySubmissionEvidence(manifest);
 
+  // Slot order; Submissions without a manifest keep recording order (stable sort).
+  const position = (manifestEntryId: string | null) =>
+    manifest?.entries.find((entry) => entry.id === manifestEntryId)?.deliveryPosition ?? 0;
+  const ordered = [...submission.answers].sort(
+    (left, right) => position(left.manifestEntryId) - position(right.manifestEntryId),
+  );
   const answers = await Promise.all(
-    submission.answers.map(async (answer) => {
+    ordered.map(async (answer) => {
       const manifestEntry = manifest?.entries.find((entry) => entry.id === answer.manifestEntryId);
       if (manifest && !manifestEntry) throw new Error("Manifest evidence unavailable");
       if (!manifest) assertLegacyAnswerQuestion(answer);
-      let videoUrl: string | null = null;
-      if (answer.uploadStatus === "UPLOADED") {
-        try {
-          videoUrl = await createVideoViewUrlFromMetadata(
-            answer.storageKey,
-            answer.bucket,
-            answer.mimeType,
-          );
-        } catch {
-          videoUrl = null;
-        }
-      }
 
       let audioUrl: string | null = null;
       const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
@@ -344,6 +340,7 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         id: answer.id,
         questionId: manifestEntry?.id ?? answer.questionId!,
         questionCategory: manifestEntry?.category ?? answer.question!.category,
+        deliveryPosition: manifestEntry?.deliveryPosition ?? null,
         tasks: manifestEntry
           ? manifestEntry.tasks.map((task) => ({ id: task.id, promptText: task.deliveredText, order: task.deliveredOrder }))
           : answer.question!.tasks,
@@ -352,7 +349,8 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         technicalFailure: answer.technicalFailure,
         technicalFailureReason: answer.technicalFailureReason,
         uploadStatus: answer.uploadStatus,
-        videoUrl,
+        // Issued (and audited) only after every Answer's evidence checked out.
+        videoUrl: null as string | null,
         score: scoreSummary.score,
         rubric: scoreSummary.rubric,
         comments: scores.flatMap((score) =>
@@ -361,6 +359,12 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         scores,
       };
     })
+  );
+
+  await Promise.all(
+    answers.map(async (answer, index) => {
+      answer.videoUrl = await issueAnswerVideoUrl(ordered[index], viewer, { context: "ADMIN_SUBMISSION" });
+    }),
   );
 
   const result = submissionResult(submission.assignments, submission.scoringSystem);

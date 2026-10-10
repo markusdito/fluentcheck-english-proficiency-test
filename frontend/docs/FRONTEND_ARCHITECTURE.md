@@ -84,7 +84,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /results/[submissionId] | source=frontend/app/results/[submissionId]/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /results/[submissionId] | Submission result and score presentation for the selected Submission. |
+| /results/[submissionId] | Submission result and score presentation for the selected Submission. Lists recorded Answers by slot without video playback: the student never views Answer videos after the test. |
 
 <!-- page: /admin | source=frontend/app/admin/page.tsx -->
 | Route | Current behavior |
@@ -94,7 +94,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /admin/flags | source=frontend/app/admin/flags/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /admin/flags | Open technical-failure, camera-drop and integrity flags with the Answer video as evidence; the Admin confirms (voids the Submission, grants one free retake) or dismisses with a note. |
+| /admin/flags | Open technical-failure, camera-drop and integrity flags with every Answer video of the Submission in slot order (lazy-loaded via LazyAnswerMedia, prompt snapshot summary, flagged Answer highlighted with its mm:ss timestamp) as evidence; the Admin confirms (voids the Submission, grants one free retake) or dismisses with a note. |
 
 <!-- page: /admin/questions | source=frontend/app/admin/questions/page.tsx -->
 | Route | Current behavior |
@@ -124,7 +124,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /examiner/assignments/[assignmentId] | source=frontend/app/examiner/assignments/[assignmentId]/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /examiner/assignments/[assignmentId] | Examiner review, media playback, draft scoring, and finalization. |
+| /examiner/assignments/[assignmentId] | Examiner review of all Answer videos in slot order with their Delivered prompt snapshot, draft scoring, finalization, and raising an integrity concern (Answer, timestamp, note). While `paused` (an open flag) a banner shows and saving/completing is disabled; videos stay viewable. |
 
 The current tree also contains layouts, loading UI, not-found UI, and static
 assets. They are documented in the source map where they define behavior but
@@ -264,6 +264,8 @@ feedback is only advisory; server-side R2 inspection remains authoritative.
 | AWAITING_PAYMENT | Recording is complete and payment is still required; provider payment behavior is backend-owned. An Administrator can record an audited payment waiver instead, which the backend applies. |
 | PAID | Payment is validated; Examiner assignment is a separate backend transition. |
 | SCORING | The Submission is in the two-Examiner scoring process. |
+| FLAG_REVIEW | An open flag pauses both Examiner assignments; the Examiner dashboard shows "Paused" and scoring actions are disabled until an Admin dismisses or confirms the flag. |
+| VOIDED | An Admin confirmed a flag; the Submission is never scored and the student gets one free retake. |
 | SCORED | Both Examiner assignments have been finalized and scores can be displayed. |
 | ABANDONED | The student left the open attempt permanently. |
 | CERTIFIED | Read/display compatibility for schema-supported data; current code has no issuance path. |
@@ -293,13 +295,19 @@ PromptDisplay presents the manifest prompt and timing, including the Part 2
 cue card and the four Part 3 options (text with icon, with the instruction to
 choose ONE). RecordingTimer and
 WebcamPreview support the active recording state. QuestionAudioPlayer presents
-prompt audio. VideoPlayer and LazyAnswerMedia present stored answer media,
-including examiner/admin views.
+prompt audio. VideoPlayer and LazyAnswerMedia present stored answer media in
+examiner/admin views only. Answer video URLs are signed, time-limited and
+audited by the backend on every issuance; the student result page never
+receives one.
 
 ### Examiner and results
 
-AssignmentList lists assignments. VideoReviewer presents the delivered media
-and prompt context. ScoringPanel edits and submits score drafts. ScoreCard,
+AssignmentList lists assignments. VideoReviewer presents the current Answer
+video with its Delivered prompt snapshot (slot label, prompt audio, tasks, and
+the Part 2 cue card / Part 3 options via PromptDisplay's CueCardPanel and
+OptionsPanel), a technical-failure note, and the "Raise integrity concern"
+form (timestamp defaults to the video's current second). ScoringPanel edits
+and submits score drafts and is disabled while the assignment is paused. ScoreCard,
 RubricBreakdownView, and ScaleAwareScoreDisplay render score information
 without reimplementing backend scoring decisions.
 
@@ -375,7 +383,8 @@ Focused tests that protect the current frontend contracts include:
 | Recording transitions | frontend/lib/recording-state-machine.test.ts, frontend/hooks/useRecording.test.tsx, frontend/app/test/[testId]/page.test.tsx |
 | Upload transitions | frontend/lib/recording-upload-state.test.ts, frontend/lib/rate-limit-flow.test.ts, frontend/app/test/[testId]/page.test.tsx |
 | Media readiness and coordinator ownership | frontend/hooks/useMediaDevices.test.tsx, frontend/components/hardware/CameraMicPermissionModal.test.tsx, frontend/app/test/[testId]/page.test.tsx |
-| Media and examiner presentation | frontend/components/media/LazyAnswerMedia.test.tsx, frontend/components/examiner/VideoReviewer.test.tsx |
+| Media and examiner presentation | frontend/components/media/LazyAnswerMedia.test.tsx, frontend/components/examiner/VideoReviewer.test.tsx (prompt snapshot, integrity concern, paused scoring) |
+| Answer video access | frontend/app/admin/flags/page.test.tsx, frontend/app/results/[submissionId]/page.test.tsx |
 | Auth controls | frontend/components/auth/AuthForms.test.tsx, frontend/components/auth/GoogleAuthButton.test.tsx |
 | Dashboard/admin routes | frontend/app/dashboard/page.test.tsx, frontend/lib/dashboard-api.test.ts, frontend/app/admin/questions/page.test.tsx, frontend/app/admin/submissions/[submissionId]/page.test.tsx |
 

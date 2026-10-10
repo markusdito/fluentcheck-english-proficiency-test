@@ -6,6 +6,7 @@ import { env } from "../config/env.js";
 import { prisma } from "../config/db.js";
 import { lockPromptMediaStorageIdentity } from "./promptMediaLock.service.js";
 import { Prisma } from "../generated/client.js";
+import type { AnswerMediaViewContext, Role } from "../generated/enums.js";
 import {
   generateOptionIconKey,
   ICON_MIME_RE,
@@ -613,83 +614,60 @@ export async function confirmUpload(
   return { technicalFailure: failure !== null, technicalFailureReason: failure?.reason ?? null };
 }
 
-/**
- * Generate a presigned GET URL for viewing a video.
- * Verifies the user owns the submission before generating the URL.
- */
-export async function createPresignedViewUrl(
-  submissionId: string,
-  manifestEntryId: string,
-  userId: string
-): Promise<string> {
-  // Verify the submission belongs to the user
-  const submission = await prisma.submission.findUnique({
-    where: { id: submissionId },
-    select: { studentId: true, retentionStatus: true },
-  });
+export interface AnswerVideoViewer {
+  id: string;
+  role: Role;
+}
 
-  if (!submission) {
-    throw new Error("Submission not found");
-  }
-
-  if (submission.studentId !== userId) {
-    throw new Error("Unauthorized");
-  }
-  if (submission.retentionStatus !== "RETAINED") {
-    throw new Error("Submission is not available");
-  }
-
-  return getPresignedViewUrl(submissionId, manifestEntryId);
+export interface AnswerVideoAccess {
+  context: AnswerMediaViewContext;
+  assignmentId?: string;
+  flagId?: string;
 }
 
 /**
- * Generate a presigned GET URL for viewing a video.
- * Skips the student-ownership check — caller must verify authorization.
- * Used by the examiner service which checks ExaminerAssignment instead.
+ * The only way to hand out an Answer video URL (PRD FR-4.4). The caller has
+ * already authorized the viewer; issuing a signed URL grants a view, so each
+ * issued URL writes one immutable AnswerMediaViewEvent. Returns null, without
+ * auditing, when the Answer is not uploaded or signing fails. An audit write
+ * failure throws: no URL leaves unaudited.
  */
-export async function createPresignedViewUrlForAccessor(
-  submissionId: string,
-  manifestEntryId: string
-): Promise<string> {
-  return getPresignedViewUrl(submissionId, manifestEntryId);
-}
-
-async function getPresignedViewUrl(
-  submissionId: string,
-  manifestEntryId: string
-): Promise<string> {
-  const answer = await prisma.answer.findUnique({
-    where: { manifestEntryId },
-    select: {
-      storageKey: true,
-      bucket: true,
-      uploadStatus: true,
-      submissionId: true,
-      submission: { select: { retentionStatus: true } },
+export async function issueAnswerVideoUrl(
+  answer: {
+    id: string;
+    submissionId: string;
+    storageKey: string;
+    bucket: string | null;
+    mimeType: string | null;
+    uploadStatus: string;
+  },
+  viewer: AnswerVideoViewer,
+  access: AnswerVideoAccess,
+): Promise<string | null> {
+  if (answer.uploadStatus !== "UPLOADED") return null;
+  let url: string;
+  try {
+    url = await createVideoViewUrlFromMetadata(answer.storageKey, answer.bucket, answer.mimeType);
+  } catch {
+    return null;
+  }
+  await prisma.answerMediaViewEvent.create({
+    data: {
+      answerId: answer.id,
+      submissionId: answer.submissionId,
+      viewerId: viewer.id,
+      viewerRole: viewer.role,
+      context: access.context,
+      assignmentId: access.assignmentId ?? null,
+      flagId: access.flagId ?? null,
+      storageKey: answer.storageKey,
     },
   });
-
-  if (!answer) {
-    throw new Error("Answer not found");
-  }
-  if (answer.submissionId !== submissionId) throw new Error("Answer not found");
-  if (answer.submission.retentionStatus !== "RETAINED") {
-    throw new Error("Submission is not available");
-  }
-
-  if (answer.uploadStatus !== "UPLOADED") {
-    throw new Error("Video not yet uploaded");
-  }
-
-  return createVideoViewUrlFromMetadata(
-    answer.storageKey,
-    answer.bucket,
-    "video/webm",
-  );
+  return url;
 }
 
 /** Sign already-authorized answer metadata without querying Prisma. */
-export async function createVideoViewUrlFromMetadata(
+async function createVideoViewUrlFromMetadata(
   storageKey: string,
   bucket?: string | null,
   mimeType?: string | null,

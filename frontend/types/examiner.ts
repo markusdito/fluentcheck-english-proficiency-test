@@ -2,7 +2,7 @@ import type {
   RubricValues,
   ScoringSystem,
 } from "@/types/scoring";
-import type { TestSetRef } from "@/types/test";
+import type { CueCard, DeliveredOption, TestSetRef } from "@/types/test";
 
 export interface ExaminerTask {
   id: string;
@@ -25,11 +25,19 @@ export interface AssignmentAnswer {
   id: string;
   questionId: string;
   questionCategory: string;
+  /** Manifest delivery position (1-5); null for a Submission without a manifest. */
+  deliveryPosition: number | null;
   preparationSeconds: number;
   recordingSeconds: number;
   audioUrl: string | null;
   tasks: ExaminerTask[];
+  /** Delivered prompt snapshot content; null when the slot has none. */
+  cueCard: CueCard | null;
+  options: DeliveredOption[] | null;
   durationSeconds: number | null;
+  technicalFailure: boolean;
+  technicalFailureReason: string | null;
+  /** Signed, time-limited and audited on every detail fetch. */
   videoUrl: string | null;
 }
 
@@ -48,6 +56,8 @@ export interface AssignmentDetail {
   submissionStatus: string;
   scoringSystem: ScoringSystem;
   testSet: TestSetRef | null;
+  /** Scoring is paused while a flag is under Admin review (FLAG_REVIEW). */
+  paused: boolean;
   answers: AssignmentAnswer[];
   savedScore: SavedScore | null;
   createdAt: string;

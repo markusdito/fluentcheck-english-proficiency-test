@@ -11,7 +11,6 @@ import {
 } from "./submissionManifest.service.js";
 import {
   createQuestionAudioViewUrlFromMetadata,
-  createVideoViewUrlFromMetadata,
 } from "./upload.service.js";
 import {
   aggregateStoredScores,
@@ -273,7 +272,8 @@ export interface AnswerDetail {
   durationSeconds: number | null;
   technicalFailure: boolean;
   technicalFailureReason: string | null;
-  videoUrl: string | null;
+  /** Always null: the student never views Answer videos after the test (PRD FR-4.4). */
+  videoUrl: null;
   score: number | null;
   rubric: RubricBreakdown | null;
   comments: string[];
@@ -558,20 +558,6 @@ export async function getSubmissionDetail(
         throw new Error("Manifest evidence unavailable");
       }
       if (!submission.manifest) assertLegacyAnswerQuestion(answer);
-      let videoUrl: string | null = null;
-      if (answer.uploadStatus === "UPLOADED") {
-        try {
-          videoUrl = await createVideoViewUrlFromMetadata(
-            answer.storageKey,
-            answer.bucket,
-            answer.mimeType,
-          );
-        } catch {
-          // If presigned URL generation fails, return null
-          videoUrl = null;
-        }
-      }
-
       let audioUrl: string | null = null;
       const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
       const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
@@ -615,7 +601,8 @@ export async function getSubmissionDetail(
         durationSeconds: answer.durationSeconds,
         technicalFailure: answer.technicalFailure,
         technicalFailureReason: answer.technicalFailureReason,
-        videoUrl,
+        // PRD FR-4.4: the student never views Answer videos after the test.
+        videoUrl: null,
         score: scoreSummary.score,
         rubric: scoreSummary.rubric,
         comments,

@@ -371,7 +371,7 @@ export async function getSubmission(req: Request, res: Response) {
   }
 
   try {
-    const data = await getAdminSubmissionDetail(submissionId);
+    const data = await getAdminSubmissionDetail(submissionId, req.user!);
     res.status(200).json({
       status: "success",
       data,

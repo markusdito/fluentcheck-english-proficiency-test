@@ -740,6 +740,22 @@ export type UserUpdateOneRequiredWithoutStartIntentsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutStartIntentsInput, Prisma.UserUpdateWithoutStartIntentsInput>, Prisma.UserUncheckedUpdateWithoutStartIntentsInput>
 }
 
+export type UserCreateNestedOneWithoutAnswerMediaViewsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAnswerMediaViewsInput, Prisma.UserUncheckedCreateWithoutAnswerMediaViewsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAnswerMediaViewsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutAnswerMediaViewsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAnswerMediaViewsInput, Prisma.UserUncheckedCreateWithoutAnswerMediaViewsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAnswerMediaViewsInput
+  upsert?: Prisma.UserUpsertWithoutAnswerMediaViewsInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAnswerMediaViewsInput, Prisma.UserUpdateWithoutAnswerMediaViewsInput>, Prisma.UserUncheckedUpdateWithoutAnswerMediaViewsInput>
+}
+
 export type UserCreateNestedOneWithoutFlagsRaisedInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutFlagsRaisedInput, Prisma.UserUncheckedCreateWithoutFlagsRaisedInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutFlagsRaisedInput

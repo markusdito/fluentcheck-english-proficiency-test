@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
 import { meta } from "@/components/student/styles";
 import type { CueCard, DeliveredOption } from "@/types/test";
@@ -20,11 +21,12 @@ interface PromptDisplayProps {
 }
 
 /** Part 2 cue card: the talk topic and the three points to include. */
-function CueCardPanel({ cueCard }: { cueCard: CueCard }) {
+export function CueCardPanel({ cueCard }: { cueCard: CueCard }) {
+  const topicId = useId();
   return (
-    <section aria-labelledby="cue-card-topic" className="rounded-2xl border border-sn-fg p-5">
+    <section aria-labelledby={topicId} className="rounded-2xl border border-sn-fg p-5">
       <p className={`${meta} mb-1`}>Cue card</p>
-      <h3 id="cue-card-topic" className="m-0 text-lg font-semibold">{cueCard.topic}</h3>
+      <h3 id={topicId} className="m-0 text-lg font-semibold">{cueCard.topic}</h3>
       <p className="mt-3 mb-1.5 text-[15px] text-sn-muted">You should say:</p>
       <ul className="m-0 list-disc space-y-1 pl-5 text-base">
         {cueCard.points.map((point, index) => (
@@ -36,10 +38,11 @@ function CueCardPanel({ cueCard }: { cueCard: CueCard }) {
 }
 
 /** Part 3 options: always text with an icon, never icons alone (PRD FR-3.9). */
-function OptionsPanel({ options }: { options: DeliveredOption[] }) {
+export function OptionsPanel({ options }: { options: DeliveredOption[] }) {
+  const instructionId = useId();
   return (
-    <section aria-labelledby="options-instruction">
-      <p id="options-instruction" className="mb-3 text-base font-medium">
+    <section aria-labelledby={instructionId}>
+      <p id={instructionId} className="mb-3 text-base font-medium">
         Look at the four options. Choose <strong>ONE</strong> option and explain why you chose it.
       </p>
       <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2">

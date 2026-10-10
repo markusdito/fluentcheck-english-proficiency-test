@@ -6,7 +6,8 @@ import type {
 } from "../generated/enums.js";
 import { assignExaminersToSubmission } from "./examiner.service.js";
 import { getAppSettings } from "./settings.service.js";
-import { createVideoViewUrlFromMetadata } from "./upload.service.js";
+import { presentOptions, type CueCard } from "./questionContent.js";
+import { createOptionIconViewUrl, issueAnswerVideoUrl, type AnswerVideoViewer } from "./upload.service.js";
 
 /**
  * Flag lifecycle (PRD FR-2.2, FR-2.9, FR-7.3, FR-8.1, FR-9.9). A Submission
@@ -221,8 +222,12 @@ export async function raiseIntegrityConcern(
   });
 }
 
-/** Open flags of Submissions awaiting an Admin decision, oldest first, with evidence. */
-export async function listOpenFlags() {
+/**
+ * Open flags of Submissions awaiting an Admin decision, oldest first, with
+ * evidence: every Answer of the Submission in slot order with its Delivered
+ * prompt snapshot and an audited video URL (one per Answer per response).
+ */
+export async function listOpenFlags(viewer: AnswerVideoViewer) {
   const flags = await prisma.submissionFlag.findMany({
     where: {
       resolution: null,
@@ -235,11 +240,11 @@ export async function listOpenFlags() {
       type: true,
       source: true,
       reason: true,
+      answerId: true,
       manifestEntryId: true,
       timestampSeconds: true,
       raisedAt: true,
       raisedBy: { select: { username: true, role: true } },
-      answer: { select: { id: true, storageKey: true, bucket: true, mimeType: true, uploadStatus: true } },
       submission: {
         select: {
           createdAt: true,
@@ -250,43 +255,85 @@ export async function listOpenFlags() {
     },
   });
 
-  // Evidence: the flagged Answer video, else the Answer recorded for the flagged slot.
-  const slotAnswers = await prisma.answer.findMany({
-    where: {
-      manifestEntryId: {
-        in: flags.flatMap((flag) => (!flag.answer && flag.manifestEntryId ? [flag.manifestEntryId] : [])),
+  const recorded = await prisma.answer.findMany({
+    where: { submissionId: { in: [...new Set(flags.map((flag) => flag.submissionId))] } },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      submissionId: true,
+      manifestEntryId: true,
+      storageKey: true,
+      bucket: true,
+      mimeType: true,
+      uploadStatus: true,
+      manifestEntry: {
+        select: {
+          category: true,
+          deliveryPosition: true,
+          cueCard: true,
+          options: true,
+          tasks: { orderBy: { deliveredOrder: "asc" }, select: { id: true, deliveredOrder: true, deliveredText: true } },
+        },
+      },
+      question: {
+        select: { category: true, tasks: { orderBy: { order: "asc" }, select: { id: true, promptText: true, order: true } } },
       },
     },
-    select: { manifestEntryId: true, storageKey: true, bucket: true, mimeType: true, uploadStatus: true },
   });
-
-  return Promise.all(
-    flags.map(async (flag) => {
-      const evidence =
-        flag.answer ?? slotAnswers.find((answer) => answer.manifestEntryId === flag.manifestEntryId) ?? null;
-      let videoUrl: string | null = null;
-      if (evidence?.uploadStatus === "UPLOADED") {
-        videoUrl = await createVideoViewUrlFromMetadata(evidence.storageKey, evidence.bucket, evidence.mimeType)
-          .catch(() => null);
-      }
-      return {
-        id: flag.id,
-        submissionId: flag.submissionId,
-        type: flag.type,
-        source: flag.source,
-        reason: flag.reason,
-        timestampSeconds: flag.timestampSeconds,
-        raisedAt: flag.raisedAt,
-        raisedBy: flag.raisedBy?.username ?? null,
-        slot:
-          flag.submission.manifest?.entries.find((entry) => entry.id === flag.manifestEntryId)?.category ?? null,
-        studentName: flag.submission.student.username,
-        studentEmail: flag.submission.student.email,
-        submissionCreatedAt: flag.submission.createdAt,
-        videoUrl,
-      };
-    }),
+  // Slot order; Answers without a manifest entry keep recording order (stable sort).
+  recorded.sort(
+    (left, right) => (left.manifestEntry?.deliveryPosition ?? 0) - (right.manifestEntry?.deliveryPosition ?? 0),
   );
+
+  // Each Answer is signed and audited once, under the Submission's oldest open flag.
+  const answers = await Promise.all(
+    recorded.map(async (answer) => ({
+      submissionId: answer.submissionId,
+      answerId: answer.id,
+      manifestEntryId: answer.manifestEntryId,
+      questionCategory: answer.manifestEntry?.category ?? answer.question?.category ?? null,
+      deliveryPosition: answer.manifestEntry?.deliveryPosition ?? null,
+      tasks: answer.manifestEntry
+        ? answer.manifestEntry.tasks.map((task) => ({ id: task.id, promptText: task.deliveredText, order: task.deliveredOrder }))
+        : answer.question?.tasks ?? [],
+      cueCard: (answer.manifestEntry?.cueCard as CueCard | null | undefined) ?? null,
+      options: await presentOptions(answer.manifestEntry?.options, createOptionIconViewUrl),
+      videoUrl: await issueAnswerVideoUrl(answer, viewer, {
+        context: "ADMIN_FLAG_REVIEW",
+        flagId: flags.find((flag) => flag.submissionId === answer.submissionId)!.id,
+      }),
+    })),
+  );
+
+  return flags.map((flag) => {
+    const submissionAnswers = answers
+      .filter((answer) => answer.submissionId === flag.submissionId)
+      .map(({ submissionId: _submissionId, ...answer }) => answer);
+    // Evidence: the flagged Answer, else the Answer recorded for the flagged slot.
+    const evidence =
+      submissionAnswers.find((answer) => answer.answerId === flag.answerId) ??
+      submissionAnswers.find((answer) => flag.manifestEntryId && answer.manifestEntryId === flag.manifestEntryId) ??
+      null;
+    return {
+      id: flag.id,
+      submissionId: flag.submissionId,
+      type: flag.type,
+      source: flag.source,
+      reason: flag.reason,
+      answerId: flag.answerId,
+      manifestEntryId: flag.manifestEntryId,
+      timestampSeconds: flag.timestampSeconds,
+      raisedAt: flag.raisedAt,
+      raisedBy: flag.raisedBy?.username ?? null,
+      slot:
+        flag.submission.manifest?.entries.find((entry) => entry.id === flag.manifestEntryId)?.category ?? null,
+      studentName: flag.submission.student.username,
+      studentEmail: flag.submission.student.email,
+      submissionCreatedAt: flag.submission.createdAt,
+      videoUrl: evidence?.videoUrl ?? null,
+      answers: submissionAnswers,
+    };
+  });
 }
 
 async function lockOpenFlag(tx: Prisma.TransactionClient, flagId: string) {

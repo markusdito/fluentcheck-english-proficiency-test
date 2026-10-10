@@ -402,6 +402,7 @@ export const ModelName = {
   ManifestTask: 'ManifestTask',
   AppSettings: 'AppSettings',
   Answer: 'Answer',
+  AnswerMediaViewEvent: 'AnswerMediaViewEvent',
   SubmissionFlag: 'SubmissionFlag',
   RetakeCredit: 'RetakeCredit',
   SubmissionPaymentWaiver: 'SubmissionPaymentWaiver',
@@ -1761,6 +1762,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AnswerMediaViewEvent: {
+      payload: Prisma.$AnswerMediaViewEventPayload<ExtArgs>
+      fields: Prisma.AnswerMediaViewEventFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AnswerMediaViewEventFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AnswerMediaViewEventFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        findFirst: {
+          args: Prisma.AnswerMediaViewEventFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AnswerMediaViewEventFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        findMany: {
+          args: Prisma.AnswerMediaViewEventFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>[]
+        }
+        create: {
+          args: Prisma.AnswerMediaViewEventCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        createMany: {
+          args: Prisma.AnswerMediaViewEventCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AnswerMediaViewEventCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>[]
+        }
+        delete: {
+          args: Prisma.AnswerMediaViewEventDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        update: {
+          args: Prisma.AnswerMediaViewEventUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        deleteMany: {
+          args: Prisma.AnswerMediaViewEventDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AnswerMediaViewEventUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AnswerMediaViewEventUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>[]
+        }
+        upsert: {
+          args: Prisma.AnswerMediaViewEventUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        aggregate: {
+          args: Prisma.AnswerMediaViewEventAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAnswerMediaViewEvent>
+        }
+        groupBy: {
+          args: Prisma.AnswerMediaViewEventGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AnswerMediaViewEventGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AnswerMediaViewEventCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AnswerMediaViewEventCountAggregateOutputType> | number
+        }
+      }
+    }
     SubmissionFlag: {
       payload: Prisma.$SubmissionFlagPayload<ExtArgs>
       fields: Prisma.SubmissionFlagFieldRefs
@@ -2685,6 +2760,22 @@ export const AnswerScalarFieldEnum = {
 export type AnswerScalarFieldEnum = (typeof AnswerScalarFieldEnum)[keyof typeof AnswerScalarFieldEnum]
 
 
+export const AnswerMediaViewEventScalarFieldEnum = {
+  id: 'id',
+  answerId: 'answerId',
+  submissionId: 'submissionId',
+  viewerId: 'viewerId',
+  viewerRole: 'viewerRole',
+  context: 'context',
+  assignmentId: 'assignmentId',
+  flagId: 'flagId',
+  storageKey: 'storageKey',
+  createdAt: 'createdAt'
+} as const
+
+export type AnswerMediaViewEventScalarFieldEnum = (typeof AnswerMediaViewEventScalarFieldEnum)[keyof typeof AnswerMediaViewEventScalarFieldEnum]
+
+
 export const SubmissionFlagScalarFieldEnum = {
   id: 'id',
   submissionId: 'submissionId',
@@ -3112,6 +3203,20 @@ export type ListEnumRetentionAuditActionFieldRefInput<$PrismaModel> = FieldRefIn
 
 
 /**
+ * Reference to a field of type 'AnswerMediaViewContext'
+ */
+export type EnumAnswerMediaViewContextFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnswerMediaViewContext'>
+    
+
+
+/**
+ * Reference to a field of type 'AnswerMediaViewContext[]'
+ */
+export type ListEnumAnswerMediaViewContextFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnswerMediaViewContext[]'>
+    
+
+
+/**
  * Reference to a field of type 'SubmissionFlagType'
  */
 export type EnumSubmissionFlagTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagType'>
@@ -3336,6 +3441,7 @@ export type GlobalOmitConfig = {
   manifestTask?: Prisma.ManifestTaskOmit
   appSettings?: Prisma.AppSettingsOmit
   answer?: Prisma.AnswerOmit
+  answerMediaViewEvent?: Prisma.AnswerMediaViewEventOmit
   submissionFlag?: Prisma.SubmissionFlagOmit
   retakeCredit?: Prisma.RetakeCreditOmit
   submissionPaymentWaiver?: Prisma.SubmissionPaymentWaiverOmit

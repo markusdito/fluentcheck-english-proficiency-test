@@ -104,6 +104,10 @@ _Avoid_: Microphone permission, recording proof
 An Answer whose immutable media-object identity and required properties FluentCheck independently observed and bound to its Manifest entry.
 _Avoid_: Uploaded answer, client-confirmed answer
 
+**Answer video view**:
+The issuance of one signed, time-limited Answer video URL to an assigned Examiner or an Admin, recorded as an immutable audit event. The student never receives one after the Assessment.
+_Avoid_: Video download, playback log
+
 **Retired question**:
 A Question withdrawn from future delivery while retaining its identity and all references from retained Submission evidence. It may be explicitly restored if its original position is available.
 _Avoid_: Deleted question, soft-deleted question

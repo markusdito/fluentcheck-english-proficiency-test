@@ -371,6 +371,16 @@ export interface PrismaClient<
   get answer(): Prisma.AnswerDelegate<ExtArgs, { omit: OmitOpts }>;
 
   /**
+   * `prisma.answerMediaViewEvent`: Exposes CRUD operations for the **AnswerMediaViewEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AnswerMediaViewEvents
+    * const answerMediaViewEvents = await prisma.answerMediaViewEvent.findMany()
+    * ```
+    */
+  get answerMediaViewEvent(): Prisma.AnswerMediaViewEventDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
    * `prisma.submissionFlag`: Exposes CRUD operations for the **SubmissionFlag** model.
     * Example usage:
     * ```ts
