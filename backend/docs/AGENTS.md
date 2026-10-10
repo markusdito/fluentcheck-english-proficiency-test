@@ -152,7 +152,7 @@ GET  /api/auth/me        → verifyToken middleware → fetch user by ID → ret
 **Enums:**
 - `Role`: STUDENT, EXAMINER, ADMIN
 - `QuestionCategory` (delivery slots): PART_1A, PART_1B, PART_2, PART_3, PART_4
-- `SubmissionStatus`: IN_PROGRESS → AWAITING_PAYMENT → PAID → SCORING → SCORED → CERTIFIED
+- `SubmissionStatus`: IN_PROGRESS → AWAITING_PAYMENT → PAID → SCORING → SCORED → CERTIFIED, plus terminal ABANDONED / VOIDED and FLAG_REVIEW (open flag awaiting an Admin)
 - `PaymentStatus`: PENDING, PAID, FAILED, REFUNDED
 - `AssignmentStatus`: ASSIGNED, IN_PROGRESS, COMPLETED
 - `UploadStatus`: PENDING, UPLOADED, FAILED

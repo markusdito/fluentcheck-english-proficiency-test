@@ -91,6 +91,11 @@ scripts/check-architecture-docs.mjs.
 | --- | --- |
 | /admin | Administrator overview. |
 
+<!-- page: /admin/flags | source=frontend/app/admin/flags/page.tsx -->
+| Route | Current behavior |
+| --- | --- |
+| /admin/flags | Open technical-failure, camera-drop and integrity flags with the Answer video as evidence; the Admin confirms (voids the Submission, grants one free retake) or dismisses with a note. |
+
 <!-- page: /admin/questions | source=frontend/app/admin/questions/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
