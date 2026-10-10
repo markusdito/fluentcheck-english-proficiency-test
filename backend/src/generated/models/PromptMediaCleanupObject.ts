@@ -301,7 +301,7 @@ export type PromptMediaCleanupObjectWhereInput = {
   referenceSnapshot?: Prisma.JsonNullableFilter<"PromptMediaCleanupObject">
   eligibilityReason?: Prisma.StringFilter<"PromptMediaCleanupObject"> | string
   status?: Prisma.EnumPromptMediaCleanupObjectStatusFilter<"PromptMediaCleanupObject"> | $Enums.PromptMediaCleanupObjectStatus
-  lastRunId?: Prisma.StringFilter<"PromptMediaCleanupObject"> | string
+  lastRunId?: Prisma.UuidFilter<"PromptMediaCleanupObject"> | string
   quarantineUntil?: Prisma.DateTimeNullableFilter<"PromptMediaCleanupObject"> | Date | string | null
   attemptCount?: Prisma.IntFilter<"PromptMediaCleanupObject"> | number
   lastError?: Prisma.StringNullableFilter<"PromptMediaCleanupObject"> | string | null
@@ -346,7 +346,7 @@ export type PromptMediaCleanupObjectWhereUniqueInput = Prisma.AtLeast<{
   referenceSnapshot?: Prisma.JsonNullableFilter<"PromptMediaCleanupObject">
   eligibilityReason?: Prisma.StringFilter<"PromptMediaCleanupObject"> | string
   status?: Prisma.EnumPromptMediaCleanupObjectStatusFilter<"PromptMediaCleanupObject"> | $Enums.PromptMediaCleanupObjectStatus
-  lastRunId?: Prisma.StringFilter<"PromptMediaCleanupObject"> | string
+  lastRunId?: Prisma.UuidFilter<"PromptMediaCleanupObject"> | string
   quarantineUntil?: Prisma.DateTimeNullableFilter<"PromptMediaCleanupObject"> | Date | string | null
   attemptCount?: Prisma.IntFilter<"PromptMediaCleanupObject"> | number
   lastError?: Prisma.StringNullableFilter<"PromptMediaCleanupObject"> | string | null
@@ -394,7 +394,7 @@ export type PromptMediaCleanupObjectScalarWhereWithAggregatesInput = {
   referenceSnapshot?: Prisma.JsonNullableWithAggregatesFilter<"PromptMediaCleanupObject">
   eligibilityReason?: Prisma.StringWithAggregatesFilter<"PromptMediaCleanupObject"> | string
   status?: Prisma.EnumPromptMediaCleanupObjectStatusWithAggregatesFilter<"PromptMediaCleanupObject"> | $Enums.PromptMediaCleanupObjectStatus
-  lastRunId?: Prisma.StringWithAggregatesFilter<"PromptMediaCleanupObject"> | string
+  lastRunId?: Prisma.UuidWithAggregatesFilter<"PromptMediaCleanupObject"> | string
   quarantineUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"PromptMediaCleanupObject"> | Date | string | null
   attemptCount?: Prisma.IntWithAggregatesFilter<"PromptMediaCleanupObject"> | number
   lastError?: Prisma.StringNullableWithAggregatesFilter<"PromptMediaCleanupObject"> | string | null
@@ -774,7 +774,7 @@ export type PromptMediaCleanupObjectScalarWhereInput = {
   referenceSnapshot?: Prisma.JsonNullableFilter<"PromptMediaCleanupObject">
   eligibilityReason?: Prisma.StringFilter<"PromptMediaCleanupObject"> | string
   status?: Prisma.EnumPromptMediaCleanupObjectStatusFilter<"PromptMediaCleanupObject"> | $Enums.PromptMediaCleanupObjectStatus
-  lastRunId?: Prisma.StringFilter<"PromptMediaCleanupObject"> | string
+  lastRunId?: Prisma.UuidFilter<"PromptMediaCleanupObject"> | string
   quarantineUntil?: Prisma.DateTimeNullableFilter<"PromptMediaCleanupObject"> | Date | string | null
   attemptCount?: Prisma.IntFilter<"PromptMediaCleanupObject"> | number
   lastError?: Prisma.StringNullableFilter<"PromptMediaCleanupObject"> | string | null
