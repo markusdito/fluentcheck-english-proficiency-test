@@ -52,6 +52,8 @@ export type AnswerMinAggregateOutputType = {
   verifiedAt: Date | null
   observedMimeType: string | null
   proofVersion: number | null
+  technicalFailure: boolean | null
+  technicalFailureReason: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -70,6 +72,8 @@ export type AnswerMaxAggregateOutputType = {
   verifiedAt: Date | null
   observedMimeType: string | null
   proofVersion: number | null
+  technicalFailure: boolean | null
+  technicalFailureReason: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -88,6 +92,8 @@ export type AnswerCountAggregateOutputType = {
   verifiedAt: number
   observedMimeType: number
   proofVersion: number
+  technicalFailure: number
+  technicalFailureReason: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -120,6 +126,8 @@ export type AnswerMinAggregateInputType = {
   verifiedAt?: true
   observedMimeType?: true
   proofVersion?: true
+  technicalFailure?: true
+  technicalFailureReason?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -138,6 +146,8 @@ export type AnswerMaxAggregateInputType = {
   verifiedAt?: true
   observedMimeType?: true
   proofVersion?: true
+  technicalFailure?: true
+  technicalFailureReason?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -156,6 +166,8 @@ export type AnswerCountAggregateInputType = {
   verifiedAt?: true
   observedMimeType?: true
   proofVersion?: true
+  technicalFailure?: true
+  technicalFailureReason?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -261,6 +273,8 @@ export type AnswerGroupByOutputType = {
   verifiedAt: Date | null
   observedMimeType: string | null
   proofVersion: number | null
+  technicalFailure: boolean
+  technicalFailureReason: string | null
   createdAt: Date
   updatedAt: Date
   _count: AnswerCountAggregateOutputType | null
@@ -302,6 +316,8 @@ export type AnswerWhereInput = {
   verifiedAt?: Prisma.DateTimeNullableFilter<"Answer"> | Date | string | null
   observedMimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
   proofVersion?: Prisma.IntNullableFilter<"Answer"> | number | null
+  technicalFailure?: Prisma.BoolFilter<"Answer"> | boolean
+  technicalFailureReason?: Prisma.StringNullableFilter<"Answer"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
@@ -325,6 +341,8 @@ export type AnswerOrderByWithRelationInput = {
   verifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   observedMimeType?: Prisma.SortOrderInput | Prisma.SortOrder
   proofVersion?: Prisma.SortOrderInput | Prisma.SortOrder
+  technicalFailure?: Prisma.SortOrder
+  technicalFailureReason?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   submission?: Prisma.SubmissionOrderByWithRelationInput
@@ -352,6 +370,8 @@ export type AnswerWhereUniqueInput = Prisma.AtLeast<{
   verifiedAt?: Prisma.DateTimeNullableFilter<"Answer"> | Date | string | null
   observedMimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
   proofVersion?: Prisma.IntNullableFilter<"Answer"> | number | null
+  technicalFailure?: Prisma.BoolFilter<"Answer"> | boolean
+  technicalFailureReason?: Prisma.StringNullableFilter<"Answer"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   submission?: Prisma.XOR<Prisma.SubmissionScalarRelationFilter, Prisma.SubmissionWhereInput>
@@ -375,6 +395,8 @@ export type AnswerOrderByWithAggregationInput = {
   verifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   observedMimeType?: Prisma.SortOrderInput | Prisma.SortOrder
   proofVersion?: Prisma.SortOrderInput | Prisma.SortOrder
+  technicalFailure?: Prisma.SortOrder
+  technicalFailureReason?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AnswerCountOrderByAggregateInput
@@ -401,6 +423,8 @@ export type AnswerScalarWhereWithAggregatesInput = {
   verifiedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Answer"> | Date | string | null
   observedMimeType?: Prisma.StringNullableWithAggregatesFilter<"Answer"> | string | null
   proofVersion?: Prisma.IntNullableWithAggregatesFilter<"Answer"> | number | null
+  technicalFailure?: Prisma.BoolWithAggregatesFilter<"Answer"> | boolean
+  technicalFailureReason?: Prisma.StringNullableWithAggregatesFilter<"Answer"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Answer"> | Date | string
 }
@@ -416,6 +440,8 @@ export type AnswerCreateInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -439,6 +465,8 @@ export type AnswerUncheckedCreateInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -456,6 +484,8 @@ export type AnswerUpdateInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -479,6 +509,8 @@ export type AnswerUncheckedUpdateInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -499,6 +531,8 @@ export type AnswerCreateManyInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -514,6 +548,8 @@ export type AnswerUpdateManyMutationInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -532,6 +568,8 @@ export type AnswerUncheckedUpdateManyInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -565,6 +603,8 @@ export type AnswerCountOrderByAggregateInput = {
   verifiedAt?: Prisma.SortOrder
   observedMimeType?: Prisma.SortOrder
   proofVersion?: Prisma.SortOrder
+  technicalFailure?: Prisma.SortOrder
+  technicalFailureReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -589,6 +629,8 @@ export type AnswerMaxOrderByAggregateInput = {
   verifiedAt?: Prisma.SortOrder
   observedMimeType?: Prisma.SortOrder
   proofVersion?: Prisma.SortOrder
+  technicalFailure?: Prisma.SortOrder
+  technicalFailureReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -607,6 +649,8 @@ export type AnswerMinOrderByAggregateInput = {
   verifiedAt?: Prisma.SortOrder
   observedMimeType?: Prisma.SortOrder
   proofVersion?: Prisma.SortOrder
+  technicalFailure?: Prisma.SortOrder
+  technicalFailureReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -791,6 +835,8 @@ export type AnswerCreateWithoutQuestionInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -812,6 +858,8 @@ export type AnswerUncheckedCreateWithoutQuestionInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -861,6 +909,8 @@ export type AnswerScalarWhereInput = {
   verifiedAt?: Prisma.DateTimeNullableFilter<"Answer"> | Date | string | null
   observedMimeType?: Prisma.StringNullableFilter<"Answer"> | string | null
   proofVersion?: Prisma.IntNullableFilter<"Answer"> | number | null
+  technicalFailure?: Prisma.BoolFilter<"Answer"> | boolean
+  technicalFailureReason?: Prisma.StringNullableFilter<"Answer"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Answer"> | Date | string
 }
@@ -876,6 +926,8 @@ export type AnswerCreateWithoutSubmissionInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   question?: Prisma.QuestionCreateNestedOneWithoutAnswersInput
@@ -897,6 +949,8 @@ export type AnswerUncheckedCreateWithoutSubmissionInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -940,6 +994,8 @@ export type AnswerCreateWithoutManifestEntryInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -960,6 +1016,8 @@ export type AnswerUncheckedCreateWithoutManifestEntryInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -1003,6 +1061,8 @@ export type AnswerCreateWithoutFlagsInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -1025,6 +1085,8 @@ export type AnswerUncheckedCreateWithoutFlagsInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scores?: Prisma.ScoreUncheckedCreateNestedManyWithoutAnswerInput
@@ -1057,6 +1119,8 @@ export type AnswerUpdateWithoutFlagsInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -1079,6 +1143,8 @@ export type AnswerUncheckedUpdateWithoutFlagsInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -1095,6 +1161,8 @@ export type AnswerCreateWithoutScoresInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   submission: Prisma.SubmissionCreateNestedOneWithoutAnswersInput
@@ -1117,6 +1185,8 @@ export type AnswerUncheckedCreateWithoutScoresInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutAnswerInput
@@ -1149,6 +1219,8 @@ export type AnswerUpdateWithoutScoresInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -1171,6 +1243,8 @@ export type AnswerUncheckedUpdateWithoutScoresInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutAnswerNestedInput
@@ -1189,6 +1263,8 @@ export type AnswerCreateManyQuestionInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1204,6 +1280,8 @@ export type AnswerUpdateWithoutQuestionInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -1225,6 +1303,8 @@ export type AnswerUncheckedUpdateWithoutQuestionInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -1244,6 +1324,8 @@ export type AnswerUncheckedUpdateManyWithoutQuestionInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1261,6 +1343,8 @@ export type AnswerCreateManySubmissionInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1276,6 +1360,8 @@ export type AnswerUpdateWithoutSubmissionInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   question?: Prisma.QuestionUpdateOneWithoutAnswersNestedInput
@@ -1297,6 +1383,8 @@ export type AnswerUncheckedUpdateWithoutSubmissionInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -1316,6 +1404,8 @@ export type AnswerUncheckedUpdateManyWithoutSubmissionInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1332,6 +1422,8 @@ export type AnswerCreateManyManifestEntryInput = {
   verifiedAt?: Date | string | null
   observedMimeType?: string | null
   proofVersion?: number | null
+  technicalFailure?: boolean
+  technicalFailureReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1347,6 +1439,8 @@ export type AnswerUpdateWithoutManifestEntryInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   submission?: Prisma.SubmissionUpdateOneRequiredWithoutAnswersNestedInput
@@ -1367,6 +1461,8 @@ export type AnswerUncheckedUpdateWithoutManifestEntryInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scores?: Prisma.ScoreUncheckedUpdateManyWithoutAnswerNestedInput
@@ -1385,6 +1481,8 @@ export type AnswerUncheckedUpdateManyWithoutManifestEntryInput = {
   verifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   observedMimeType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   proofVersion?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  technicalFailure?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  technicalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1443,6 +1541,8 @@ export type AnswerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   verifiedAt?: boolean
   observedMimeType?: boolean
   proofVersion?: boolean
+  technicalFailure?: boolean
+  technicalFailureReason?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
@@ -1467,6 +1567,8 @@ export type AnswerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   verifiedAt?: boolean
   observedMimeType?: boolean
   proofVersion?: boolean
+  technicalFailure?: boolean
+  technicalFailureReason?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
@@ -1488,6 +1590,8 @@ export type AnswerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   verifiedAt?: boolean
   observedMimeType?: boolean
   proofVersion?: boolean
+  technicalFailure?: boolean
+  technicalFailureReason?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
@@ -1509,11 +1613,13 @@ export type AnswerSelectScalar = {
   verifiedAt?: boolean
   observedMimeType?: boolean
   proofVersion?: boolean
+  technicalFailure?: boolean
+  technicalFailureReason?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AnswerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "questionId" | "manifestEntryId" | "storageKey" | "bucket" | "mimeType" | "sizeBytes" | "durationSeconds" | "uploadStatus" | "verifiedAt" | "observedMimeType" | "proofVersion" | "createdAt" | "updatedAt", ExtArgs["result"]["answer"]>
+export type AnswerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "submissionId" | "questionId" | "manifestEntryId" | "storageKey" | "bucket" | "mimeType" | "sizeBytes" | "durationSeconds" | "uploadStatus" | "verifiedAt" | "observedMimeType" | "proofVersion" | "technicalFailure" | "technicalFailureReason" | "createdAt" | "updatedAt", ExtArgs["result"]["answer"]>
 export type AnswerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   submission?: boolean | Prisma.SubmissionDefaultArgs<ExtArgs>
   question?: boolean | Prisma.Answer$questionArgs<ExtArgs>
@@ -1556,6 +1662,8 @@ export type $AnswerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     verifiedAt: Date | null
     observedMimeType: string | null
     proofVersion: number | null
+    technicalFailure: boolean
+    technicalFailureReason: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["answer"]>
@@ -1999,6 +2107,8 @@ export interface AnswerFieldRefs {
   readonly verifiedAt: Prisma.FieldRef<"Answer", 'DateTime'>
   readonly observedMimeType: Prisma.FieldRef<"Answer", 'String'>
   readonly proofVersion: Prisma.FieldRef<"Answer", 'Int'>
+  readonly technicalFailure: Prisma.FieldRef<"Answer", 'Boolean'>
+  readonly technicalFailureReason: Prisma.FieldRef<"Answer", 'String'>
   readonly createdAt: Prisma.FieldRef<"Answer", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Answer", 'DateTime'>
 }

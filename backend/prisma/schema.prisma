@@ -519,15 +519,18 @@ model Answer {
   manifestEntry   ManifestEntry? @relation(fields: [manifestEntryId, submissionId], references: [id, submissionId], onDelete: Restrict)
 
   // Video lives in Cloudflare R2 / S3 — DB stores metadata only
-  storageKey       String
-  bucket           String?
-  mimeType         String?
-  sizeBytes        Int?
-  durationSeconds  Int?
-  uploadStatus     UploadStatus @default(PENDING)
-  verifiedAt       DateTime?    @db.Timestamptz()
-  observedMimeType String?
-  proofVersion     Int?
+  storageKey             String
+  bucket                 String?
+  mimeType               String?
+  sizeBytes              Int?
+  durationSeconds        Int?
+  uploadStatus           UploadStatus @default(PENDING)
+  verifiedAt             DateTime?    @db.Timestamptz()
+  observedMimeType       String?
+  proofVersion           Int?
+  // PRD FR-3.7/FR-3.8: a partial, short or silent take saved for manual review
+  technicalFailure       Boolean      @default(false)
+  technicalFailureReason String?
 
   scores    Score[]
   flags     SubmissionFlag[]
