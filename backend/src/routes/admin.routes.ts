@@ -25,6 +25,11 @@ import {
   getTestSets,
   renameTestSet,
 } from "../controllers/testSet.controller.js";
+import {
+  confirmSubmissionFlag,
+  dismissSubmissionFlag,
+  listFlags,
+} from "../controllers/submissionFlag.controller.js";
 
 const router = Router();
 
@@ -46,6 +51,9 @@ router.post("/retention-holds/:id/release", releaseHold);
 router.get("/submissions", listSubmissions);
 router.get("/submissions/:id", getSubmission);
 router.get("/stats", getStats);
+router.get("/flags", listFlags);
+router.post("/flags/:id/confirm", confirmSubmissionFlag);
+router.post("/flags/:id/dismiss", dismissSubmissionFlag);
 router.get("/test-sets", getTestSets);
 router.post("/test-sets", createTestSet);
 router.put("/test-sets/:id", renameTestSet);

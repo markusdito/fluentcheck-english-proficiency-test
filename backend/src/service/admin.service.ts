@@ -148,6 +148,26 @@ export async function getAdminSubmissionDetail(submissionId: string) {
       student: {
         select: { id: true, username: true, email: true },
       },
+      flags: {
+        orderBy: { raisedAt: "asc" },
+        select: {
+          id: true,
+          type: true,
+          source: true,
+          reason: true,
+          answerId: true,
+          manifestEntryId: true,
+          timestampSeconds: true,
+          raisedAt: true,
+          raisedBy: { select: { username: true } },
+          resolution: true,
+          resolutionNote: true,
+          resolvedAt: true,
+          resolvedBy: { select: { username: true } },
+        },
+      },
+      retakeCreditGranted: { select: { redeemedSubmissionId: true, redeemedAt: true } },
+      retakeCreditRedeemed: { select: { voidedSubmissionId: true } },
       payments: {
         orderBy: { createdAt: "desc" },
         select: {
@@ -372,6 +392,14 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         }
       : null,
     payments: submission.payments,
+    // Flag audit trail: who raised and who resolved each flag, and why.
+    flags: submission.flags.map((flag) => ({
+      ...flag,
+      raisedBy: flag.raisedBy?.username ?? null,
+      resolvedBy: flag.resolvedBy?.username ?? null,
+    })),
+    retakeCredit: submission.retakeCreditGranted,
+    waivedByRetakeCreditFrom: submission.retakeCreditRedeemed?.voidedSubmissionId ?? null,
     assignments: submission.assignments.map((assignment) => ({
       id: assignment.id,
       status: assignment.status,
@@ -539,6 +567,7 @@ export async function getAdminStats() {
           status: { in: ["PAID", "SCORING"] },
         },
       }),
+
       prisma.submission.findMany({
         where: {
           retentionStatus: "RETAINED",

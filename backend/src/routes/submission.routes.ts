@@ -16,6 +16,7 @@ import {
   getStudentPromptAudioUrl,
   getPracticeDelivery,
 } from "../controllers/submission.controller.js";
+import { raiseSubmissionDeviceFlag } from "../controllers/submissionFlag.controller.js";
 
 export function createSubmissionRouter(runtime?: RateLimitRuntime) {
   const router = Router();
@@ -48,6 +49,7 @@ export function createSubmissionRouter(runtime?: RateLimitRuntime) {
   router.get("/:id/status", verifyToken, getSubmissionStatusById);
 
   router.post("/:id/abandon", verifyToken, abandonSubmissionById);
+  router.post("/:id/flags", verifyToken, raiseSubmissionDeviceFlag);
 
   // Get a single submission with answers and video URLs (requires authentication)
   router.get("/:id", verifyToken, getSubmissionById);
