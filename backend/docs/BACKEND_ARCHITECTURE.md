@@ -92,6 +92,8 @@ does not prove that a later browser request will play the object.
 | SCORING | Exactly two Examiner assignments exist and at least one remains incomplete. |
 | SCORED | Both assignments have been finalized with complete valid Scores. |
 | CERTIFIED | Schema-supported status; no current backend service or route issues a Certificate or performs this transition. |
+| FLAG_REVIEW | An open flag awaits an Admin. Entered on completion when a device flag exists (before payment) or from `SCORING` on an Examiner integrity concern. Blocks assignment and scoring finalization. |
+| VOIDED | Terminal. An Admin confirmed a flag; never scored. One `RetakeCredit` is granted and redeemed as a system waiver on the student's next completed Submission. |
 
 ### Retention status
 
@@ -235,6 +237,9 @@ calculated from the current page.
 <!-- route: POST /api/submissions/:id/abandon | source=backend/src/routes/submission.routes.ts -->
 | POST | /api/submissions/:id/abandon | Authenticated owner | Explicitly abandons an open Submission under a row lock; repeated abandonment is an idempotent no-op and retained evidence is preserved. |
 
+<!-- route: POST /api/submissions/:id/flags | source=backend/src/routes/submission.routes.ts -->
+| POST | /api/submissions/:id/flags | Authenticated owner | Records a `TECHNICAL_FAILURE` or `CAMERA_DROP` flag while the Submission is `IN_PROGRESS`; completion then routes it to `FLAG_REVIEW` before payment. |
+
 <!-- route: GET /api/submissions/:id | source=backend/src/routes/submission.routes.ts -->
 | GET | /api/submissions/:id | Authenticated owner | Returns manifest-backed detail and authorized evidence URLs. |
 
@@ -266,7 +271,10 @@ All examiner routes require an authenticated EXAMINER or ADMIN account.
 | PUT | /api/examiner/assignments/:id/score | EXAMINER or ADMIN | Saves the Examiner's mutable whole-Submission Score draft (4 criteria + overall band). |
 
 <!-- route: POST /api/examiner/assignments/:id/complete | source=backend/src/routes/examiner.routes.ts -->
-| POST | /api/examiner/assignments/:id/complete | EXAMINER or ADMIN | Finalizes one assignment once its Score is saved. |
+| POST | /api/examiner/assignments/:id/complete | EXAMINER or ADMIN | Finalizes one assignment once its Score is saved; rejected with `OPEN_FLAG` while a flag is open. |
+
+<!-- route: POST /api/examiner/assignments/:id/integrity-concerns | source=backend/src/routes/examiner.routes.ts -->
+| POST | /api/examiner/assignments/:id/integrity-concerns | EXAMINER or ADMIN | The assigned Examiner flags an Answer (timestamp + note); a `SCORING` Submission pauses in `FLAG_REVIEW`. |
 
 ### Administrator routes
 
@@ -316,6 +324,15 @@ All administrator routes require an authenticated ADMIN account.
 
 <!-- route: GET /api/admin/stats | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/stats | ADMIN | Returns administrator statistics. |
+
+<!-- route: GET /api/admin/flags | source=backend/src/routes/admin.routes.ts -->
+| GET | /api/admin/flags | ADMIN | Lists open flags on `FLAG_REVIEW` Submissions with signed Answer-video evidence. |
+
+<!-- route: POST /api/admin/flags/:id/confirm | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/flags/:id/confirm | ADMIN | Requires a note; voids the Submission, supersedes its other open flags, and grants one non-transferable retake credit. |
+
+<!-- route: POST /api/admin/flags/:id/dismiss | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/flags/:id/dismiss | ADMIN | Requires a note; once no flag is open the Submission returns to `SCORING` or to the payment/waiver route. |
 
 <!-- route: GET /api/admin/test-sets | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/test-sets | ADMIN | Lists Test Sets with per-slot readiness (DRAFT or DELIVERABLE). |

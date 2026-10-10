@@ -168,6 +168,18 @@ _Avoid_: Connection error, generic server error
 The Submission manifest's identity-bearing record for one selected Question and its Delivered prompt snapshot; Answers and downstream interpretation attach to this entry rather than to the mutable Question bank.
 _Avoid_: Question assignment, current question link
 
+**Flag**:
+A technical-failure, camera-drop or Examiner integrity-concern record on a Submission. While any flag is open the Submission is in `FLAG_REVIEW` and is never assigned or scored.
+_Avoid_: Report, issue, alert
+
+**Voided submission**:
+A terminal Submission whose flag an Admin confirmed; it is never scored and grants its student one Retake credit.
+_Avoid_: Cancelled submission, failed submission
+
+**Retake credit**:
+One free retake owned by the student of a Voided submission, redeemed automatically as a system waiver on that student's next completed Submission. Not transferable.
+_Avoid_: Voucher, coupon, refund
+
 **Payment attempt**:
 A single request to open a provider checkout for one Submission. It retains its own identity and outcome independently of earlier or later attempts.
 _Avoid_: Payment request, checkout

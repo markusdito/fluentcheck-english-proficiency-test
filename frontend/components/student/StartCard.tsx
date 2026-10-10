@@ -15,11 +15,26 @@ const stats = [
   { fig: "1", cap: "sitting, start to end" },
 ];
 
-export function StartCard({ onStart, onTutorial }: { onStart: () => void; onTutorial: () => void }) {
+export function StartCard({
+  onStart,
+  onTutorial,
+  freeRetake = false,
+}: {
+  onStart: () => void;
+  onTutorial: () => void;
+  /** An unused retake credit from a voided Submission: the next test is free. */
+  freeRetake?: boolean;
+}) {
   return (
     <article className={card}>
       <p className={meta}>Speaking test · one sitting</p>
       <h3 className={`${h3} mt-2`}>Take the speaking test</h3>
+      {freeRetake && (
+        <p className="mt-3 rounded-[10px] bg-sn-field-navy p-4 text-[15px]" role="status">
+          <b className="font-semibold">Your next test is free.</b> An earlier test was voided, so you will not
+          be asked to pay for the next one.
+        </p>
+      )}
       <p className="mt-2 max-w-[60ch] text-pretty text-sn-muted">
         Four parts, five answers, one after another. Each question is played aloud
         and you may replay it once. Preparation starts when the audio ends, recording

@@ -288,8 +288,9 @@ async function readTargetAssignments(
   tx: Prisma.TransactionClient,
   targetUserId: string,
 ) {
+  // Assignments of a VOIDED Submission are closed work: never scored or transferred.
   return tx.examinerAssignment.findMany({
-    where: { examinerId: targetUserId },
+    where: { examinerId: targetUserId, submission: { status: { not: "VOIDED" } } },
     orderBy: { id: "asc" },
     select: {
       id: true,
@@ -856,6 +857,7 @@ export async function previewAccountRoleTransition(
     where: {
       examinerId: targetUserId,
       status: { in: ["ASSIGNED", "IN_PROGRESS"] },
+      submission: { status: { not: "VOIDED" } },
     },
     orderBy: { id: "asc" },
     select: {

@@ -169,7 +169,7 @@ Manage users/roles, Test Sets A–F + prompt audio + Part 3 option icons, paymen
 ### FR-2 Assessment lifecycle (Submission)
 
 - FR-2.1 `POST` start/resume is idempotent via `SubmissionStartIntent` idempotency key; retry preserves the Submission.
-- FR-2.2 Statuses: `IN_PROGRESS → AWAITING_PAYMENT → PAID → SCORING → SCORED (→ CERTIFIED if enabled)`, plus terminal `ABANDONED` and terminal `VOIDED`. A Submission with an open flag sits in `FLAG_REVIEW` (name TBD) until an Admin confirms (`VOIDED`) or dismisses (back to where it was) the flag.
+- FR-2.2 Statuses: `IN_PROGRESS → AWAITING_PAYMENT → PAID → SCORING → SCORED (→ CERTIFIED if enabled)`, plus terminal `ABANDONED` and terminal `VOIDED`. A Submission with an open flag sits in `FLAG_REVIEW` until an Admin confirms (`VOIDED`) or dismisses (back to where it was) the flag.
 - FR-2.3 **Retake is always allowed.** Starting a new Assessment is not blocked by earlier Submissions in `AWAITING_PAYMENT`, `PAID` or `SCORING`, and the dashboard shows no warning about them. Each Submission moves through payment and scoring independently. The only start rule is at most one `IN_PROGRESS` Submission per student; if one exists, start resumes it.
 - FR-2.4 If Test Set selection or prompt-media preparation cannot satisfy the delivery contract, return **Assessment unavailable** with retryable vs admin-only distinction.
 - FR-2.5 The dashboard lists every Submission with its own status, Test Set and result; several Submissions may be in the review pipeline at once.

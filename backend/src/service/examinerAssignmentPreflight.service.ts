@@ -54,7 +54,7 @@ const SQL = {
     '             WHERE a3."submissionId" = a."submissionId"',
     '             GROUP BY a3."examinerId" HAVING COUNT(*) > 1',
     '        ) dupx) AS "duplicateExaminers",',
-    "       CASE WHEN s.\"status\" NOT IN ('SCORING', 'SCORED', 'CERTIFIED')",
+    "       CASE WHEN s.\"status\" NOT IN ('SCORING', 'SCORED', 'CERTIFIED', 'FLAG_REVIEW', 'VOIDED')",
     '            THEN 1 ELSE 0 END AS "lifecycleInconsistent"',
     '  FROM "ExaminerAssignment" a',
     '  JOIN "Submission" s ON s."id" = a."submissionId"',

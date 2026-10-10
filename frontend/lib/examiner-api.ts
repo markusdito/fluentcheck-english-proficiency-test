@@ -50,6 +50,14 @@ export async function saveExaminerScore(
   await api.put(`/examiner/assignments/${assignmentId}/score`, score);
 }
 
+/** Raise an integrity concern on one Answer; scoring pauses for Admin review (PRD FR-4.5). */
+export async function raiseIntegrityConcern(
+  assignmentId: string,
+  concern: { answerId: string; timestampSeconds?: number; note: string },
+): Promise<void> {
+  await api.post(`/examiner/assignments/${assignmentId}/integrity-concerns`, concern);
+}
+
 export async function completeExaminerScoring(
   assignmentId: string,
 ): Promise<ScoringFinalizationResult> {

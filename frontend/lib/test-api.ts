@@ -25,6 +25,17 @@ export async function fetchTestQuestions(
   return res.data;
 }
 
+/**
+ * Report a camera/mic/connection failure while a slot was recording
+ * (PRD FR-3.7, FR-4.3). The Submission goes to flag review before payment.
+ */
+export async function flagSubmissionDevice(
+  submissionId: string,
+  flag: { type: "TECHNICAL_FAILURE" | "CAMERA_DROP"; reason: string; manifestEntryId?: string },
+): Promise<void> {
+  await api.post(`/submissions/${submissionId}/flags`, flag);
+}
+
 interface CreateSubmissionResponse {
   status: string;
   data: {

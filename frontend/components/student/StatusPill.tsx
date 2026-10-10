@@ -18,6 +18,8 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   SCORING: { label: "Scoring", tone: "navy" },
   SCORED: { label: "Scored", tone: "green" },
   CERTIFIED: { label: "Certified", tone: "green" },
+  FLAG_REVIEW: { label: "Under review", tone: "amber" },
+  VOIDED: { label: "Voided", tone: "clay" },
   // admin-only: assignment, payment, media states
   ASSIGNED: { label: "Assigned", tone: "navy" },
   COMPLETED: { label: "Completed", tone: "green" },

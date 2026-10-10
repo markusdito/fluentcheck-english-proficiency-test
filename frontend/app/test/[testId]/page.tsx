@@ -23,7 +23,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { abandonSubmission, completeSubmission } from "@/lib/test-api";
+import { abandonSubmission, completeSubmission, flagSubmissionDevice } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
 import { initializePractice, initializeTest } from "@/lib/test-initialization";
 import { slotLabel } from "@/lib/assessment-slots";
@@ -104,6 +104,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const uploadRef = useRef<Map<string, Promise<void>>>(new Map());
   const takesRef = useRef<Map<string, { blob: Blob; durationSeconds: number }>>(new Map());
   const submissionIdRef = useRef<string | null>(null);
+  // Device flags must reach the server before completion so the Submission
+  // goes to flag review instead of payment (PRD FR-2.9).
+  const deviceFlagsRef = useRef<Promise<unknown>[]>([]);
 
   useEffect(() => {
     submissionIdRef.current = submissionId;
@@ -184,7 +187,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Device loss. While recording, the take ends with whatever was captured and
   // the flow advances as usual: it is never re-recorded. During preparation
   // nothing is recorded yet, so the slot pauses until both devices return.
-  // ponytail: flagging the partial take as a technical failure is #173.
+  // The interrupted take is flagged for Admin review (PRD FR-3.7, FR-4.3);
+  // saving short or silent takes is #173.
   useEffect(() => {
     if (mediaReady) {
       if (phase === "media-paused") {
@@ -198,12 +202,25 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     if (phase === "recording") {
       stopRecording();
       setPhase("finalizing");
+      const sid = submissionIdRef.current;
+      if (!practice && sid) {
+        const cameraLost = !isVideoReady;
+        deviceFlagsRef.current.push(
+          flagSubmissionDevice(sid, {
+            type: cameraLost ? "CAMERA_DROP" : "TECHNICAL_FAILURE",
+            reason: cameraLost
+              ? "Camera stopped while the answer was recording"
+              : "Microphone stopped while the answer was recording",
+            manifestEntryId: currentQuestion?.id,
+          }).catch(() => undefined),
+        );
+      }
     } else if (phase === "preparation") {
       prepCountdown.pause();
       setPhase("media-paused");
       setMediaRecoveryError(null);
     }
-  }, [mediaReady, phase, prepCountdown, stopRecording]);
+  }, [mediaReady, phase, prepCountdown, stopRecording, practice, isVideoReady, currentQuestion?.id]);
 
   // Guard: stop camera stream on any navigation away from the test page.
   useEffect(() => {
@@ -372,7 +389,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
     setCompletionPending(true);
     setCompletionError(null);
-    completeSubmission(sid)
+    // ponytail: a flag request that failed on a dead connection is lost; #174 adds network-loss handling.
+    Promise.all(deviceFlagsRef.current)
+      .then(() => completeSubmission(sid))
       .then(() => setSubmissionCompleted(true))
       .catch((err) => {
         const message = err instanceof Error ? err.message : "Failed to complete submission";

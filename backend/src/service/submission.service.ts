@@ -1,7 +1,7 @@
 import { ASSESSMENT_SLOTS, CURRENT_MANIFEST_VERSION, isSupportedManifestVersion } from "./assessmentSlots.js";
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
-import { assignExaminersToSubmission } from "./examiner.service.js";
+import { assignAfterRouting, hasUnredeemedRetakeCredit, readVoidDetails, routeRecordedSubmission } from "./submissionFlag.service.js";
 import { getAppSettings } from "./settings.service.js";
 import {
   assertLegacyAnswerQuestion,
@@ -22,6 +22,11 @@ import {
   type RubricBreakdown,
   type ScoringSystemValue,
 } from "../utils/scoring.js";
+
+// Statuses past recording: a repeated completion request is a no-op.
+const COMPLETED_STATUSES: readonly string[] = [
+  "AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED", "FLAG_REVIEW", "VOIDED",
+];
 
 export interface ScaleAwareScore {
   value: number;
@@ -49,6 +54,8 @@ export class InvalidDashboardCursorError extends Error {
 
 export interface DashboardData {
   totalTests: number;
+  /** An unused free retake credit: the next Submission skips payment. */
+  retakeCreditAvailable: boolean;
   bestScore: ScaleAwareScore | null;
   submissions: Array<{
     id: string;
@@ -281,6 +288,10 @@ export interface SubmissionDetail {
   comments: string[];
   createdAt: Date;
   answers: AnswerDetail[];
+  /** VOIDED only: the Admin's confirmation note shown to the student. */
+  voidReason: string | null;
+  /** VOIDED only: the free retake credit from this void is still unused. */
+  retakeCreditAvailable: boolean;
 }
 
 export interface SubmissionStatusSnapshot {
@@ -351,11 +362,12 @@ export async function getStudentDashboard(
     // student made a Submission; they are history noise, not tests taken.
     OR: [{ status: { not: "ABANDONED" } }, { answers: { some: {} } }],
   };
-  const [totalTests, pageRowsWithExtra, rubricBest, legacyBest] = await Promise.all([
+  const [totalTests, pageRowsWithExtra, rubricBest, legacyBest, retakeCreditAvailable] = await Promise.all([
     prisma.submission.count({ where: baseWhere }),
     readDashboardHistoryPage(userId, cursor, limit),
     findBestCertificateScore(userId, "RUBRIC_6"),
     findBestCertificateScore(userId, "LEGACY_100"),
+    hasUnredeemedRetakeCredit(userId),
   ]);
 
   const hasMore = pageRowsWithExtra.length > limit;
@@ -374,6 +386,7 @@ export async function getStudentDashboard(
 
   return {
     totalTests,
+    retakeCreditAvailable,
     bestScore: bestCertificate
       ? {
           value: Number(bestCertificate.finalScore),
@@ -590,7 +603,14 @@ export async function getSubmissionDetail(
       })
     : [];
 
+  const voidDetails =
+    submission.status === "VOIDED"
+      ? await readVoidDetails(submission.id)
+      : { voidReason: null, retakeCreditAvailable: false };
+
   return {
+    voidReason: voidDetails.voidReason,
+    retakeCreditAvailable: voidDetails.retakeCreditAvailable,
     id: submission.id,
     status: submission.status,
     score:
@@ -639,18 +659,18 @@ export async function completeSubmission(
   userId: string
 ): Promise<void> {
   const { paymentEnabled } = await getAppSettings();
-  const paymentRequired = paymentEnabled;
 
   // Lock the Submission before reading its evidence. Confirmation and every
   // later upload mutation use the same lifecycle predicate, so a concurrent
   // confirmation either commits before this proof is evaluated or observes
   // the completed status and is rejected.
-  const transitioned = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  const shouldAssign = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT "id" FROM "Submission" WHERE "id" = ${submissionId} FOR UPDATE`;
 
     const submission = await tx.submission.findUnique({
       where: { id: submissionId },
       select: {
+        id: true,
         studentId: true,
         status: true,
         retentionStatus: true,
@@ -684,9 +704,7 @@ export async function completeSubmission(
     // A retry after a committed transition is a successful no-op. Abandoned,
     // legacy in-progress, corrupt, and unknown lifecycle states remain closed.
     if (submission.status !== "IN_PROGRESS") {
-      if (["AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"].includes(submission.status)) {
-        return false;
-      }
+      if (COMPLETED_STATUSES.includes(submission.status)) return false;
       throw new Error("Submission is not in progress");
     }
 
@@ -720,25 +738,21 @@ export async function completeSubmission(
       throw new Error("Submission does not contain the exact verified answer set");
     }
 
-    await tx.submission.update({
-      where: { id: submissionId, retentionStatus: "RETAINED" },
-      data: {
-        paymentRequired,
-        status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
-      },
+    // A Submission flagged during the test goes to flag review before payment
+    // (PRD §4.1 step 8), so the student is never charged for a void.
+    const openFlags = await tx.submissionFlag.count({
+      where: { submissionId, resolution: null },
     });
-    return true;
+    if (openFlags > 0) {
+      await tx.submission.update({
+        where: { id: submissionId, retentionStatus: "RETAINED" },
+        data: { status: "FLAG_REVIEW", flagReturnStatus: null },
+      });
+      return false;
+    }
+
+    return routeRecordedSubmission(tx, submission, paymentEnabled);
   });
 
-  if (transitioned && !paymentRequired) {
-    try {
-      await assignExaminersToSubmission(submissionId);
-    } catch (error) {
-      // Completion must remain successful even when assignment has to be retried by an admin.
-      console.error(
-        `Automatic examiner assignment failed for waived submission ${submissionId}:`,
-        error
-      );
-    }
-  }
+  if (shouldAssign) await assignAfterRouting(submissionId, "submission completed");
 }

@@ -144,6 +144,9 @@ const ASSIGNMENT_READBACK_STATUSES = [
   "SCORING",
   "SCORED",
   "CERTIFIED",
+  // An integrity concern pauses or voids an assigned Submission (PRD FR-9.9).
+  "FLAG_REVIEW",
+  "VOIDED",
 ] as const;
 
 function selectRandomCandidates(
@@ -286,6 +289,17 @@ export async function createExaminerAssignmentSet(
             throw new AssignmentSetError(
               "NOT_ASSIGNMENT_READY",
               "Submission is not Assignment-ready",
+            );
+          }
+
+          // Assignment-ready requires no open flag (PRD FR-8.1).
+          const openFlags = await tx.submissionFlag.count({
+            where: { submissionId, resolution: null },
+          });
+          if (openFlags > 0) {
+            throw new AssignmentSetError(
+              "NOT_ASSIGNMENT_READY",
+              "Submission has an open flag awaiting Admin review",
             );
           }
 
@@ -657,13 +671,16 @@ export async function startExaminerAssignment(
 
     const submission = await tx.submission.findUnique({
       where: { id: submissionId },
-      select: { retentionStatus: true },
+      select: { retentionStatus: true, status: true },
     });
     if (!submission || submission.retentionStatus !== "RETAINED") {
       throw new ScoringFinalizationError(
         "INVALID_LIFECYCLE",
         "Submission is not available",
       );
+    }
+    if (submission.status === "VOIDED") {
+      throw new ScoringFinalizationError("INVALID_LIFECYCLE", "This Submission was voided and is never scored");
     }
 
     if (assignment.examinerId !== examinerId) {
@@ -700,7 +717,8 @@ export type ScoringFinalizationErrorCode =
   | "UNAUTHORIZED"
   | "DRAFT_FROZEN"
   | "INVALID_LIFECYCLE"
-  | "INVALID_ASSIGNMENT_SET";
+  | "INVALID_ASSIGNMENT_SET"
+  | "OPEN_FLAG";
 
 export class ScoringFinalizationError extends Error {
   public readonly code: ScoringFinalizationErrorCode;
@@ -931,6 +949,18 @@ export async function completeExaminerScoring(
     }
 
     assertValidAssignmentSet(assignments);
+    // A Submission with an open flag cannot be scored (PRD FR-9.9).
+    const openFlags = await tx.submissionFlag.count({
+      where: { submissionId, resolution: null },
+    });
+    if (openFlags > 0 || submission.status === "FLAG_REVIEW" || submission.status === "VOIDED") {
+      throw new ScoringFinalizationError(
+        "OPEN_FLAG",
+        submission.status === "VOIDED"
+          ? "This Submission was voided and is never scored"
+          : "Scoring is paused while an Admin reviews a flag on this Submission",
+      );
+    }
     assertValidScoringLifecycle(submission.status, assignments);
 
     if (assignment.status === "COMPLETED") {
@@ -1002,6 +1032,7 @@ export async function saveExaminerScore(
           select: {
             scoringSystem: true,
             retentionStatus: true,
+            status: true,
           },
         },
       },
@@ -1021,6 +1052,9 @@ export async function saveExaminerScore(
     }
     if (assignment.examinerId !== examinerId) {
       throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
+    }
+    if (assignment.submission.status === "VOIDED") {
+      throw new ScoringFinalizationError("INVALID_LIFECYCLE", "This Submission was voided and is never scored");
     }
     if (assignment.status === "COMPLETED") {
       throw new ScoringFinalizationError(

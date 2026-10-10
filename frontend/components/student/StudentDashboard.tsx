@@ -49,7 +49,7 @@ export function StudentDashboard({
         </Tabs.List>
 
         <Tabs.Panel value="overview" className="flex flex-col gap-7 pt-8 outline-none">
-          <StartCard onStart={onStart} onTutorial={onTutorial} />
+          <StartCard onStart={onStart} onTutorial={onTutorial} freeRetake={dashboard?.retakeCreditAvailable === true} />
           <div className="grid items-stretch gap-7 sm:grid-cols-2">
             <LatestResultCard sub={latestScored} />
             <RecentCard subs={subs.slice(0, 3)} />
