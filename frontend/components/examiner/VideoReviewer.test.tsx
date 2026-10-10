@@ -93,6 +93,21 @@ describe("VideoReviewer", () => {
     await waitFor(() => expect(screen.queryByLabelText("Note for the Admin")).not.toBeInTheDocument());
   });
 
+  it("leaves the timestamp empty when the Answer has no video", async () => {
+    const onRaiseConcern = vi.fn().mockResolvedValue(undefined);
+    const missing = [answer({ videoUrl: null })];
+    render(<VideoReviewer answers={missing} currentIndex={0} onRaiseConcern={onRaiseConcern} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Raise integrity concern" }));
+    expect(screen.getByLabelText("Timestamp (seconds)")).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText("Note for the Admin"), { target: { value: "No recording" } });
+    fireEvent.click(screen.getByRole("button", { name: "Raise concern" }));
+
+    await waitFor(() =>
+      expect(onRaiseConcern).toHaveBeenCalledWith({ answerId: "answer-1", timestampSeconds: undefined, note: "No recording" }),
+    );
+  });
+
   it("shows the error when raising fails", async () => {
     const onRaiseConcern = vi.fn().mockRejectedValue(new Error("Integrity concerns can only be raised while scoring"));
     render(<VideoReviewer answers={answers} currentIndex={0} onRaiseConcern={onRaiseConcern} />);

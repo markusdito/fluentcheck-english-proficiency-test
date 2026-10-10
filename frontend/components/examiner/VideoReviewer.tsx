@@ -32,11 +32,11 @@ function IntegrityConcernForm({
   onClose,
 }: {
   answerId: string;
-  defaultTimestamp: number;
+  defaultTimestamp?: number;
   onSubmit: (concern: IntegrityConcern) => Promise<void>;
   onClose: () => void;
 }) {
-  const [timestamp, setTimestamp] = useState(String(defaultTimestamp));
+  const [timestamp, setTimestamp] = useState(defaultTimestamp === undefined ? "" : String(defaultTimestamp));
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +106,7 @@ export function VideoReviewer({ answers, currentIndex, onRaiseConcern }: VideoRe
   const current = answers[currentIndex];
   const videoRef = useRef<HTMLVideoElement>(null);
   // Open form, keyed to the Answer it was opened on; holds the captured video time.
-  const [concern, setConcern] = useState<{ answerId: string; at: number } | null>(null);
+  const [concern, setConcern] = useState<{ answerId: string; at?: number } | null>(null);
 
   if (!current) {
     return (
@@ -195,7 +195,11 @@ export function VideoReviewer({ answers, currentIndex, onRaiseConcern }: VideoRe
             type="button"
             className={`${secondaryButton} mt-5`}
             onClick={() =>
-              setConcern({ answerId: current.id, at: Math.floor(videoRef.current?.currentTime ?? 0) })
+              setConcern({
+                answerId: current.id,
+                // No video: no playback position, so the timestamp starts empty.
+                at: current.videoUrl ? Math.floor(videoRef.current?.currentTime ?? 0) : undefined,
+              })
             }
           >
             Raise integrity concern
