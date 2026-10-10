@@ -122,12 +122,35 @@ test("existing Google subjects authenticate the active account without email rel
   assert.equal(stored?.password, "local-hash");
 });
 
-test("Gmail identities safely link an existing local account and preserve its attributes", async () => {
+test("Gmail identities never auto-link an existing password account", async () => {
   const password = await bcrypt.hash("local-password", 4);
   const existing = await createUser({
     username: "local_candidate",
     email: "local@gmail.com",
     password,
+    role: "ADMIN",
+  });
+
+  await assert.rejects(
+    resolveGoogleAccount(
+      identity({ email: "LOCAL@gmail.com", subject: "gmail-subject" }),
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof GoogleAccountResolutionError);
+      assert.equal(error.code, "account_conflict");
+      return true;
+    },
+  );
+  const stored = await prisma.user.findUnique({ where: { id: existing.id } });
+  assert.equal(stored?.googleSubject, null);
+  assert.equal(stored?.password, password);
+});
+
+test("Gmail identities link a passwordless unlinked account and preserve its attributes", async () => {
+  const existing = await createUser({
+    username: "local_candidate",
+    email: "local@gmail.com",
+    password: null,
     role: "ADMIN",
   });
 
@@ -140,14 +163,14 @@ test("Gmail identities safely link an existing local account and preserve its at
   assert.equal(stored?.googleSubject, "gmail-subject");
   assert.equal(stored?.username, "local_candidate");
   assert.equal(stored?.role, "ADMIN");
-  assert.equal(stored?.password, password);
+  assert.equal(stored?.password, null);
 });
 
-test("concurrent authoritative callbacks link one existing local account", async () => {
+test("concurrent authoritative callbacks link one existing passwordless account", async () => {
   const existing = await createUser({
     username: "concurrent_local",
     email: "concurrent@gmail.com",
-    password: "local-hash",
+    password: null,
     role: "EXAMINER",
   });
 
@@ -170,7 +193,7 @@ test("concurrent authoritative callbacks link one existing local account", async
     1,
   );
   const stored = await prisma.user.findUnique({ where: { id: existing.id } });
-  assert.equal(stored?.password, "local-hash");
+  assert.equal(stored?.password, null);
   assert.equal(stored?.role, "EXAMINER");
 });
 
@@ -178,6 +201,7 @@ test("a matching verified Workspace hosted domain is authoritative for linking",
   const existing = await createUser({
     username: "workspace_candidate",
     email: "candidate@fluentcheck.example",
+    password: null,
   });
 
   const account = await resolveGoogleAccount(
