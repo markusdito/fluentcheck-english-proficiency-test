@@ -992,11 +992,21 @@ export async function completeExaminerScoring(
     }
 
     assertValidAssignmentSet(assignments);
+    const alreadyCompleted = {
+      outcome: "ALREADY_COMPLETED",
+      assignmentStatus: assignment.status,
+      submissionStatus: submission.status,
+    } as const;
     // A Submission with an open flag cannot be scored (PRD FR-9.9).
     const openFlags = await tx.submissionFlag.count({
       where: { submissionId, resolution: null },
     });
     if (openFlags > 0 || submission.status === "FLAG_REVIEW" || submission.status === "VOIDED") {
+      // Repeating completion stays a successful no-op when a later flag
+      // paused the Submission: the completed Score is already committed.
+      if (assignment.status === "COMPLETED" && submission.status !== "VOIDED") {
+        return alreadyCompleted;
+      }
       throw new ScoringFinalizationError(
         "OPEN_FLAG",
         submission.status === "VOIDED"
@@ -1006,13 +1016,7 @@ export async function completeExaminerScoring(
     }
     assertValidScoringLifecycle(submission.status, assignments);
 
-    if (assignment.status === "COMPLETED") {
-      return {
-        outcome: "ALREADY_COMPLETED",
-        assignmentStatus: assignment.status,
-        submissionStatus: submission.status,
-      };
-    }
+    if (assignment.status === "COMPLETED") return alreadyCompleted;
 
     if (assignment.status !== "ASSIGNED" && assignment.status !== "IN_PROGRESS") {
       throw new ScoringFinalizationError(

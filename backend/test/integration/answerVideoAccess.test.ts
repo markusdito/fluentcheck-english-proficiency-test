@@ -277,3 +277,28 @@ test("an integrity concern pauses both assignments; the Admin reviews every Answ
   assert.equal(orphaned.length, 5);
   assert.ok(orphaned.every((event) => event.viewerRole === "ADMIN"));
 });
+
+test("repeating a completed assignment's completion stays a no-op after a later integrity concern", async () => {
+  const student = await user("STUDENT");
+  const examiners = [await user("EXAMINER"), await user("EXAMINER")] as const;
+  const { submission, assignments } = await scoringSubmission(student.id, [examiners[0].id, examiners[1].id]);
+  const score = { rubric: { pronunciation: 4, fluency: 4, vocabulary: 4, grammar: 4 }, overall: 4 };
+  assert.equal((await request("PUT", `/examiner/assignments/${assignments[0].id}/score`, examiners[0].id, score)).status, 200);
+  assert.equal((await request("POST", `/examiner/assignments/${assignments[0].id}/complete`, examiners[0].id)).status, 200);
+
+  const answer = await prisma.answer.findFirstOrThrow({ where: { submissionId: submission.id } });
+  assert.equal(
+    (await request("POST", `/examiner/assignments/${assignments[1].id}/integrity-concerns`, examiners[1].id, {
+      answerId: answer.id,
+      note: "Someone else is speaking",
+    })).status,
+    201,
+  );
+  assert.equal((await prisma.submission.findUniqueOrThrow({ where: { id: submission.id } })).status, "FLAG_REVIEW");
+
+  const repeated = await request("POST", `/examiner/assignments/${assignments[0].id}/complete`, examiners[0].id);
+  assert.equal(repeated.status, 200);
+  assert.equal((await repeated.json()).data.outcome, "ALREADY_COMPLETED");
+  const other = await request("POST", `/examiner/assignments/${assignments[1].id}/complete`, examiners[1].id);
+  assert.equal(other.status, 409);
+});
