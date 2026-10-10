@@ -113,12 +113,33 @@ export interface AdminSubmissionAssignment {
     name: string;
     email: string;
   };
+  /** Untouched ASSIGNED work an Admin may move to another Examiner. Absent on older backends. */
+  reassignable?: boolean;
+  /** Every move of this assignment between Examiners, oldest first. */
+  reassignmentHistory?: AdminReassignmentEntry[];
   /** This Examiner's whole-Submission Score (admin-only). */
   score: {
     value: number;
     rubric: RubricValues | null;
     comment: string | null;
   } | null;
+}
+
+export interface AdminReassignmentEntry {
+  id: string;
+  /** ACCOUNT_ROLE_TRANSITION, ACCOUNT_DEACTIVATION or ADMIN_REASSIGNMENT */
+  reason: string;
+  note: string | null;
+  createdAt: string;
+  previousExaminerName: string;
+  newExaminerName: string;
+  actingAdminName: string;
+}
+
+export interface AdminSubmissionPaymentWaiver {
+  reason: string;
+  createdAt: string;
+  adminName: string;
 }
 
 export interface AdminAnswerScore {
@@ -170,6 +191,8 @@ export interface AdminSubmissionDetail {
   flags?: AdminSubmissionFlag[];
   retakeCredit?: { redeemedSubmissionId: string | null; redeemedAt: string | null } | null;
   waivedByRetakeCreditFrom?: string | null;
+  /** An Admin's audited payment waiver. Absent on older backends. */
+  paymentWaiver?: AdminSubmissionPaymentWaiver | null;
   assignments: AdminSubmissionAssignment[];
   answers: AdminSubmissionAnswer[];
 }
@@ -288,4 +311,51 @@ export interface AdminOpenFlag {
   studentEmail: string;
   submissionCreatedAt: string;
   videoUrl: string | null;
+}
+
+export type PaymentReconciliationReason =
+  | "CHECKOUT_UNCONFIRMED"
+  | "NO_PROVIDER_OUTCOME"
+  | "DUPLICATE_PAYMENT"
+  | "PAID_WHILE_WAIVED";
+
+export interface AdminQueue<T> {
+  total: number;
+  items: T[];
+}
+
+/** Dashboard review queues, oldest items first. */
+export interface AdminQueues {
+  openFlags: AdminQueue<{
+    id: string;
+    submissionId: string;
+    type: FlagType;
+    source: "STUDENT_DEVICE" | "EXAMINER";
+    reason: string;
+    raisedAt: string;
+    studentName: string;
+  }>;
+  paymentReconciliation: AdminQueue<{
+    reason: PaymentReconciliationReason;
+    paymentId: string;
+    submissionId: string;
+    submissionStatus: string;
+    studentName: string;
+    paymentStatus: string;
+    amount: number;
+    currency: string;
+    merchantReference: string | null;
+    providerSessionId: string | null;
+    providerTransactionId: string | null;
+    createdAt: string;
+    paidAt: string | null;
+  }>;
+  assignmentReady: AdminQueue<{
+    submissionId: string;
+    studentName: string;
+    paymentWaived: boolean;
+    paymentRequired: boolean;
+    createdAt: string;
+    readySince: string;
+  }>;
 }

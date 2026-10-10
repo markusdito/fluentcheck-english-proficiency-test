@@ -15,6 +15,7 @@ import type {
   AccountTransitionPreview,
   AccountTransitionResult,
   AdminOpenFlag,
+  AdminQueues,
 } from "@/types/admin";
 
 interface PaginatedEnvelope<T> {
@@ -119,9 +120,10 @@ export async function updateUserRole(
   return res.data;
 }
 
+/** Active Examiners with their open (not completed) assignment counts. */
 export async function fetchAdminExaminers(signal?: AbortSignal): Promise<AdminExaminer[]> {
-  const res = await api.get<ListEnvelope<AdminExaminer>>("/admin/examiners", { signal });
-  return res.data;
+  const res = await api.get<{ status: string; data: { items: AdminExaminer[] } }>("/admin/examiners", { signal });
+  return res.data.items;
 }
 
 export interface FetchAdminSubmissionsParams {
@@ -158,6 +160,25 @@ export async function assignExaminers(
   const res = await api.post<{ status: string; data: AssignSubmissionResult }>(
     `/admin/submissions/${submissionId}/assign`,
   );
+  return res.data;
+}
+
+/** Waive payment for one Submission awaiting payment; the reason is audited. */
+export async function waiveSubmissionPayment(submissionId: string, reason: string): Promise<{ status: string }> {
+  const res = await api.post<{ status: string; data: { status: string } }>(
+    `/admin/submissions/${submissionId}/payment-waiver`,
+    { reason },
+  );
+  return res.data;
+}
+
+/** Move an untouched ASSIGNED assignment to another Examiner; the reason is kept in its history. */
+export async function reassignAssignment(assignmentId: string, examinerId: string, reason: string): Promise<void> {
+  await api.post(`/admin/assignments/${assignmentId}/reassign`, { examinerId, reason });
+}
+
+export async function fetchAdminQueues(signal?: AbortSignal): Promise<AdminQueues> {
+  const res = await api.get<{ status: string; data: AdminQueues }>("/admin/queues", { signal });
   return res.data;
 }
 
