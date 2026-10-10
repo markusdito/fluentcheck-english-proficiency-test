@@ -26,7 +26,6 @@ vi.mock("@/components/student/PageShell", () => ({
   PageState: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   BackLink: ({ children }: { children: ReactNode }) => <a>{children}</a>,
 }));
-vi.mock("@/components/media/LazyAnswerMedia", () => ({ LazyAnswerMedia: () => null }));
 
 const base = {
   id: "sub-1",
@@ -75,5 +74,18 @@ describe("Result page flag states", () => {
     await renderResult({ status: "FLAG_REVIEW" });
     expect(await screen.findByRole("heading", { name: "We are checking your recording" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /pay/i })).not.toBeInTheDocument();
+  });
+
+  it("lists recorded Answers without any video playback", async () => {
+    await renderResult({
+      status: "SCORING",
+      answers: [
+        { id: "a1", questionId: "q1", questionCategory: "PART_1A", audioUrl: null, durationSeconds: 40, score: null, rubric: null, comments: [] },
+      ],
+    });
+    expect(await screen.findByRole("heading", { name: "Your recordings" })).toBeInTheDocument();
+    expect(screen.getAllByText(/Part 1 · Task 1A/).length).toBeGreaterThan(0);
+    expect(document.querySelector("video")).toBeNull();
+    expect(screen.queryByRole("button", { name: /load recording/i })).not.toBeInTheDocument();
   });
 });

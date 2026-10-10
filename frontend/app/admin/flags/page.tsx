@@ -8,15 +8,27 @@ import { toast } from "sonner";
 import { confirmFlag, dismissFlag, fetchOpenFlags } from "@/lib/admin-api";
 import { slotLabel } from "@/lib/assessment-slots";
 import { queryKeys } from "@/lib/query-keys";
+import { LazyAnswerMedia } from "@/components/media/LazyAnswerMedia";
+import { Pill } from "@/components/student/StatusPill";
 import { card, h2, h3, meta, primaryButton } from "@/components/student/styles";
 import { btnDanger, btnSecondary, empty, error, field, label, lead } from "@/components/admin/styles";
-import type { AdminOpenFlag, FlagType } from "@/types/admin";
+import type { AdminFlagAnswer, AdminOpenFlag, FlagType } from "@/types/admin";
 
 const TYPE_LABELS: Record<FlagType, string> = {
   TECHNICAL_FAILURE: "Technical failure",
   CAMERA_DROP: "Camera drop",
   INTEGRITY_CONCERN: "Integrity concern",
 };
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+/** One-line summary of the Delivered prompt snapshot. */
+function promptSummary(answer: AdminFlagAnswer): string | null {
+  if (answer.cueCard) return `Cue card: ${answer.cueCard.topic}`;
+  if (answer.options?.length) return `Options: ${answer.options.map((option) => option.title).join(", ")}`;
+  if (answer.tasks.length) return answer.tasks.map((task) => task.promptText).join(" · ");
+  return null;
+}
 
 function FlagCard({ flag, onResolved }: { flag: AdminOpenFlag; onResolved: () => void }) {
   const [note, setNote] = useState("");
@@ -59,14 +71,43 @@ function FlagCard({ flag, onResolved }: { flag: AdminOpenFlag; onResolved: () =>
         </Link>
         {` · ${flag.studentEmail}`}
         {flag.slot && ` · ${slotLabel(flag.slot)}`}
-        {flag.timestampSeconds != null && ` · at ${flag.timestampSeconds}s`}
+        {flag.timestampSeconds != null && ` · at ${clock(flag.timestampSeconds)}`}
         {flag.source === "EXAMINER" && flag.raisedBy && ` · raised by examiner ${flag.raisedBy}`}
       </p>
       <p className="mt-3 text-[15px]">{flag.reason}</p>
-      {flag.videoUrl ? (
-        <video className="mt-4 w-full max-w-xl rounded-xl bg-black" src={flag.videoUrl} controls preload="metadata" />
+      {flag.answers.length > 0 ? (
+        <ol className="mt-4 grid list-none gap-4 p-0" aria-label="Answer videos">
+          {flag.answers.map((answer, index) => {
+            const flagged =
+              answer.answerId === flag.answerId ||
+              (!flag.answerId && flag.manifestEntryId != null && answer.manifestEntryId === flag.manifestEntryId);
+            const summary = promptSummary(answer);
+            return (
+              <li
+                key={answer.answerId}
+                className={`rounded-xl border p-4 ${flagged ? "border-sn-ink-amber" : "border-sn-border"}`}
+              >
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <p className={meta}>{answer.questionCategory ? slotLabel(answer.questionCategory) : `Answer ${index + 1}`}</p>
+                  {flagged && (
+                    <Pill tone="amber">
+                      Flagged{flag.timestampSeconds != null && ` at ${clock(flag.timestampSeconds)}`}
+                    </Pill>
+                  )}
+                </div>
+                {summary && <p className="mb-3 text-sm text-sn-muted">{summary}</p>}
+                <LazyAnswerMedia
+                  audioUrl={null}
+                  videoUrl={answer.videoUrl}
+                  questionNumber={index + 1}
+                  unavailableMessage="Video not available"
+                />
+              </li>
+            );
+          })}
+        </ol>
       ) : (
-        <p className={`${meta} mt-4`}>No Answer video for this flag. Open the Submission to see all Answers.</p>
+        <p className={`${meta} mt-4`}>No Answer videos for this Submission.</p>
       )}
       <label className={`${label} mt-5`} htmlFor={noteId}>
         Decision note (shown to the student if you void)

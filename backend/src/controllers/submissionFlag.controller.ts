@@ -47,9 +47,9 @@ export function raiseAssignmentIntegrityConcern(req: Request, res: Response) {
 }
 
 /** GET /api/admin/flags — open flags with evidence. */
-export async function listFlags(_req: Request, res: Response) {
+export async function listFlags(req: Request, res: Response) {
   try {
-    res.status(200).json({ status: "success", data: await listOpenFlags() });
+    res.status(200).json({ status: "success", data: await listOpenFlags(req.user!) });
   } catch (error) {
     console.error("List flags error:", error);
     res.status(500).json({ error: "Failed to load flags" });

@@ -47,7 +47,6 @@ export interface AnswerDetail {
   questionCategory: string;
   audioUrl: string | null;
   durationSeconds: number | null;
-  videoUrl: string | null;
   score: number | null;
   rubric: RubricBreakdown | null;
   comments: string[];

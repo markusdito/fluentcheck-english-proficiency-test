@@ -8,12 +8,13 @@ import { CircleCheckIcon, Loader2 } from "lucide-react";
 import {
   completeExaminerScoring,
   fetchExaminerAssignmentDetail,
+  raiseIntegrityConcern,
   saveExaminerScore,
 } from "@/lib/examiner-api";
 import { useSession } from "@/hooks/useSession";
 import { queryKeys } from "@/lib/query-keys";
 import { refreshExaminerWorkAfterOwnershipConflict } from "@/lib/examiner-ownership";
-import { VideoReviewer } from "@/components/examiner/VideoReviewer";
+import { VideoReviewer, type IntegrityConcern } from "@/components/examiner/VideoReviewer";
 import { ScoringPanel } from "@/components/examiner/ScoringPanel";
 import { AssignmentPill, submissionRef } from "@/components/examiner/ExaminerDashboard";
 import { BackLink, PageShell, PageState } from "@/components/student/PageShell";
@@ -68,6 +69,11 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleRaiseConcern = async (concern: IntegrityConcern) => {
+    await raiseIntegrityConcern(assignmentId, concern);
+    await queryClient.invalidateQueries({ queryKey: assignmentKey });
   };
 
   const handleCompleteScoring = async () => {
@@ -174,6 +180,13 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
         ))}
       </dl>
 
+      {assignment.paused && assignment.status !== "COMPLETED" && (
+        <p role="status" className={`${card} mb-7 border-sn-ink-amber text-[15px]`}>
+          Scoring paused: a flag on this Submission is under Admin review. You can still watch the Answers and raise
+          another concern.
+        </p>
+      )}
+
       {assignment.status !== "COMPLETED" ? (
         <ScoringPanel
           answers={assignment.answers}
@@ -184,8 +197,13 @@ export default function AssignmentReviewPage({ params }: { params: Promise<{ ass
           onSave={handleSaveScore}
           onComplete={handleCompleteScoring}
           isSubmitting={submitting}
+          paused={assignment.paused}
         >
-          <VideoReviewer answers={assignment.answers} currentIndex={currentQuestionIndex} />
+          <VideoReviewer
+            answers={assignment.answers}
+            currentIndex={currentQuestionIndex}
+            onRaiseConcern={handleRaiseConcern}
+          />
         </ScoringPanel>
       ) : (
         <div className="grid items-start gap-7 min-[921px]:grid-cols-[minmax(0,1fr)_300px]">

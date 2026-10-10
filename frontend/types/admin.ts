@@ -135,6 +135,8 @@ export interface AdminSubmissionAnswer {
   id: string;
   questionId: string;
   questionCategory: string;
+  /** Manifest delivery position (1-5); null for a Submission without a manifest. */
+  deliveryPosition: number | null;
   tasks: AdminTask[];
   audioUrl: string | null;
   durationSeconds: number | null;
@@ -240,7 +242,7 @@ import type {
   RubricValues,
   ScoringSystem,
 } from "@/types/scoring";
-import type { CueCard, QuestionCategory, TestSetRef } from "@/types/test";
+import type { CueCard, DeliveredOption, QuestionCategory, TestSetRef } from "@/types/test";
 
 export interface AdminTestSetSlot {
   category: QuestionCategory;
@@ -273,7 +275,19 @@ export interface AdminSubmissionFlag {
   resolvedBy: string | null;
 }
 
-/** An open flag in the Admin review queue, with its Answer video as evidence. */
+/** One Answer of a flagged Submission, in slot order, with its Delivered prompt snapshot. */
+export interface AdminFlagAnswer {
+  answerId: string;
+  manifestEntryId: string | null;
+  questionCategory: string | null;
+  deliveryPosition: number | null;
+  tasks: AdminTask[];
+  cueCard: CueCard | null;
+  options: DeliveredOption[] | null;
+  videoUrl: string | null;
+}
+
+/** An open flag in the Admin review queue, with every Answer video as evidence. */
 export interface AdminOpenFlag {
   id: string;
   submissionId: string;
@@ -287,5 +301,9 @@ export interface AdminOpenFlag {
   studentName: string;
   studentEmail: string;
   submissionCreatedAt: string;
+  answerId: string | null;
+  manifestEntryId: string | null;
+  /** The flagged Answer's video (or the flagged slot's). */
   videoUrl: string | null;
+  answers: AdminFlagAnswer[];
 }

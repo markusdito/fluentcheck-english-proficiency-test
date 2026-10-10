@@ -44,8 +44,8 @@ rejection, and the final error handler.
 ## 3. Persistence and domain vocabulary
 
 The main records are User, TestSet, Question, Task, Submission, SubmissionManifest,
-ManifestEntry, ManifestTask, Answer, Payment, ExaminerAssignment, Score, and
-Certificate. User roles are STUDENT, EXAMINER, and ADMIN.
+ManifestEntry, ManifestTask, Answer, AnswerMediaViewEvent, SubmissionFlag,
+RetakeCredit, Payment, ExaminerAssignment, Score, and Certificate. User roles are STUDENT, EXAMINER, and ADMIN.
 
 A new Submission has one immutable version 2 Submission manifest delivered
 from one Test Set. A Test Set holds at most one active Question per delivery
@@ -75,6 +75,16 @@ retain the older submission/question relationship. A Verified answer is
 server-observed R2 evidence bound to its manifest entry; a client declaration
 alone is not sufficient.
 
+Answer videos are viewable only by the Submission's two assigned Examiners
+(through their own assignment) and Admins; the student never receives an
+Answer video URL after the test (PRD FR-4.4). Every signed Answer video URL is
+issued through `issueAnswerVideoUrl` (backend/src/service/upload.service.ts),
+expires after 300 seconds, and writes one immutable `AnswerMediaViewEvent`
+(answer, Submission, viewer and role, context `EXAMINER_ASSIGNMENT`,
+`ADMIN_SUBMISSION` or `ADMIN_FLAG_REVIEW`, assignment or flag, storage key).
+A database trigger rejects UPDATE and DELETE; only `ON DELETE SET NULL` from
+an Answer purge or viewer removal may touch a row. See ADR-0022.
+
 Question eligibility for new manifest creation requires an active Question,
 available prompt audio metadata, and at least one active Task; a Part 3
 Question also needs all four options with verified icons. Prompt media
@@ -92,7 +102,7 @@ does not prove that a later browser request will play the object.
 | SCORING | Exactly two Examiner assignments exist and at least one remains incomplete. |
 | SCORED | Both assignments have been finalized with complete valid Scores. |
 | CERTIFIED | Schema-supported status; no current backend service or route issues a Certificate or performs this transition. |
-| FLAG_REVIEW | An open flag awaits an Admin. Entered on completion when a device flag exists (before payment) or from `SCORING` on an Examiner integrity concern. Blocks assignment and scoring finalization. |
+| FLAG_REVIEW | An open flag awaits an Admin. Entered on completion when a device flag exists (before payment) or from `SCORING` on an Examiner integrity concern. Blocks assignment and pauses both Examiner assignments: start, Score draft save, and finalization are rejected with `OPEN_FLAG`. |
 | VOIDED | Terminal. An Admin confirmed a flag; never scored. One `RetakeCredit` is granted and redeemed as a system waiver on the student's next completed Submission. |
 
 ### Retention status
@@ -255,7 +265,7 @@ calculated from the current page.
 | POST | /api/submissions/:id/flags | Authenticated owner | Records a `TECHNICAL_FAILURE` or `CAMERA_DROP` flag while the Submission is `IN_PROGRESS`; completion then routes it to `FLAG_REVIEW` before payment. |
 
 <!-- route: GET /api/submissions/:id | source=backend/src/routes/submission.routes.ts -->
-| GET | /api/submissions/:id | Authenticated owner | Returns manifest-backed detail and authorized evidence URLs. |
+| GET | /api/submissions/:id | Authenticated owner | Returns manifest-backed detail and prompt audio URLs; Answer `videoUrl` is always null (PRD FR-4.4). |
 
 <!-- route: POST /api/submissions/:id/complete | source=backend/src/routes/submission.routes.ts -->
 | POST | /api/submissions/:id/complete | Authenticated owner, completion rate limits | Validates exactly one verified Answer per manifest entry and closes recording. |
@@ -276,19 +286,19 @@ All examiner routes require an authenticated EXAMINER or ADMIN account.
 | GET | /api/examiner/assignments | EXAMINER or ADMIN | Lists the caller's examiner assignments. |
 
 <!-- route: GET /api/examiner/assignments/:id | source=backend/src/routes/examiner.routes.ts -->
-| GET | /api/examiner/assignments/:id | EXAMINER or ADMIN | Returns assignment detail and the delivered prompt snapshots. |
+| GET | /api/examiner/assignments/:id | EXAMINER or ADMIN | The assigned Examiner only: Answers in slot order with `deliveryPosition`, the delivered prompt snapshot (tasks, `cueCard`, `options` with signed icons), audited (`EXAMINER_ASSIGNMENT`) video URLs, and `paused` while a flag is open. |
 
 <!-- route: PUT /api/examiner/assignments/:id/start | source=backend/src/routes/examiner.routes.ts -->
-| PUT | /api/examiner/assignments/:id/start | EXAMINER or ADMIN | Starts an assigned review. |
+| PUT | /api/examiner/assignments/:id/start | EXAMINER or ADMIN | Starts an assigned review; rejected with 409 `OPEN_FLAG` while a flag is open. |
 
 <!-- route: PUT /api/examiner/assignments/:id/score | source=backend/src/routes/examiner.routes.ts -->
-| PUT | /api/examiner/assignments/:id/score | EXAMINER or ADMIN | Saves the Examiner's mutable whole-Submission Score draft (4 criteria + overall band). |
+| PUT | /api/examiner/assignments/:id/score | EXAMINER or ADMIN | Saves the Examiner's mutable whole-Submission Score draft (4 criteria + overall band); rejected with 409 `OPEN_FLAG` while a flag is open. |
 
 <!-- route: POST /api/examiner/assignments/:id/complete | source=backend/src/routes/examiner.routes.ts -->
 | POST | /api/examiner/assignments/:id/complete | EXAMINER or ADMIN | Finalizes one assignment once its Score is saved; rejected with `OPEN_FLAG` while a flag is open. |
 
 <!-- route: POST /api/examiner/assignments/:id/integrity-concerns | source=backend/src/routes/examiner.routes.ts -->
-| POST | /api/examiner/assignments/:id/integrity-concerns | EXAMINER or ADMIN | The assigned Examiner flags an Answer (timestamp + note); a `SCORING` Submission pauses in `FLAG_REVIEW`. |
+| POST | /api/examiner/assignments/:id/integrity-concerns | EXAMINER or ADMIN | Either assigned Examiner flags an Answer (timestamp + note); a `SCORING` Submission pauses in `FLAG_REVIEW`, pausing both assignments. Still allowed during `FLAG_REVIEW`. |
 
 ### Administrator routes
 
@@ -334,13 +344,13 @@ All administrator routes require an authenticated ADMIN account.
 | GET | /api/admin/submissions | ADMIN | Lists submissions for administration. |
 
 <!-- route: GET /api/admin/submissions/:id | source=backend/src/routes/admin.routes.ts -->
-| GET | /api/admin/submissions/:id | ADMIN | Returns administrator submission detail. |
+| GET | /api/admin/submissions/:id | ADMIN | Returns administrator submission detail; Answers in slot order with audited (`ADMIN_SUBMISSION`) video URLs. |
 
 <!-- route: GET /api/admin/stats | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/stats | ADMIN | Returns administrator statistics. |
 
 <!-- route: GET /api/admin/flags | source=backend/src/routes/admin.routes.ts -->
-| GET | /api/admin/flags | ADMIN | Lists open flags on `FLAG_REVIEW` Submissions with signed Answer-video evidence. |
+| GET | /api/admin/flags | ADMIN | Lists open flags on `FLAG_REVIEW` Submissions with the flagged `answerId`, `manifestEntryId`, `timestampSeconds`, the flagged Answer's `videoUrl`, and `answers`: every Answer of the Submission in slot order with its prompt snapshot and audited (`ADMIN_FLAG_REVIEW`) video URL, issued once per Answer per response. |
 
 <!-- route: POST /api/admin/flags/:id/confirm | source=backend/src/routes/admin.routes.ts -->
 | POST | /api/admin/flags/:id/confirm | ADMIN | Requires a note; voids the Submission, supersedes its other open flags, and grants one non-transferable retake credit. |
@@ -479,6 +489,11 @@ bands, unrounded to half-bands. Nothing is shown until both assignments are
 completed. Submissions scored per Answer before this change (and LEGACY_100)
 keep their original per-Answer aggregation.
 
+An open flag pauses scoring: while the Submission is `FLAG_REVIEW` or has an
+unresolved flag, start, Score draft save, and finalization are rejected with
+409 `OPEN_FLAG`. Either assigned Examiner may still raise an integrity concern.
+Dismissing the last open flag returns the Submission to `SCORING`.
+
 ## 6. Authentication, authorization, and request protection
 
 Local authentication normalizes the email key by trimming and lowercasing it,
@@ -549,6 +564,7 @@ Focused tests that protect the main contracts include:
 | Auth identity and active account | backend/test/integration/authCurrentAccount.test.ts, backend/test/integration/authRateLimit.test.ts |
 | Login persistence modes | backend/test/integration/rememberMe.test.ts, frontend/components/auth/AuthForms.test.tsx |
 | Rate-limit behavior | backend/test/integration/nonAuthRateLimit.test.ts, backend/test/rateLimitStore.test.ts |
+| Flags, pause, and audited Answer video access | backend/test/integration/submissionFlags.test.ts, backend/test/integration/answerVideoAccess.test.ts |
 | Retention, purge, audit, and Prompt-media cleanup | backend/test/integration/submissionRetention.test.ts, backend/test/promptMediaCleanup.test.ts |
 
 When a route or lifecycle source changes, update this document and run
