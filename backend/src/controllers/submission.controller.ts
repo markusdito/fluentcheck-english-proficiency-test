@@ -5,6 +5,8 @@ import {
   getSubmissionDetail,
   getSubmissionStatus,
   abandonSubmission,
+  recordSubmissionHeartbeat,
+  SubmissionNotInProgressError,
   InvalidDashboardCursorError,
   type DashboardQuery,
 } from "../service/submission.service.js";
@@ -107,6 +109,39 @@ export async function abandonSubmissionById(req: Request, res: Response) {
     const message = error instanceof Error ? error.message : "Failed to abandon submission";
     const status = message === "Submission not found" || message === "Unauthorized" ? 404 : 409;
     res.status(status).json({ error: message });
+  }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** POST /api/submissions/:id/heartbeat — the Assessment client is still alive (PRD FR-2.7). */
+export async function heartbeatSubmissionById(req: Request, res: Response) {
+  const submissionId = req.params.id as string;
+  if (!UUID_RE.test(submissionId)) {
+    res.status(400).json({ error: "A valid ID is required", code: "VALIDATION_ERROR" });
+    return;
+  }
+  try {
+    const data = await recordSubmissionHeartbeat(submissionId, req.user!.id);
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).json({ status: "success", data });
+  } catch (error) {
+    if (error instanceof SubmissionNotInProgressError) {
+      res.status(409).json({
+        error: error.message,
+        code: error.code,
+        retryable: false,
+        submissionStatus: error.submissionStatus,
+      });
+      return;
+    }
+    const message = error instanceof Error ? error.message : "";
+    if (message === "Submission not found" || message === "Submission is not available") {
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+    console.error("Submission heartbeat error:", error);
+    res.status(500).json({ error: "Failed to record heartbeat" });
   }
 }
 

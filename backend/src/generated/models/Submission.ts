@@ -34,6 +34,7 @@ export type SubmissionMinAggregateOutputType = {
   consentedAt: Date | null
   consentVersion: string | null
   flagReturnStatus: $Enums.SubmissionStatus | null
+  lastHeartbeatAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -48,6 +49,7 @@ export type SubmissionMaxAggregateOutputType = {
   consentedAt: Date | null
   consentVersion: string | null
   flagReturnStatus: $Enums.SubmissionStatus | null
+  lastHeartbeatAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -62,6 +64,7 @@ export type SubmissionCountAggregateOutputType = {
   consentedAt: number
   consentVersion: number
   flagReturnStatus: number
+  lastHeartbeatAt: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -78,6 +81,7 @@ export type SubmissionMinAggregateInputType = {
   consentedAt?: true
   consentVersion?: true
   flagReturnStatus?: true
+  lastHeartbeatAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -92,6 +96,7 @@ export type SubmissionMaxAggregateInputType = {
   consentedAt?: true
   consentVersion?: true
   flagReturnStatus?: true
+  lastHeartbeatAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -106,6 +111,7 @@ export type SubmissionCountAggregateInputType = {
   consentedAt?: true
   consentVersion?: true
   flagReturnStatus?: true
+  lastHeartbeatAt?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -193,6 +199,7 @@ export type SubmissionGroupByOutputType = {
   consentedAt: Date | null
   consentVersion: string | null
   flagReturnStatus: $Enums.SubmissionStatus | null
+  lastHeartbeatAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: SubmissionCountAggregateOutputType | null
@@ -228,6 +235,7 @@ export type SubmissionWhereInput = {
   consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
   flagReturnStatus?: Prisma.EnumSubmissionStatusNullableFilter<"Submission"> | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -256,6 +264,7 @@ export type SubmissionOrderByWithRelationInput = {
   consentedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   consentVersion?: Prisma.SortOrderInput | Prisma.SortOrder
   flagReturnStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   student?: Prisma.UserOrderByWithRelationInput
@@ -287,6 +296,7 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
   flagReturnStatus?: Prisma.EnumSubmissionStatusNullableFilter<"Submission"> | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -315,6 +325,7 @@ export type SubmissionOrderByWithAggregationInput = {
   consentedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   consentVersion?: Prisma.SortOrderInput | Prisma.SortOrder
   flagReturnStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.SubmissionCountOrderByAggregateInput
@@ -335,6 +346,7 @@ export type SubmissionScalarWhereWithAggregatesInput = {
   consentedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
   consentVersion?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
   flagReturnStatus?: Prisma.EnumSubmissionStatusNullableWithAggregatesFilter<"Submission"> | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Submission"> | Date | string
 }
@@ -348,6 +360,7 @@ export type SubmissionCreateInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -376,6 +389,7 @@ export type SubmissionUncheckedCreateInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -402,6 +416,7 @@ export type SubmissionUpdateInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -430,6 +445,7 @@ export type SubmissionUncheckedUpdateInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -457,6 +473,7 @@ export type SubmissionCreateManyInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -470,6 +487,7 @@ export type SubmissionUpdateManyMutationInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -484,6 +502,7 @@ export type SubmissionUncheckedUpdateManyInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -508,6 +527,7 @@ export type SubmissionCountOrderByAggregateInput = {
   consentedAt?: Prisma.SortOrder
   consentVersion?: Prisma.SortOrder
   flagReturnStatus?: Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -522,6 +542,7 @@ export type SubmissionMaxOrderByAggregateInput = {
   consentedAt?: Prisma.SortOrder
   consentVersion?: Prisma.SortOrder
   flagReturnStatus?: Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -536,6 +557,7 @@ export type SubmissionMinOrderByAggregateInput = {
   consentedAt?: Prisma.SortOrder
   consentVersion?: Prisma.SortOrder
   flagReturnStatus?: Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -813,6 +835,7 @@ export type SubmissionCreateWithoutStudentInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
@@ -839,6 +862,7 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -895,6 +919,7 @@ export type SubmissionScalarWhereInput = {
   consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
   flagReturnStatus?: Prisma.EnumSubmissionStatusNullableFilter<"Submission"> | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
 }
@@ -908,6 +933,7 @@ export type SubmissionCreateWithoutRetentionHoldsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -935,6 +961,7 @@ export type SubmissionUncheckedCreateWithoutRetentionHoldsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -976,6 +1003,7 @@ export type SubmissionUpdateWithoutRetentionHoldsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1003,6 +1031,7 @@ export type SubmissionUncheckedUpdateWithoutRetentionHoldsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1028,6 +1057,7 @@ export type SubmissionCreateWithoutPurgeRequestsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1055,6 +1085,7 @@ export type SubmissionUncheckedCreateWithoutPurgeRequestsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1096,6 +1127,7 @@ export type SubmissionUpdateWithoutPurgeRequestsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1123,6 +1155,7 @@ export type SubmissionUncheckedUpdateWithoutPurgeRequestsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1148,6 +1181,7 @@ export type SubmissionCreateWithoutPurgeObjectsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1175,6 +1209,7 @@ export type SubmissionUncheckedCreateWithoutPurgeObjectsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1216,6 +1251,7 @@ export type SubmissionUpdateWithoutPurgeObjectsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1243,6 +1279,7 @@ export type SubmissionUncheckedUpdateWithoutPurgeObjectsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1268,6 +1305,7 @@ export type SubmissionCreateWithoutRetentionAuditEventsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1295,6 +1333,7 @@ export type SubmissionUncheckedCreateWithoutRetentionAuditEventsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1336,6 +1375,7 @@ export type SubmissionUpdateWithoutRetentionAuditEventsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1363,6 +1403,7 @@ export type SubmissionUncheckedUpdateWithoutRetentionAuditEventsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1388,6 +1429,7 @@ export type SubmissionCreateWithoutStartIntentInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1415,6 +1457,7 @@ export type SubmissionUncheckedCreateWithoutStartIntentInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1456,6 +1499,7 @@ export type SubmissionUpdateWithoutStartIntentInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1483,6 +1527,7 @@ export type SubmissionUncheckedUpdateWithoutStartIntentInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1508,6 +1553,7 @@ export type SubmissionCreateWithoutManifestInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1535,6 +1581,7 @@ export type SubmissionUncheckedCreateWithoutManifestInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1576,6 +1623,7 @@ export type SubmissionUpdateWithoutManifestInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1603,6 +1651,7 @@ export type SubmissionUncheckedUpdateWithoutManifestInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1628,6 +1677,7 @@ export type SubmissionCreateWithoutAnswersInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1655,6 +1705,7 @@ export type SubmissionUncheckedCreateWithoutAnswersInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1696,6 +1747,7 @@ export type SubmissionUpdateWithoutAnswersInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1723,6 +1775,7 @@ export type SubmissionUncheckedUpdateWithoutAnswersInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1748,6 +1801,7 @@ export type SubmissionCreateWithoutFlagsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1775,6 +1829,7 @@ export type SubmissionUncheckedCreateWithoutFlagsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
@@ -1816,6 +1871,7 @@ export type SubmissionUpdateWithoutFlagsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -1843,6 +1899,7 @@ export type SubmissionUncheckedUpdateWithoutFlagsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
@@ -1868,6 +1925,7 @@ export type SubmissionCreateWithoutRetakeCreditGrantedInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1895,6 +1953,7 @@ export type SubmissionUncheckedCreateWithoutRetakeCreditGrantedInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1925,6 +1984,7 @@ export type SubmissionCreateWithoutRetakeCreditRedeemedInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -1952,6 +2012,7 @@ export type SubmissionUncheckedCreateWithoutRetakeCreditRedeemedInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1993,6 +2054,7 @@ export type SubmissionUpdateWithoutRetakeCreditGrantedInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -2020,6 +2082,7 @@ export type SubmissionUncheckedUpdateWithoutRetakeCreditGrantedInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2056,6 +2119,7 @@ export type SubmissionUpdateWithoutRetakeCreditRedeemedInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -2083,6 +2147,7 @@ export type SubmissionUncheckedUpdateWithoutRetakeCreditRedeemedInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2108,6 +2173,7 @@ export type SubmissionCreateWithoutPaymentsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -2135,6 +2201,7 @@ export type SubmissionUncheckedCreateWithoutPaymentsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -2176,6 +2243,7 @@ export type SubmissionUpdateWithoutPaymentsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -2203,6 +2271,7 @@ export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2228,6 +2297,7 @@ export type SubmissionCreateWithoutAssignmentsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -2255,6 +2325,7 @@ export type SubmissionUncheckedCreateWithoutAssignmentsInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -2296,6 +2367,7 @@ export type SubmissionUpdateWithoutAssignmentsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -2323,6 +2395,7 @@ export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2348,6 +2421,7 @@ export type SubmissionCreateWithoutCertificateInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
@@ -2375,6 +2449,7 @@ export type SubmissionUncheckedCreateWithoutCertificateInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
@@ -2416,6 +2491,7 @@ export type SubmissionUpdateWithoutCertificateInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
@@ -2443,6 +2519,7 @@ export type SubmissionUncheckedUpdateWithoutCertificateInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2468,6 +2545,7 @@ export type SubmissionCreateManyStudentInput = {
   consentedAt?: Date | string | null
   consentVersion?: string | null
   flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -2481,6 +2559,7 @@ export type SubmissionUpdateWithoutStudentInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
@@ -2507,6 +2586,7 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -2533,6 +2613,7 @@ export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -2641,6 +2722,7 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   consentedAt?: boolean
   consentVersion?: boolean
   flagReturnStatus?: boolean
+  lastHeartbeatAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -2670,6 +2752,7 @@ export type SubmissionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   consentedAt?: boolean
   consentVersion?: boolean
   flagReturnStatus?: boolean
+  lastHeartbeatAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -2685,6 +2768,7 @@ export type SubmissionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   consentedAt?: boolean
   consentVersion?: boolean
   flagReturnStatus?: boolean
+  lastHeartbeatAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -2700,11 +2784,12 @@ export type SubmissionSelectScalar = {
   consentedAt?: boolean
   consentVersion?: boolean
   flagReturnStatus?: boolean
+  lastHeartbeatAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "status" | "retentionStatus" | "scoringSystem" | "paymentRequired" | "consentedAt" | "consentVersion" | "flagReturnStatus" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
+export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "status" | "retentionStatus" | "scoringSystem" | "paymentRequired" | "consentedAt" | "consentVersion" | "flagReturnStatus" | "lastHeartbeatAt" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
 export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   flags?: boolean | Prisma.Submission$flagsArgs<ExtArgs>
@@ -2757,6 +2842,7 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     consentedAt: Date | null
     consentVersion: string | null
     flagReturnStatus: $Enums.SubmissionStatus | null
+    lastHeartbeatAt: Date | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["submission"]>
@@ -3205,6 +3291,7 @@ export interface SubmissionFieldRefs {
   readonly consentedAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly consentVersion: Prisma.FieldRef<"Submission", 'String'>
   readonly flagReturnStatus: Prisma.FieldRef<"Submission", 'SubmissionStatus'>
+  readonly lastHeartbeatAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Submission", 'DateTime'>
 }

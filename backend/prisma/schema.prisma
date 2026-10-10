@@ -276,6 +276,8 @@ model Submission {
   consentVersion       String?
   // Where a dismissed flag returns the Submission (PRD FR-2.2). Set on entering FLAG_REVIEW.
   flagReturnStatus     SubmissionStatus?
+  // PRD FR-2.7/FR-2.8: last client heartbeat; null until the first one.
+  lastHeartbeatAt      DateTime?                 @db.Timestamptz()
   flags                SubmissionFlag[]
   retakeCreditGranted  RetakeCredit?             @relation("RetakeCreditVoided")
   retakeCreditRedeemed RetakeCredit?             @relation("RetakeCreditRedeemed")
@@ -296,6 +298,7 @@ model Submission {
   @@index([studentId, createdAt, id])
   @@index([status])
   @@index([retentionStatus, status])
+  @@index([status, lastHeartbeatAt])
 }
 
 model SubmissionRetentionHold {
