@@ -144,6 +144,9 @@ const ASSIGNMENT_READBACK_STATUSES = [
   "SCORING",
   "SCORED",
   "CERTIFIED",
+  // An integrity concern pauses or voids an assigned Submission (PRD FR-9.9).
+  "FLAG_REVIEW",
+  "VOIDED",
 ] as const;
 
 function selectRandomCandidates(
