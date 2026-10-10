@@ -12,7 +12,7 @@ import { card, h2, h3, meta, primaryButton, secondaryButton, statNum } from "@/c
 import { empty, lead, tableWrap, td, th, tr } from "@/components/admin/styles";
 import { submissionRef } from "@/components/examiner/ExaminerDashboard";
 
-const FLOW = ["IN_PROGRESS", "AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"] as const;
+const FLOW = ["IN_PROGRESS", "FLAG_REVIEW", "AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"] as const;
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (

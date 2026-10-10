@@ -14,6 +14,7 @@ import type {
   AssignSubmissionResult,
   AccountTransitionPreview,
   AccountTransitionResult,
+  AdminOpenFlag,
 } from "@/types/admin";
 
 interface PaginatedEnvelope<T> {
@@ -317,4 +318,19 @@ export async function uploadOptionIcon(
   });
   if (!response.ok) throw new Error(`Icon upload failed (${response.status})`);
   await api.post(`${base}/confirm`, { storageKey: data.storageKey });
+}
+
+export async function fetchOpenFlags(signal?: AbortSignal): Promise<AdminOpenFlag[]> {
+  const res = await api.get<ListEnvelope<AdminOpenFlag>>("/admin/flags", { signal });
+  return res.data;
+}
+
+/** Confirm: the Submission is voided and its student gets one free retake. */
+export async function confirmFlag(flagId: string, note: string): Promise<void> {
+  await api.post(`/admin/flags/${flagId}/confirm`, { note });
+}
+
+/** Dismiss: false alarm; the Submission returns to its flow. */
+export async function dismissFlag(flagId: string, note: string): Promise<void> {
+  await api.post(`/admin/flags/${flagId}/dismiss`, { note });
 }

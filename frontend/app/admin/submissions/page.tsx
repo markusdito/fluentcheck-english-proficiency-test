@@ -19,11 +19,13 @@ import { queryKeys } from "@/lib/query-keys";
 import { patchAssignedSubmissionPage } from "@/lib/admin-cache";
 
 const SUBMISSION_STATUSES = [
+  "FLAG_REVIEW",
   "AWAITING_PAYMENT",
   "PAID",
   "SCORING",
   "SCORED",
   "CERTIFIED",
+  "VOIDED",
 ] as const;
 
 const LIMIT = 10;
@@ -162,7 +164,8 @@ export default function AdminSubmissionsPage() {
                 // Assignment-ready covers paid and waived (payment not
                 // required) submissions without an existing set.
                 const canAssign =
-                  (sub.status === "PAID" || !sub.paymentRequired) &&
+                  (sub.status === "PAID" ||
+                    (!sub.paymentRequired && sub.status !== "FLAG_REVIEW" && sub.status !== "VOIDED")) &&
                   sub.assignments.length === 0;
                 return (
                   <tr key={sub.id} className={tr}>

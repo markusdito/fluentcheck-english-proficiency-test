@@ -7,6 +7,7 @@ import TestPage from "./page";
 
 const mocks = vi.hoisted(() => ({
   completeSubmission: vi.fn(),
+  flagSubmissionDevice: vi.fn(),
   confirmUpload: vi.fn(),
   getPresignedUrl: vi.fn(),
   initializeTest: vi.fn(),
@@ -86,6 +87,7 @@ vi.mock("@/lib/test-initialization", () => ({
 vi.mock("@/lib/test-api", () => ({
   abandonSubmission: mocks.abandonSubmission,
   completeSubmission: mocks.completeSubmission,
+  flagSubmissionDevice: mocks.flagSubmissionDevice,
 }));
 
 vi.mock("@/lib/upload-api", () => ({
@@ -178,6 +180,7 @@ describe("TestPage strict exam flow", () => {
   beforeEach(() => {
     storeConsent("student-1");
     mocks.completeSubmission.mockResolvedValue(undefined);
+    mocks.flagSubmissionDevice.mockResolvedValue(undefined);
     mocks.confirmUpload.mockResolvedValue(undefined);
     mocks.getPresignedUrl.mockResolvedValue({
       answerId: "answer-1",
@@ -292,6 +295,30 @@ describe("TestPage strict exam flow", () => {
     expect(beforeUnload.defaultPrevented).toBe(true);
     expect(mocks.stopStream).toHaveBeenCalled();
     presign.resolve({ answerId: "a", presignedUrl: "https://storage.example/upload", storageKey: "k" });
+  });
+
+  it("flags a camera drop during recording and keeps the test going (FR-4.3)", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await act(async () => onComplete());
+    await waitFor(() => expect(mocks.startRecording).toHaveBeenCalledTimes(1));
+
+    Object.assign(mocks.assessmentStart, { mediaReady: false, isVideoReady: false });
+    await act(async () => {
+      view.rerender(
+        <Suspense fallback={<div>loading page</div>}>
+          <TestPage params={params} />
+        </Suspense>,
+      );
+    });
+
+    expect(mocks.stopRecording).toHaveBeenCalled();
+    expect(mocks.flagSubmissionDevice).toHaveBeenCalledTimes(1);
+    expect(mocks.flagSubmissionDevice).toHaveBeenCalledWith("submission-1", {
+      type: "CAMERA_DROP",
+      reason: "Camera stopped while the answer was recording",
+      manifestEntryId: "entry-1",
+    });
   });
 
   it("shows the completion screen only after all five Answers are verified and the Submission completes", async () => {

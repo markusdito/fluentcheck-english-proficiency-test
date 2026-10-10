@@ -166,6 +166,10 @@ export interface AdminSubmissionDetail {
     issuedAt: string;
   } | null;
   payments: AdminSubmissionPayment[];
+  /** Flag audit trail. Absent on older backends. */
+  flags?: AdminSubmissionFlag[];
+  retakeCredit?: { redeemedSubmissionId: string | null; redeemedAt: string | null } | null;
+  waivedByRetakeCreditFrom?: string | null;
   assignments: AdminSubmissionAssignment[];
   answers: AdminSubmissionAnswer[];
 }
@@ -251,4 +255,37 @@ export interface AdminTestSet {
   status: "DELIVERABLE" | "DRAFT";
   slots: AdminTestSetSlot[];
   createdAt: string;
+}
+
+export type FlagType = "TECHNICAL_FAILURE" | "CAMERA_DROP" | "INTEGRITY_CONCERN";
+
+export interface AdminSubmissionFlag {
+  id: string;
+  type: FlagType;
+  source: "STUDENT_DEVICE" | "EXAMINER";
+  reason: string;
+  timestampSeconds: number | null;
+  raisedAt: string;
+  raisedBy: string | null;
+  resolution: "CONFIRMED" | "DISMISSED" | "SUPERSEDED" | null;
+  resolutionNote: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+}
+
+/** An open flag in the Admin review queue, with its Answer video as evidence. */
+export interface AdminOpenFlag {
+  id: string;
+  submissionId: string;
+  type: FlagType;
+  source: "STUDENT_DEVICE" | "EXAMINER";
+  reason: string;
+  timestampSeconds: number | null;
+  raisedAt: string;
+  raisedBy: string | null;
+  slot: string | null;
+  studentName: string;
+  studentEmail: string;
+  submissionCreatedAt: string;
+  videoUrl: string | null;
 }

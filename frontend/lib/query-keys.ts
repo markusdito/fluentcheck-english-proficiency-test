@@ -21,4 +21,5 @@ export const queryKeys = {
   adminQuestions: ["admin", "questions"] as const,
   adminTestSets: ["admin", "test-sets"] as const,
   adminSettings: ["admin", "settings"] as const,
+  adminFlags: ["admin", "flags"] as const,
 } as const;
