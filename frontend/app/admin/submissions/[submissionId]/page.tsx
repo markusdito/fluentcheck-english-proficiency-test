@@ -123,6 +123,43 @@ export default function AdminSubmissionDetailPage({
         </div>
       </dl>
 
+      {(submission.flags?.length ?? 0) > 0 && (
+        <section className="mt-14" aria-labelledby="flags-heading">
+          <h2 id="flags-heading" className={h3}>Flags</h2>
+          <ul className="mt-4 divide-y divide-sn-border rounded-2xl border border-sn-border bg-sn-surface" role="list">
+            {submission.flags!.map((flag) => (
+              <li key={flag.id} className="px-5 py-4 text-[15px]">
+                <p className="font-semibold">
+                  {flag.type.charAt(0) + flag.type.slice(1).replace(/_/g, " ").toLowerCase()}
+                  <span className="font-normal text-sn-muted">
+                    {" · "}
+                    {flag.resolution ? flag.resolution.toLowerCase() : "open"}
+                  </span>
+                </p>
+                <p className="mt-1">{flag.reason}</p>
+                <p className="mt-1 text-sm text-sn-muted">
+                  Raised {formatDateTime(flag.raisedAt)}
+                  {flag.raisedBy && ` by ${flag.raisedBy}`}
+                  {flag.timestampSeconds != null && ` · at ${flag.timestampSeconds}s`}
+                </p>
+                {flag.resolvedAt && (
+                  <p className="mt-1 text-sm text-sn-muted">
+                    Resolved {formatDateTime(flag.resolvedAt)}
+                    {flag.resolvedBy && ` by ${flag.resolvedBy}`}
+                    {flag.resolutionNote && `: ${flag.resolutionNote}`}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+          {submission.retakeCredit && (
+            <p className="mt-3 text-sm text-sn-muted">
+              Free retake credit {submission.retakeCredit.redeemedSubmissionId ? "used" : "not used yet"}.
+            </p>
+          )}
+        </section>
+      )}
+
       <section className="mt-14" aria-labelledby="payment-history-heading">
         <h2 id="payment-history-heading" className={h3}>
           Payment history
@@ -132,7 +169,9 @@ export default function AdminSubmissionDetailPage({
           <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-sn-border bg-sn-surface px-5 py-4 sm:flex-row sm:items-center">
             <StatusPill status="WAIVED" />
             <p className="text-sm leading-6 text-sn-muted">
-              Payment was not required when this test was completed.
+              {submission.waivedByRetakeCreditFrom
+                ? "Free retake: an earlier test by this student was voided."
+                : "Payment was not required when this test was completed."}
             </p>
           </div>
         )}
