@@ -98,7 +98,6 @@ export type UploadStatus =
   | "uploading"
   | "verifying"
   | "uploaded"
-  | "failure"
   | "error";
 
 export interface QuestionUploadState {
