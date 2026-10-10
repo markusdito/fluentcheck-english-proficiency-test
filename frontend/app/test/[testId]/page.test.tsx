@@ -7,7 +7,6 @@ import TestPage from "./page";
 
 const mocks = vi.hoisted(() => ({
   completeSubmission: vi.fn(),
-  flagSubmissionDevice: vi.fn(),
   confirmUpload: vi.fn(),
   getPresignedUrl: vi.fn(),
   initializeTest: vi.fn(),
@@ -43,7 +42,7 @@ const mocks = vi.hoisted(() => ({
   recording: {
     blob: null as Blob | null,
     duration: 0,
-    error: null as string | null,
+    failure: null as string | null,
   },
   stream: { getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream,
   countdown: {
@@ -87,7 +86,6 @@ vi.mock("@/lib/test-initialization", () => ({
 vi.mock("@/lib/test-api", () => ({
   abandonSubmission: mocks.abandonSubmission,
   completeSubmission: mocks.completeSubmission,
-  flagSubmissionDevice: mocks.flagSubmissionDevice,
 }));
 
 vi.mock("@/lib/upload-api", () => ({
@@ -145,9 +143,12 @@ async function renderPage() {
   return view;
 }
 
-async function setFinalizedBlob(view: PageView, duration = 12) {
-  mocks.recording.blob = new Blob(["recorded video"], { type: "video/webm" });
-  mocks.recording.duration = duration;
+/** A take big enough (>= 8 KB) not to be flagged as short or silent. */
+function fullTake() {
+  return new Blob([new Uint8Array(10_000)], { type: "video/webm" });
+}
+
+async function rerenderPage(view: PageView) {
   await act(async () => {
     view.rerender(
       <Suspense fallback={<div>loading page</div>}>
@@ -156,6 +157,19 @@ async function setFinalizedBlob(view: PageView, duration = 12) {
     );
     await params;
   });
+}
+
+async function setFinalizedBlob(view: PageView, duration = 12, blob = fullTake()) {
+  mocks.recording.blob = blob;
+  mocks.recording.duration = duration;
+  await rerenderPage(view);
+}
+
+/** Starts recording the current slot by ending its preparation. */
+async function startSlot(onComplete: () => void) {
+  const before = mocks.startRecording.mock.calls.length;
+  await act(async () => onComplete());
+  await waitFor(() => expect(mocks.startRecording.mock.calls.length).toBe(before + 1));
 }
 
 /** Prep ends (mocked countdown fires onComplete), recording auto-starts, then auto-stops with a blob. */
@@ -180,7 +194,6 @@ describe("TestPage strict exam flow", () => {
   beforeEach(() => {
     storeConsent("student-1");
     mocks.completeSubmission.mockResolvedValue(undefined);
-    mocks.flagSubmissionDevice.mockResolvedValue(undefined);
     mocks.confirmUpload.mockResolvedValue(undefined);
     mocks.getPresignedUrl.mockResolvedValue({
       answerId: "answer-1",
@@ -205,7 +218,7 @@ describe("TestPage strict exam flow", () => {
     mocks.uploadToR2.mockResolvedValue(undefined);
     mocks.recording.blob = null;
     mocks.recording.duration = 0;
-    mocks.recording.error = null;
+    mocks.recording.failure = null;
     mocks.useCountdown.mockImplementation((_seconds: number, cb: () => void) => {
       onComplete = cb;
       return mocks.countdown;
@@ -297,28 +310,105 @@ describe("TestPage strict exam flow", () => {
     presign.resolve({ answerId: "a", presignedUrl: "https://storage.example/upload", storageKey: "k" });
   });
 
-  it("flags a camera drop during recording and keeps the test going (FR-4.3)", async () => {
+  it("uploads a camera-dropped take flagged as CAMERA_DROP and keeps the test going (FR-4.3)", async () => {
     const view = await renderPage();
     await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
-    await act(async () => onComplete());
-    await waitFor(() => expect(mocks.startRecording).toHaveBeenCalledTimes(1));
+    await startSlot(onComplete);
 
     Object.assign(mocks.assessmentStart, { mediaReady: false, isVideoReady: false });
-    await act(async () => {
-      view.rerender(
-        <Suspense fallback={<div>loading page</div>}>
-          <TestPage params={params} />
-        </Suspense>,
-      );
-    });
-
+    await rerenderPage(view);
     expect(mocks.stopRecording).toHaveBeenCalled();
-    expect(mocks.flagSubmissionDevice).toHaveBeenCalledTimes(1);
-    expect(mocks.flagSubmissionDevice).toHaveBeenCalledWith("submission-1", {
-      type: "CAMERA_DROP",
-      reason: "Camera stopped while the answer was recording",
-      manifestEntryId: "entry-1",
-    });
+
+    // The recorder hands over the partial take after the stop.
+    await setFinalizedBlob(view, 7);
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 10_000,
+      durationSeconds: 7,
+      technicalFailure: { type: "CAMERA_DROP", reason: "Camera stopped while the answer was recording" },
+    }));
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
+  });
+
+  it("uploads a short take flagged as short or silent, with no retry prompt (FR-3.8)", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+    await setFinalizedBlob(view, 1, new Blob([], { type: "video/webm" }));
+
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 0,
+      durationSeconds: 1,
+      technicalFailure: {
+        type: "TECHNICAL_FAILURE",
+        reason: "Recording is shorter than 2 seconds or 8 KB; it may be short or silent",
+      },
+    }));
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
+  });
+
+  it("uploads a full take without a technical failure", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await recordCurrentSlot(view, onComplete);
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 10_000,
+      durationSeconds: 12,
+      technicalFailure: undefined,
+    }));
+  });
+
+  it("uploads a recorder-failed partial take flagged with the recorder's reason", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+    mocks.recording.failure = "The recorder stopped unexpectedly";
+    await setFinalizedBlob(view, 20);
+
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 10_000,
+      durationSeconds: 20,
+      technicalFailure: { type: "TECHNICAL_FAILURE", reason: "The recorder stopped unexpectedly" },
+    }));
+  });
+
+  it("ends and flags the take when the connection drops while recording", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+
+    await act(async () => window.dispatchEvent(new Event("offline")));
+    expect(mocks.stopRecording).toHaveBeenCalled();
+    await setFinalizedBlob(view, 9);
+
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 10_000,
+      durationSeconds: 9,
+      technicalFailure: { type: "TECHNICAL_FAILURE", reason: "Connection lost while the answer was recording" },
+    }));
+  });
+
+  it("does not pause preparation on camera loss; the take starts and is flagged", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+
+    Object.assign(mocks.assessmentStart, { mediaReady: false, isVideoReady: false });
+    await rerenderPage(view);
+    expect(screen.queryByText(/disconnected/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Part 1 · Task 1A" })).toBeInTheDocument();
+
+    await startSlot(onComplete);
+    expect(mocks.startRecording).toHaveBeenLastCalledWith(null, 60);
+    await setFinalizedBlob(view, 0, new Blob([], { type: "video/webm" }));
+
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 0,
+      durationSeconds: 0,
+      technicalFailure: {
+        type: "CAMERA_DROP",
+        reason: "Camera was unavailable when the answer should start recording",
+      },
+    }));
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
   });
 
   it("shows the completion screen only after all five Answers are verified and the Submission completes", async () => {
