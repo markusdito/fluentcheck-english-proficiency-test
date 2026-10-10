@@ -254,6 +254,7 @@ export type UserWhereInput = {
   flagsRaised?: Prisma.SubmissionFlagListRelationFilter
   flagsResolved?: Prisma.SubmissionFlagListRelationFilter
   retakeCredits?: Prisma.RetakeCreditListRelationFilter
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverListRelationFilter
   answerMediaViews?: Prisma.AnswerMediaViewEventListRelationFilter
 }
 
@@ -286,6 +287,7 @@ export type UserOrderByWithRelationInput = {
   flagsRaised?: Prisma.SubmissionFlagOrderByRelationAggregateInput
   flagsResolved?: Prisma.SubmissionFlagOrderByRelationAggregateInput
   retakeCredits?: Prisma.RetakeCreditOrderByRelationAggregateInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverOrderByRelationAggregateInput
   answerMediaViews?: Prisma.AnswerMediaViewEventOrderByRelationAggregateInput
 }
 
@@ -321,6 +323,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   flagsRaised?: Prisma.SubmissionFlagListRelationFilter
   flagsResolved?: Prisma.SubmissionFlagListRelationFilter
   retakeCredits?: Prisma.RetakeCreditListRelationFilter
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverListRelationFilter
   answerMediaViews?: Prisma.AnswerMediaViewEventListRelationFilter
 }, "id" | "username" | "normalizedEmail" | "googleSubject">
 
@@ -389,6 +392,7 @@ export type UserCreateInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -421,6 +425,7 @@ export type UserUncheckedCreateInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -453,6 +458,7 @@ export type UserUpdateInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -485,6 +491,7 @@ export type UserUncheckedUpdateInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -802,6 +809,20 @@ export type UserUpdateOneRequiredWithoutRetakeCreditsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutRetakeCreditsInput, Prisma.UserUpdateWithoutRetakeCreditsInput>, Prisma.UserUncheckedUpdateWithoutRetakeCreditsInput>
 }
 
+export type UserCreateNestedOneWithoutPaymentWaiversInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutPaymentWaiversInput, Prisma.UserUncheckedCreateWithoutPaymentWaiversInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPaymentWaiversInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutPaymentWaiversNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutPaymentWaiversInput, Prisma.UserUncheckedCreateWithoutPaymentWaiversInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPaymentWaiversInput
+  upsert?: Prisma.UserUpsertWithoutPaymentWaiversInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutPaymentWaiversInput, Prisma.UserUpdateWithoutPaymentWaiversInput>, Prisma.UserUncheckedUpdateWithoutPaymentWaiversInput>
+}
+
 export type UserCreateNestedOneWithoutAssignmentsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutAssignmentsInput, Prisma.UserUncheckedCreateWithoutAssignmentsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutAssignmentsInput
@@ -886,6 +907,7 @@ export type UserCreateWithoutQuestionsCreatedInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -917,6 +939,7 @@ export type UserUncheckedCreateWithoutQuestionsCreatedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -964,6 +987,7 @@ export type UserUpdateWithoutQuestionsCreatedInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -995,6 +1019,7 @@ export type UserUncheckedUpdateWithoutQuestionsCreatedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -1026,6 +1051,7 @@ export type UserCreateWithoutSubmissionsInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -1057,6 +1083,7 @@ export type UserUncheckedCreateWithoutSubmissionsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -1104,6 +1131,7 @@ export type UserUpdateWithoutSubmissionsInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -1135,6 +1163,7 @@ export type UserUncheckedUpdateWithoutSubmissionsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -1166,6 +1195,7 @@ export type UserCreateWithoutRetentionHoldsCreatedInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -1197,6 +1227,7 @@ export type UserUncheckedCreateWithoutRetentionHoldsCreatedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -1233,6 +1264,7 @@ export type UserCreateWithoutRetentionHoldsReleasedInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -1264,6 +1296,7 @@ export type UserUncheckedCreateWithoutRetentionHoldsReleasedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -1311,6 +1344,7 @@ export type UserUpdateWithoutRetentionHoldsCreatedInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -1342,6 +1376,7 @@ export type UserUncheckedUpdateWithoutRetentionHoldsCreatedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -1384,6 +1419,7 @@ export type UserUpdateWithoutRetentionHoldsReleasedInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -1415,6 +1451,7 @@ export type UserUncheckedUpdateWithoutRetentionHoldsReleasedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -1446,6 +1483,7 @@ export type UserCreateWithoutPurgeRequestsRequestedInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -1477,6 +1515,7 @@ export type UserUncheckedCreateWithoutPurgeRequestsRequestedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -1513,6 +1552,7 @@ export type UserCreateWithoutPurgeRequestsApprovedInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -1544,6 +1584,7 @@ export type UserUncheckedCreateWithoutPurgeRequestsApprovedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -1591,6 +1632,7 @@ export type UserUpdateWithoutPurgeRequestsRequestedInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -1622,6 +1664,7 @@ export type UserUncheckedUpdateWithoutPurgeRequestsRequestedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -1664,6 +1707,7 @@ export type UserUpdateWithoutPurgeRequestsApprovedInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -1695,6 +1739,7 @@ export type UserUncheckedUpdateWithoutPurgeRequestsApprovedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -1726,6 +1771,7 @@ export type UserCreateWithoutPromptMediaCleanupRunsInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -1757,6 +1803,7 @@ export type UserUncheckedCreateWithoutPromptMediaCleanupRunsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -1804,6 +1851,7 @@ export type UserUpdateWithoutPromptMediaCleanupRunsInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -1835,6 +1883,7 @@ export type UserUncheckedUpdateWithoutPromptMediaCleanupRunsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -1866,6 +1915,7 @@ export type UserCreateWithoutRetentionAuditEventsInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -1897,6 +1947,7 @@ export type UserUncheckedCreateWithoutRetentionAuditEventsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -1944,6 +1995,7 @@ export type UserUpdateWithoutRetentionAuditEventsInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -1975,6 +2027,7 @@ export type UserUncheckedUpdateWithoutRetentionAuditEventsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -2006,6 +2059,7 @@ export type UserCreateWithoutStartIntentsInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -2037,6 +2091,7 @@ export type UserUncheckedCreateWithoutStartIntentsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -2084,6 +2139,7 @@ export type UserUpdateWithoutStartIntentsInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -2115,6 +2171,7 @@ export type UserUncheckedUpdateWithoutStartIntentsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -2147,6 +2204,7 @@ export type UserCreateWithoutAnswerMediaViewsInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
 }
 
 export type UserUncheckedCreateWithoutAnswerMediaViewsInput = {
@@ -2178,6 +2236,7 @@ export type UserUncheckedCreateWithoutAnswerMediaViewsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
 }
 
 export type UserCreateOrConnectWithoutAnswerMediaViewsInput = {
@@ -2225,6 +2284,7 @@ export type UserUpdateWithoutAnswerMediaViewsInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAnswerMediaViewsInput = {
@@ -2256,6 +2316,7 @@ export type UserUncheckedUpdateWithoutAnswerMediaViewsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
 }
 
 export type UserCreateWithoutFlagsRaisedInput = {
@@ -2286,6 +2347,7 @@ export type UserCreateWithoutFlagsRaisedInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -2317,6 +2379,7 @@ export type UserUncheckedCreateWithoutFlagsRaisedInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -2353,6 +2416,7 @@ export type UserCreateWithoutFlagsResolvedInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -2384,6 +2448,7 @@ export type UserUncheckedCreateWithoutFlagsResolvedInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -2431,6 +2496,7 @@ export type UserUpdateWithoutFlagsRaisedInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -2462,6 +2528,7 @@ export type UserUncheckedUpdateWithoutFlagsRaisedInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -2504,6 +2571,7 @@ export type UserUpdateWithoutFlagsResolvedInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -2535,6 +2603,7 @@ export type UserUncheckedUpdateWithoutFlagsResolvedInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -2566,6 +2635,7 @@ export type UserCreateWithoutRetakeCreditsInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -2597,6 +2667,7 @@ export type UserUncheckedCreateWithoutRetakeCreditsInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -2644,6 +2715,7 @@ export type UserUpdateWithoutRetakeCreditsInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -2675,6 +2747,151 @@ export type UserUncheckedUpdateWithoutRetakeCreditsInput = {
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
+  answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
+}
+
+export type UserCreateWithoutPaymentWaiversInput = {
+  id?: string
+  username: string
+  email: string
+  normalizedEmail: string
+  password?: string | null
+  googleSubject?: string | null
+  fullName?: string | null
+  studentNumber?: string | null
+  role?: $Enums.Role
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
+  startIntents?: Prisma.SubmissionStartIntentCreateNestedManyWithoutStudentInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutExaminerInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutPreviousExaminerInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutNewExaminerInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutActingAdminInput
+  questionsCreated?: Prisma.QuestionCreateNestedManyWithoutCreatedByInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutCreatedByInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutReleasedByInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutRequestedByInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
+}
+
+export type UserUncheckedCreateWithoutPaymentWaiversInput = {
+  id?: string
+  username: string
+  email: string
+  normalizedEmail: string
+  password?: string | null
+  googleSubject?: string | null
+  fullName?: string | null
+  studentNumber?: string | null
+  role?: $Enums.Role
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
+  startIntents?: Prisma.SubmissionStartIntentUncheckedCreateNestedManyWithoutStudentInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutExaminerInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutPreviousExaminerInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutNewExaminerInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutActingAdminInput
+  questionsCreated?: Prisma.QuestionUncheckedCreateNestedManyWithoutCreatedByInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutCreatedByInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutReleasedByInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutRequestedByInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
+}
+
+export type UserCreateOrConnectWithoutPaymentWaiversInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutPaymentWaiversInput, Prisma.UserUncheckedCreateWithoutPaymentWaiversInput>
+}
+
+export type UserUpsertWithoutPaymentWaiversInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutPaymentWaiversInput, Prisma.UserUncheckedUpdateWithoutPaymentWaiversInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutPaymentWaiversInput, Prisma.UserUncheckedCreateWithoutPaymentWaiversInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutPaymentWaiversInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutPaymentWaiversInput, Prisma.UserUncheckedUpdateWithoutPaymentWaiversInput>
+}
+
+export type UserUpdateWithoutPaymentWaiversInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleSubject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  studentNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
+  startIntents?: Prisma.SubmissionStartIntentUpdateManyWithoutStudentNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutExaminerNestedInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutPreviousExaminerNestedInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutNewExaminerNestedInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutActingAdminNestedInput
+  questionsCreated?: Prisma.QuestionUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUpdateManyWithoutReleasedByNestedInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUpdateManyWithoutRequestedByNestedInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
+}
+
+export type UserUncheckedUpdateWithoutPaymentWaiversInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleSubject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  studentNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+  startIntents?: Prisma.SubmissionStartIntentUncheckedUpdateManyWithoutStudentNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutExaminerNestedInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutPreviousExaminerNestedInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutNewExaminerNestedInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutActingAdminNestedInput
+  questionsCreated?: Prisma.QuestionUncheckedUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutReleasedByNestedInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutRequestedByNestedInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -2706,6 +2923,7 @@ export type UserCreateWithoutAssignmentsInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -2737,6 +2955,7 @@ export type UserUncheckedCreateWithoutAssignmentsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -2784,6 +3003,7 @@ export type UserUpdateWithoutAssignmentsInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -2815,6 +3035,7 @@ export type UserUncheckedUpdateWithoutAssignmentsInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -2846,6 +3067,7 @@ export type UserCreateWithoutReassignmentsFromInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -2877,6 +3099,7 @@ export type UserUncheckedCreateWithoutReassignmentsFromInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -2913,6 +3136,7 @@ export type UserCreateWithoutReassignmentsToInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -2944,6 +3168,7 @@ export type UserUncheckedCreateWithoutReassignmentsToInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -2980,6 +3205,7 @@ export type UserCreateWithoutReassignmentsActedInput = {
   flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventCreateNestedManyWithoutViewerInput
 }
 
@@ -3011,6 +3237,7 @@ export type UserUncheckedCreateWithoutReassignmentsActedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
   retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedManyWithoutAdminInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedCreateNestedManyWithoutViewerInput
 }
 
@@ -3058,6 +3285,7 @@ export type UserUpdateWithoutReassignmentsFromInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -3089,6 +3317,7 @@ export type UserUncheckedUpdateWithoutReassignmentsFromInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -3131,6 +3360,7 @@ export type UserUpdateWithoutReassignmentsToInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -3162,6 +3392,7 @@ export type UserUncheckedUpdateWithoutReassignmentsToInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -3204,6 +3435,7 @@ export type UserUpdateWithoutReassignmentsActedInput = {
   flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUpdateManyWithoutViewerNestedInput
 }
 
@@ -3235,6 +3467,7 @@ export type UserUncheckedUpdateWithoutReassignmentsActedInput = {
   flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
   flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
   retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+  paymentWaivers?: Prisma.SubmissionPaymentWaiverUncheckedUpdateManyWithoutAdminNestedInput
   answerMediaViews?: Prisma.AnswerMediaViewEventUncheckedUpdateManyWithoutViewerNestedInput
 }
 
@@ -3260,6 +3493,7 @@ export type UserCountOutputType = {
   flagsRaised: number
   flagsResolved: number
   retakeCredits: number
+  paymentWaivers: number
   answerMediaViews: number
 }
 
@@ -3280,6 +3514,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   flagsRaised?: boolean | UserCountOutputTypeCountFlagsRaisedArgs
   flagsResolved?: boolean | UserCountOutputTypeCountFlagsResolvedArgs
   retakeCredits?: boolean | UserCountOutputTypeCountRetakeCreditsArgs
+  paymentWaivers?: boolean | UserCountOutputTypeCountPaymentWaiversArgs
   answerMediaViews?: boolean | UserCountOutputTypeCountAnswerMediaViewsArgs
 }
 
@@ -3408,6 +3643,13 @@ export type UserCountOutputTypeCountRetakeCreditsArgs<ExtArgs extends runtime.Ty
 /**
  * UserCountOutputType without action
  */
+export type UserCountOutputTypeCountPaymentWaiversArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SubmissionPaymentWaiverWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
 export type UserCountOutputTypeCountAnswerMediaViewsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.AnswerMediaViewEventWhereInput
 }
@@ -3442,6 +3684,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   flagsRaised?: boolean | Prisma.User$flagsRaisedArgs<ExtArgs>
   flagsResolved?: boolean | Prisma.User$flagsResolvedArgs<ExtArgs>
   retakeCredits?: boolean | Prisma.User$retakeCreditsArgs<ExtArgs>
+  paymentWaivers?: boolean | Prisma.User$paymentWaiversArgs<ExtArgs>
   answerMediaViews?: boolean | Prisma.User$answerMediaViewsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
@@ -3509,6 +3752,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   flagsRaised?: boolean | Prisma.User$flagsRaisedArgs<ExtArgs>
   flagsResolved?: boolean | Prisma.User$flagsResolvedArgs<ExtArgs>
   retakeCredits?: boolean | Prisma.User$retakeCreditsArgs<ExtArgs>
+  paymentWaivers?: boolean | Prisma.User$paymentWaiversArgs<ExtArgs>
   answerMediaViews?: boolean | Prisma.User$answerMediaViewsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -3534,6 +3778,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     flagsRaised: Prisma.$SubmissionFlagPayload<ExtArgs>[]
     flagsResolved: Prisma.$SubmissionFlagPayload<ExtArgs>[]
     retakeCredits: Prisma.$RetakeCreditPayload<ExtArgs>[]
+    paymentWaivers: Prisma.$SubmissionPaymentWaiverPayload<ExtArgs>[]
     answerMediaViews: Prisma.$AnswerMediaViewEventPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -3959,6 +4204,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   flagsRaised<T extends Prisma.User$flagsRaisedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$flagsRaisedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionFlagPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   flagsResolved<T extends Prisma.User$flagsResolvedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$flagsResolvedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionFlagPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   retakeCredits<T extends Prisma.User$retakeCreditsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$retakeCreditsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RetakeCreditPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  paymentWaivers<T extends Prisma.User$paymentWaiversArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$paymentWaiversArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionPaymentWaiverPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   answerMediaViews<T extends Prisma.User$answerMediaViewsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$answerMediaViewsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AnswerMediaViewEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -4775,6 +5021,30 @@ export type User$retakeCreditsArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.RetakeCreditScalarFieldEnum | Prisma.RetakeCreditScalarFieldEnum[]
+}
+
+/**
+ * User.paymentWaivers
+ */
+export type User$paymentWaiversArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionPaymentWaiver
+   */
+  select?: Prisma.SubmissionPaymentWaiverSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionPaymentWaiver
+   */
+  omit?: Prisma.SubmissionPaymentWaiverOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionPaymentWaiverInclude<ExtArgs> | null
+  where?: Prisma.SubmissionPaymentWaiverWhereInput
+  orderBy?: Prisma.SubmissionPaymentWaiverOrderByWithRelationInput | Prisma.SubmissionPaymentWaiverOrderByWithRelationInput[]
+  cursor?: Prisma.SubmissionPaymentWaiverWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SubmissionPaymentWaiverScalarFieldEnum | Prisma.SubmissionPaymentWaiverScalarFieldEnum[]
 }
 
 /**

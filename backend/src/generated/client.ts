@@ -147,6 +147,11 @@ export type SubmissionFlag = Prisma.SubmissionFlagModel
  */
 export type RetakeCredit = Prisma.RetakeCreditModel
 /**
+ * Model SubmissionPaymentWaiver
+ * 
+ */
+export type SubmissionPaymentWaiver = Prisma.SubmissionPaymentWaiverModel
+/**
  * Model Payment
  * 
  */

@@ -3,15 +3,16 @@
 import { slotLabel } from "@/lib/assessment-slots";
 import { use } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api";
-import { fetchAdminSubmissionDetail } from "@/lib/admin-api";
+import { fetchAdminExaminers, fetchAdminSubmissionDetail } from "@/lib/admin-api";
 import { queryKeys } from "@/lib/query-keys";
 import { LazyAnswerMedia } from "@/components/media/LazyAnswerMedia";
 import { ScoreCard } from "@/components/results/ScoreCard";
 import { RubricBreakdownView } from "@/components/results/RubricBreakdownView";
 import { StatusPill } from "@/components/student/StatusPill";
+import { ReassignAssignmentForm, WaivePaymentPanel } from "@/components/admin/SubmissionOps";
 import { BackLink } from "@/components/student/PageShell";
 import { card, h2, h3, meta, secondaryButton } from "@/components/student/styles";
 import { scoreMaximum } from "@/types/scoring";
@@ -50,6 +51,16 @@ export default function AdminSubmissionDetailPage({
       fetchAdminSubmissionDetail(submissionId, signal),
   });
   const submission = submissionQuery.data;
+  const queryClient = useQueryClient();
+  const canReassign = submission?.assignments.some((assignment) => assignment.reassignable) ?? false;
+  const examinersQuery = useQuery({
+    queryKey: queryKeys.adminExaminers,
+    queryFn: ({ signal }) => fetchAdminExaminers(signal),
+    enabled: canReassign,
+  });
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin"] });
+  };
 
   if (submissionQuery.isPending) {
     return (
@@ -169,11 +180,17 @@ export default function AdminSubmissionDetailPage({
           <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-sn-border bg-sn-surface px-5 py-4 sm:flex-row sm:items-center">
             <StatusPill status="WAIVED" />
             <p className="text-sm leading-6 text-sn-muted">
-              {submission.waivedByRetakeCreditFrom
-                ? "Free retake: an earlier test by this student was voided."
-                : "Payment was not required when this test was completed."}
+              {submission.paymentWaiver
+                ? `Waived by ${submission.paymentWaiver.adminName} on ${formatDateTime(submission.paymentWaiver.createdAt)}: ${submission.paymentWaiver.reason}`
+                : submission.waivedByRetakeCreditFrom
+                  ? "Free retake: an earlier test by this student was voided."
+                  : "Payment was not required when this test was completed."}
             </p>
           </div>
+        )}
+
+        {submission.status === "AWAITING_PAYMENT" && (
+          <WaivePaymentPanel submissionId={submission.id} onDone={refresh} />
         )}
 
         {submission.payments.length > 0 ? (
@@ -264,6 +281,37 @@ export default function AdminSubmissionDetailPage({
                     Updated {formatDateTime(assignment.updatedAt)}
                   </p>
                 </div>
+                {(assignment.reassignmentHistory?.length ?? 0) > 0 && (
+                  <ul className="m-0 list-none p-0 sm:col-span-3" aria-label="Reassignment history">
+                    {assignment.reassignmentHistory!.map((entry) => (
+                      <li key={entry.id} className="text-[11px] leading-5 text-sn-muted">
+                        Reassigned from {entry.previousExaminerName} to {entry.newExaminerName} by{" "}
+                        {entry.actingAdminName} on {formatDateTime(entry.createdAt)}
+                        {entry.note
+                          ? `: ${entry.note}`
+                          : entry.reason === "ACCOUNT_DEACTIVATION"
+                            ? " (account deactivated)"
+                            : entry.reason === "ACCOUNT_ROLE_TRANSITION"
+                              ? " (role changed)"
+                              : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {assignment.reassignable && (
+                  <div className="sm:col-span-3">
+                    {examinersQuery.isError ? (
+                      <p className="text-sm text-sn-muted">Examiners could not be loaded. Refresh to try again.</p>
+                    ) : (
+                      <ReassignAssignmentForm
+                        assignmentId={assignment.id}
+                        examiners={examinersQuery.data}
+                        excludedExaminerIds={submission.assignments.map((other) => other.examiner.id)}
+                        onDone={refresh}
+                      />
+                    )}
+                  </div>
+                )}
                 {assignment.score && (
                   <div className="sm:col-span-3">
                     <p className="text-sm font-semibold tabular-nums text-sn-fg">
