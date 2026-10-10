@@ -10,7 +10,12 @@ import {
   type GoogleOAuthClient,
   type GoogleTokenPayload,
 } from "../src/controllers/googleAuth.controller.js";
-import type { AuthAccount, GoogleIdentity } from "../src/service/googleAuth.service.js";
+import {
+  GoogleAccountResolutionError,
+  resolveGoogleAccount,
+  type AuthAccount,
+  type GoogleIdentity,
+} from "../src/service/googleAuth.service.js";
 import type { GoogleOAuthStateStore } from "../src/service/googleAuth.service.js";
 
 const config = {
@@ -417,4 +422,126 @@ test("untrusted returnTo values never escape the fixed auth pages", async () => 
   );
   assert.match(response.headers.get("set-cookie") ?? "", /google_oauth_state=;/);
   assertOAuthCookiesCleared(response);
+});
+
+interface FakeUserRow extends AuthAccount {
+  normalizedEmail: string;
+  password: string | null;
+  googleSubject: string | null;
+  deletedAt: Date | null;
+}
+
+type FakeWhere = Partial<
+  Pick<FakeUserRow, "id" | "normalizedEmail" | "googleSubject" | "password" | "deletedAt">
+>;
+
+function matchesWhere(row: FakeUserRow, where: FakeWhere) {
+  return (Object.keys(where) as (keyof FakeWhere)[]).every(
+    (key) => row[key] === where[key],
+  );
+}
+
+function project(row: FakeUserRow, select: Record<string, boolean>) {
+  return Object.fromEntries(
+    Object.keys(select)
+      .filter((key) => select[key])
+      .map((key) => [key, row[key as keyof FakeUserRow]]),
+  );
+}
+
+/**
+ * Minimal in-memory stand-in for the Prisma calls made by account resolution.
+ * `afterFindByEmail` lets a test mutate a row between the email lookup and the
+ * guarded link update, simulating a concurrent write.
+ */
+function fakeUserDatabase(
+  rows: FakeUserRow[],
+  afterFindByEmail?: (row: FakeUserRow) => void,
+): Parameters<typeof resolveGoogleAccount>[1] {
+  const user = {
+    async findUnique(args: { where: FakeWhere; select: Record<string, boolean> }) {
+      const row = rows.find((candidate) => matchesWhere(candidate, args.where));
+      if (!row) return null;
+      const result = project(row, args.select);
+      if (args.where.normalizedEmail !== undefined) afterFindByEmail?.(row);
+      return result;
+    },
+    async updateMany(args: { where: FakeWhere; data: Partial<FakeUserRow> }) {
+      const matched = rows.filter((row) => matchesWhere(row, args.where));
+      for (const row of matched) Object.assign(row, args.data);
+      return { count: matched.length };
+    },
+    async create(): Promise<never> {
+      throw new Error("unexpected account creation");
+    },
+  };
+  return {
+    $transaction: (async (callback: (transaction: unknown) => unknown) =>
+      callback({ user })) as never,
+  };
+}
+
+function storedUser(overrides: Partial<FakeUserRow> = {}): FakeUserRow {
+  return {
+    ...account(),
+    normalizedEmail: "jane@gmail.com",
+    password: "$2b$10$local-password-hash",
+    googleSubject: null,
+    deletedAt: null,
+    ...overrides,
+  };
+}
+
+function gmailIdentity(): GoogleIdentity {
+  return {
+    subject: "victim-google-subject",
+    email: "Jane@gmail.com",
+    emailVerified: true,
+    name: "Jane Doe",
+  };
+}
+
+function assertAccountConflict(error: unknown) {
+  assert.ok(error instanceof GoogleAccountResolutionError);
+  assert.equal(error.code, "account_conflict");
+  return true;
+}
+
+test("Google never auto-links a Gmail identity to an existing password account", async () => {
+  const preRegistered = storedUser();
+
+  await assert.rejects(
+    resolveGoogleAccount(gmailIdentity(), fakeUserDatabase([preRegistered])),
+    assertAccountConflict,
+  );
+  assert.equal(preRegistered.googleSubject, null);
+  assert.equal(preRegistered.password, "$2b$10$local-password-hash");
+});
+
+test("Google still links an authoritative identity to a passwordless unlinked account", async () => {
+  const passwordless = storedUser({ password: null });
+
+  const resolved = await resolveGoogleAccount(
+    gmailIdentity(),
+    fakeUserDatabase([passwordless]),
+  );
+
+  assert.deepEqual(resolved, account());
+  assert.equal(passwordless.googleSubject, "victim-google-subject");
+  assert.equal("password" in resolved, false);
+});
+
+test("a password set concurrently before linking turns the link into a conflict", async () => {
+  const racing = storedUser({ password: null });
+
+  await assert.rejects(
+    resolveGoogleAccount(
+      gmailIdentity(),
+      fakeUserDatabase([racing], (row) => {
+        row.password ??= "$2b$10$attacker-password-hash";
+      }),
+    ),
+    assertAccountConflict,
+  );
+  assert.equal(racing.googleSubject, null);
 });

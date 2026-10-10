@@ -66,10 +66,16 @@ the database connection is opened.
 2. A new verified email creates one `STUDENT` account with a null local
    password. Username collisions receive deterministic `_2`, `_3`, and later
    suffixes.
-3. An existing local account is linked only when Google is authoritative for
-   the verified email: Gmail/Googlemail addresses or a matching verified
-   Workspace `hd` claim. Existing username, role, email, password, and other
-   account data are preserved.
+3. An existing account with a local password is never auto-linked, even for
+   Gmail addresses: local registration does not verify email ownership, so
+   the password may belong to someone who pre-registered the address. These
+   callbacks return `account_conflict`, and the user must sign in with email
+   and password. The link update is also guarded on a null password so a
+   concurrent registration cannot be linked.
+   An existing passwordless, unlinked account is linked only when Google is
+   authoritative for the verified email: Gmail/Googlemail addresses or a
+   matching verified Workspace `hd` claim. Existing username, role, email, and
+   other account data are preserved.
 4. Other email conflicts return `account_conflict`; they never silently link.
    Deactivated accounts return `account_inactive` and are never reactivated.
 5. Google uses the existing JWT payload, configured expiry, and cookie security

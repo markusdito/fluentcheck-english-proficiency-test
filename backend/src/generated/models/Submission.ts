@@ -287,10 +287,10 @@ export type SubmissionOrderByWithRelationInput = {
 
 export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  studentId?: string
   AND?: Prisma.SubmissionWhereInput | Prisma.SubmissionWhereInput[]
   OR?: Prisma.SubmissionWhereInput[]
   NOT?: Prisma.SubmissionWhereInput | Prisma.SubmissionWhereInput[]
-  studentId?: Prisma.UuidFilter<"Submission"> | string
   status?: Prisma.EnumSubmissionStatusFilter<"Submission"> | $Enums.SubmissionStatus
   retentionStatus?: Prisma.EnumSubmissionRetentionStatusFilter<"Submission"> | $Enums.SubmissionRetentionStatus
   scoringSystem?: Prisma.EnumScoringSystemFilter<"Submission"> | $Enums.ScoringSystem
@@ -316,7 +316,7 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   purgeRequests?: Prisma.SubmissionPurgeRequestListRelationFilter
   purgeObjects?: Prisma.SubmissionPurgeObjectListRelationFilter
   retentionAuditEvents?: Prisma.RetentionAuditEventListRelationFilter
-}, "id">
+}, "id" | "studentId">
 
 export type SubmissionOrderByWithAggregationInput = {
   id?: Prisma.SortOrder

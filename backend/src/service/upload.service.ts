@@ -571,6 +571,10 @@ export async function confirmUpload(
       where: {
         id: answer.id,
         submissionId,
+        // Bind to the exact object that was HEAD-verified. A concurrent presign
+        // may have superseded the key with a new, unverified one.
+        storageKey: answer.storageKey,
+        mimeType: answer.mimeType,
         uploadStatus: "PENDING",
         submission: { status: "IN_PROGRESS", retentionStatus: "RETAINED" },
       },
@@ -604,12 +608,18 @@ export async function confirmUpload(
   if (!confirmed) {
     const current = await prisma.answer.findUnique({
       where: { id: answer.id },
-      select: { uploadStatus: true, verifiedAt: true, technicalFailure: true, technicalFailureReason: true },
+      select: {
+        storageKey: true, uploadStatus: true, verifiedAt: true, technicalFailure: true, technicalFailureReason: true,
+        submission: { select: { status: true, retentionStatus: true } },
+      },
     });
     if (current?.uploadStatus === "UPLOADED" && current.verifiedAt) {
       return { technicalFailure: current.technicalFailure, technicalFailureReason: current.technicalFailureReason };
     }
-    throw new Error("Submission is not in progress");
+    if (current?.submission.status !== "IN_PROGRESS") throw new Error("Submission is not in progress");
+    if (current.submission.retentionStatus !== "RETAINED") throw new Error("Submission is not available");
+    if (current.storageKey !== answer.storageKey) throw new Error("Answer upload was superseded");
+    throw new Error("Answer upload is not pending");
   }
   return { technicalFailure: failure !== null, technicalFailureReason: failure?.reason ?? null };
 }

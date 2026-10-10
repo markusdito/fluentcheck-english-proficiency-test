@@ -309,6 +309,9 @@ model Submission {
   @@index([status])
   @@index([retentionStatus, status])
   @@index([status, lastHeartbeatAt])
+  // At most one Active Submission per student. Partial unique: not a lookup key
+  // (studentId is only unique among IN_PROGRESS rows), so don't findUnique by it.
+  @@unique([studentId], map: "Submission_one_active_per_student_key", where: { status: "IN_PROGRESS" })
 }
 
 model SubmissionRetentionHold {
@@ -406,7 +409,7 @@ model PromptMediaCleanupObject {
   referenceSnapshot      Json?
   eligibilityReason      String
   status                 PromptMediaCleanupObjectStatus
-  lastRunId              String
+  lastRunId              String                         @db.Uuid
   lastRun                PromptMediaCleanupRun          @relation(fields: [lastRunId], references: [id], onDelete: Restrict)
   quarantineUntil        DateTime?                      @db.Timestamptz()
   attemptCount           Int                            @default(0)
