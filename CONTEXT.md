@@ -184,6 +184,10 @@ _Avoid_: Cancelled submission, failed submission
 One free retake owned by the student of a Voided submission, redeemed automatically as a system waiver on that student's next completed Submission. Not transferable.
 _Avoid_: Voucher, coupon, refund
 
+**Payment waiver**:
+An Admin's audited decision that one Submission awaiting payment needs no payment; the Submission becomes PAID and Assignment-ready. Made once per Submission. Distinct from the system waiver a Retake credit applies automatically.
+_Avoid_: Free retake, discount, refund
+
 **Payment attempt**:
 A single request to open a provider checkout for one Submission. It retains its own identity and outcome independently of earlier or later attempts.
 _Avoid_: Payment request, checkout
@@ -235,6 +239,10 @@ _Avoid_: Paid submission, unassigned submission
 **Payment reconciliation**:
 Reviewing recorded Payment attempts against provider records, including ambiguous outcomes or more than one successful attempt for the same Submission.
 _Avoid_: Payment repair, payment overwrite
+
+**Payment reconciliation queue**:
+The Admin-facing list of Payment attempts whose provider outcome is ambiguous and needs an Admin decision: stale pending attempts, duplicate successful attempts, and paid attempts on waived Submissions. It is read-only; nothing in it is resolved automatically.
+_Avoid_: Payment repair queue, payment failure list
 
 **Completed Examiner assignment**:
 An Examiner assignment whose required Answers have valid Scores and whose scoring submission is committed; it is no longer editable, and repeating completion is a successful no-op.

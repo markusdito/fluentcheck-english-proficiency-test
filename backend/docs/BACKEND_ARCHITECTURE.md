@@ -115,8 +115,10 @@ provider checkout.
 | Record | States or invariant |
 | --- | --- |
 | Payment | PENDING, PAID, FAILED, or REFUNDED. Every validated success is retained as its own attempt. |
+| SubmissionPaymentWaiver | At most one row per Submission (unique `submissionId`); records the waiving Admin, the reason and the time. It is the audit record of an Admin payment waiver. |
 | Answer upload | PENDING, UPLOADED, or FAILED. Only an R2-confirmed UPLOADED answer with verification evidence is complete. |
 | ExaminerAssignment | ASSIGNED, IN_PROGRESS, or COMPLETED. There are exactly two fixed slots, 1 and 2, with no ranking. |
+| ExaminerAssignmentReassignment | Immutable history row per assignment transfer. `reason` is an account transition or `ADMIN_REASSIGNMENT`; the nullable `note` holds the Admin's reason for a standalone reassignment. |
 | Score | RUBRIC_6 or LEGACY_100 scoring system; draft scores are mutable until assignment completion. |
 | Certificate | One optional record per Submission in the schema; issuance is not currently implemented. |
 
@@ -309,6 +311,12 @@ All administrator routes require an authenticated ADMIN account.
 <!-- route: POST /api/admin/submissions/:id/assign | source=backend/src/routes/admin.routes.ts -->
 | POST | /api/admin/submissions/:id/assign | ADMIN | Creates or retries the atomic two-slot assignment set. |
 
+<!-- route: POST /api/admin/submissions/:id/payment-waiver | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/submissions/:id/payment-waiver | ADMIN | Requires `reason`; waives payment for one `AWAITING_PAYMENT` Submission, records its audited `SubmissionPaymentWaiver`, sets it to `PAID`, then requests assignment. |
+
+<!-- route: POST /api/admin/assignments/:id/reassign | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/assignments/:id/reassign | ADMIN | Requires `examinerId` and `reason`; moves an untouched `ASSIGNED` assignment (no saved Score, Submission in `SCORING` or `FLAG_REVIEW`) to an active Examiner not already on the Submission. Repeating the same Examiner returns `ALREADY_APPLIED`. |
+
 <!-- route: POST /api/admin/submissions/:id/purge-request | source=backend/src/routes/admin.routes.ts -->
 | POST | /api/admin/submissions/:id/purge-request | ADMIN | Requests a policy-eligible Submission purge and records the requester and reason. |
 
@@ -334,7 +342,7 @@ All administrator routes require an authenticated ADMIN account.
 | GET | /api/admin/submissions | ADMIN | Lists submissions for administration. |
 
 <!-- route: GET /api/admin/submissions/:id | source=backend/src/routes/admin.routes.ts -->
-| GET | /api/admin/submissions/:id | ADMIN | Returns administrator submission detail. |
+| GET | /api/admin/submissions/:id | ADMIN | Returns administrator submission detail, including `paymentWaiver` and, per assignment, `reassignable` and `reassignmentHistory`. |
 
 <!-- route: GET /api/admin/stats | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/stats | ADMIN | Returns administrator statistics. |
@@ -347,6 +355,9 @@ All administrator routes require an authenticated ADMIN account.
 
 <!-- route: POST /api/admin/flags/:id/dismiss | source=backend/src/routes/admin.routes.ts -->
 | POST | /api/admin/flags/:id/dismiss | ADMIN | Requires a note; once no flag is open the Submission returns to `SCORING` or to the payment/waiver route. |
+
+<!-- route: GET /api/admin/queues | source=backend/src/routes/admin.routes.ts -->
+| GET | /api/admin/queues | ADMIN | Read-only `openFlags`, `paymentReconciliation` and `assignmentReady` queues; nothing is resolved automatically. |
 
 <!-- route: GET /api/admin/test-sets | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/test-sets | ADMIN | Lists Test Sets with per-slot readiness (DRAFT or DELIVERABLE). |
@@ -447,6 +458,14 @@ recording the outcome. Every validated successful attempt is retained. The
 first success transitions AWAITING_PAYMENT to PAID and requests assignment;
 later successes remain visible for Payment reconciliation.
 
+An Admin can instead waive payment for one AWAITING_PAYMENT Submission through
+the payment-waiver route. In one transaction the route writes the unique
+`SubmissionPaymentWaiver` row (Admin, reason, time), sets `paymentRequired` to
+false and the status to PAID, and then requests assignment. If assignment
+fails, the Submission stays PAID and is listed as assignment-ready. This audited
+Admin waiver is separate from the system waiver that a Retake credit applies
+automatically.
+
 ### Exactly-two assignment set
 
 Assignment creation runs in a serializable transaction. It selects two
@@ -458,6 +477,15 @@ Insufficient examiner capacity leaves the Submission PAID. Assignment failure
 after successful payment is logged and can be retried through the administrator
 assignment route. There is no one-examiner intermediate success and no
 automatic queue or loop described as current behavior.
+
+An Admin can reassign one Examiner assignment through the reassign route. Only
+an `ASSIGNED` assignment with no saved Score moves, and only while its
+Submission is `SCORING` or `FLAG_REVIEW`; `IN_PROGRESS` and scored work stays
+with its Examiner. The replacement must be an active `EXAMINER` not already on
+the Submission. The assignment keeps its id and slot, and each move is written
+to `ExaminerAssignmentReassignment` with reason `ADMIN_REASSIGNMENT` and the
+Admin's note. The transaction uses the same lock order as account transitions
+and retries on serialization contention.
 
 ### Independent scoring finalization
 
@@ -478,6 +506,23 @@ mean of the two overall bands, each criterion = mean of the two Examiners'
 bands, unrounded to half-bands. Nothing is shown until both assignments are
 completed. Submissions scored per Answer before this change (and LEGACY_100)
 keep their original per-Answer aggregation.
+
+### Admin review queues
+
+`GET /api/admin/queues` returns three read-only lists, each capped and ordered
+oldest first:
+
+- `openFlags`: unresolved flags on `FLAG_REVIEW` Submissions.
+- `paymentReconciliation`: PENDING Payment attempts older than one hour, tagged
+  `CHECKOUT_UNCONFIRMED` when no provider session exists or
+  `NO_PROVIDER_OUTCOME` when a session exists but no final notification arrived;
+  `DUPLICATE_PAYMENT` for more than one PAID attempt on one Submission; and
+  `PAID_WHILE_WAIVED` for PAID attempts on a Submission that did not need payment.
+- `assignmentReady`: PAID Submissions with no Examiner assignment and no open
+  flag, including waived ones.
+
+Reading the queues changes nothing, and nothing in them is resolved
+automatically. Payment reconciliation items have no resolving route yet.
 
 ## 6. Authentication, authorization, and request protection
 
