@@ -271,6 +271,8 @@ export interface AnswerDetail {
   questionCategory: string;
   audioUrl: string | null;
   durationSeconds: number | null;
+  technicalFailure: boolean;
+  technicalFailureReason: string | null;
   videoUrl: string | null;
   score: number | null;
   rubric: RubricBreakdown | null;
@@ -567,6 +569,8 @@ export async function getSubmissionDetail(
         questionCategory: manifestEntry?.category ?? answer.question!.category,
         audioUrl,
         durationSeconds: answer.durationSeconds,
+        technicalFailure: answer.technicalFailure,
+        technicalFailureReason: answer.technicalFailureReason,
         videoUrl,
         score: scoreSummary.score,
         rubric: scoreSummary.rubric,
@@ -690,6 +694,7 @@ export async function completeSubmission(
             observedMimeType: true,
             mimeType: true,
             sizeBytes: true,
+            technicalFailure: true,
           },
         },
       },
@@ -723,7 +728,9 @@ export async function completeSubmission(
       answer.uploadStatus === "UPLOADED" &&
       answer.verifiedAt !== null &&
       answer.proofVersion === 1 &&
-      answer.sizeBytes !== null && answer.sizeBytes > 0 &&
+      // A flagged take where nothing was captured still completes (PRD FR-3.7).
+      answer.sizeBytes !== null &&
+      (answer.sizeBytes > 0 || answer.technicalFailure) &&
       answer.observedMimeType !== null &&
       answer.observedMimeType === answer.mimeType
     );

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { createPresignedUpload, confirmUpload } from "../service/upload.service.js";
+import { createPresignedUpload, confirmUpload, type AnswerTechnicalFailure } from "../service/upload.service.js";
 
 interface PresignedUrlBody {
   submissionId: string;
@@ -12,6 +12,24 @@ interface ConfirmUploadBody {
   manifestEntryId: string;
   sizeBytes?: number;
   durationSeconds?: number;
+  technicalFailure?: unknown;
+}
+
+const FAILURE_TYPES = ["TECHNICAL_FAILURE", "CAMERA_DROP"];
+const MAX_REASON = 1000;
+
+/** Validate the optional client-reported failure; returns a string error when invalid. */
+function parseTechnicalFailure(value: unknown): AnswerTechnicalFailure | undefined | string {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) return "technicalFailure must be an object";
+  const { type, reason } = value as { type?: unknown; reason?: unknown };
+  if (typeof type !== "string" || !FAILURE_TYPES.includes(type)) {
+    return "technicalFailure.type must be TECHNICAL_FAILURE or CAMERA_DROP";
+  }
+  const text = typeof reason === "string" ? reason.trim() : "";
+  if (!text) return "technicalFailure.reason is required";
+  if (text.length > MAX_REASON) return `technicalFailure.reason must be at most ${MAX_REASON} characters`;
+  return { type: type as AnswerTechnicalFailure["type"], reason: text };
 }
 
 /**
@@ -52,7 +70,8 @@ export async function getPresignedUrl(req: Request, res: Response) {
  */
 export async function confirmUploadHandler(req: Request, res: Response) {
   try {
-    const { submissionId, manifestEntryId, sizeBytes, durationSeconds } = req.body as ConfirmUploadBody;
+    // sizeBytes/durationSeconds are accepted for compatibility but never trusted.
+    const { submissionId, manifestEntryId, technicalFailure } = req.body as ConfirmUploadBody;
     const userId = req.user!.id;
 
     if (!submissionId || !manifestEntryId) {
@@ -60,10 +79,18 @@ export async function confirmUploadHandler(req: Request, res: Response) {
       return;
     }
 
-    await confirmUpload(submissionId, manifestEntryId, userId, { sizeBytes, durationSeconds });
+    const failure = parseTechnicalFailure(technicalFailure);
+    if (typeof failure === "string") {
+      res.status(400).json({ error: failure });
+      return;
+    }
+
+    const result = await confirmUpload(submissionId, manifestEntryId, userId, failure);
     res.status(200).json({
       status: "success",
       message: "Upload confirmed",
+      technicalFailure: result.technicalFailure,
+      technicalFailureReason: result.technicalFailureReason,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to confirm upload";

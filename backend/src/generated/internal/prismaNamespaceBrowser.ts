@@ -377,6 +377,8 @@ export const AnswerScalarFieldEnum = {
   verifiedAt: 'verifiedAt',
   observedMimeType: 'observedMimeType',
   proofVersion: 'proofVersion',
+  technicalFailure: 'technicalFailure',
+  technicalFailureReason: 'technicalFailureReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

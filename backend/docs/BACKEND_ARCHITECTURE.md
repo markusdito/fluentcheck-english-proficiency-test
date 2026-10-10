@@ -390,15 +390,30 @@ verifiedAt. The backend ignores client-supplied size and duration as evidence.
 Concurrent confirmations of the same pending object converge on the one
 verified Answer; a late confirmer replays the committed verified state.
 The current path does not use Multer, a server-side FormData upload, a 500 MB
-limit, or an automatic three-attempt retry loop. A failed browser upload must
-be retried by obtaining a new recording in the current frontend.
+limit, or an automatic three-attempt retry loop.
+
+Re-recording is not allowed, so a failed, short or silent take is saved and
+flagged instead of retried (PRD FR-3.7, FR-3.8). Confirmation accepts an
+optional `technicalFailure: { type: "TECHNICAL_FAILURE" | "CAMERA_DROP",
+reason }` (reason trimmed, 1–1000 characters, else 400) for recorder errors
+and camera, microphone or connection loss. A zero-byte object is accepted only
+with that client failure. An observed object under 8 KB without one is treated
+as a TECHNICAL_FAILURE with reason "Recording is shorter than 8 KB; it may be
+short or silent". In the same transaction as the UPLOADED update the Answer is
+marked `technicalFailure` with the reason and exactly one open STUDENT_DEVICE
+SubmissionFlag bound to the Answer and Manifest entry is created. The response
+returns `technicalFailure` and `technicalFailureReason`; a replayed
+confirmation reports the stored values without a second flag. Presigning
+again resets both fields on a still-pending Answer.
 
 ### Completion and payment
 
 Completion locks the Submission and requires a version 2 manifest, exactly
 five manifest entries, exactly one Answer per entry, and verified media for
-each entry. The transition is AWAITING_PAYMENT when payment is required and
-PAID when payment is waived.
+each entry. A flagged verified Answer counts toward completion, and only a
+`technicalFailure` Answer may have zero bytes. An open flag sends the
+Submission to FLAG_REVIEW before payment. Otherwise the transition is
+AWAITING_PAYMENT when payment is required and PAID when payment is waived.
 
 The pay route creates a PENDING Payment with a unique FluentCheck merchant
 reference and opens an iPaymu hosted checkout. The notification route validates

@@ -2,14 +2,15 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-export type RecordingState = "idle" | "preparing" | "recording" | "finalizing" | "blob-ready" | "error";
+export type RecordingState = "idle" | "preparing" | "recording" | "finalizing" | "blob-ready";
 
 interface UseRecordingReturn {
   state: RecordingState;
   blob: Blob | null;
   duration: number;
-  error: string | null;
-  startRecording: (stream: MediaStream, maxDuration?: number) => void;
+  /** Why the take ended abnormally; its blob (possibly empty) is still delivered. */
+  failure: string | null;
+  startRecording: (stream: MediaStream | null, maxDuration?: number) => void;
   stopRecording: () => void;
   resetRecording: () => void;
 }
@@ -43,7 +44,7 @@ export function useRecording(): UseRecordingReturn {
   const [state, setState] = useState<RecordingState>("idle");
   const [blob, setBlob] = useState<Blob | null>(null);
   const [duration, setDuration] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -86,7 +87,9 @@ export function useRecording(): UseRecordingReturn {
     };
   }, []);
 
-  const startRecording = useCallback((stream: MediaStream, maxDuration?: number) => {
+  // Every ended take yields a blob, even a partial or empty one, so it can be
+  // uploaded and flagged instead of re-recorded (PRD FR-3.7, FR-3.8).
+  const startRecording = useCallback((stream: MediaStream | null, maxDuration?: number) => {
     const previousRecorder = mediaRecorderRef.current;
     recordingGenerationRef.current += 1;
     const generation = recordingGenerationRef.current;
@@ -106,11 +109,35 @@ export function useRecording(): UseRecordingReturn {
     maxDurationRef.current = maxDuration;
     setBlob(null);
     setDuration(0);
-    setError(null);
+    setFailure(null);
     setState("preparing");
 
+    let mimeType = "video/webm";
+    const finish = (reason: string | null) => {
+      if (recordingGenerationRef.current !== generation) return;
+      // A take is delivered once: a later onstop/onerror of this recorder is ignored.
+      recordingGenerationRef.current += 1;
+      const recorder = mediaRecorderRef.current;
+      mediaRecorderRef.current = null;
+      if (recorder && recorder.state !== "inactive") {
+        try {
+          recorder.stop();
+        } catch {
+          // The failed recorder may already be stopped.
+        }
+      }
+      if (durationRef.current) {
+        clearInterval(durationRef.current);
+        durationRef.current = null;
+      }
+      setBlob(new Blob(chunksRef.current, { type: mimeType }));
+      setFailure(reason);
+      setState("blob-ready");
+    };
+
     try {
-      const mimeType = getSupportedMimeType();
+      if (!stream) throw new Error("no capture stream");
+      mimeType = getSupportedMimeType();
       const recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = recorder;
 
@@ -120,33 +147,8 @@ export function useRecording(): UseRecordingReturn {
         }
       };
 
-      recorder.onstop = () => {
-        if (recordingGenerationRef.current !== generation) return;
-        const recordedBlob = new Blob(chunksRef.current, { type: mimeType });
-        mediaRecorderRef.current = null;
-        if (recordedBlob.size === 0) {
-          setError("Recording produced an empty video. Please try again.");
-          setState("error");
-        } else {
-          setBlob(recordedBlob);
-          setState("blob-ready");
-        }
-        if (durationRef.current) {
-          clearInterval(durationRef.current);
-          durationRef.current = null;
-        }
-      };
-
-      recorder.onerror = () => {
-        if (recordingGenerationRef.current !== generation) return;
-        mediaRecorderRef.current = null;
-        setError("Recording failed due to an internal error.");
-        setState("error");
-        if (durationRef.current) {
-          clearInterval(durationRef.current);
-          durationRef.current = null;
-        }
-      };
+      recorder.onstop = () => finish(null);
+      recorder.onerror = () => finish("The recorder stopped unexpectedly");
 
       recorder.start(1000); // timeslice: 1000ms for duration tracking
       setState("recording");
@@ -158,8 +160,7 @@ export function useRecording(): UseRecordingReturn {
         setDuration(Math.floor((performance.now() - startedAt) / 1000));
       }, 250);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start recording.");
-      setState("error");
+      finish(`Recording could not start: ${err instanceof Error ? err.message : "unknown error"}`);
     }
   }, []);
 
@@ -177,7 +178,7 @@ export function useRecording(): UseRecordingReturn {
     setState("idle");
     setBlob(null);
     setDuration(0);
-    setError(null);
+    setFailure(null);
     chunksRef.current = [];
     if (durationRef.current) {
       clearInterval(durationRef.current);
@@ -186,5 +187,5 @@ export function useRecording(): UseRecordingReturn {
     maxDurationRef.current = undefined;
   }, []);
 
-  return { state, blob, duration, error, startRecording, stopRecording, resetRecording };
+  return { state, blob, duration, failure, startRecording, stopRecording, resetRecording };
 }

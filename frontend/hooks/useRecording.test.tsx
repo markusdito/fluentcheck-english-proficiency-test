@@ -89,7 +89,7 @@ describe("useRecording", () => {
     expect(result.current.duration).toBe(2);
   });
 
-  it("rejects empty recordings and exposes recorder failures without a fake blob", () => {
+  it("delivers empty takes and recorder failures as blobs instead of asking for a retry", () => {
     const { result } = renderHook(() => useRecording());
     act(() => result.current.startRecording(streamFixture()));
     const recorder = FakeMediaRecorder.instances[0]!;
@@ -98,16 +98,38 @@ describe("useRecording", () => {
       result.current.stopRecording();
       recorder.emitStop();
     });
-    expect(result.current.state).toBe("error");
-    expect(result.current.blob).toBeNull();
-    expect(result.current.error).toBe("Recording produced an empty video. Please try again.");
+    expect(result.current.state).toBe("blob-ready");
+    expect(result.current.blob?.size).toBe(0);
+    expect(result.current.failure).toBeNull();
 
     act(() => result.current.resetRecording());
     act(() => result.current.startRecording(streamFixture()));
     const failedRecorder = FakeMediaRecorder.instances[1]!;
-    act(() => failedRecorder.emitError());
-    expect(result.current.state).toBe("error");
-    expect(result.current.error).toBe("Recording failed due to an internal error.");
+    act(() => {
+      failedRecorder.emitChunk(new Blob(["partial"], { type: "video/webm" }));
+      failedRecorder.emitError();
+    });
+    expect(result.current.state).toBe("blob-ready");
+    expect(result.current.failure).toBe("The recorder stopped unexpectedly");
+    const partial = result.current.blob;
+    expect(partial?.size).toBe("partial".length);
+    expect(failedRecorder.stop).toHaveBeenCalledOnce();
+
+    // The trailing onstop after onerror must not deliver the take twice.
+    act(() => {
+      failedRecorder.emitChunk(new Blob(["late"]));
+      failedRecorder.emitStop();
+    });
+    expect(result.current.blob).toBe(partial);
+    expect(result.current.failure).toBe("The recorder stopped unexpectedly");
+  });
+
+  it("delivers an empty failed take when recording cannot start", () => {
+    const { result } = renderHook(() => useRecording());
+    act(() => result.current.startRecording(null));
+    expect(result.current.state).toBe("blob-ready");
+    expect(result.current.blob?.size).toBe(0);
+    expect(result.current.failure).toMatch(/^Recording could not start/);
   });
 
   it("automatically stops at the configured duration and falls back to plain WebM", () => {

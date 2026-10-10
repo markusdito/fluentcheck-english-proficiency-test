@@ -143,7 +143,7 @@ GET  /api/auth/me        → verifyToken middleware → fetch user by ID → ret
 | `Question` | Speaking prompt for one delivery slot of a Test Set | ← TestSet, → Task, → Answer, ← User (createdBy) |
 | `Task` | Sub-prompt within a question | ← Question |
 | `Submission` | One test attempt by a student | ← User, → Answer, → Payment, → ExaminerAssignment, → Certificate |
-| `Answer` | Video response to one question | ← Submission, ← Question, → Score |
+| `Answer` | Video response to one question; `technicalFailure` + reason mark a saved partial, short or silent take | ← Submission, ← Question, → Score, → SubmissionFlag |
 | `Payment` | Payment record for a submission | ← Submission |
 | `ExaminerAssignment` | Assigns one of the two examiners (slot 1 or 2) who score a submission | ← Submission, ← User (examiner), → Score |
 | `Score` | One examiner's score | ← ExaminerAssignment, ← Answer |
@@ -163,7 +163,8 @@ Student takes test:
   Submission: IN_PROGRESS
   ├── Student records Answer for each Question
   │   └── Answer.uploadStatus: PENDING → UPLOADED (or FAILED)
-  └── All answers uploaded → Submission: AWAITING_PAYMENT
+  │       └── Failed/short (< 8 KB) take → UPLOADED + technicalFailure + open flag
+  └── All answers uploaded → Submission: AWAITING_PAYMENT (FLAG_REVIEW if any flag is open)
 
 Payment:
   Payment: PENDING → PAID (or FAILED → retry)
