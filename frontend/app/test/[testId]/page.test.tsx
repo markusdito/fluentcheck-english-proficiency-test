@@ -3,6 +3,8 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CONSENT_TEXT_VERSION, clearConsent, storeConsent } from "@/lib/consent";
+import { ApiError } from "@/lib/api";
+import { ASSESSMENT_START_INTENT_STORAGE_KEY } from "@/lib/assessment-start-intent";
 import TestPage from "./page";
 
 const mocks = vi.hoisted(() => ({
@@ -13,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   initializePractice: vi.fn(),
   requestPermissions: vi.fn(),
   abandonSubmission: vi.fn(),
+  abandonSubmissionOnLeave: vi.fn(),
+  sendHeartbeat: vi.fn(),
   resetRecording: vi.fn(),
   startRecording: vi.fn(),
   stopRecording: vi.fn(),
@@ -85,7 +89,9 @@ vi.mock("@/lib/test-initialization", () => ({
 
 vi.mock("@/lib/test-api", () => ({
   abandonSubmission: mocks.abandonSubmission,
+  abandonSubmissionOnLeave: mocks.abandonSubmissionOnLeave,
   completeSubmission: mocks.completeSubmission,
+  sendHeartbeat: mocks.sendHeartbeat,
 }));
 
 vi.mock("@/lib/upload-api", () => ({
@@ -194,6 +200,7 @@ describe("TestPage strict exam flow", () => {
   beforeEach(() => {
     storeConsent("student-1");
     mocks.completeSubmission.mockResolvedValue(undefined);
+    mocks.sendHeartbeat.mockResolvedValue(undefined);
     mocks.confirmUpload.mockResolvedValue(undefined);
     mocks.getPresignedUrl.mockResolvedValue({
       answerId: "answer-1",
@@ -250,6 +257,77 @@ describe("TestPage strict exam flow", () => {
     expect(mocks.initializeTest).not.toHaveBeenCalled();
     expect(mocks.getPresignedUrl).not.toHaveBeenCalled();
     expect(mocks.completeSubmission).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event("pagehide"));
+    view.unmount();
+    expect(mocks.sendHeartbeat).not.toHaveBeenCalled();
+    expect(mocks.abandonSubmissionOnLeave).not.toHaveBeenCalled();
+  });
+
+  it("sends a heartbeat once the Submission exists (FR-2.7)", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalledWith("submission-1", expect.any(AbortSignal)));
+  });
+
+  it("pauses preparation while the connection is lost and resumes the same slot (FR-2.7)", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+
+    await act(async () => window.dispatchEvent(new Event("offline")));
+    expect(screen.getByRole("alert")).toHaveTextContent("Connection lost — reconnecting");
+    await act(async () => onComplete());
+    expect(mocks.startRecording).not.toHaveBeenCalled();
+
+    mocks.countdown.start.mockClear();
+    await act(async () => window.dispatchEvent(new Event("online")));
+    await waitFor(() => expect(screen.queryByText("Connection lost — reconnecting")).not.toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: "Part 1 · Task 1A" })).toBeInTheDocument();
+    expect(mocks.countdown.start).toHaveBeenCalled();
+    await startSlot(onComplete);
+  });
+
+  it("treats a failed heartbeat as connection loss and ends a recording take", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+    await startSlot(onComplete);
+
+    mocks.sendHeartbeat.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await act(async () => window.dispatchEvent(new Event("online")));
+    expect(await screen.findByText("Connection lost — reconnecting")).toBeInTheDocument();
+    expect(mocks.stopRecording).toHaveBeenCalled();
+  });
+
+  it("shows an ended state when the server already ended the Submission", async () => {
+    mocks.sendHeartbeat.mockRejectedValue(new ApiError("Not in progress", 409, undefined, "SUBMISSION_NOT_IN_PROGRESS"));
+    const view = await renderPage();
+    expect(await screen.findByRole("heading", { name: "This Assessment has ended" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Return to dashboard" })).toBeInTheDocument();
+    expect(mocks.stopStream).toHaveBeenCalled();
+    window.dispatchEvent(new Event("pagehide"));
+    view.unmount();
+    expect(mocks.abandonSubmissionOnLeave).not.toHaveBeenCalled();
+  });
+
+  it("abandons the Submission and clears the start intent on pagehide (FR-2.8)", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    expect(sessionStorage.getItem(ASSESSMENT_START_INTENT_STORAGE_KEY)).toBeNull();
+    sessionStorage.setItem(ASSESSMENT_START_INTENT_STORAGE_KEY, "{}");
+
+    window.dispatchEvent(new Event("pagehide"));
+    expect(mocks.abandonSubmissionOnLeave).toHaveBeenCalledWith("submission-1");
+    expect(sessionStorage.getItem(ASSESSMENT_START_INTENT_STORAGE_KEY)).toBeNull();
+    window.dispatchEvent(new Event("pagehide"));
+    expect(mocks.abandonSubmissionOnLeave).toHaveBeenCalledTimes(1);
+  });
+
+  it("abandons on client-side navigation away (unmount)", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    view.unmount();
+    expect(mocks.abandonSubmissionOnLeave).toHaveBeenCalledWith("submission-1");
   });
 
   it("shows the Test Set title and Part/Task header with no manual recording controls", async () => {
@@ -435,6 +513,10 @@ describe("TestPage strict exam flow", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("submission-1")).toBeInTheDocument();
     expect(screen.getAllByText("Saved for Evaluation").length).toBeGreaterThan(0);
+
+    window.dispatchEvent(new Event("pagehide"));
+    view.unmount();
+    expect(mocks.abandonSubmissionOnLeave).not.toHaveBeenCalled();
   });
 
   it("retries a failed upload from the kept take instead of re-recording", async () => {
