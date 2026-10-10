@@ -16,7 +16,6 @@ import {
 import { useSession } from "@/hooks/useSession";
 import { useSubmissionStatusPolling } from "@/hooks/useSubmissionStatusPolling";
 import { queryKeys } from "@/lib/query-keys";
-import { LazyAnswerMedia } from "@/components/media/LazyAnswerMedia";
 import { BackLink, PageShell, PageState } from "@/components/student/PageShell";
 import { StatusPill } from "@/components/student/StatusPill";
 import { card, h2, h3, meta, primaryButton, statNum } from "@/components/student/styles";
@@ -333,25 +332,18 @@ export default function SubmissionResultPage({
 
         <aside className={card} aria-labelledby="recordings-title">
           <h2 id="recordings-title" className={h3}>Your recordings</h2>
-          <p className="mt-1.5 mb-2 text-[15px] text-sn-muted">Streaming preview only. Recordings can&apos;t be downloaded.</p>
+          <p className="mt-1.5 mb-2 text-[15px] text-sn-muted">
+            Only your two examiners and administrators can watch your recordings.
+          </p>
           {submission.answers.length > 0 ? (
-            submission.answers.map((answer, index) => (
-              <div key={answer.id} className="border-t border-sn-border py-5">
-                <p className={`${meta} mb-3`}>
+            <ul className="m-0 list-none p-0">
+              {submission.answers.map((answer) => (
+                <li key={answer.id} className={`${meta} border-t border-sn-border py-4`}>
                   {categoryLabel(answer.questionCategory)}
                   {answer.durationSeconds != null ? ` · ${answer.durationSeconds}s` : ""}
-                </p>
-                <LazyAnswerMedia
-                  audioUrl={answer.audioUrl}
-                  videoUrl={answer.videoUrl}
-                  durationSeconds={answer.durationSeconds ?? undefined}
-                  questionNumber={index + 1}
-                  unavailableMessage={
-                    submission.status === "IN_PROGRESS" ? "Video still being processed…" : "Video not available"
-                  }
-                />
-              </div>
-            ))
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="border-t border-sn-border pt-5 text-[15px] text-sn-muted">No answers were recorded for this submission.</p>
           )}
