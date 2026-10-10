@@ -30,19 +30,17 @@ export async function listAssignments(req: Request, res: Response) {
 
 /**
  * GET /api/examiner/assignments/:id
- * Get assignment detail with answers and presigned video URLs.
+ * Get assignment detail with answers in slot order and audited video URLs.
  */
 export async function getAssignment(req: Request, res: Response) {
   try {
     const assignmentId = req.params.id as string;
-    const examinerId = req.user!.id;
-
     if (!assignmentId) {
       res.status(400).json({ error: "Assignment ID is required" });
       return;
     }
 
-    const assignment = await getExaminerAssignmentDetail(assignmentId, examinerId);
+    const assignment = await getExaminerAssignmentDetail(assignmentId, req.user!);
     res.status(200).json({
       status: "success",
       data: assignment,
