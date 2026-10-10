@@ -393,7 +393,9 @@ describe("TestPage strict exam flow", () => {
 
     Object.assign(mocks.assessmentStart, { mediaReady: false, isVideoReady: false });
     await rerenderPage(view);
-    expect(screen.queryByText(/disconnected/i)).not.toBeInTheDocument();
+    // A non-blocking reconnect prompt, not a pause screen: the slot stays on.
+    expect(screen.getByText(/Camera disconnected. The test continues/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reconnect devices" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Part 1 · Task 1A" })).toBeInTheDocument();
 
     await startSlot(onComplete);

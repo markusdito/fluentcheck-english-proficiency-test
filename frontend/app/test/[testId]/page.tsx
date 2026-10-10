@@ -727,6 +727,25 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               {recording ? "Recording started." : preparing && prepCountdown.isRunning ? "Preparation started." : ""}
             </p>
 
+            {!mediaReady && (
+              // Non-blocking: the timers keep running; reconnecting saves the next takes.
+              <div className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]" role="alert">
+                <p className="m-0">
+                  {!isVideoReady ? "Camera" : "Microphone"} disconnected. The test continues; this answer is
+                  saved and flagged for review. Reconnect to record the next answers.
+                </p>
+                <button
+                  type="button"
+                  className={`${secondaryButton} mt-3`}
+                  onClick={() => void handleRecoverMedia()}
+                  disabled={mediaLoading}
+                >
+                  Reconnect devices
+                </button>
+                {mediaRecoveryError && <p className="mt-2 mb-0 text-sn-danger">{mediaRecoveryError}</p>}
+              </div>
+            )}
+
             {abandonError && (
               <p className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]">
                 Could not leave this Assessment: {abandonError}
