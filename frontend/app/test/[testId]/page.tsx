@@ -294,20 +294,28 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         try {
           setEntryStatus(entryId, { status: "signing" });
           dispatchEntryMachine({ entryId, event: { type: "UPLOAD_STARTED" } });
-          const { presignedUrl } = await getPresignedUrl(currentSubmissionId, entryId, take.blob.type || "video/webm");
+          // A confirm whose response was lost already verified (and flagged)
+          // the Answer server-side; the retry's presign then reports it.
+          const signed = await getPresignedUrl(currentSubmissionId, entryId, take.blob.type || "video/webm")
+            .catch((err: unknown) => {
+              if (err instanceof Error && err.message === "Answer already uploaded") return null;
+              throw err;
+            });
 
-          setEntryStatus(entryId, { status: "uploading" });
-          dispatchEntryMachine({ entryId, event: { type: "SIGNED" } });
-          await uploadToR2(presignedUrl, take.blob);
+          if (signed) {
+            setEntryStatus(entryId, { status: "uploading" });
+            dispatchEntryMachine({ entryId, event: { type: "SIGNED" } });
+            await uploadToR2(signed.presignedUrl, take.blob);
 
-          // Server verification phase.
-          setEntryStatus(entryId, { status: "verifying" });
-          dispatchEntryMachine({ entryId, event: { type: "UPLOAD_FINISHED" } });
-          await confirmUpload(currentSubmissionId, entryId, {
-            sizeBytes: take.blob.size,
-            durationSeconds: take.durationSeconds,
-            technicalFailure: take.failure ?? undefined,
-          });
+            // Server verification phase.
+            setEntryStatus(entryId, { status: "verifying" });
+            dispatchEntryMachine({ entryId, event: { type: "UPLOAD_FINISHED" } });
+            await confirmUpload(currentSubmissionId, entryId, {
+              sizeBytes: take.blob.size,
+              durationSeconds: take.durationSeconds,
+              technicalFailure: take.failure ?? undefined,
+            });
+          }
 
           setEntryStatus(entryId, { status: "uploaded" });
           dispatchEntryMachine({ entryId, event: { type: "VERIFIED" } });

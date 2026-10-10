@@ -463,6 +463,17 @@ describe("TestPage strict exam flow", () => {
     }
   });
 
+  it("treats an Answer already verified by a lost confirm response as uploaded", async () => {
+    mocks.getPresignedUrl.mockRejectedValue(new Error("Answer already uploaded"));
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    for (let index = 0; index < 5; index += 1) await recordCurrentSlot(view, onComplete);
+
+    await waitFor(() => expect(mocks.completeSubmission).toHaveBeenCalledWith("submission-1"));
+    expect(mocks.uploadToR2).not.toHaveBeenCalled();
+    expect(mocks.confirmUpload).not.toHaveBeenCalled();
+  });
+
   it("exposes a retryable completion failure", async () => {
     mocks.completeSubmission.mockRejectedValueOnce(new Error("temporary failure"));
     const view = await renderPage();
