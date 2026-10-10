@@ -34,16 +34,22 @@ ALTER TABLE "AnswerMediaViewEvent" ADD CONSTRAINT "AnswerMediaViewEvent_answerId
 ALTER TABLE "AnswerMediaViewEvent" ADD CONSTRAINT "AnswerMediaViewEvent_viewerId_fkey" FOREIGN KEY ("viewerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 
--- Audit rows are immutable. ON DELETE SET NULL (Answer purge, viewer
--- deletion) runs as an internal trigger at depth > 1 and is allowed;
--- direct UPDATE/DELETE statements remain forbidden.
+-- Audit rows are immutable. The only permitted change is the internal
+-- ON DELETE SET NULL cascade (Answer purge, viewer deletion), which runs at
+-- trigger depth > 1 and may only null "answerId"/"viewerId". Direct
+-- UPDATE/DELETE/TRUNCATE statements remain forbidden.
 CREATE FUNCTION reject_answer_media_view_mutation()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF pg_trigger_depth() > 1 THEN
-        RETURN NEW;
+    IF TG_OP = 'UPDATE' AND pg_trigger_depth() > 1 THEN
+        IF (NEW."answerId" IS NULL OR NEW."answerId" = OLD."answerId")
+           AND (NEW."viewerId" IS NULL OR NEW."viewerId" = OLD."viewerId")
+           AND (to_jsonb(NEW) - 'answerId' - 'viewerId')
+               = (to_jsonb(OLD) - 'answerId' - 'viewerId') THEN
+            RETURN NEW;
+        END IF;
     END IF;
     RAISE EXCEPTION
       'Answer media view events are immutable: %', TG_OP
@@ -54,4 +60,9 @@ $$;
 CREATE TRIGGER "AnswerMediaViewEvent_immutable"
 BEFORE UPDATE OR DELETE ON "AnswerMediaViewEvent"
 FOR EACH ROW
+EXECUTE FUNCTION reject_answer_media_view_mutation();
+
+CREATE TRIGGER "AnswerMediaViewEvent_no_truncate"
+BEFORE TRUNCATE ON "AnswerMediaViewEvent"
+FOR EACH STATEMENT
 EXECUTE FUNCTION reject_answer_media_view_mutation();

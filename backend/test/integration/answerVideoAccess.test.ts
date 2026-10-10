@@ -183,6 +183,7 @@ test("an assigned Examiner gets all five Answer videos in slot order with snapsh
     /immutable/,
   );
   await assert.rejects(prisma.answerMediaViewEvent.delete({ where: { id: audited[0].id } }), /immutable/);
+  await assert.rejects(prisma.$executeRawUnsafe('TRUNCATE "AnswerMediaViewEvent"'), /immutable/);
 });
 
 test("the student never receives an Answer video URL after the test", async () => {
