@@ -51,17 +51,17 @@ state.
 The following markers are checked against frontend/app/**/page.tsx by
 scripts/check-architecture-docs.mjs.
 
-<!-- page: / | source=frontend/app/page.tsx -->
+<!-- page: / | source=frontend/app/(landing)/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
 | / | Landing page with brand content and authentication actions. |
 
-<!-- page: /login | source=frontend/app/login/page.tsx -->
+<!-- page: /login | source=frontend/app/(auth)/login/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
 | /login | Local login form and optional Google OAuth entry point. |
 
-<!-- page: /signup | source=frontend/app/signup/page.tsx -->
+<!-- page: /signup | source=frontend/app/(auth)/signup/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
 | /signup | Local account registration form. |
@@ -201,6 +201,16 @@ preparation does not pause the slot: recording still starts on time and yields
 an empty flagged take if a device is missing. An explicit abandon action calls
 the server lifecycle endpoint, clears the start intent, and releases the stream.
 
+For a real (not practice) Submission the page posts a heartbeat every 15
+seconds with an 8-second timeout. A network failure, 5xx, or `offline` event
+shows "Connection lost — reconnecting", pauses preparation, and retries every
+4 seconds; a take recording during the loss is ended and flagged as above, not
+replayed. On success the page resumes the next unfinished slot with full
+preparation time. A 409 or 404 shows "This Assessment has ended". `pagehide`
+and unmount (client navigation away) send the abandon request with
+`navigator.sendBeacon` (fetch `keepalive` fallback) and clear the start
+intent, so returning to the test route starts a new Assessment.
+
 The test page and its layout coordinate these visible phases:
 
 1. Loading or resuming a Submission.
@@ -211,6 +221,7 @@ The test page and its layout coordinate these visible phases:
 6. Uploading and verifying the Answer.
 7. Saving and flagging partial, short or device-lost takes instead of re-recording them.
 8. Advancing only after server confirmation, then completing or explicitly abandoning the Submission.
+9. Pausing on connection loss and resuming the next unfinished slot after a successful heartbeat.
 
 The dynamic testId segment is retained for navigation compatibility. Current
 initialization is keyed by the server-created Submission and manifest, not by

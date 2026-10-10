@@ -25,8 +25,12 @@ A student's request to create or resume one Submission. Retrying the same intent
 _Avoid_: Test initialization, restart request
 
 **Abandonment**:
-An explicit end of an Active Submission that preserves its retained evidence and permits a later Assessment start.
+The end of an Active Submission, by explicit action, by the student leaving the Assessment page, or by Heartbeat expiry, that preserves its retained evidence and permits a later Assessment start.
 _Avoid_: Deletion, purge, cancellation
+
+**Heartbeat**:
+A periodic signal from the Assessment page that keeps an Active Submission open; when none arrives within the grace period, the server abandons the Submission.
+_Avoid_: Ping, keepalive
 
 **Retained submission**:
 A Submission that has not been explicitly purged from FluentCheck, regardless of its completion, payment, or scoring state.

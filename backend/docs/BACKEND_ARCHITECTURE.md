@@ -86,7 +86,7 @@ does not prove that a later browser request will play the object.
 | Status | Meaning and current transition |
 | --- | --- |
 | IN_PROGRESS | Manifest-backed recording is open. |
-| ABANDONED | The student explicitly abandons the open Submission. |
+| ABANDONED | The student explicitly abandons or leaves the open Submission, or the abandon sweep finds its heartbeat stale. |
 | AWAITING_PAYMENT | Completion evidence is valid and payment is required. |
 | PAID | At least one validated successful Payment attempt exists; assignment is separate and retryable. |
 | SCORING | Exactly two Examiner assignments exist and at least one remains incomplete. |
@@ -104,7 +104,9 @@ does not prove that a later browser request will play the object.
 | PURGED | The purge has crossed its irreversible boundary after every captured Answer-media deletion was confirmed by storage; the Submission row is then removed and its audit remains. |
 
 The reachable primary path is IN_PROGRESS to AWAITING_PAYMENT to PAID to
-SCORING to SCORED. An open Submission can instead become ABANDONED. If
+SCORING to SCORED. An open Submission can instead become ABANDONED, either
+through the abandon route (explicit action or a leave beacon) or through the
+stale-heartbeat sweep. If
 payment is waived, valid completion enters the paid/assignment path without a
 provider checkout.
 
@@ -129,6 +131,9 @@ the middleware currently enforced at the route boundary.
 <!-- route: GET / | source=backend/src/server.ts -->
 | GET | / | Public | Returns the API identity object. |
 
+<!-- route: GET /api/health | source=backend/src/server.ts -->
+| GET | /api/health | Public | Liveness probe; returns `{ ok: true }`. |
+
 <!-- route: POST /api/auth/register | source=backend/src/routes/auth.routes.ts -->
 | POST | /api/auth/register | Public, auth validation, registration rate limits | Creates a local account and sets a session-only auth cookie. |
 
@@ -140,6 +145,9 @@ the middleware currently enforced at the route boundary.
 
 <!-- route: GET /api/auth/me | source=backend/src/routes/auth.routes.ts -->
 | GET | /api/auth/me | Authenticated | Returns the current active account. |
+
+<!-- route: PATCH /api/auth/me | source=backend/src/routes/auth.routes.ts -->
+| PATCH | /api/auth/me | Authenticated, auth validation | Sets the account's full name and Student ID (PRD FR-1.4). |
 
 Google routes are conditionally mounted inside the auth router when Google
 configuration is available.
@@ -225,6 +233,9 @@ calculated from the current page.
 <!-- route: POST /api/submissions | source=backend/src/routes/submission.routes.ts -->
 | POST | /api/submissions | Authenticated, creation rate limits | Creates or replays a manifest-backed Submission using Idempotency-Key; returns typed active-submission, closed-intent, or foreign-key conflicts. |
 
+<!-- route: GET /api/submissions/practice | source=backend/src/routes/submission.routes.ts -->
+| GET | /api/submissions/practice | Authenticated | Returns an unscored practice delivery; creates no Submission. |
+
 <!-- route: GET /api/submissions/active | source=backend/src/routes/submission.routes.ts -->
 | GET | /api/submissions/active | Authenticated | Resumes the student's active IN_PROGRESS Submission. |
 
@@ -235,7 +246,10 @@ calculated from the current page.
 | GET | /api/submissions/:id/status | Authenticated owner | Returns the current Submission status. |
 
 <!-- route: POST /api/submissions/:id/abandon | source=backend/src/routes/submission.routes.ts -->
-| POST | /api/submissions/:id/abandon | Authenticated owner | Explicitly abandons an open Submission under a row lock; repeated abandonment is an idempotent no-op and retained evidence is preserved. |
+| POST | /api/submissions/:id/abandon | Authenticated owner | Abandons an open Submission under a row lock; also accepts a `navigator.sendBeacon` empty text/plain body. Repeated abandonment is an idempotent no-op and retained evidence is preserved. |
+
+<!-- route: POST /api/submissions/:id/heartbeat | source=backend/src/routes/submission.routes.ts -->
+| POST | /api/submissions/:id/heartbeat | Authenticated owner | Stamps `lastHeartbeatAt` on an IN_PROGRESS Submission and returns `submissionId`, `status`, `lastHeartbeatAt`; returns 409 SUBMISSION_NOT_IN_PROGRESS with `submissionStatus` once it is closed. |
 
 <!-- route: POST /api/submissions/:id/flags | source=backend/src/routes/submission.routes.ts -->
 | POST | /api/submissions/:id/flags | Authenticated owner | Records a `TECHNICAL_FAILURE` or `CAMERA_DROP` flag while the Submission is `IN_PROGRESS`; completion then routes it to `FLAG_REVIEW` before payment. |
@@ -374,6 +388,17 @@ failure never changes the response. Pending telemetry deliveries are flushed
 during graceful shutdown. The dashboard and alert rules live in ops/grafana,
 with the failure runbook at docs/runbooks/assessment-initialization-failures.md.
 The frontend's /active route rebuilds the experience from stored snapshots.
+
+While a Submission is IN_PROGRESS the test page posts to the heartbeat route,
+which stamps `Submission.lastHeartbeatAt`. startServer runs an abandon sweep
+every SUBMISSION_ABANDON_SWEEP_INTERVAL_SECONDS (default 30). One atomic
+UPDATE marks ABANDONED every IN_PROGRESS, RETAINED Submission whose
+COALESCE(lastHeartbeatAt, createdAt) is older than
+SUBMISSION_HEARTBEAT_GRACE_SECONDS (default 120; PRD §11 open question 8).
+The statement is safe to run on several instances and serializes with the
+upload presign/confirm row locks. A tab reopened within the grace window
+resumes the same Submission; after it, the start intent is closed and a new
+Assessment starts. See ADR-0021.
 
 ### Direct-to-R2 verified answers
 
