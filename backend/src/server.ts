@@ -31,6 +31,7 @@ import {
   type RateLimitRuntimeOptions,
 } from "./middleware/rate-limit.middleware.js";
 import { requestIdMiddleware } from "./middleware/request-id.middleware.js";
+import { abandonStaleSubmissions } from "./service/submission.service.js";
 import { flushAssessmentInitializationObservability, getAssessmentInitializationObservabilityConfig } from "./service/assessmentInitializationObservability.service.js";
 
 const REQUEST_BODY_LIMIT = "64kb";
@@ -200,7 +201,9 @@ function closeServer(
   server: Server,
   exitCode: number,
   rateLimitRuntime?: RateLimitRuntime,
+  abandonSweep?: NodeJS.Timeout,
 ) {
+  clearInterval(abandonSweep);
   server.close(async () => {
     await rateLimitRuntime?.shutdown();
     await flushAssessmentInitializationObservability();
@@ -231,19 +234,30 @@ async function startServer() {
     console.log(`Server started on port: ${port}`);
   });
 
+  // PRD FR-2.8: abandon Submissions whose heartbeat stopped. One atomic
+  // UPDATE, so every instance may run it.
+  const abandonSweep = setInterval(() => {
+    abandonStaleSubmissions(env.SUBMISSION_HEARTBEAT_GRACE_SECONDS)
+      .then((count) => {
+        if (count > 0) console.log(`Abandoned ${count} stale submission(s)`);
+      })
+      .catch((error) => console.error("Stale submission sweep failed:", error));
+  }, env.SUBMISSION_ABANDON_SWEEP_INTERVAL_SECONDS * 1000);
+  abandonSweep.unref();
+
   process.on("unhandledRejection", (error) => {
     console.error("Unhandled Rejection: ", error);
-    closeServer(server, 1, rateLimitRuntime);
+    closeServer(server, 1, rateLimitRuntime, abandonSweep);
   });
 
   process.on("uncaughtException", (error) => {
     console.error("Uncaught Exception: ", error);
-    closeServer(server, 1, rateLimitRuntime);
+    closeServer(server, 1, rateLimitRuntime, abandonSweep);
   });
 
   process.on("SIGTERM", () => {
     console.log("SIGTERM received, shutting down gracefully");
-    closeServer(server, 0, rateLimitRuntime);
+    closeServer(server, 0, rateLimitRuntime, abandonSweep);
   });
 }
 

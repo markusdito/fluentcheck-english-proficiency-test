@@ -23,7 +23,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { abandonSubmission, completeSubmission } from "@/lib/test-api";
+import { abandonSubmission, abandonSubmissionOnLeave, completeSubmission, sendHeartbeat } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
 import { initializePractice, initializeTest } from "@/lib/test-initialization";
 import { slotLabel } from "@/lib/assessment-slots";
@@ -44,6 +44,10 @@ const PENDING_UPLOAD: UploadStatus[] = ["blob-ready", "signing", "getting-url", 
 /** Takes below either bound are saved but flagged as possibly short or silent (PRD FR-3.8). */
 const MIN_TAKE_SECONDS = 2;
 const MIN_TAKE_BYTES = 8192;
+/** Keeps the IN_PROGRESS Submission alive; the server abandons it after 120 s of silence (PRD FR-2.7). */
+const HEARTBEAT_INTERVAL_MS = 15_000;
+const HEARTBEAT_RETRY_MS = 4_000;
+const HEARTBEAT_TIMEOUT_MS = 8_000;
 
 type UploadState = Record<string, QuestionUploadState>;
 
@@ -99,6 +103,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [completionPending, setCompletionPending] = useState(false);
   const [submissionCompleted, setSubmissionCompleted] = useState(false);
+  // Connection loss pauses the flow; a Submission the server already ended
+  // (heartbeat silence or a leave beacon) cannot continue (PRD FR-2.7/2.8).
+  const [connectionLost, setConnectionLost] = useState(false);
+  const [submissionEnded, setSubmissionEnded] = useState(false);
 
   // Upload state per manifest entry. Takes are kept in memory until verified
   // so a failed upload is retried without re-recording (one take per slot).
@@ -110,6 +118,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Capture failure of the current take. It travels with the upload, and the
   // server flags the Answer so the Submission goes to flag review (FR-3.7, FR-4.3).
   const takeFailureRef = useRef<AnswerTechnicalFailure | null>(null);
+
+  // Set once the Submission left IN_PROGRESS here (completed, abandoned, ended)
+  // so leaving the page does not abandon it again.
+  const leftRef = useRef(false);
 
   useEffect(() => {
     submissionIdRef.current = submissionId;
@@ -138,8 +150,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
           initialized.questions.map((question) => question.id),
           initialized.uploadedEntryIds,
         );
-        // ponytail: a reload resumes at the first slot without a verified
-        // Answer; network-loss-only resume and abandon-on-leave are #174.
+        // A reload normally starts a new Assessment (the leave beacon abandoned
+        // this one); a replayed intent resumes at the first unverified slot.
         const firstOpen = initialized.questions.findIndex((question) => states[question.id]?.status !== "uploaded");
         setSubmissionId(initialized.submissionId);
         setTestSetCode(initialized.testSet?.code ?? null);
@@ -160,13 +172,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // Recording starts automatically when preparation ends (PRD FR-3.5). With a
   // device missing it still "starts": the hook hands back an empty failed take.
   const onPrepComplete = useCallback(() => {
-    if (phase !== "preparation" || !currentQuestion) return;
+    if (phase !== "preparation" || connectionLost || !currentQuestion) return;
     takeFailureRef.current = mediaReady ? null : !isVideoReady
       ? { type: "CAMERA_DROP", reason: "Camera was unavailable when the answer should start recording" }
       : { type: "TECHNICAL_FAILURE", reason: "Microphone was unavailable when the answer should start recording" };
     startRecording(mediaReady ? stream : null, currentQuestion.recordingDuration);
     setPhase("recording");
-  }, [stream, mediaReady, isVideoReady, phase, startRecording, currentQuestion]);
+  }, [stream, mediaReady, isVideoReady, phase, connectionLost, startRecording, currentQuestion]);
 
   const prepCountdown = useCountdown(currentQuestion?.prepTime ?? 0, onPrepComplete);
 
@@ -217,6 +229,91 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     return () => window.removeEventListener("offline", handleOffline);
   }, [phase, failTake]);
 
+  useEffect(() => {
+    if (!connectionLost || phase !== "recording") return;
+    // A heartbeat failure is an external connectivity signal.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    failTake({ type: "TECHNICAL_FAILURE", reason: "Connection lost while the answer was recording" });
+  }, [connectionLost, phase, failTake]);
+
+  // Heartbeat while the real Submission is IN_PROGRESS. A network failure means
+  // the connection is lost (retry fast); 409/404 means the server ended it.
+  const heartbeatActive = !practice && Boolean(submissionId) && !submissionCompleted && !submissionEnded;
+  useEffect(() => {
+    if (!heartbeatActive || !submissionId) return;
+    let cancelled = false;
+    let inFlight = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const beat = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      clearTimeout(timer);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), HEARTBEAT_TIMEOUT_MS);
+      let next = HEARTBEAT_INTERVAL_MS;
+      try {
+        await sendHeartbeat(submissionId, controller.signal);
+        if (!cancelled) setConnectionLost(false);
+      } catch (err) {
+        // A 5xx usually means the proxy cannot reach the API: treat as lost.
+        if (err instanceof ApiError && err.statusCode < 500) {
+          // 401 already redirects to login; stop instead of looping.
+          if (err.statusCode === 401) cancelled = true;
+          if (err.statusCode === 409 || err.statusCode === 404) {
+            if (!cancelled) setSubmissionEnded(true);
+            cancelled = true;
+          }
+        } else if (!cancelled) {
+          setConnectionLost(true);
+          next = HEARTBEAT_RETRY_MS;
+        }
+      } finally {
+        clearTimeout(timeout);
+        inFlight = false;
+      }
+      if (!cancelled) timer = setTimeout(beat, next);
+    };
+    const handleOffline = () => setConnectionLost(true);
+    const handleOnline = () => void beat();
+
+    void beat();
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [heartbeatActive, submissionId]);
+
+  useEffect(() => {
+    if (!submissionEnded) return;
+    leftRef.current = true;
+    stopStream();
+    clearAssessmentStartIntent();
+  }, [submissionEnded, stopStream]);
+
+  // Closing, reloading or navigating away abandons the Submission (PRD FR-2.8).
+  // Unmount covers client-side navigation, which fires no pagehide; under
+  // StrictMode the dev remount happens before a Submission exists.
+  const abandonOnLeave = useCallback(() => {
+    const sid = submissionIdRef.current;
+    if (practice || !sid || leftRef.current) return;
+    leftRef.current = true;
+    abandonSubmissionOnLeave(sid);
+    clearAssessmentStartIntent();
+  }, [practice]);
+
+  useEffect(() => {
+    window.addEventListener("pagehide", abandonOnLeave);
+    return () => {
+      window.removeEventListener("pagehide", abandonOnLeave);
+      abandonOnLeave();
+    };
+  }, [abandonOnLeave]);
+
   // Guard: stop camera stream on any navigation away from the test page.
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -249,15 +346,17 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   }, [questions, mediaReady, phase]);
 
   // Preparation starts when the prompt audio ends. A slot without audio, or
-  // whose plays are used up, starts it immediately.
+  // whose plays are used up, starts it immediately. Connection loss pauses it;
+  // on reconnect it restarts from full prep time, at once if the prompt has
+  // already played (its `ended` will not come again).
   const playsLeftRef = useRef(playsLeft);
   useEffect(() => {
     playsLeftRef.current = playsLeft;
   }, [playsLeft]);
   useEffect(() => {
-    if (phase === "preparation") {
+    if (phase === "preparation" && !connectionLost) {
       prepCountdown.reset();
-      if (!currentQuestion?.audioUrl || playsLeftRef.current === 0) {
+      if (!currentQuestion?.audioUrl || playsLeftRef.current < PROMPT_MAX_PLAYS) {
         prepCountdown.start();
       }
     }
@@ -265,13 +364,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       prepCountdown.pause();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, currentQuestionIndex]);
+  }, [phase, currentQuestionIndex, connectionLost]);
 
   const handlePromptAudioEnded = useCallback(() => {
-    if (phase === "preparation" && !prepCountdown.isRunning && !prepCountdown.isComplete) {
+    if (phase === "preparation" && !connectionLost && !prepCountdown.isRunning && !prepCountdown.isComplete) {
       prepCountdown.start();
     }
-  }, [phase, prepCountdown]);
+  }, [phase, connectionLost, prepCountdown]);
 
   const handlePromptPlayStarted = useCallback(() => {
     const entryId = currentQuestion?.id;
@@ -405,7 +504,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     setCompletionPending(true);
     setCompletionError(null);
     completeSubmission(sid)
-      .then(() => setSubmissionCompleted(true))
+      .then(() => {
+        leftRef.current = true;
+        setSubmissionCompleted(true);
+      })
       .catch((err) => {
         const message = err instanceof Error ? err.message : "Failed to complete submission";
         setCompletionError(message);
@@ -436,6 +538,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     setAbandonError(null);
     try {
       await abandonSubmission(submissionId);
+      leftRef.current = true;
       clearAssessmentStartIntent();
       stopStream();
       window.location.href = "/dashboard";
@@ -464,6 +567,27 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         {!fetchError.isSubmissionConflict && (
           <p className="mt-2 text-sm text-sn-muted">Please check your connection and try again.</p>
         )}
+        <button
+          type="button"
+          className={`${primaryButton} mt-6 w-full`}
+          onClick={() => {
+            window.location.href = "/dashboard";
+          }}
+        >
+          Return to dashboard
+        </button>
+      </PageState>
+    );
+  }
+
+  if (submissionEnded) {
+    return (
+      <PageState>
+        <h1 className={h3}>This Assessment has ended</h1>
+        <p className="mt-3 text-sn-muted">
+          The connection was lost for too long, so this Submission was closed. Answers already saved are
+          kept. You can start a new Assessment from your dashboard.
+        </p>
         <button
           type="button"
           className={`${primaryButton} mt-6 w-full`}
@@ -528,6 +652,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       </PageState>
     );
   }
+
+  const connectionBanner = connectionLost && (
+    <p className="mb-5 flex items-center gap-2 rounded-[10px] bg-sn-field-amber p-4 text-[15px]" role="alert">
+      <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+      Connection lost — reconnecting
+    </p>
+  );
 
   const screenTitle = practice
     ? "SPEAKNUSA PRACTICE TEST — NOT SCORED, NOTHING IS SAVED"
@@ -599,6 +730,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     return (
       <TestShell title={screenTitle}>
         <article className={card}>
+          {connectionBanner}
           <h2 className={h2}>Saving your answers</h2>
           <p className={`${meta} mt-2`}>Keep this page open</p>
           {failedEntryIds.length === 0 && !completionError && (
@@ -658,6 +790,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       }
     >
       <section aria-labelledby="stage-head">
+        {connectionBanner}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-5">
           <h2 id="stage-head" className="m-0 text-[22px] font-semibold">
             {slotLabel(currentQuestion.category)}
@@ -728,7 +861,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                 {phase === "finalizing" ? "Saving answer…" : "Stop and submit answer"}
               </button>
             )}
-            {preparing && !prepCountdown.isRunning && (
+            {preparing && !connectionLost && !prepCountdown.isRunning && (
               <p className="mt-3 mb-0 text-[15px] text-sn-muted">Preparation begins when the question audio ends.</p>
             )}
             <p className="sr-only" aria-live="assertive">

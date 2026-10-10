@@ -12,6 +12,7 @@ import {
   getSubmissionById,
   getSubmissionStatusById,
   abandonSubmissionById,
+  heartbeatSubmissionById,
   resumeActiveSubmission,
   getStudentPromptAudioUrl,
   getPracticeDelivery,
@@ -49,6 +50,7 @@ export function createSubmissionRouter(runtime?: RateLimitRuntime) {
   router.get("/:id/status", verifyToken, getSubmissionStatusById);
 
   router.post("/:id/abandon", verifyToken, abandonSubmissionById);
+  router.post("/:id/heartbeat", verifyToken, heartbeatSubmissionById);
   router.post("/:id/flags", verifyToken, raiseSubmissionDeviceFlag);
 
   // Get a single submission with answers and video URLs (requires authentication)

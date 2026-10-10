@@ -347,6 +347,50 @@ export async function abandonSubmission(submissionId: string, userId: string) {
   });
 }
 
+export class SubmissionNotInProgressError extends Error {
+  readonly code = "SUBMISSION_NOT_IN_PROGRESS";
+  constructor(readonly submissionStatus: string) {
+    super("Submission is not in progress");
+  }
+}
+
+/** PRD FR-2.7: record that the student's client is still on the Assessment. */
+export async function recordSubmissionHeartbeat(submissionId: string, userId: string) {
+  const lastHeartbeatAt = new Date();
+  // Conditional update: never revives a Submission the sweeper or an explicit
+  // abandon ended concurrently.
+  const { count } = await prisma.submission.updateMany({
+    where: { id: submissionId, studentId: userId, status: "IN_PROGRESS", retentionStatus: "RETAINED" },
+    data: { lastHeartbeatAt },
+  });
+  if (count === 1) return { submissionId, status: "IN_PROGRESS" as const, lastHeartbeatAt };
+
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { studentId: true, status: true, retentionStatus: true },
+  });
+  if (!submission || submission.studentId !== userId) throw new Error("Submission not found");
+  if (submission.retentionStatus !== "RETAINED") throw new Error("Submission is not available");
+  throw new SubmissionNotInProgressError(submission.status);
+}
+
+/**
+ * PRD FR-2.8: abandon every IN_PROGRESS Submission whose heartbeat (or, before
+ * the first heartbeat, creation) is older than the grace period. One UPDATE
+ * takes each row lock, so it serializes with upload/abandon/complete paths
+ * that lock the row and recheck IN_PROGRESS; safe to run on every instance.
+ */
+export async function abandonStaleSubmissions(graceSeconds: number, now = new Date()) {
+  const cutoff = new Date(now.getTime() - graceSeconds * 1000);
+  return prisma.$executeRaw`
+    UPDATE "Submission"
+    SET "status" = 'ABANDONED'::"SubmissionStatus", "updatedAt" = ${now}
+    WHERE "status" = 'IN_PROGRESS'::"SubmissionStatus"
+      AND "retentionStatus" = 'RETAINED'::"SubmissionRetentionStatus"
+      AND COALESCE("lastHeartbeatAt", "createdAt") < ${cutoff}
+  `;
+}
+
 /**
  * Fetch dashboard stats and submission history for the authenticated student.
  */

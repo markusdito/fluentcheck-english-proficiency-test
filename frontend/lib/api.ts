@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "/backend-api";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "/backend-api";
 
 interface ApiErrorResponse {
   error?: string;

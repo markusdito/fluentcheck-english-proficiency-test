@@ -2401,6 +2401,7 @@ export const SubmissionScalarFieldEnum = {
   consentedAt: 'consentedAt',
   consentVersion: 'consentVersion',
   flagReturnStatus: 'flagReturnStatus',
+  lastHeartbeatAt: 'lastHeartbeatAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
