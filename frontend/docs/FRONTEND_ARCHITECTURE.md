@@ -38,7 +38,7 @@ verified or whether a Submission is complete.
 | Recording state and browser media | frontend/hooks/useRecording.ts, frontend/hooks/useMediaDevices.ts, frontend/components/hardware/CameraMicPermissionModal.tsx, frontend/lib/recording-state-machine.ts |
 | Direct upload orchestration | frontend/lib/upload-api.ts, frontend/lib/recording-upload-state.ts |
 | Examiner experience | frontend/app/examiner/assignments/[assignmentId]/page.tsx, frontend/lib/examiner-api.ts, frontend/components/examiner |
-| Administrator experience | frontend/app/admin, frontend/lib/admin-api.ts, frontend/lib/question-form.ts |
+| Administrator experience | frontend/app/admin, frontend/components/admin, frontend/lib/admin-api.ts, frontend/lib/question-form.ts |
 | Results presentation | frontend/app/results/[submissionId]/page.tsx, frontend/components/results |
 | Shared UI | frontend/components/layout, frontend/components/ui |
 
@@ -89,7 +89,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /admin | source=frontend/app/admin/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /admin | Administrator overview. |
+| /admin | Administrator overview with stats, review queues (open flags, payment reconciliation, assignment-ready Submissions) and the examiner workload table. |
 
 <!-- page: /admin/flags | source=frontend/app/admin/flags/page.tsx -->
 | Route | Current behavior |
@@ -114,7 +114,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /admin/submissions/[submissionId] | source=frontend/app/admin/submissions/[submissionId]/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /admin/submissions/[submissionId] | Administrator detail, evidence, and assignment recovery view. |
+| /admin/submissions/[submissionId] | Administrator detail, evidence, and assignment recovery view; audited payment waiver while the Submission is AWAITING_PAYMENT; reassignment of assignments the backend marks reassignable, with reassignment history and "Waived by" audit text. |
 
 <!-- page: /admin/users | source=frontend/app/admin/users/page.tsx -->
 | Route | Current behavior |
@@ -148,7 +148,12 @@ response contains summary fields and pagination metadata; the dashboard keeps
 the cursor stack for Previous/Next navigation. Full Answer and Score
 collections remain behind the Submission detail route.
 
-The higher-level modules are deliberately grouped by feature:
+The higher-level modules are deliberately grouped by feature. Administrator
+review queues and examiner workload are read from GET /admin/queues and
+GET /admin/examiners; the examiner list reads the backend `{ items }` envelope.
+Admin query keys live under the `["admin"]` prefix (for example
+queryKeys.adminQueues and queryKeys.adminExaminers), and admin mutations
+invalidate that prefix.
 
 | Module | Responsibility |
 | --- | --- |
@@ -160,7 +165,7 @@ The higher-level modules are deliberately grouped by feature:
 | frontend/lib/upload-api.ts | Presign, direct PUT, and confirmation requests. |
 | frontend/lib/question-audio-api.ts | Administrator prompt-audio requests. |
 | frontend/lib/examiner-api.ts | Examiner assignment, media, score, and finalization requests. |
-| frontend/lib/admin-api.ts | Administrator users, settings, Test Sets, questions, Submissions, and assignments. |
+| frontend/lib/admin-api.ts | Administrator users, settings, Test Sets, questions, Submissions, assignments, payment waiver, assignment reassignment, review queues, and examiner workload. |
 | frontend/lib/assessment-slots.ts | The five delivery slots, their labels and default timings, and the Test Set display label. |
 
 There are no current frontend endpoints for /api/results, /auth/profile,
@@ -256,7 +261,7 @@ feedback is only advisory; server-side R2 inspection remains authoritative.
 | Server state | Frontend meaning |
 | --- | --- |
 | IN_PROGRESS | The student can resume recording and uploading manifest entries. |
-| AWAITING_PAYMENT | Recording is complete and payment is still required; provider payment behavior is backend-owned. |
+| AWAITING_PAYMENT | Recording is complete and payment is still required; provider payment behavior is backend-owned. An Administrator can record an audited payment waiver instead, which the backend applies. |
 | PAID | Payment is validated; Examiner assignment is a separate backend transition. |
 | SCORING | The Submission is in the two-Examiner scoring process. |
 | SCORED | Both Examiner assignments have been finalized and scores can be displayed. |
@@ -304,6 +309,15 @@ AudioUploadButton and AudioUploadBadge support prompt-audio administration.
 The admin pages use the admin API modules and shared Table, Form, Dialog,
 Select, Badge, Progress, and related UI primitives. BandGauge, Stamp, and
 submission-status primitives provide domain-specific presentation.
+
+AdminQueues and ExaminerWorkload render on /admin. AdminQueues lists open
+flags with a link to /admin/flags, a read-only payment reconciliation queue
+with a label per reason, and unassigned assignment-ready Submissions with an
+Assign action. ExaminerWorkload shows active Examiners with their open
+assignment counts. On the Submission detail page, WaivePaymentPanel (shown
+while AWAITING_PAYMENT) requires a reason, and ReassignAssignmentForm lets the
+Administrator choose an Examiner not already on the Submission and give a
+reason. Both mutations are backend-enforced; the components only present them.
 
 ### Hooks and state machines
 
