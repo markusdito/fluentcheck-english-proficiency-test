@@ -17,6 +17,7 @@ import {
   type RateLimitRuntime,
   createAccountAndIpRateLimiters,
   createRateLimitRuntime,
+  createSafeStore,
   deriveRateLimitKey,
 } from "../src/middleware/rate-limit.middleware.js";
 
@@ -750,6 +751,101 @@ test("applies the login burst before parsing malformed authentication bodies", a
     assert.equal(statuses.slice(0, 120).every((status) => status === 400), true);
     assert.equal(statuses[120], 429);
   } finally {
+    await stop(server);
+    await runtime.shutdown();
+  }
+});
+
+test("safe store decrement resolves and reports when the shared store fails", async () => {
+  const rawFailure = `${HMAC_SECRET} 203.0.113.10 user@example.com`;
+  const events: unknown[] = [];
+  const safeStore = createSafeStore(
+    {
+      localKeys: false,
+      increment: async () => ({
+        totalHits: 1,
+        resetTime: new Date(Date.now() + 60_000),
+      }),
+      decrement: async () => {
+        throw new Error(rawFailure);
+      },
+      resetKey: async () => {},
+    } as Store,
+    policy(),
+    (event) => events.push(event),
+  );
+
+  await assert.doesNotReject(async () => safeStore.decrement("fc:test:contract:key"));
+  assert.deepEqual(events, [
+    {
+      policyName: "contract-test",
+      failureMode: "fail-closed",
+      operation: "decrement",
+    },
+  ]);
+  assert.equal(JSON.stringify(events).includes(rawFailure), false);
+});
+
+test("a failing decrement on a skipSuccessfulRequests limiter never becomes an unhandled rejection", async () => {
+  const rawFailure = `${HMAC_SECRET} 203.0.113.10 user@example.com`;
+  const events: unknown[] = [];
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on("unhandledRejection", onUnhandled);
+
+  const app = express();
+  const runtime = createRateLimitRuntime({
+    config: createRateLimitConfig({
+      hmacSecret: HMAC_SECRET,
+      jwtSecret: JWT_SECRET,
+      trustProxy: "none",
+    }),
+    storeFactory: () =>
+      ({
+        localKeys: false,
+        increment: async () => ({
+          totalHits: 1,
+          resetTime: new Date(Date.now() + 60_000),
+        }),
+        decrement: async () => {
+          throw new Error(rawFailure);
+        },
+        resetKey: async () => {},
+      }) as Store,
+    onStoreFailure: (event) => events.push(event),
+  });
+  app.post(
+    "/login",
+    runtime.createLimiter(
+      policy({ name: "login-failures", prefix: "fc:test:login-failures" }),
+      undefined,
+      { skipSuccessfulRequests: true },
+    ),
+    (_req, res) => res.status(200).json({ ok: true }),
+  );
+  const { server, url } = await start(app);
+
+  try {
+    const response = await fetch(`${url}/login`, { method: "POST" });
+    assert.equal(response.status, 200);
+
+    // express-rate-limit calls decrement fire-and-forget after the response finishes.
+    for (let attempt = 0; attempt < 50 && events.length === 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(events, [
+      {
+        policyName: "login-failures",
+        failureMode: "fail-closed",
+        operation: "decrement",
+      },
+    ]);
+    assert.deepEqual(unhandled, []);
+    assert.equal(JSON.stringify(events).includes(rawFailure), false);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
     await stop(server);
     await runtime.shutdown();
   }
