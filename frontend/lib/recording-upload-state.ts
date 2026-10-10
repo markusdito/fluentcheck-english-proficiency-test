@@ -22,7 +22,6 @@ export function uploadStatusLabel(status: UploadStatus): string | null {
     case "uploading": return "Uploading video...";
     case "verifying": return "Verifying upload...";
     case "uploaded": return "Uploaded ✓";
-    case "failure": return "Upload failed";
     case "error": return "Upload failed";
     default: return null;
   }

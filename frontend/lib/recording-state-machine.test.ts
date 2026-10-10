@@ -10,13 +10,14 @@ function reduce(...events: EntryEvent[]) {
 }
 
 describe("recording entry state machine", () => {
-  it("does not become blob-ready until a non-empty finalized blob exists", () => {
+  it("becomes blob-ready only after finalizing, even for an empty flagged take", () => {
+    expect(reduce({ type: "START_RECORDING" }, { type: "BLOB_READY", blob: new Blob(["video"]) }).state).toBe("recording");
     expect(reduce({ type: "START_RECORDING" }, { type: "STOP_REQUESTED" }).state).toBe("finalizing");
     expect(reduce(
       { type: "START_RECORDING" },
       { type: "STOP_REQUESTED" },
       { type: "BLOB_READY", blob: new Blob() },
-    ).state).toBe("finalizing");
+    ).state).toBe("blob-ready");
     expect(reduce(
       { type: "START_RECORDING" },
       { type: "STOP_REQUESTED" },

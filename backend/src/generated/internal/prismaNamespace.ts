@@ -402,6 +402,10 @@ export const ModelName = {
   ManifestTask: 'ManifestTask',
   AppSettings: 'AppSettings',
   Answer: 'Answer',
+  AnswerMediaViewEvent: 'AnswerMediaViewEvent',
+  SubmissionFlag: 'SubmissionFlag',
+  RetakeCredit: 'RetakeCredit',
+  SubmissionPaymentWaiver: 'SubmissionPaymentWaiver',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
   ExaminerAssignmentReassignment: 'ExaminerAssignmentReassignment',
@@ -422,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
+    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "answerMediaViewEvent" | "submissionFlag" | "retakeCredit" | "submissionPaymentWaiver" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1758,6 +1762,302 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AnswerMediaViewEvent: {
+      payload: Prisma.$AnswerMediaViewEventPayload<ExtArgs>
+      fields: Prisma.AnswerMediaViewEventFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AnswerMediaViewEventFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AnswerMediaViewEventFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        findFirst: {
+          args: Prisma.AnswerMediaViewEventFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AnswerMediaViewEventFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        findMany: {
+          args: Prisma.AnswerMediaViewEventFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>[]
+        }
+        create: {
+          args: Prisma.AnswerMediaViewEventCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        createMany: {
+          args: Prisma.AnswerMediaViewEventCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AnswerMediaViewEventCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>[]
+        }
+        delete: {
+          args: Prisma.AnswerMediaViewEventDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        update: {
+          args: Prisma.AnswerMediaViewEventUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        deleteMany: {
+          args: Prisma.AnswerMediaViewEventDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AnswerMediaViewEventUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AnswerMediaViewEventUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>[]
+        }
+        upsert: {
+          args: Prisma.AnswerMediaViewEventUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerMediaViewEventPayload>
+        }
+        aggregate: {
+          args: Prisma.AnswerMediaViewEventAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAnswerMediaViewEvent>
+        }
+        groupBy: {
+          args: Prisma.AnswerMediaViewEventGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AnswerMediaViewEventGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AnswerMediaViewEventCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AnswerMediaViewEventCountAggregateOutputType> | number
+        }
+      }
+    }
+    SubmissionFlag: {
+      payload: Prisma.$SubmissionFlagPayload<ExtArgs>
+      fields: Prisma.SubmissionFlagFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SubmissionFlagFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SubmissionFlagFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        findFirst: {
+          args: Prisma.SubmissionFlagFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SubmissionFlagFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        findMany: {
+          args: Prisma.SubmissionFlagFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>[]
+        }
+        create: {
+          args: Prisma.SubmissionFlagCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        createMany: {
+          args: Prisma.SubmissionFlagCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SubmissionFlagCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>[]
+        }
+        delete: {
+          args: Prisma.SubmissionFlagDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        update: {
+          args: Prisma.SubmissionFlagUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        deleteMany: {
+          args: Prisma.SubmissionFlagDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SubmissionFlagUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SubmissionFlagUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>[]
+        }
+        upsert: {
+          args: Prisma.SubmissionFlagUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        aggregate: {
+          args: Prisma.SubmissionFlagAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSubmissionFlag>
+        }
+        groupBy: {
+          args: Prisma.SubmissionFlagGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionFlagGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SubmissionFlagCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionFlagCountAggregateOutputType> | number
+        }
+      }
+    }
+    RetakeCredit: {
+      payload: Prisma.$RetakeCreditPayload<ExtArgs>
+      fields: Prisma.RetakeCreditFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.RetakeCreditFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.RetakeCreditFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        findFirst: {
+          args: Prisma.RetakeCreditFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.RetakeCreditFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        findMany: {
+          args: Prisma.RetakeCreditFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>[]
+        }
+        create: {
+          args: Prisma.RetakeCreditCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        createMany: {
+          args: Prisma.RetakeCreditCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.RetakeCreditCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>[]
+        }
+        delete: {
+          args: Prisma.RetakeCreditDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        update: {
+          args: Prisma.RetakeCreditUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        deleteMany: {
+          args: Prisma.RetakeCreditDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.RetakeCreditUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.RetakeCreditUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>[]
+        }
+        upsert: {
+          args: Prisma.RetakeCreditUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        aggregate: {
+          args: Prisma.RetakeCreditAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateRetakeCredit>
+        }
+        groupBy: {
+          args: Prisma.RetakeCreditGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RetakeCreditGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.RetakeCreditCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RetakeCreditCountAggregateOutputType> | number
+        }
+      }
+    }
+    SubmissionPaymentWaiver: {
+      payload: Prisma.$SubmissionPaymentWaiverPayload<ExtArgs>
+      fields: Prisma.SubmissionPaymentWaiverFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SubmissionPaymentWaiverFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SubmissionPaymentWaiverFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        findFirst: {
+          args: Prisma.SubmissionPaymentWaiverFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SubmissionPaymentWaiverFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        findMany: {
+          args: Prisma.SubmissionPaymentWaiverFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>[]
+        }
+        create: {
+          args: Prisma.SubmissionPaymentWaiverCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        createMany: {
+          args: Prisma.SubmissionPaymentWaiverCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SubmissionPaymentWaiverCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>[]
+        }
+        delete: {
+          args: Prisma.SubmissionPaymentWaiverDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        update: {
+          args: Prisma.SubmissionPaymentWaiverUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        deleteMany: {
+          args: Prisma.SubmissionPaymentWaiverDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SubmissionPaymentWaiverUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SubmissionPaymentWaiverUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>[]
+        }
+        upsert: {
+          args: Prisma.SubmissionPaymentWaiverUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionPaymentWaiverPayload>
+        }
+        aggregate: {
+          args: Prisma.SubmissionPaymentWaiverAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSubmissionPaymentWaiver>
+        }
+        groupBy: {
+          args: Prisma.SubmissionPaymentWaiverGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionPaymentWaiverGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SubmissionPaymentWaiverCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionPaymentWaiverCountAggregateOutputType> | number
+        }
+      }
+    }
     Payment: {
       payload: Prisma.$PaymentPayload<ExtArgs>
       fields: Prisma.PaymentFieldRefs
@@ -2250,6 +2550,8 @@ export const SubmissionScalarFieldEnum = {
   paymentRequired: 'paymentRequired',
   consentedAt: 'consentedAt',
   consentVersion: 'consentVersion',
+  flagReturnStatus: 'flagReturnStatus',
+  lastHeartbeatAt: 'lastHeartbeatAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -2449,11 +2751,72 @@ export const AnswerScalarFieldEnum = {
   verifiedAt: 'verifiedAt',
   observedMimeType: 'observedMimeType',
   proofVersion: 'proofVersion',
+  technicalFailure: 'technicalFailure',
+  technicalFailureReason: 'technicalFailureReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type AnswerScalarFieldEnum = (typeof AnswerScalarFieldEnum)[keyof typeof AnswerScalarFieldEnum]
+
+
+export const AnswerMediaViewEventScalarFieldEnum = {
+  id: 'id',
+  answerId: 'answerId',
+  submissionId: 'submissionId',
+  viewerId: 'viewerId',
+  viewerRole: 'viewerRole',
+  context: 'context',
+  assignmentId: 'assignmentId',
+  flagId: 'flagId',
+  storageKey: 'storageKey',
+  createdAt: 'createdAt'
+} as const
+
+export type AnswerMediaViewEventScalarFieldEnum = (typeof AnswerMediaViewEventScalarFieldEnum)[keyof typeof AnswerMediaViewEventScalarFieldEnum]
+
+
+export const SubmissionFlagScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  type: 'type',
+  source: 'source',
+  reason: 'reason',
+  answerId: 'answerId',
+  manifestEntryId: 'manifestEntryId',
+  timestampSeconds: 'timestampSeconds',
+  raisedById: 'raisedById',
+  raisedAt: 'raisedAt',
+  resolution: 'resolution',
+  resolutionNote: 'resolutionNote',
+  resolvedById: 'resolvedById',
+  resolvedAt: 'resolvedAt'
+} as const
+
+export type SubmissionFlagScalarFieldEnum = (typeof SubmissionFlagScalarFieldEnum)[keyof typeof SubmissionFlagScalarFieldEnum]
+
+
+export const RetakeCreditScalarFieldEnum = {
+  id: 'id',
+  studentId: 'studentId',
+  voidedSubmissionId: 'voidedSubmissionId',
+  redeemedSubmissionId: 'redeemedSubmissionId',
+  createdAt: 'createdAt',
+  redeemedAt: 'redeemedAt'
+} as const
+
+export type RetakeCreditScalarFieldEnum = (typeof RetakeCreditScalarFieldEnum)[keyof typeof RetakeCreditScalarFieldEnum]
+
+
+export const SubmissionPaymentWaiverScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  adminId: 'adminId',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type SubmissionPaymentWaiverScalarFieldEnum = (typeof SubmissionPaymentWaiverScalarFieldEnum)[keyof typeof SubmissionPaymentWaiverScalarFieldEnum]
 
 
 export const PaymentScalarFieldEnum = {
@@ -2496,6 +2859,7 @@ export const ExaminerAssignmentReassignmentScalarFieldEnum = {
   newExaminerId: 'newExaminerId',
   actingAdminId: 'actingAdminId',
   reason: 'reason',
+  note: 'note',
   createdAt: 'createdAt'
 } as const
 
@@ -2839,6 +3203,62 @@ export type ListEnumRetentionAuditActionFieldRefInput<$PrismaModel> = FieldRefIn
 
 
 /**
+ * Reference to a field of type 'AnswerMediaViewContext'
+ */
+export type EnumAnswerMediaViewContextFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnswerMediaViewContext'>
+    
+
+
+/**
+ * Reference to a field of type 'AnswerMediaViewContext[]'
+ */
+export type ListEnumAnswerMediaViewContextFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnswerMediaViewContext[]'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagType'
+ */
+export type EnumSubmissionFlagTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagType'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagType[]'
+ */
+export type ListEnumSubmissionFlagTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagType[]'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagSource'
+ */
+export type EnumSubmissionFlagSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagSource'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagSource[]'
+ */
+export type ListEnumSubmissionFlagSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagSource[]'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagResolution'
+ */
+export type EnumSubmissionFlagResolutionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagResolution'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagResolution[]'
+ */
+export type ListEnumSubmissionFlagResolutionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagResolution[]'>
+    
+
+
+/**
  * Reference to a field of type 'PaymentStatus'
  */
 export type EnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentStatus'>
@@ -3021,6 +3441,10 @@ export type GlobalOmitConfig = {
   manifestTask?: Prisma.ManifestTaskOmit
   appSettings?: Prisma.AppSettingsOmit
   answer?: Prisma.AnswerOmit
+  answerMediaViewEvent?: Prisma.AnswerMediaViewEventOmit
+  submissionFlag?: Prisma.SubmissionFlagOmit
+  retakeCredit?: Prisma.RetakeCreditOmit
+  submissionPaymentWaiver?: Prisma.SubmissionPaymentWaiverOmit
   payment?: Prisma.PaymentOmit
   examinerAssignment?: Prisma.ExaminerAssignmentOmit
   examinerAssignmentReassignment?: Prisma.ExaminerAssignmentReassignmentOmit

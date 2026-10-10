@@ -1,7 +1,7 @@
 import { ASSESSMENT_SLOTS, CURRENT_MANIFEST_VERSION, isSupportedManifestVersion } from "./assessmentSlots.js";
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
-import { assignExaminersToSubmission } from "./examiner.service.js";
+import { assignAfterRouting, hasUnredeemedRetakeCredit, readVoidDetails, routeRecordedSubmission } from "./submissionFlag.service.js";
 import { getAppSettings } from "./settings.service.js";
 import {
   assertLegacyAnswerQuestion,
@@ -11,7 +11,6 @@ import {
 } from "./submissionManifest.service.js";
 import {
   createQuestionAudioViewUrlFromMetadata,
-  createVideoViewUrlFromMetadata,
 } from "./upload.service.js";
 import {
   aggregateStoredScores,
@@ -22,6 +21,11 @@ import {
   type RubricBreakdown,
   type ScoringSystemValue,
 } from "../utils/scoring.js";
+
+// Statuses past recording: a repeated completion request is a no-op.
+const COMPLETED_STATUSES: readonly string[] = [
+  "AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED", "FLAG_REVIEW", "VOIDED",
+];
 
 export interface ScaleAwareScore {
   value: number;
@@ -49,6 +53,8 @@ export class InvalidDashboardCursorError extends Error {
 
 export interface DashboardData {
   totalTests: number;
+  /** An unused free retake credit: the next Submission skips payment. */
+  retakeCreditAvailable: boolean;
   bestScore: ScaleAwareScore | null;
   submissions: Array<{
     id: string;
@@ -264,7 +270,10 @@ export interface AnswerDetail {
   questionCategory: string;
   audioUrl: string | null;
   durationSeconds: number | null;
-  videoUrl: string | null;
+  technicalFailure: boolean;
+  technicalFailureReason: string | null;
+  /** Always null: the student never views Answer videos after the test (PRD FR-4.4). */
+  videoUrl: null;
   score: number | null;
   rubric: RubricBreakdown | null;
   comments: string[];
@@ -281,6 +290,10 @@ export interface SubmissionDetail {
   comments: string[];
   createdAt: Date;
   answers: AnswerDetail[];
+  /** VOIDED only: the Admin's confirmation note shown to the student. */
+  voidReason: string | null;
+  /** VOIDED only: the free retake credit from this void is still unused. */
+  retakeCreditAvailable: boolean;
 }
 
 export interface SubmissionStatusSnapshot {
@@ -334,6 +347,50 @@ export async function abandonSubmission(submissionId: string, userId: string) {
   });
 }
 
+export class SubmissionNotInProgressError extends Error {
+  readonly code = "SUBMISSION_NOT_IN_PROGRESS";
+  constructor(readonly submissionStatus: string) {
+    super("Submission is not in progress");
+  }
+}
+
+/** PRD FR-2.7: record that the student's client is still on the Assessment. */
+export async function recordSubmissionHeartbeat(submissionId: string, userId: string) {
+  const lastHeartbeatAt = new Date();
+  // Conditional update: never revives a Submission the sweeper or an explicit
+  // abandon ended concurrently.
+  const { count } = await prisma.submission.updateMany({
+    where: { id: submissionId, studentId: userId, status: "IN_PROGRESS", retentionStatus: "RETAINED" },
+    data: { lastHeartbeatAt },
+  });
+  if (count === 1) return { submissionId, status: "IN_PROGRESS" as const, lastHeartbeatAt };
+
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { studentId: true, status: true, retentionStatus: true },
+  });
+  if (!submission || submission.studentId !== userId) throw new Error("Submission not found");
+  if (submission.retentionStatus !== "RETAINED") throw new Error("Submission is not available");
+  throw new SubmissionNotInProgressError(submission.status);
+}
+
+/**
+ * PRD FR-2.8: abandon every IN_PROGRESS Submission whose heartbeat (or, before
+ * the first heartbeat, creation) is older than the grace period. One UPDATE
+ * takes each row lock, so it serializes with upload/abandon/complete paths
+ * that lock the row and recheck IN_PROGRESS; safe to run on every instance.
+ */
+export async function abandonStaleSubmissions(graceSeconds: number, now = new Date()) {
+  const cutoff = new Date(now.getTime() - graceSeconds * 1000);
+  return prisma.$executeRaw`
+    UPDATE "Submission"
+    SET "status" = 'ABANDONED'::"SubmissionStatus", "updatedAt" = ${now}
+    WHERE "status" = 'IN_PROGRESS'::"SubmissionStatus"
+      AND "retentionStatus" = 'RETAINED'::"SubmissionRetentionStatus"
+      AND COALESCE("lastHeartbeatAt", "createdAt") < ${cutoff}
+  `;
+}
+
 /**
  * Fetch dashboard stats and submission history for the authenticated student.
  */
@@ -351,11 +408,12 @@ export async function getStudentDashboard(
     // student made a Submission; they are history noise, not tests taken.
     OR: [{ status: { not: "ABANDONED" } }, { answers: { some: {} } }],
   };
-  const [totalTests, pageRowsWithExtra, rubricBest, legacyBest] = await Promise.all([
+  const [totalTests, pageRowsWithExtra, rubricBest, legacyBest, retakeCreditAvailable] = await Promise.all([
     prisma.submission.count({ where: baseWhere }),
     readDashboardHistoryPage(userId, cursor, limit),
     findBestCertificateScore(userId, "RUBRIC_6"),
     findBestCertificateScore(userId, "LEGACY_100"),
+    hasUnredeemedRetakeCredit(userId),
   ]);
 
   const hasMore = pageRowsWithExtra.length > limit;
@@ -374,6 +432,7 @@ export async function getStudentDashboard(
 
   return {
     totalTests,
+    retakeCreditAvailable,
     bestScore: bestCertificate
       ? {
           value: Number(bestCertificate.finalScore),
@@ -499,20 +558,6 @@ export async function getSubmissionDetail(
         throw new Error("Manifest evidence unavailable");
       }
       if (!submission.manifest) assertLegacyAnswerQuestion(answer);
-      let videoUrl: string | null = null;
-      if (answer.uploadStatus === "UPLOADED") {
-        try {
-          videoUrl = await createVideoViewUrlFromMetadata(
-            answer.storageKey,
-            answer.bucket,
-            answer.mimeType,
-          );
-        } catch {
-          // If presigned URL generation fails, return null
-          videoUrl = null;
-        }
-      }
-
       let audioUrl: string | null = null;
       const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
       const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
@@ -554,7 +599,10 @@ export async function getSubmissionDetail(
         questionCategory: manifestEntry?.category ?? answer.question!.category,
         audioUrl,
         durationSeconds: answer.durationSeconds,
-        videoUrl,
+        technicalFailure: answer.technicalFailure,
+        technicalFailureReason: answer.technicalFailureReason,
+        // PRD FR-4.4: the student never views Answer videos after the test.
+        videoUrl: null,
         score: scoreSummary.score,
         rubric: scoreSummary.rubric,
         comments,
@@ -590,7 +638,14 @@ export async function getSubmissionDetail(
       })
     : [];
 
+  const voidDetails =
+    submission.status === "VOIDED"
+      ? await readVoidDetails(submission.id)
+      : { voidReason: null, retakeCreditAvailable: false };
+
   return {
+    voidReason: voidDetails.voidReason,
+    retakeCreditAvailable: voidDetails.retakeCreditAvailable,
     id: submission.id,
     status: submission.status,
     score:
@@ -639,18 +694,18 @@ export async function completeSubmission(
   userId: string
 ): Promise<void> {
   const { paymentEnabled } = await getAppSettings();
-  const paymentRequired = paymentEnabled;
 
   // Lock the Submission before reading its evidence. Confirmation and every
   // later upload mutation use the same lifecycle predicate, so a concurrent
   // confirmation either commits before this proof is evaluated or observes
   // the completed status and is rejected.
-  const transitioned = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  const shouldAssign = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT "id" FROM "Submission" WHERE "id" = ${submissionId} FOR UPDATE`;
 
     const submission = await tx.submission.findUnique({
       where: { id: submissionId },
       select: {
+        id: true,
         studentId: true,
         status: true,
         retentionStatus: true,
@@ -670,6 +725,7 @@ export async function completeSubmission(
             observedMimeType: true,
             mimeType: true,
             sizeBytes: true,
+            technicalFailure: true,
           },
         },
       },
@@ -684,9 +740,7 @@ export async function completeSubmission(
     // A retry after a committed transition is a successful no-op. Abandoned,
     // legacy in-progress, corrupt, and unknown lifecycle states remain closed.
     if (submission.status !== "IN_PROGRESS") {
-      if (["AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"].includes(submission.status)) {
-        return false;
-      }
+      if (COMPLETED_STATUSES.includes(submission.status)) return false;
       throw new Error("Submission is not in progress");
     }
 
@@ -705,7 +759,9 @@ export async function completeSubmission(
       answer.uploadStatus === "UPLOADED" &&
       answer.verifiedAt !== null &&
       answer.proofVersion === 1 &&
-      answer.sizeBytes !== null && answer.sizeBytes > 0 &&
+      // A flagged take where nothing was captured still completes (PRD FR-3.7).
+      answer.sizeBytes !== null &&
+      (answer.sizeBytes > 0 || answer.technicalFailure) &&
       answer.observedMimeType !== null &&
       answer.observedMimeType === answer.mimeType
     );
@@ -720,25 +776,21 @@ export async function completeSubmission(
       throw new Error("Submission does not contain the exact verified answer set");
     }
 
-    await tx.submission.update({
-      where: { id: submissionId, retentionStatus: "RETAINED" },
-      data: {
-        paymentRequired,
-        status: paymentRequired ? "AWAITING_PAYMENT" : "PAID",
-      },
+    // A Submission flagged during the test goes to flag review before payment
+    // (PRD §4.1 step 8), so the student is never charged for a void.
+    const openFlags = await tx.submissionFlag.count({
+      where: { submissionId, resolution: null },
     });
-    return true;
+    if (openFlags > 0) {
+      await tx.submission.update({
+        where: { id: submissionId, retentionStatus: "RETAINED" },
+        data: { status: "FLAG_REVIEW", flagReturnStatus: null },
+      });
+      return false;
+    }
+
+    return routeRecordedSubmission(tx, submission, paymentEnabled);
   });
 
-  if (transitioned && !paymentRequired) {
-    try {
-      await assignExaminersToSubmission(submissionId);
-    } catch (error) {
-      // Completion must remain successful even when assignment has to be retried by an admin.
-      console.error(
-        `Automatic examiner assignment failed for waived submission ${submissionId}:`,
-        error
-      );
-    }
-  }
+  if (shouldAssign) await assignAfterRouting(submissionId, "submission completed");
 }

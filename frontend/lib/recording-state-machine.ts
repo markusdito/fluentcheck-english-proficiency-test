@@ -30,7 +30,8 @@ export function entryReducer(current: EntryMachineState, event: EntryEvent): Ent
     case "START_RECORDING": return current.state === "preparation" || current.state === "failure"
       ? { state: "recording", blob: null, error: null } : current;
     case "STOP_REQUESTED": return current.state === "recording" ? { ...current, state: "finalizing" } : current;
-    case "BLOB_READY": return current.state === "finalizing" && event.blob.size > 0
+    // An empty take is still uploaded and flagged (PRD FR-3.8).
+    case "BLOB_READY": return current.state === "finalizing"
       ? { state: "blob-ready", blob: event.blob, error: null } : current;
     case "UPLOAD_STARTED": return current.state === "blob-ready" ? { ...current, state: "signing", error: null } : current;
     case "SIGNED": return current.state === "signing" ? { ...current, state: "uploading" } : current;

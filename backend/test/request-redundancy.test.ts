@@ -254,6 +254,7 @@ test("assignment transaction returns additive assignment summaries", async () =>
             },
           }),
         },
+        submissionFlag: { count: async () => 0 },
         user: {
           findMany: async () => [
             { id: "examiner-1", username: "Examiner One", email: "examiner@example.com" },

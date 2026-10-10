@@ -69,6 +69,10 @@ export const ModelName = {
   ManifestTask: 'ManifestTask',
   AppSettings: 'AppSettings',
   Answer: 'Answer',
+  AnswerMediaViewEvent: 'AnswerMediaViewEvent',
+  SubmissionFlag: 'SubmissionFlag',
+  RetakeCredit: 'RetakeCredit',
+  SubmissionPaymentWaiver: 'SubmissionPaymentWaiver',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
   ExaminerAssignmentReassignment: 'ExaminerAssignmentReassignment',
@@ -175,6 +179,8 @@ export const SubmissionScalarFieldEnum = {
   paymentRequired: 'paymentRequired',
   consentedAt: 'consentedAt',
   consentVersion: 'consentVersion',
+  flagReturnStatus: 'flagReturnStatus',
+  lastHeartbeatAt: 'lastHeartbeatAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -374,11 +380,72 @@ export const AnswerScalarFieldEnum = {
   verifiedAt: 'verifiedAt',
   observedMimeType: 'observedMimeType',
   proofVersion: 'proofVersion',
+  technicalFailure: 'technicalFailure',
+  technicalFailureReason: 'technicalFailureReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type AnswerScalarFieldEnum = (typeof AnswerScalarFieldEnum)[keyof typeof AnswerScalarFieldEnum]
+
+
+export const AnswerMediaViewEventScalarFieldEnum = {
+  id: 'id',
+  answerId: 'answerId',
+  submissionId: 'submissionId',
+  viewerId: 'viewerId',
+  viewerRole: 'viewerRole',
+  context: 'context',
+  assignmentId: 'assignmentId',
+  flagId: 'flagId',
+  storageKey: 'storageKey',
+  createdAt: 'createdAt'
+} as const
+
+export type AnswerMediaViewEventScalarFieldEnum = (typeof AnswerMediaViewEventScalarFieldEnum)[keyof typeof AnswerMediaViewEventScalarFieldEnum]
+
+
+export const SubmissionFlagScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  type: 'type',
+  source: 'source',
+  reason: 'reason',
+  answerId: 'answerId',
+  manifestEntryId: 'manifestEntryId',
+  timestampSeconds: 'timestampSeconds',
+  raisedById: 'raisedById',
+  raisedAt: 'raisedAt',
+  resolution: 'resolution',
+  resolutionNote: 'resolutionNote',
+  resolvedById: 'resolvedById',
+  resolvedAt: 'resolvedAt'
+} as const
+
+export type SubmissionFlagScalarFieldEnum = (typeof SubmissionFlagScalarFieldEnum)[keyof typeof SubmissionFlagScalarFieldEnum]
+
+
+export const RetakeCreditScalarFieldEnum = {
+  id: 'id',
+  studentId: 'studentId',
+  voidedSubmissionId: 'voidedSubmissionId',
+  redeemedSubmissionId: 'redeemedSubmissionId',
+  createdAt: 'createdAt',
+  redeemedAt: 'redeemedAt'
+} as const
+
+export type RetakeCreditScalarFieldEnum = (typeof RetakeCreditScalarFieldEnum)[keyof typeof RetakeCreditScalarFieldEnum]
+
+
+export const SubmissionPaymentWaiverScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  adminId: 'adminId',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type SubmissionPaymentWaiverScalarFieldEnum = (typeof SubmissionPaymentWaiverScalarFieldEnum)[keyof typeof SubmissionPaymentWaiverScalarFieldEnum]
 
 
 export const PaymentScalarFieldEnum = {
@@ -421,6 +488,7 @@ export const ExaminerAssignmentReassignmentScalarFieldEnum = {
   newExaminerId: 'newExaminerId',
   actingAdminId: 'actingAdminId',
   reason: 'reason',
+  note: 'note',
   createdAt: 'createdAt'
 } as const
 

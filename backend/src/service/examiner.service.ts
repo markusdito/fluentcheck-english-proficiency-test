@@ -2,9 +2,12 @@ import { isSupportedManifestVersion } from "./assessmentSlots.js";
 import { prisma } from "../config/db.js";
 import { Prisma } from "../generated/client.js";
 import {
+  createOptionIconViewUrl,
   createQuestionAudioViewUrlFromMetadata,
-  createVideoViewUrlFromMetadata,
+  issueAnswerVideoUrl,
+  type AnswerVideoViewer,
 } from "./upload.service.js";
+import { presentOptions, type CueCard, type PresentedOption } from "./questionContent.js";
 import {
   ScoreValidationError,
   readStoredRubric,
@@ -44,9 +47,16 @@ export interface AssignmentAnswer {
   questionCategory: string;
   preparationSeconds: number;
   recordingSeconds: number;
+  /** Manifest delivery position (1-5); null for a Submission without a manifest. */
+  deliveryPosition: number | null;
   audioUrl: string | null;
   tasks: { id: string; promptText: string; order: number }[];
+  /** Delivered prompt snapshot content; null when the slot has none or the manifest predates it. */
+  cueCard: CueCard | null;
+  options: PresentedOption[] | null;
   durationSeconds: number | null;
+  technicalFailure: boolean;
+  technicalFailureReason: string | null;
   videoUrl: string | null;
 }
 
@@ -65,6 +75,8 @@ export interface AssignmentDetail {
   submissionStatus: string;
   scoringSystem: ScoringSystemValue;
   testSet: DeliveredTestSet | null;
+  /** Scoring is paused while a flag is under Admin review (FLAG_REVIEW). */
+  paused: boolean;
   answers: AssignmentAnswer[];
   savedScore: SavedScore | null;
   createdAt: Date;
@@ -144,6 +156,9 @@ const ASSIGNMENT_READBACK_STATUSES = [
   "SCORING",
   "SCORED",
   "CERTIFIED",
+  // An integrity concern pauses or voids an assigned Submission (PRD FR-9.9).
+  "FLAG_REVIEW",
+  "VOIDED",
 ] as const;
 
 function selectRandomCandidates(
@@ -286,6 +301,17 @@ export async function createExaminerAssignmentSet(
             throw new AssignmentSetError(
               "NOT_ASSIGNMENT_READY",
               "Submission is not Assignment-ready",
+            );
+          }
+
+          // Assignment-ready requires no open flag (PRD FR-8.1).
+          const openFlags = await tx.submissionFlag.count({
+            where: { submissionId, resolution: null },
+          });
+          if (openFlags > 0) {
+            throw new AssignmentSetError(
+              "NOT_ASSIGNMENT_READY",
+              "Submission has an open flag awaiting Admin review",
             );
           }
 
@@ -446,13 +472,15 @@ export async function getExaminerAssignments(examinerId: string): Promise<Examin
 }
 
 /**
- * Get a single assignment with all answers and presigned video URLs.
- * Only the assigned examiner can view this.
+ * Get a single assignment with its Answers in slot order, their Delivered
+ * prompt snapshots, and audited signed video URLs. Only the assigned
+ * Examiner can view this.
  */
 export async function getExaminerAssignmentDetail(
   assignmentId: string,
-  examinerId: string
+  viewer: AnswerVideoViewer,
 ): Promise<AssignmentDetail> {
+  const examinerId = viewer.id;
   const assignment = await prisma.examinerAssignment.findUnique({
     where: { id: assignmentId },
     include: {
@@ -480,10 +508,13 @@ export async function getExaminerAssignmentDetail(
                 select: {
                   id: true,
                   category: true,
+                  deliveryPosition: true,
                   preparationSeconds: true,
                   recordingSeconds: true,
                   promptMediaStorageKey: true,
                   promptMediaMimeType: true,
+                  cueCard: true,
+                  options: true,
                   tasks: {
                     orderBy: { deliveredOrder: "asc" },
                     select: { id: true, deliveredOrder: true, deliveredText: true },
@@ -495,6 +526,7 @@ export async function getExaminerAssignmentDetail(
           student: {
             select: { username: true },
           },
+          flags: { where: { resolution: null }, take: 1, select: { id: true } },
           answers: {
             include: {
               question: {
@@ -544,19 +576,6 @@ export async function getExaminerAssignmentDetail(
       const manifestEntry = manifest?.entries.find((entry) => entry.id === answer.manifestEntryId);
       if (manifest && !manifestEntry) throw new Error("Manifest evidence unavailable");
       if (!manifest) assertLegacyAnswerQuestion(answer);
-      let videoUrl: string | null = null;
-      if (answer.uploadStatus === "UPLOADED") {
-        try {
-          videoUrl = await createVideoViewUrlFromMetadata(
-            answer.storageKey,
-            answer.bucket,
-            answer.mimeType,
-          );
-        } catch {
-          videoUrl = null;
-        }
-      }
-
       let audioUrl: string | null = null;
       const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
       const promptMimeType = manifestEntry?.promptMediaMimeType ?? answer.question?.audioMimeType;
@@ -575,21 +594,39 @@ export async function getExaminerAssignmentDetail(
         }
       }
       if (manifestEntry && !audioUrl) throw new Error("Manifest evidence unavailable");
+      const options = await presentOptions(manifestEntry?.options, createOptionIconViewUrl);
 
       return {
         id: answer.id,
         questionId: manifestEntry?.id ?? answer.questionId!,
         questionCategory: manifestEntry?.category ?? answer.question!.category,
+        deliveryPosition: manifestEntry?.deliveryPosition ?? null,
         preparationSeconds: manifestEntry?.preparationSeconds ?? answer.question!.preparationSeconds,
         recordingSeconds: manifestEntry?.recordingSeconds ?? answer.question!.recordingSeconds,
         audioUrl,
         tasks: manifestEntry
           ? manifestEntry.tasks.map((task) => ({ id: task.id, promptText: task.deliveredText, order: task.deliveredOrder }))
           : answer.question!.tasks,
+        cueCard: (manifestEntry?.cueCard as CueCard | null | undefined) ?? null,
+        options,
         durationSeconds: answer.durationSeconds,
-        videoUrl,
+        technicalFailure: answer.technicalFailure,
+        technicalFailureReason: answer.technicalFailureReason,
+        // Issued (and audited) only after every Answer's evidence checked out.
+        videoUrl: null,
       };
     })
+  );
+  // Slot order; Submissions without a manifest keep recording order (stable sort).
+  answers.sort((left, right) => (left.deliveryPosition ?? 0) - (right.deliveryPosition ?? 0));
+  const recorded = new Map(assignment.submission.answers.map((answer) => [answer.id, answer]));
+  await Promise.all(
+    answers.map(async (answer) => {
+      answer.videoUrl = await issueAnswerVideoUrl(recorded.get(answer.id)!, viewer, {
+        context: "EXAMINER_ASSIGNMENT",
+        assignmentId: assignment.id,
+      });
+    }),
   );
 
   return {
@@ -600,6 +637,8 @@ export async function getExaminerAssignmentDetail(
     submissionStatus: assignment.submission.status,
     scoringSystem: assignment.submission.scoringSystem,
     testSet: deliveredTestSet(manifest),
+    paused:
+      assignment.submission.status === "FLAG_REVIEW" || assignment.submission.flags.length > 0,
     answers,
     savedScore: saved
       ? {
@@ -657,7 +696,7 @@ export async function startExaminerAssignment(
 
     const submission = await tx.submission.findUnique({
       where: { id: submissionId },
-      select: { retentionStatus: true },
+      select: { retentionStatus: true, status: true },
     });
     if (!submission || submission.retentionStatus !== "RETAINED") {
       throw new ScoringFinalizationError(
@@ -665,10 +704,14 @@ export async function startExaminerAssignment(
         "Submission is not available",
       );
     }
+    if (submission.status === "VOIDED") {
+      throw new ScoringFinalizationError("INVALID_LIFECYCLE", "This Submission was voided and is never scored");
+    }
 
     if (assignment.examinerId !== examinerId) {
       throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
     }
+    await assertScoringNotPaused(tx, submissionId, submission.status);
 
     if (assignment.status !== "ASSIGNED") {
       throw new ScoringFinalizationError(
@@ -700,7 +743,8 @@ export type ScoringFinalizationErrorCode =
   | "UNAUTHORIZED"
   | "DRAFT_FROZEN"
   | "INVALID_LIFECYCLE"
-  | "INVALID_ASSIGNMENT_SET";
+  | "INVALID_ASSIGNMENT_SET"
+  | "OPEN_FLAG";
 
 export class ScoringFinalizationError extends Error {
   public readonly code: ScoringFinalizationErrorCode;
@@ -801,6 +845,23 @@ async function lockScoringSubmission(
     throw new ScoringFinalizationError(
       "ASSIGNMENT_NOT_FOUND",
       "Assignment not found",
+    );
+  }
+}
+
+/** An open flag pauses both Examiner assignments (PRD FR-4.5, FR-9.9). */
+async function assertScoringNotPaused(
+  tx: Prisma.TransactionClient,
+  submissionId: string,
+  status: SubmissionStatus,
+): Promise<void> {
+  const openFlags = status === "FLAG_REVIEW"
+    ? 1
+    : await tx.submissionFlag.count({ where: { submissionId, resolution: null } });
+  if (openFlags > 0) {
+    throw new ScoringFinalizationError(
+      "OPEN_FLAG",
+      "Scoring is paused while an Admin reviews a flag on this Submission",
     );
   }
 }
@@ -931,15 +992,31 @@ export async function completeExaminerScoring(
     }
 
     assertValidAssignmentSet(assignments);
+    const alreadyCompleted = {
+      outcome: "ALREADY_COMPLETED",
+      assignmentStatus: assignment.status,
+      submissionStatus: submission.status,
+    } as const;
+    // A Submission with an open flag cannot be scored (PRD FR-9.9).
+    const openFlags = await tx.submissionFlag.count({
+      where: { submissionId, resolution: null },
+    });
+    if (openFlags > 0 || submission.status === "FLAG_REVIEW" || submission.status === "VOIDED") {
+      // Repeating completion stays a successful no-op when a later flag
+      // paused the Submission: the completed Score is already committed.
+      if (assignment.status === "COMPLETED" && submission.status !== "VOIDED") {
+        return alreadyCompleted;
+      }
+      throw new ScoringFinalizationError(
+        "OPEN_FLAG",
+        submission.status === "VOIDED"
+          ? "This Submission was voided and is never scored"
+          : "Scoring is paused while an Admin reviews a flag on this Submission",
+      );
+    }
     assertValidScoringLifecycle(submission.status, assignments);
 
-    if (assignment.status === "COMPLETED") {
-      return {
-        outcome: "ALREADY_COMPLETED",
-        assignmentStatus: assignment.status,
-        submissionStatus: submission.status,
-      };
-    }
+    if (assignment.status === "COMPLETED") return alreadyCompleted;
 
     if (assignment.status !== "ASSIGNED" && assignment.status !== "IN_PROGRESS") {
       throw new ScoringFinalizationError(
@@ -1002,6 +1079,7 @@ export async function saveExaminerScore(
           select: {
             scoringSystem: true,
             retentionStatus: true,
+            status: true,
           },
         },
       },
@@ -1022,6 +1100,10 @@ export async function saveExaminerScore(
     if (assignment.examinerId !== examinerId) {
       throw new ScoringFinalizationError("UNAUTHORIZED", "Unauthorized");
     }
+    if (assignment.submission.status === "VOIDED") {
+      throw new ScoringFinalizationError("INVALID_LIFECYCLE", "This Submission was voided and is never scored");
+    }
+    await assertScoringNotPaused(tx, submissionId, assignment.submission.status);
     if (assignment.status === "COMPLETED") {
       throw new ScoringFinalizationError(
         "DRAFT_FROZEN",

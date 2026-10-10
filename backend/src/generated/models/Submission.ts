@@ -33,6 +33,8 @@ export type SubmissionMinAggregateOutputType = {
   paymentRequired: boolean | null
   consentedAt: Date | null
   consentVersion: string | null
+  flagReturnStatus: $Enums.SubmissionStatus | null
+  lastHeartbeatAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -46,6 +48,8 @@ export type SubmissionMaxAggregateOutputType = {
   paymentRequired: boolean | null
   consentedAt: Date | null
   consentVersion: string | null
+  flagReturnStatus: $Enums.SubmissionStatus | null
+  lastHeartbeatAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -59,6 +63,8 @@ export type SubmissionCountAggregateOutputType = {
   paymentRequired: number
   consentedAt: number
   consentVersion: number
+  flagReturnStatus: number
+  lastHeartbeatAt: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -74,6 +80,8 @@ export type SubmissionMinAggregateInputType = {
   paymentRequired?: true
   consentedAt?: true
   consentVersion?: true
+  flagReturnStatus?: true
+  lastHeartbeatAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -87,6 +95,8 @@ export type SubmissionMaxAggregateInputType = {
   paymentRequired?: true
   consentedAt?: true
   consentVersion?: true
+  flagReturnStatus?: true
+  lastHeartbeatAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -100,6 +110,8 @@ export type SubmissionCountAggregateInputType = {
   paymentRequired?: true
   consentedAt?: true
   consentVersion?: true
+  flagReturnStatus?: true
+  lastHeartbeatAt?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -186,6 +198,8 @@ export type SubmissionGroupByOutputType = {
   paymentRequired: boolean
   consentedAt: Date | null
   consentVersion: string | null
+  flagReturnStatus: $Enums.SubmissionStatus | null
+  lastHeartbeatAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: SubmissionCountAggregateOutputType | null
@@ -220,9 +234,15 @@ export type SubmissionWhereInput = {
   paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
   consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
+  flagReturnStatus?: Prisma.EnumSubmissionStatusNullableFilter<"Submission"> | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  flags?: Prisma.SubmissionFlagListRelationFilter
+  retakeCreditGranted?: Prisma.XOR<Prisma.RetakeCreditNullableScalarRelationFilter, Prisma.RetakeCreditWhereInput> | null
+  retakeCreditRedeemed?: Prisma.XOR<Prisma.RetakeCreditNullableScalarRelationFilter, Prisma.RetakeCreditWhereInput> | null
+  paymentWaiver?: Prisma.XOR<Prisma.SubmissionPaymentWaiverNullableScalarRelationFilter, Prisma.SubmissionPaymentWaiverWhereInput> | null
   answers?: Prisma.AnswerListRelationFilter
   manifest?: Prisma.XOR<Prisma.SubmissionManifestNullableScalarRelationFilter, Prisma.SubmissionManifestWhereInput> | null
   payments?: Prisma.PaymentListRelationFilter
@@ -244,9 +264,15 @@ export type SubmissionOrderByWithRelationInput = {
   paymentRequired?: Prisma.SortOrder
   consentedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   consentVersion?: Prisma.SortOrderInput | Prisma.SortOrder
+  flagReturnStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   student?: Prisma.UserOrderByWithRelationInput
+  flags?: Prisma.SubmissionFlagOrderByRelationAggregateInput
+  retakeCreditGranted?: Prisma.RetakeCreditOrderByWithRelationInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditOrderByWithRelationInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverOrderByWithRelationInput
   answers?: Prisma.AnswerOrderByRelationAggregateInput
   manifest?: Prisma.SubmissionManifestOrderByWithRelationInput
   payments?: Prisma.PaymentOrderByRelationAggregateInput
@@ -271,9 +297,15 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
   consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
+  flagReturnStatus?: Prisma.EnumSubmissionStatusNullableFilter<"Submission"> | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   student?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  flags?: Prisma.SubmissionFlagListRelationFilter
+  retakeCreditGranted?: Prisma.XOR<Prisma.RetakeCreditNullableScalarRelationFilter, Prisma.RetakeCreditWhereInput> | null
+  retakeCreditRedeemed?: Prisma.XOR<Prisma.RetakeCreditNullableScalarRelationFilter, Prisma.RetakeCreditWhereInput> | null
+  paymentWaiver?: Prisma.XOR<Prisma.SubmissionPaymentWaiverNullableScalarRelationFilter, Prisma.SubmissionPaymentWaiverWhereInput> | null
   answers?: Prisma.AnswerListRelationFilter
   manifest?: Prisma.XOR<Prisma.SubmissionManifestNullableScalarRelationFilter, Prisma.SubmissionManifestWhereInput> | null
   payments?: Prisma.PaymentListRelationFilter
@@ -295,6 +327,8 @@ export type SubmissionOrderByWithAggregationInput = {
   paymentRequired?: Prisma.SortOrder
   consentedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   consentVersion?: Prisma.SortOrderInput | Prisma.SortOrder
+  flagReturnStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.SubmissionCountOrderByAggregateInput
@@ -314,6 +348,8 @@ export type SubmissionScalarWhereWithAggregatesInput = {
   paymentRequired?: Prisma.BoolWithAggregatesFilter<"Submission"> | boolean
   consentedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
   consentVersion?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
+  flagReturnStatus?: Prisma.EnumSubmissionStatusNullableWithAggregatesFilter<"Submission"> | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Submission"> | Date | string
 }
@@ -326,9 +362,15 @@ export type SubmissionCreateInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -350,8 +392,14 @@ export type SubmissionUncheckedCreateInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -372,9 +420,15 @@ export type SubmissionUpdateInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -396,8 +450,14 @@ export type SubmissionUncheckedUpdateInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -419,6 +479,8 @@ export type SubmissionCreateManyInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -431,6 +493,8 @@ export type SubmissionUpdateManyMutationInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -444,6 +508,8 @@ export type SubmissionUncheckedUpdateManyInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -467,6 +533,8 @@ export type SubmissionCountOrderByAggregateInput = {
   paymentRequired?: Prisma.SortOrder
   consentedAt?: Prisma.SortOrder
   consentVersion?: Prisma.SortOrder
+  flagReturnStatus?: Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -480,6 +548,8 @@ export type SubmissionMaxOrderByAggregateInput = {
   paymentRequired?: Prisma.SortOrder
   consentedAt?: Prisma.SortOrder
   consentVersion?: Prisma.SortOrder
+  flagReturnStatus?: Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -493,6 +563,8 @@ export type SubmissionMinOrderByAggregateInput = {
   paymentRequired?: Prisma.SortOrder
   consentedAt?: Prisma.SortOrder
   consentVersion?: Prisma.SortOrder
+  flagReturnStatus?: Prisma.SortOrder
+  lastHeartbeatAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -563,6 +635,10 @@ export type EnumScoringSystemFieldUpdateOperationsInput = {
 
 export type BoolFieldUpdateOperationsInput = {
   set?: boolean
+}
+
+export type NullableEnumSubmissionStatusFieldUpdateOperationsInput = {
+  set?: $Enums.SubmissionStatus | null
 }
 
 export type SubmissionCreateNestedOneWithoutRetentionHoldsInput = {
@@ -671,6 +747,64 @@ export type SubmissionUpdateOneRequiredWithoutAnswersNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutAnswersInput, Prisma.SubmissionUpdateWithoutAnswersInput>, Prisma.SubmissionUncheckedUpdateWithoutAnswersInput>
 }
 
+export type SubmissionCreateNestedOneWithoutFlagsInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutFlagsInput, Prisma.SubmissionUncheckedCreateWithoutFlagsInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutFlagsInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+}
+
+export type SubmissionUpdateOneRequiredWithoutFlagsNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutFlagsInput, Prisma.SubmissionUncheckedCreateWithoutFlagsInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutFlagsInput
+  upsert?: Prisma.SubmissionUpsertWithoutFlagsInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutFlagsInput, Prisma.SubmissionUpdateWithoutFlagsInput>, Prisma.SubmissionUncheckedUpdateWithoutFlagsInput>
+}
+
+export type SubmissionCreateNestedOneWithoutRetakeCreditGrantedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutRetakeCreditGrantedInput, Prisma.SubmissionUncheckedCreateWithoutRetakeCreditGrantedInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutRetakeCreditGrantedInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+}
+
+export type SubmissionCreateNestedOneWithoutRetakeCreditRedeemedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutRetakeCreditRedeemedInput, Prisma.SubmissionUncheckedCreateWithoutRetakeCreditRedeemedInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutRetakeCreditRedeemedInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+}
+
+export type SubmissionUpdateOneRequiredWithoutRetakeCreditGrantedNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutRetakeCreditGrantedInput, Prisma.SubmissionUncheckedCreateWithoutRetakeCreditGrantedInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutRetakeCreditGrantedInput
+  upsert?: Prisma.SubmissionUpsertWithoutRetakeCreditGrantedInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutRetakeCreditGrantedInput, Prisma.SubmissionUpdateWithoutRetakeCreditGrantedInput>, Prisma.SubmissionUncheckedUpdateWithoutRetakeCreditGrantedInput>
+}
+
+export type SubmissionUpdateOneWithoutRetakeCreditRedeemedNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutRetakeCreditRedeemedInput, Prisma.SubmissionUncheckedCreateWithoutRetakeCreditRedeemedInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutRetakeCreditRedeemedInput
+  upsert?: Prisma.SubmissionUpsertWithoutRetakeCreditRedeemedInput
+  disconnect?: Prisma.SubmissionWhereInput | boolean
+  delete?: Prisma.SubmissionWhereInput | boolean
+  connect?: Prisma.SubmissionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutRetakeCreditRedeemedInput, Prisma.SubmissionUpdateWithoutRetakeCreditRedeemedInput>, Prisma.SubmissionUncheckedUpdateWithoutRetakeCreditRedeemedInput>
+}
+
+export type SubmissionCreateNestedOneWithoutPaymentWaiverInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedCreateWithoutPaymentWaiverInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutPaymentWaiverInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+}
+
+export type SubmissionUpdateOneRequiredWithoutPaymentWaiverNestedInput = {
+  create?: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedCreateWithoutPaymentWaiverInput>
+  connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutPaymentWaiverInput
+  upsert?: Prisma.SubmissionUpsertWithoutPaymentWaiverInput
+  connect?: Prisma.SubmissionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SubmissionUpdateToOneWithWhereWithoutPaymentWaiverInput, Prisma.SubmissionUpdateWithoutPaymentWaiverInput>, Prisma.SubmissionUncheckedUpdateWithoutPaymentWaiverInput>
+}
+
 export type SubmissionCreateNestedOneWithoutPaymentsInput = {
   create?: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentsInput, Prisma.SubmissionUncheckedCreateWithoutPaymentsInput>
   connectOrCreate?: Prisma.SubmissionCreateOrConnectWithoutPaymentsInput
@@ -721,8 +855,14 @@ export type SubmissionCreateWithoutStudentInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -743,8 +883,14 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -795,6 +941,8 @@ export type SubmissionScalarWhereInput = {
   paymentRequired?: Prisma.BoolFilter<"Submission"> | boolean
   consentedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   consentVersion?: Prisma.StringNullableFilter<"Submission"> | string | null
+  flagReturnStatus?: Prisma.EnumSubmissionStatusNullableFilter<"Submission"> | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Submission"> | Date | string
 }
@@ -807,9 +955,15 @@ export type SubmissionCreateWithoutRetentionHoldsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -830,8 +984,14 @@ export type SubmissionUncheckedCreateWithoutRetentionHoldsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -867,9 +1027,15 @@ export type SubmissionUpdateWithoutRetentionHoldsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -890,8 +1056,14 @@ export type SubmissionUncheckedUpdateWithoutRetentionHoldsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -911,9 +1083,15 @@ export type SubmissionCreateWithoutPurgeRequestsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -934,8 +1112,14 @@ export type SubmissionUncheckedCreateWithoutPurgeRequestsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -971,9 +1155,15 @@ export type SubmissionUpdateWithoutPurgeRequestsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -994,8 +1184,14 @@ export type SubmissionUncheckedUpdateWithoutPurgeRequestsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1015,9 +1211,15 @@ export type SubmissionCreateWithoutPurgeObjectsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1038,8 +1240,14 @@ export type SubmissionUncheckedCreateWithoutPurgeObjectsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1075,9 +1283,15 @@ export type SubmissionUpdateWithoutPurgeObjectsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1098,8 +1312,14 @@ export type SubmissionUncheckedUpdateWithoutPurgeObjectsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1119,9 +1339,15 @@ export type SubmissionCreateWithoutRetentionAuditEventsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1142,8 +1368,14 @@ export type SubmissionUncheckedCreateWithoutRetentionAuditEventsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1179,9 +1411,15 @@ export type SubmissionUpdateWithoutRetentionAuditEventsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1202,8 +1440,14 @@ export type SubmissionUncheckedUpdateWithoutRetentionAuditEventsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1223,9 +1467,15 @@ export type SubmissionCreateWithoutStartIntentInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1246,8 +1496,14 @@ export type SubmissionUncheckedCreateWithoutStartIntentInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1283,9 +1539,15 @@ export type SubmissionUpdateWithoutStartIntentInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1306,8 +1568,14 @@ export type SubmissionUncheckedUpdateWithoutStartIntentInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1327,9 +1595,15 @@ export type SubmissionCreateWithoutManifestInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
@@ -1350,8 +1624,14 @@ export type SubmissionUncheckedCreateWithoutManifestInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1387,9 +1667,15 @@ export type SubmissionUpdateWithoutManifestInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
@@ -1410,8 +1696,14 @@ export type SubmissionUncheckedUpdateWithoutManifestInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1431,9 +1723,15 @@ export type SubmissionCreateWithoutAnswersInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
@@ -1454,8 +1752,14 @@ export type SubmissionUncheckedCreateWithoutAnswersInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1491,9 +1795,15 @@ export type SubmissionUpdateWithoutAnswersInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
@@ -1514,8 +1824,526 @@ export type SubmissionUncheckedUpdateWithoutAnswersInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionCreateWithoutFlagsInput = {
+  id?: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionUncheckedCreateWithoutFlagsInput = {
+  id?: string
+  studentId: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionCreateOrConnectWithoutFlagsInput = {
+  where: Prisma.SubmissionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutFlagsInput, Prisma.SubmissionUncheckedCreateWithoutFlagsInput>
+}
+
+export type SubmissionUpsertWithoutFlagsInput = {
+  update: Prisma.XOR<Prisma.SubmissionUpdateWithoutFlagsInput, Prisma.SubmissionUncheckedUpdateWithoutFlagsInput>
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutFlagsInput, Prisma.SubmissionUncheckedCreateWithoutFlagsInput>
+  where?: Prisma.SubmissionWhereInput
+}
+
+export type SubmissionUpdateToOneWithWhereWithoutFlagsInput = {
+  where?: Prisma.SubmissionWhereInput
+  data: Prisma.XOR<Prisma.SubmissionUpdateWithoutFlagsInput, Prisma.SubmissionUncheckedUpdateWithoutFlagsInput>
+}
+
+export type SubmissionUpdateWithoutFlagsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionUncheckedUpdateWithoutFlagsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  studentId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionCreateWithoutRetakeCreditGrantedInput = {
+  id?: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionUncheckedCreateWithoutRetakeCreditGrantedInput = {
+  id?: string
+  studentId: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionCreateOrConnectWithoutRetakeCreditGrantedInput = {
+  where: Prisma.SubmissionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutRetakeCreditGrantedInput, Prisma.SubmissionUncheckedCreateWithoutRetakeCreditGrantedInput>
+}
+
+export type SubmissionCreateWithoutRetakeCreditRedeemedInput = {
+  id?: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionUncheckedCreateWithoutRetakeCreditRedeemedInput = {
+  id?: string
+  studentId: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionCreateOrConnectWithoutRetakeCreditRedeemedInput = {
+  where: Prisma.SubmissionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutRetakeCreditRedeemedInput, Prisma.SubmissionUncheckedCreateWithoutRetakeCreditRedeemedInput>
+}
+
+export type SubmissionUpsertWithoutRetakeCreditGrantedInput = {
+  update: Prisma.XOR<Prisma.SubmissionUpdateWithoutRetakeCreditGrantedInput, Prisma.SubmissionUncheckedUpdateWithoutRetakeCreditGrantedInput>
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutRetakeCreditGrantedInput, Prisma.SubmissionUncheckedCreateWithoutRetakeCreditGrantedInput>
+  where?: Prisma.SubmissionWhereInput
+}
+
+export type SubmissionUpdateToOneWithWhereWithoutRetakeCreditGrantedInput = {
+  where?: Prisma.SubmissionWhereInput
+  data: Prisma.XOR<Prisma.SubmissionUpdateWithoutRetakeCreditGrantedInput, Prisma.SubmissionUncheckedUpdateWithoutRetakeCreditGrantedInput>
+}
+
+export type SubmissionUpdateWithoutRetakeCreditGrantedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionUncheckedUpdateWithoutRetakeCreditGrantedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  studentId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionUpsertWithoutRetakeCreditRedeemedInput = {
+  update: Prisma.XOR<Prisma.SubmissionUpdateWithoutRetakeCreditRedeemedInput, Prisma.SubmissionUncheckedUpdateWithoutRetakeCreditRedeemedInput>
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutRetakeCreditRedeemedInput, Prisma.SubmissionUncheckedCreateWithoutRetakeCreditRedeemedInput>
+  where?: Prisma.SubmissionWhereInput
+}
+
+export type SubmissionUpdateToOneWithWhereWithoutRetakeCreditRedeemedInput = {
+  where?: Prisma.SubmissionWhereInput
+  data: Prisma.XOR<Prisma.SubmissionUpdateWithoutRetakeCreditRedeemedInput, Prisma.SubmissionUncheckedUpdateWithoutRetakeCreditRedeemedInput>
+}
+
+export type SubmissionUpdateWithoutRetakeCreditRedeemedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionUncheckedUpdateWithoutRetakeCreditRedeemedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  studentId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUncheckedUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionCreateWithoutPaymentWaiverInput = {
+  id?: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionUncheckedCreateWithoutPaymentWaiverInput = {
+  id?: string
+  studentId: string
+  status?: $Enums.SubmissionStatus
+  retentionStatus?: $Enums.SubmissionRetentionStatus
+  scoringSystem?: $Enums.ScoringSystem
+  paymentRequired?: boolean
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
+  manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
+  certificate?: Prisma.CertificateUncheckedCreateNestedOneWithoutSubmissionInput
+  startIntent?: Prisma.SubmissionStartIntentUncheckedCreateNestedOneWithoutSubmissionInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutSubmissionInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUncheckedCreateNestedManyWithoutSubmissionInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutSubmissionInput
+}
+
+export type SubmissionCreateOrConnectWithoutPaymentWaiverInput = {
+  where: Prisma.SubmissionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedCreateWithoutPaymentWaiverInput>
+}
+
+export type SubmissionUpsertWithoutPaymentWaiverInput = {
+  update: Prisma.XOR<Prisma.SubmissionUpdateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedUpdateWithoutPaymentWaiverInput>
+  create: Prisma.XOR<Prisma.SubmissionCreateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedCreateWithoutPaymentWaiverInput>
+  where?: Prisma.SubmissionWhereInput
+}
+
+export type SubmissionUpdateToOneWithWhereWithoutPaymentWaiverInput = {
+  where?: Prisma.SubmissionWhereInput
+  data: Prisma.XOR<Prisma.SubmissionUpdateWithoutPaymentWaiverInput, Prisma.SubmissionUncheckedUpdateWithoutPaymentWaiverInput>
+}
+
+export type SubmissionUpdateWithoutPaymentWaiverInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
+  manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
+  certificate?: Prisma.CertificateUpdateOneWithoutSubmissionNestedInput
+  startIntent?: Prisma.SubmissionStartIntentUpdateOneWithoutSubmissionNestedInput
+  retentionHolds?: Prisma.SubmissionRetentionHoldUpdateManyWithoutSubmissionNestedInput
+  purgeRequests?: Prisma.SubmissionPurgeRequestUpdateManyWithoutSubmissionNestedInput
+  purgeObjects?: Prisma.SubmissionPurgeObjectUpdateManyWithoutSubmissionNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutSubmissionNestedInput
+}
+
+export type SubmissionUncheckedUpdateWithoutPaymentWaiverInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  studentId?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+  retentionStatus?: Prisma.EnumSubmissionRetentionStatusFieldUpdateOperationsInput | $Enums.SubmissionRetentionStatus
+  scoringSystem?: Prisma.EnumScoringSystemFieldUpdateOperationsInput | $Enums.ScoringSystem
+  paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1535,9 +2363,15 @@ export type SubmissionCreateWithoutPaymentsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutSubmissionInput
@@ -1558,8 +2392,14 @@ export type SubmissionUncheckedCreateWithoutPaymentsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1595,9 +2435,15 @@ export type SubmissionUpdateWithoutPaymentsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutSubmissionNestedInput
@@ -1618,8 +2464,14 @@ export type SubmissionUncheckedUpdateWithoutPaymentsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1639,9 +2491,15 @@ export type SubmissionCreateWithoutAssignmentsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1662,8 +2520,14 @@ export type SubmissionUncheckedCreateWithoutAssignmentsInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1699,9 +2563,15 @@ export type SubmissionUpdateWithoutAssignmentsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1722,8 +2592,14 @@ export type SubmissionUncheckedUpdateWithoutAssignmentsInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1743,9 +2619,15 @@ export type SubmissionCreateWithoutCertificateInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   student: Prisma.UserCreateNestedOneWithoutSubmissionsInput
+  flags?: Prisma.SubmissionFlagCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentCreateNestedManyWithoutSubmissionInput
@@ -1766,8 +2648,14 @@ export type SubmissionUncheckedCreateWithoutCertificateInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  flags?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutSubmissionInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutVoidedSubmissionInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedCreateNestedOneWithoutRedeemedSubmissionInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedCreateNestedOneWithoutSubmissionInput
   answers?: Prisma.AnswerUncheckedCreateNestedManyWithoutSubmissionInput
   manifest?: Prisma.SubmissionManifestUncheckedCreateNestedOneWithoutSubmissionInput
   payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutSubmissionInput
@@ -1803,9 +2691,15 @@ export type SubmissionUpdateWithoutCertificateInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   student?: Prisma.UserUpdateOneRequiredWithoutSubmissionsNestedInput
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1826,8 +2720,14 @@ export type SubmissionUncheckedUpdateWithoutCertificateInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1847,6 +2747,8 @@ export type SubmissionCreateManyStudentInput = {
   paymentRequired?: boolean
   consentedAt?: Date | string | null
   consentVersion?: string | null
+  flagReturnStatus?: $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1859,8 +2761,14 @@ export type SubmissionUpdateWithoutStudentInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUpdateManyWithoutSubmissionNestedInput
@@ -1881,8 +2789,14 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  flags?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutSubmissionNestedInput
+  retakeCreditGranted?: Prisma.RetakeCreditUncheckedUpdateOneWithoutVoidedSubmissionNestedInput
+  retakeCreditRedeemed?: Prisma.RetakeCreditUncheckedUpdateOneWithoutRedeemedSubmissionNestedInput
+  paymentWaiver?: Prisma.SubmissionPaymentWaiverUncheckedUpdateOneWithoutSubmissionNestedInput
   answers?: Prisma.AnswerUncheckedUpdateManyWithoutSubmissionNestedInput
   manifest?: Prisma.SubmissionManifestUncheckedUpdateOneWithoutSubmissionNestedInput
   payments?: Prisma.PaymentUncheckedUpdateManyWithoutSubmissionNestedInput
@@ -1903,6 +2817,8 @@ export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
   paymentRequired?: Prisma.BoolFieldUpdateOperationsInput | boolean
   consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  flagReturnStatus?: Prisma.NullableEnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus | null
+  lastHeartbeatAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1913,6 +2829,7 @@ export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
  */
 
 export type SubmissionCountOutputType = {
+  flags: number
   answers: number
   payments: number
   assignments: number
@@ -1923,6 +2840,7 @@ export type SubmissionCountOutputType = {
 }
 
 export type SubmissionCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  flags?: boolean | SubmissionCountOutputTypeCountFlagsArgs
   answers?: boolean | SubmissionCountOutputTypeCountAnswersArgs
   payments?: boolean | SubmissionCountOutputTypeCountPaymentsArgs
   assignments?: boolean | SubmissionCountOutputTypeCountAssignmentsArgs
@@ -1940,6 +2858,13 @@ export type SubmissionCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.E
    * Select specific fields to fetch from the SubmissionCountOutputType
    */
   select?: Prisma.SubmissionCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * SubmissionCountOutputType without action
+ */
+export type SubmissionCountOutputTypeCountFlagsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SubmissionFlagWhereInput
 }
 
 /**
@@ -2001,9 +2926,15 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   paymentRequired?: boolean
   consentedAt?: boolean
   consentVersion?: boolean
+  flagReturnStatus?: boolean
+  lastHeartbeatAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  flags?: boolean | Prisma.Submission$flagsArgs<ExtArgs>
+  retakeCreditGranted?: boolean | Prisma.Submission$retakeCreditGrantedArgs<ExtArgs>
+  retakeCreditRedeemed?: boolean | Prisma.Submission$retakeCreditRedeemedArgs<ExtArgs>
+  paymentWaiver?: boolean | Prisma.Submission$paymentWaiverArgs<ExtArgs>
   answers?: boolean | Prisma.Submission$answersArgs<ExtArgs>
   manifest?: boolean | Prisma.Submission$manifestArgs<ExtArgs>
   payments?: boolean | Prisma.Submission$paymentsArgs<ExtArgs>
@@ -2026,6 +2957,8 @@ export type SubmissionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   paymentRequired?: boolean
   consentedAt?: boolean
   consentVersion?: boolean
+  flagReturnStatus?: boolean
+  lastHeartbeatAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -2040,6 +2973,8 @@ export type SubmissionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   paymentRequired?: boolean
   consentedAt?: boolean
   consentVersion?: boolean
+  flagReturnStatus?: boolean
+  lastHeartbeatAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -2054,13 +2989,19 @@ export type SubmissionSelectScalar = {
   paymentRequired?: boolean
   consentedAt?: boolean
   consentVersion?: boolean
+  flagReturnStatus?: boolean
+  lastHeartbeatAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "status" | "retentionStatus" | "scoringSystem" | "paymentRequired" | "consentedAt" | "consentVersion" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
+export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "status" | "retentionStatus" | "scoringSystem" | "paymentRequired" | "consentedAt" | "consentVersion" | "flagReturnStatus" | "lastHeartbeatAt" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
 export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  flags?: boolean | Prisma.Submission$flagsArgs<ExtArgs>
+  retakeCreditGranted?: boolean | Prisma.Submission$retakeCreditGrantedArgs<ExtArgs>
+  retakeCreditRedeemed?: boolean | Prisma.Submission$retakeCreditRedeemedArgs<ExtArgs>
+  paymentWaiver?: boolean | Prisma.Submission$paymentWaiverArgs<ExtArgs>
   answers?: boolean | Prisma.Submission$answersArgs<ExtArgs>
   manifest?: boolean | Prisma.Submission$manifestArgs<ExtArgs>
   payments?: boolean | Prisma.Submission$paymentsArgs<ExtArgs>
@@ -2084,6 +3025,10 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
   name: "Submission"
   objects: {
     student: Prisma.$UserPayload<ExtArgs>
+    flags: Prisma.$SubmissionFlagPayload<ExtArgs>[]
+    retakeCreditGranted: Prisma.$RetakeCreditPayload<ExtArgs> | null
+    retakeCreditRedeemed: Prisma.$RetakeCreditPayload<ExtArgs> | null
+    paymentWaiver: Prisma.$SubmissionPaymentWaiverPayload<ExtArgs> | null
     answers: Prisma.$AnswerPayload<ExtArgs>[]
     manifest: Prisma.$SubmissionManifestPayload<ExtArgs> | null
     payments: Prisma.$PaymentPayload<ExtArgs>[]
@@ -2104,6 +3049,8 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     paymentRequired: boolean
     consentedAt: Date | null
     consentVersion: string | null
+    flagReturnStatus: $Enums.SubmissionStatus | null
+    lastHeartbeatAt: Date | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["submission"]>
@@ -2501,6 +3448,10 @@ readonly fields: SubmissionFieldRefs;
 export interface Prisma__SubmissionClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   student<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  flags<T extends Prisma.Submission$flagsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$flagsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionFlagPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  retakeCreditGranted<T extends Prisma.Submission$retakeCreditGrantedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$retakeCreditGrantedArgs<ExtArgs>>): Prisma.Prisma__RetakeCreditClient<runtime.Types.Result.GetResult<Prisma.$RetakeCreditPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  retakeCreditRedeemed<T extends Prisma.Submission$retakeCreditRedeemedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$retakeCreditRedeemedArgs<ExtArgs>>): Prisma.Prisma__RetakeCreditClient<runtime.Types.Result.GetResult<Prisma.$RetakeCreditPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  paymentWaiver<T extends Prisma.Submission$paymentWaiverArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$paymentWaiverArgs<ExtArgs>>): Prisma.Prisma__SubmissionPaymentWaiverClient<runtime.Types.Result.GetResult<Prisma.$SubmissionPaymentWaiverPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   answers<T extends Prisma.Submission$answersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$answersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AnswerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   manifest<T extends Prisma.Submission$manifestArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$manifestArgs<ExtArgs>>): Prisma.Prisma__SubmissionManifestClient<runtime.Types.Result.GetResult<Prisma.$SubmissionManifestPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   payments<T extends Prisma.Submission$paymentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Submission$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -2548,6 +3499,8 @@ export interface SubmissionFieldRefs {
   readonly paymentRequired: Prisma.FieldRef<"Submission", 'Boolean'>
   readonly consentedAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly consentVersion: Prisma.FieldRef<"Submission", 'String'>
+  readonly flagReturnStatus: Prisma.FieldRef<"Submission", 'SubmissionStatus'>
+  readonly lastHeartbeatAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Submission", 'DateTime'>
 }
@@ -2948,6 +3901,87 @@ export type SubmissionDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.In
    * Limit how many Submissions to delete.
    */
   limit?: number
+}
+
+/**
+ * Submission.flags
+ */
+export type Submission$flagsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionFlag
+   */
+  select?: Prisma.SubmissionFlagSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionFlag
+   */
+  omit?: Prisma.SubmissionFlagOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionFlagInclude<ExtArgs> | null
+  where?: Prisma.SubmissionFlagWhereInput
+  orderBy?: Prisma.SubmissionFlagOrderByWithRelationInput | Prisma.SubmissionFlagOrderByWithRelationInput[]
+  cursor?: Prisma.SubmissionFlagWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SubmissionFlagScalarFieldEnum | Prisma.SubmissionFlagScalarFieldEnum[]
+}
+
+/**
+ * Submission.retakeCreditGranted
+ */
+export type Submission$retakeCreditGrantedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RetakeCredit
+   */
+  select?: Prisma.RetakeCreditSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the RetakeCredit
+   */
+  omit?: Prisma.RetakeCreditOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RetakeCreditInclude<ExtArgs> | null
+  where?: Prisma.RetakeCreditWhereInput
+}
+
+/**
+ * Submission.retakeCreditRedeemed
+ */
+export type Submission$retakeCreditRedeemedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RetakeCredit
+   */
+  select?: Prisma.RetakeCreditSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the RetakeCredit
+   */
+  omit?: Prisma.RetakeCreditOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RetakeCreditInclude<ExtArgs> | null
+  where?: Prisma.RetakeCreditWhereInput
+}
+
+/**
+ * Submission.paymentWaiver
+ */
+export type Submission$paymentWaiverArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionPaymentWaiver
+   */
+  select?: Prisma.SubmissionPaymentWaiverSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionPaymentWaiver
+   */
+  omit?: Prisma.SubmissionPaymentWaiverOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionPaymentWaiverInclude<ExtArgs> | null
+  where?: Prisma.SubmissionPaymentWaiverWhereInput
 }
 
 /**

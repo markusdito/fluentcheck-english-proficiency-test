@@ -16,7 +16,6 @@ import {
 import { useSession } from "@/hooks/useSession";
 import { useSubmissionStatusPolling } from "@/hooks/useSubmissionStatusPolling";
 import { queryKeys } from "@/lib/query-keys";
-import { LazyAnswerMedia } from "@/components/media/LazyAnswerMedia";
 import { BackLink, PageShell, PageState } from "@/components/student/PageShell";
 import { StatusPill } from "@/components/student/StatusPill";
 import { card, h2, h3, meta, primaryButton, statNum } from "@/components/student/styles";
@@ -128,6 +127,8 @@ export default function SubmissionResultPage({
   }
 
   const awaitingPayment = submission.status === "AWAITING_PAYMENT";
+  const voided = submission.status === "VOIDED";
+  const flagReview = submission.status === "FLAG_REVIEW";
   const inReview = REVIEW_STATUSES.has(submission.status);
   const rubric6 = submission.scoringSystem === "RUBRIC_6";
   const scoreMax = scoreMaximum(submission.scoringSystem);
@@ -171,7 +172,47 @@ export default function SubmissionResultPage({
 
       <div className="mt-8 grid items-start gap-8 min-[921px]:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-7">
-          {awaitingPayment ? (
+          {voided ? (
+            <article className={card}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className={meta}>Not scored</p>
+                  <h2 className={`${h3} mt-2`}>This test was voided</h2>
+                </div>
+                <StatusPill status={submission.status} />
+              </div>
+              <p className="mt-2 max-w-[60ch] text-[15px] text-sn-muted">
+                A technical or integrity problem was confirmed, so this test will not be scored.
+              </p>
+              {submission.voidReason && (
+                <p className="mt-4 rounded-[10px] bg-sn-bg p-4 text-[15px]">
+                  <b className="font-semibold">Reason:</b> {submission.voidReason}
+                </p>
+              )}
+              {submission.retakeCreditAvailable && user?.role === "STUDENT" && (
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
+                  <p className="m-0 text-[15px] text-sn-muted">Your next test is free.</p>
+                  <Link href="/dashboard?start=real" className={primaryButton}>
+                    Retake for free
+                  </Link>
+                </div>
+              )}
+            </article>
+          ) : flagReview ? (
+            <article className={card}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className={meta}>Under review</p>
+                  <h2 className={`${h3} mt-2`}>We are checking your recording</h2>
+                </div>
+                <StatusPill status={submission.status} />
+              </div>
+              <p className="mt-2 max-w-[60ch] text-[15px] text-sn-muted">
+                A problem was noticed with your recording. An administrator is reviewing it. If the test
+                cannot be scored, you will get a free retake. You will not be charged for a voided test.
+              </p>
+            </article>
+          ) : awaitingPayment ? (
             <article className={card}>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -235,7 +276,7 @@ export default function SubmissionResultPage({
             </article>
           )}
 
-          {legacyPerAnswer && !awaitingPayment && (
+          {legacyPerAnswer && !awaitingPayment && !voided && (
             <article className={card}>
               <h2 className={h3}>Per answer breakdown</h2>
               <div className="mt-3 overflow-x-auto">
@@ -291,25 +332,18 @@ export default function SubmissionResultPage({
 
         <aside className={card} aria-labelledby="recordings-title">
           <h2 id="recordings-title" className={h3}>Your recordings</h2>
-          <p className="mt-1.5 mb-2 text-[15px] text-sn-muted">Streaming preview only. Recordings can&apos;t be downloaded.</p>
+          <p className="mt-1.5 mb-2 text-[15px] text-sn-muted">
+            Only your two examiners and administrators can watch your recordings.
+          </p>
           {submission.answers.length > 0 ? (
-            submission.answers.map((answer, index) => (
-              <div key={answer.id} className="border-t border-sn-border py-5">
-                <p className={`${meta} mb-3`}>
+            <ul className="m-0 list-none p-0">
+              {submission.answers.map((answer) => (
+                <li key={answer.id} className={`${meta} border-t border-sn-border py-4`}>
                   {categoryLabel(answer.questionCategory)}
                   {answer.durationSeconds != null ? ` · ${answer.durationSeconds}s` : ""}
-                </p>
-                <LazyAnswerMedia
-                  audioUrl={answer.audioUrl}
-                  videoUrl={answer.videoUrl}
-                  durationSeconds={answer.durationSeconds ?? undefined}
-                  questionNumber={index + 1}
-                  unavailableMessage={
-                    submission.status === "IN_PROGRESS" ? "Video still being processed…" : "Video not available"
-                  }
-                />
-              </div>
-            ))
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="border-t border-sn-border pt-5 text-[15px] text-sn-muted">No answers were recorded for this submission.</p>
           )}

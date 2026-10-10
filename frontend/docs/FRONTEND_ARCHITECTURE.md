@@ -38,7 +38,7 @@ verified or whether a Submission is complete.
 | Recording state and browser media | frontend/hooks/useRecording.ts, frontend/hooks/useMediaDevices.ts, frontend/components/hardware/CameraMicPermissionModal.tsx, frontend/lib/recording-state-machine.ts |
 | Direct upload orchestration | frontend/lib/upload-api.ts, frontend/lib/recording-upload-state.ts |
 | Examiner experience | frontend/app/examiner/assignments/[assignmentId]/page.tsx, frontend/lib/examiner-api.ts, frontend/components/examiner |
-| Administrator experience | frontend/app/admin, frontend/lib/admin-api.ts, frontend/lib/question-form.ts |
+| Administrator experience | frontend/app/admin, frontend/components/admin, frontend/lib/admin-api.ts, frontend/lib/question-form.ts |
 | Results presentation | frontend/app/results/[submissionId]/page.tsx, frontend/components/results |
 | Shared UI | frontend/components/layout, frontend/components/ui |
 
@@ -51,17 +51,17 @@ state.
 The following markers are checked against frontend/app/**/page.tsx by
 scripts/check-architecture-docs.mjs.
 
-<!-- page: / | source=frontend/app/page.tsx -->
+<!-- page: / | source=frontend/app/(landing)/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
 | / | Landing page with brand content and authentication actions. |
 
-<!-- page: /login | source=frontend/app/login/page.tsx -->
+<!-- page: /login | source=frontend/app/(auth)/login/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
 | /login | Local login form and optional Google OAuth entry point. |
 
-<!-- page: /signup | source=frontend/app/signup/page.tsx -->
+<!-- page: /signup | source=frontend/app/(auth)/signup/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
 | /signup | Local account registration form. |
@@ -84,12 +84,17 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /results/[submissionId] | source=frontend/app/results/[submissionId]/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /results/[submissionId] | Submission result and score presentation for the selected Submission. |
+| /results/[submissionId] | Submission result and score presentation for the selected Submission. Lists recorded Answers by slot without video playback: the student never views Answer videos after the test. |
 
 <!-- page: /admin | source=frontend/app/admin/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /admin | Administrator overview. |
+| /admin | Administrator overview with stats, review queues (open flags, payment reconciliation, assignment-ready Submissions) and the examiner workload table. |
+
+<!-- page: /admin/flags | source=frontend/app/admin/flags/page.tsx -->
+| Route | Current behavior |
+| --- | --- |
+| /admin/flags | Open technical-failure, camera-drop and integrity flags with every Answer video of the Submission in slot order (lazy-loaded via LazyAnswerMedia, prompt snapshot summary, flagged Answer highlighted with its mm:ss timestamp) as evidence; the Admin confirms (voids the Submission, grants one free retake) or dismisses with a note. |
 
 <!-- page: /admin/questions | source=frontend/app/admin/questions/page.tsx -->
 | Route | Current behavior |
@@ -109,7 +114,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /admin/submissions/[submissionId] | source=frontend/app/admin/submissions/[submissionId]/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /admin/submissions/[submissionId] | Administrator detail, evidence, and assignment recovery view. |
+| /admin/submissions/[submissionId] | Administrator detail, evidence, and assignment recovery view; audited payment waiver while the Submission is AWAITING_PAYMENT; reassignment of assignments the backend marks reassignable, with reassignment history and "Waived by" audit text. |
 
 <!-- page: /admin/users | source=frontend/app/admin/users/page.tsx -->
 | Route | Current behavior |
@@ -119,7 +124,7 @@ scripts/check-architecture-docs.mjs.
 <!-- page: /examiner/assignments/[assignmentId] | source=frontend/app/examiner/assignments/[assignmentId]/page.tsx -->
 | Route | Current behavior |
 | --- | --- |
-| /examiner/assignments/[assignmentId] | Examiner review, media playback, draft scoring, and finalization. |
+| /examiner/assignments/[assignmentId] | Examiner review of all Answer videos in slot order with their Delivered prompt snapshot, draft scoring, finalization, and raising an integrity concern (Answer, timestamp, note). While `paused` (an open flag) a banner shows and saving/completing is disabled; videos stay viewable. |
 
 The current tree also contains layouts, loading UI, not-found UI, and static
 assets. They are documented in the source map where they define behavior but
@@ -143,7 +148,12 @@ response contains summary fields and pagination metadata; the dashboard keeps
 the cursor stack for Previous/Next navigation. Full Answer and Score
 collections remain behind the Submission detail route.
 
-The higher-level modules are deliberately grouped by feature:
+The higher-level modules are deliberately grouped by feature. Administrator
+review queues and examiner workload are read from GET /admin/queues and
+GET /admin/examiners; the examiner list reads the backend `{ items }` envelope.
+Admin query keys live under the `["admin"]` prefix (for example
+queryKeys.adminQueues and queryKeys.adminExaminers), and admin mutations
+invalidate that prefix.
 
 | Module | Responsibility |
 | --- | --- |
@@ -155,7 +165,7 @@ The higher-level modules are deliberately grouped by feature:
 | frontend/lib/upload-api.ts | Presign, direct PUT, and confirmation requests. |
 | frontend/lib/question-audio-api.ts | Administrator prompt-audio requests. |
 | frontend/lib/examiner-api.ts | Examiner assignment, media, score, and finalization requests. |
-| frontend/lib/admin-api.ts | Administrator users, settings, Test Sets, questions, Submissions, and assignments. |
+| frontend/lib/admin-api.ts | Administrator users, settings, Test Sets, questions, Submissions, assignments, payment waiver, assignment reassignment, review queues, and examiner workload. |
 | frontend/lib/assessment-slots.ts | The five delivery slots, their labels and default timings, and the Test Set display label. |
 
 There are no current frontend endpoints for /api/results, /auth/profile,
@@ -185,11 +195,26 @@ already-uploaded entry identities.
 
 The coordinator treats live camera and microphone tracks as the readiness
 authority. Device enumeration and the optional microphone level monitor are
-informational; their failure does not invalidate capture. If a required track
-ends, the test page pauses and discards the current incomplete recording,
-preserving the Submission and prior verified Answers until both devices are
-recovered. An explicit abandon action calls the server lifecycle endpoint,
-clears the start intent, and releases the stream.
+informational; their failure does not invalidate capture. A recorder error,
+camera or microphone loss, or a browser `offline` event while recording ends
+the take with the timeslice chunks captured so far. That partial (possibly
+empty) take is uploaded with a `technicalFailure` (`CAMERA_DROP` or
+`TECHNICAL_FAILURE` plus a reason) on upload confirmation; the server flags the
+Answer and sends the Submission to flag review. Takes under 2 seconds or 8 KB
+are uploaded and flagged the same way, never re-recorded. Device loss during
+preparation does not pause the slot: recording still starts on time and yields
+an empty flagged take if a device is missing. An explicit abandon action calls
+the server lifecycle endpoint, clears the start intent, and releases the stream.
+
+For a real (not practice) Submission the page posts a heartbeat every 15
+seconds with an 8-second timeout. A network failure, 5xx, or `offline` event
+shows "Connection lost — reconnecting", pauses preparation, and retries every
+4 seconds; a take recording during the loss is ended and flagged as above, not
+replayed. On success the page resumes the next unfinished slot with full
+preparation time. A 409 or 404 shows "This Assessment has ended". `pagehide`
+and unmount (client navigation away) send the abandon request with
+`navigator.sendBeacon` (fetch `keepalive` fallback) and clear the start
+intent, so returning to the test route starts a new Assessment.
 
 The test page and its layout coordinate these visible phases:
 
@@ -199,8 +224,9 @@ The test page and its layout coordinate these visible phases:
 4. Recording one response with MediaRecorder.
 5. Stopping and preparing the recorded Blob.
 6. Uploading and verifying the Answer.
-7. Pausing on required-track loss and recovering the same Submission when media is restored.
+7. Saving and flagging partial, short or device-lost takes instead of re-recording them.
 8. Advancing only after server confirmation, then completing or explicitly abandoning the Submission.
+9. Pausing on connection loss and resuming the next unfinished slot after a successful heartbeat.
 
 The dynamic testId segment is retained for navigation compatibility. Current
 initialization is keyed by the server-created Submission and manifest, not by
@@ -221,10 +247,10 @@ request for the answer bytes, or treat a local Blob as proof that the object
 is durable. The backend independently HEADs the object and binds verification
 evidence to the Answer.
 
-The current UI has no automatic three-attempt upload retry. Once a recording
-has been consumed by the upload flow, retryUpload requires a new recording
-because the prior Blob is not retained as a durable retry queue. Upload
-failure remains visible as an error and does not advance the Assessment.
+Each take stays in memory until verified. An upload is tried three times in the
+background while the Assessment advances; after that the entry shows an error
+with a Retry upload action, and a browser `online` event retries it
+automatically. Takes are not persisted across a page reload.
 
 The backend's current media contract accepts video/webm, video/mp4, or
 video/quicktime and enforces an answer limit of 100 MB. Any browser-side
@@ -235,9 +261,11 @@ feedback is only advisory; server-side R2 inspection remains authoritative.
 | Server state | Frontend meaning |
 | --- | --- |
 | IN_PROGRESS | The student can resume recording and uploading manifest entries. |
-| AWAITING_PAYMENT | Recording is complete and payment is still required; provider payment behavior is backend-owned. |
+| AWAITING_PAYMENT | Recording is complete and payment is still required; provider payment behavior is backend-owned. An Administrator can record an audited payment waiver instead, which the backend applies. |
 | PAID | Payment is validated; Examiner assignment is a separate backend transition. |
 | SCORING | The Submission is in the two-Examiner scoring process. |
+| FLAG_REVIEW | An open flag pauses both Examiner assignments; the Examiner dashboard shows "Paused" and scoring actions are disabled until an Admin dismisses or confirms the flag. |
+| VOIDED | An Admin confirmed a flag; the Submission is never scored and the student gets one free retake. |
 | SCORED | Both Examiner assignments have been finalized and scores can be displayed. |
 | ABANDONED | The student left the open attempt permanently. |
 | CERTIFIED | Read/display compatibility for schema-supported data; current code has no issuance path. |
@@ -267,13 +295,19 @@ PromptDisplay presents the manifest prompt and timing, including the Part 2
 cue card and the four Part 3 options (text with icon, with the instruction to
 choose ONE). RecordingTimer and
 WebcamPreview support the active recording state. QuestionAudioPlayer presents
-prompt audio. VideoPlayer and LazyAnswerMedia present stored answer media,
-including examiner/admin views.
+prompt audio. VideoPlayer and LazyAnswerMedia present stored answer media in
+examiner/admin views only. Answer video URLs are signed, time-limited and
+audited by the backend on every issuance; the student result page never
+receives one.
 
 ### Examiner and results
 
-AssignmentList lists assignments. VideoReviewer presents the delivered media
-and prompt context. ScoringPanel edits and submits score drafts. ScoreCard,
+AssignmentList lists assignments. VideoReviewer presents the current Answer
+video with its Delivered prompt snapshot (slot label, prompt audio, tasks, and
+the Part 2 cue card / Part 3 options via PromptDisplay's CueCardPanel and
+OptionsPanel), a technical-failure note, and the "Raise integrity concern"
+form (timestamp defaults to the video's current second). ScoringPanel edits
+and submits score drafts and is disabled while the assignment is paused. ScoreCard,
 RubricBreakdownView, and ScaleAwareScoreDisplay render score information
 without reimplementing backend scoring decisions.
 
@@ -283,6 +317,15 @@ AudioUploadButton and AudioUploadBadge support prompt-audio administration.
 The admin pages use the admin API modules and shared Table, Form, Dialog,
 Select, Badge, Progress, and related UI primitives. BandGauge, Stamp, and
 submission-status primitives provide domain-specific presentation.
+
+AdminQueues and ExaminerWorkload render on /admin. AdminQueues lists open
+flags with a link to /admin/flags, a read-only payment reconciliation queue
+with a label per reason, and unassigned assignment-ready Submissions with an
+Assign action. ExaminerWorkload shows active Examiners with their open
+assignment counts. On the Submission detail page, WaivePaymentPanel (shown
+while AWAITING_PAYMENT) requires a reason, and ReassignAssignmentForm lets the
+Administrator choose an Examiner not already on the Submission and give a
+reason. Both mutations are backend-enforced; the components only present them.
 
 ### Hooks and state machines
 
@@ -340,7 +383,8 @@ Focused tests that protect the current frontend contracts include:
 | Recording transitions | frontend/lib/recording-state-machine.test.ts, frontend/hooks/useRecording.test.tsx, frontend/app/test/[testId]/page.test.tsx |
 | Upload transitions | frontend/lib/recording-upload-state.test.ts, frontend/lib/rate-limit-flow.test.ts, frontend/app/test/[testId]/page.test.tsx |
 | Media readiness and coordinator ownership | frontend/hooks/useMediaDevices.test.tsx, frontend/components/hardware/CameraMicPermissionModal.test.tsx, frontend/app/test/[testId]/page.test.tsx |
-| Media and examiner presentation | frontend/components/media/LazyAnswerMedia.test.tsx, frontend/components/examiner/VideoReviewer.test.tsx |
+| Media and examiner presentation | frontend/components/media/LazyAnswerMedia.test.tsx, frontend/components/examiner/VideoReviewer.test.tsx (prompt snapshot, integrity concern, paused scoring) |
+| Answer video access | frontend/app/admin/flags/page.test.tsx, frontend/app/results/[submissionId]/page.test.tsx |
 | Auth controls | frontend/components/auth/AuthForms.test.tsx, frontend/components/auth/GoogleAuthButton.test.tsx |
 | Dashboard/admin routes | frontend/app/dashboard/page.test.tsx, frontend/lib/dashboard-api.test.ts, frontend/app/admin/questions/page.test.tsx, frontend/app/admin/submissions/[submissionId]/page.test.tsx |
 

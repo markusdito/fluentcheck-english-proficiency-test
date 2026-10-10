@@ -8,6 +8,7 @@ export const adminNavigationItems: AdminNavigationItem[] = [
   { href: "/admin", label: "Overview", exact: true },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/submissions", label: "Submissions" },
+  { href: "/admin/flags", label: "Flags" },
   { href: "/admin/questions", label: "Questions" },
   { href: "/admin/settings", label: "Settings" },
 ];

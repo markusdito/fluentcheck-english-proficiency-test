@@ -32,6 +32,7 @@ export type ExaminerAssignmentReassignmentMinAggregateOutputType = {
   newExaminerId: string | null
   actingAdminId: string | null
   reason: string | null
+  note: string | null
   createdAt: Date | null
 }
 
@@ -43,6 +44,7 @@ export type ExaminerAssignmentReassignmentMaxAggregateOutputType = {
   newExaminerId: string | null
   actingAdminId: string | null
   reason: string | null
+  note: string | null
   createdAt: Date | null
 }
 
@@ -54,6 +56,7 @@ export type ExaminerAssignmentReassignmentCountAggregateOutputType = {
   newExaminerId: number
   actingAdminId: number
   reason: number
+  note: number
   createdAt: number
   _all: number
 }
@@ -67,6 +70,7 @@ export type ExaminerAssignmentReassignmentMinAggregateInputType = {
   newExaminerId?: true
   actingAdminId?: true
   reason?: true
+  note?: true
   createdAt?: true
 }
 
@@ -78,6 +82,7 @@ export type ExaminerAssignmentReassignmentMaxAggregateInputType = {
   newExaminerId?: true
   actingAdminId?: true
   reason?: true
+  note?: true
   createdAt?: true
 }
 
@@ -89,6 +94,7 @@ export type ExaminerAssignmentReassignmentCountAggregateInputType = {
   newExaminerId?: true
   actingAdminId?: true
   reason?: true
+  note?: true
   createdAt?: true
   _all?: true
 }
@@ -173,6 +179,7 @@ export type ExaminerAssignmentReassignmentGroupByOutputType = {
   newExaminerId: string
   actingAdminId: string
   reason: string
+  note: string | null
   createdAt: Date
   _count: ExaminerAssignmentReassignmentCountAggregateOutputType | null
   _min: ExaminerAssignmentReassignmentMinAggregateOutputType | null
@@ -205,6 +212,7 @@ export type ExaminerAssignmentReassignmentWhereInput = {
   newExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   actingAdminId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   reason?: Prisma.StringFilter<"ExaminerAssignmentReassignment"> | string
+  note?: Prisma.StringNullableFilter<"ExaminerAssignmentReassignment"> | string | null
   createdAt?: Prisma.DateTimeFilter<"ExaminerAssignmentReassignment"> | Date | string
   assignment?: Prisma.XOR<Prisma.ExaminerAssignmentScalarRelationFilter, Prisma.ExaminerAssignmentWhereInput>
   previousExaminer?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -220,6 +228,7 @@ export type ExaminerAssignmentReassignmentOrderByWithRelationInput = {
   newExaminerId?: Prisma.SortOrder
   actingAdminId?: Prisma.SortOrder
   reason?: Prisma.SortOrder
+  note?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   assignment?: Prisma.ExaminerAssignmentOrderByWithRelationInput
   previousExaminer?: Prisma.UserOrderByWithRelationInput
@@ -238,6 +247,7 @@ export type ExaminerAssignmentReassignmentWhereUniqueInput = Prisma.AtLeast<{
   newExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   actingAdminId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   reason?: Prisma.StringFilter<"ExaminerAssignmentReassignment"> | string
+  note?: Prisma.StringNullableFilter<"ExaminerAssignmentReassignment"> | string | null
   createdAt?: Prisma.DateTimeFilter<"ExaminerAssignmentReassignment"> | Date | string
   assignment?: Prisma.XOR<Prisma.ExaminerAssignmentScalarRelationFilter, Prisma.ExaminerAssignmentWhereInput>
   previousExaminer?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -253,6 +263,7 @@ export type ExaminerAssignmentReassignmentOrderByWithAggregationInput = {
   newExaminerId?: Prisma.SortOrder
   actingAdminId?: Prisma.SortOrder
   reason?: Prisma.SortOrder
+  note?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ExaminerAssignmentReassignmentCountOrderByAggregateInput
   _max?: Prisma.ExaminerAssignmentReassignmentMaxOrderByAggregateInput
@@ -270,6 +281,7 @@ export type ExaminerAssignmentReassignmentScalarWhereWithAggregatesInput = {
   newExaminerId?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string
   actingAdminId?: Prisma.UuidWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string
   reason?: Prisma.StringWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string
+  note?: Prisma.StringNullableWithAggregatesFilter<"ExaminerAssignmentReassignment"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ExaminerAssignmentReassignment"> | Date | string
 }
 
@@ -277,6 +289,7 @@ export type ExaminerAssignmentReassignmentCreateInput = {
   id?: string
   transitionId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutReassignmentHistoryInput
   previousExaminer: Prisma.UserCreateNestedOneWithoutReassignmentsFromInput
@@ -292,6 +305,7 @@ export type ExaminerAssignmentReassignmentUncheckedCreateInput = {
   newExaminerId: string
   actingAdminId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -299,6 +313,7 @@ export type ExaminerAssignmentReassignmentUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutReassignmentHistoryNestedInput
   previousExaminer?: Prisma.UserUpdateOneRequiredWithoutReassignmentsFromNestedInput
@@ -314,6 +329,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateInput = {
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -325,6 +341,7 @@ export type ExaminerAssignmentReassignmentCreateManyInput = {
   newExaminerId: string
   actingAdminId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -332,6 +349,7 @@ export type ExaminerAssignmentReassignmentUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -343,6 +361,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyInput = {
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -364,6 +383,7 @@ export type ExaminerAssignmentReassignmentCountOrderByAggregateInput = {
   newExaminerId?: Prisma.SortOrder
   actingAdminId?: Prisma.SortOrder
   reason?: Prisma.SortOrder
+  note?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -375,6 +395,7 @@ export type ExaminerAssignmentReassignmentMaxOrderByAggregateInput = {
   newExaminerId?: Prisma.SortOrder
   actingAdminId?: Prisma.SortOrder
   reason?: Prisma.SortOrder
+  note?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -386,6 +407,7 @@ export type ExaminerAssignmentReassignmentMinOrderByAggregateInput = {
   newExaminerId?: Prisma.SortOrder
   actingAdminId?: Prisma.SortOrder
   reason?: Prisma.SortOrder
+  note?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -561,6 +583,7 @@ export type ExaminerAssignmentReassignmentCreateWithoutPreviousExaminerInput = {
   id?: string
   transitionId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutReassignmentHistoryInput
   newExaminer: Prisma.UserCreateNestedOneWithoutReassignmentsToInput
@@ -574,6 +597,7 @@ export type ExaminerAssignmentReassignmentUncheckedCreateWithoutPreviousExaminer
   newExaminerId: string
   actingAdminId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -591,6 +615,7 @@ export type ExaminerAssignmentReassignmentCreateWithoutNewExaminerInput = {
   id?: string
   transitionId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutReassignmentHistoryInput
   previousExaminer: Prisma.UserCreateNestedOneWithoutReassignmentsFromInput
@@ -604,6 +629,7 @@ export type ExaminerAssignmentReassignmentUncheckedCreateWithoutNewExaminerInput
   previousExaminerId: string
   actingAdminId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -621,6 +647,7 @@ export type ExaminerAssignmentReassignmentCreateWithoutActingAdminInput = {
   id?: string
   transitionId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
   assignment: Prisma.ExaminerAssignmentCreateNestedOneWithoutReassignmentHistoryInput
   previousExaminer: Prisma.UserCreateNestedOneWithoutReassignmentsFromInput
@@ -634,6 +661,7 @@ export type ExaminerAssignmentReassignmentUncheckedCreateWithoutActingAdminInput
   previousExaminerId: string
   newExaminerId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -674,6 +702,7 @@ export type ExaminerAssignmentReassignmentScalarWhereInput = {
   newExaminerId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   actingAdminId?: Prisma.UuidFilter<"ExaminerAssignmentReassignment"> | string
   reason?: Prisma.StringFilter<"ExaminerAssignmentReassignment"> | string
+  note?: Prisma.StringNullableFilter<"ExaminerAssignmentReassignment"> | string | null
   createdAt?: Prisma.DateTimeFilter<"ExaminerAssignmentReassignment"> | Date | string
 }
 
@@ -713,6 +742,7 @@ export type ExaminerAssignmentReassignmentCreateWithoutAssignmentInput = {
   id?: string
   transitionId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
   previousExaminer: Prisma.UserCreateNestedOneWithoutReassignmentsFromInput
   newExaminer: Prisma.UserCreateNestedOneWithoutReassignmentsToInput
@@ -726,6 +756,7 @@ export type ExaminerAssignmentReassignmentUncheckedCreateWithoutAssignmentInput 
   newExaminerId: string
   actingAdminId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -762,6 +793,7 @@ export type ExaminerAssignmentReassignmentCreateManyPreviousExaminerInput = {
   newExaminerId: string
   actingAdminId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -772,6 +804,7 @@ export type ExaminerAssignmentReassignmentCreateManyNewExaminerInput = {
   previousExaminerId: string
   actingAdminId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -782,6 +815,7 @@ export type ExaminerAssignmentReassignmentCreateManyActingAdminInput = {
   previousExaminerId: string
   newExaminerId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -789,6 +823,7 @@ export type ExaminerAssignmentReassignmentUpdateWithoutPreviousExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutReassignmentHistoryNestedInput
   newExaminer?: Prisma.UserUpdateOneRequiredWithoutReassignmentsToNestedInput
@@ -802,6 +837,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutPreviousExaminer
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -812,6 +848,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutPreviousExam
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -819,6 +856,7 @@ export type ExaminerAssignmentReassignmentUpdateWithoutNewExaminerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutReassignmentHistoryNestedInput
   previousExaminer?: Prisma.UserUpdateOneRequiredWithoutReassignmentsFromNestedInput
@@ -832,6 +870,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutNewExaminerInput
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -842,6 +881,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutNewExaminerI
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -849,6 +889,7 @@ export type ExaminerAssignmentReassignmentUpdateWithoutActingAdminInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.ExaminerAssignmentUpdateOneRequiredWithoutReassignmentHistoryNestedInput
   previousExaminer?: Prisma.UserUpdateOneRequiredWithoutReassignmentsFromNestedInput
@@ -862,6 +903,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutActingAdminInput
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -872,6 +914,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutActingAdminI
   previousExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -882,6 +925,7 @@ export type ExaminerAssignmentReassignmentCreateManyAssignmentInput = {
   newExaminerId: string
   actingAdminId: string
   reason: string
+  note?: string | null
   createdAt?: Date | string
 }
 
@@ -889,6 +933,7 @@ export type ExaminerAssignmentReassignmentUpdateWithoutAssignmentInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   transitionId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   previousExaminer?: Prisma.UserUpdateOneRequiredWithoutReassignmentsFromNestedInput
   newExaminer?: Prisma.UserUpdateOneRequiredWithoutReassignmentsToNestedInput
@@ -902,6 +947,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateWithoutAssignmentInput 
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -912,6 +958,7 @@ export type ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutAssignmentIn
   newExaminerId?: Prisma.StringFieldUpdateOperationsInput | string
   actingAdminId?: Prisma.StringFieldUpdateOperationsInput | string
   reason?: Prisma.StringFieldUpdateOperationsInput | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -925,6 +972,7 @@ export type ExaminerAssignmentReassignmentSelect<ExtArgs extends runtime.Types.E
   newExaminerId?: boolean
   actingAdminId?: boolean
   reason?: boolean
+  note?: boolean
   createdAt?: boolean
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
   previousExaminer?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -940,6 +988,7 @@ export type ExaminerAssignmentReassignmentSelectCreateManyAndReturn<ExtArgs exte
   newExaminerId?: boolean
   actingAdminId?: boolean
   reason?: boolean
+  note?: boolean
   createdAt?: boolean
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
   previousExaminer?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -955,6 +1004,7 @@ export type ExaminerAssignmentReassignmentSelectUpdateManyAndReturn<ExtArgs exte
   newExaminerId?: boolean
   actingAdminId?: boolean
   reason?: boolean
+  note?: boolean
   createdAt?: boolean
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
   previousExaminer?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -970,10 +1020,11 @@ export type ExaminerAssignmentReassignmentSelectScalar = {
   newExaminerId?: boolean
   actingAdminId?: boolean
   reason?: boolean
+  note?: boolean
   createdAt?: boolean
 }
 
-export type ExaminerAssignmentReassignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "transitionId" | "assignmentId" | "previousExaminerId" | "newExaminerId" | "actingAdminId" | "reason" | "createdAt", ExtArgs["result"]["examinerAssignmentReassignment"]>
+export type ExaminerAssignmentReassignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "transitionId" | "assignmentId" | "previousExaminerId" | "newExaminerId" | "actingAdminId" | "reason" | "note" | "createdAt", ExtArgs["result"]["examinerAssignmentReassignment"]>
 export type ExaminerAssignmentReassignmentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   assignment?: boolean | Prisma.ExaminerAssignmentDefaultArgs<ExtArgs>
   previousExaminer?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1009,6 +1060,7 @@ export type $ExaminerAssignmentReassignmentPayload<ExtArgs extends runtime.Types
     newExaminerId: string
     actingAdminId: string
     reason: string
+    note: string | null
     createdAt: Date
   }, ExtArgs["result"]["examinerAssignmentReassignment"]>
   composites: {}
@@ -1444,6 +1496,7 @@ export interface ExaminerAssignmentReassignmentFieldRefs {
   readonly newExaminerId: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>
   readonly actingAdminId: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>
   readonly reason: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>
+  readonly note: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'String'>
   readonly createdAt: Prisma.FieldRef<"ExaminerAssignmentReassignment", 'DateTime'>
 }
     

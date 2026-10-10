@@ -30,6 +30,7 @@ const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
 export function AssignmentPill({ a }: { a: Pick<ExaminerAssignmentSummary, "status" | "submissionStatus"> }) {
+  if (a.status !== "COMPLETED" && a.submissionStatus === "FLAG_REVIEW") return <Pill tone="amber">Paused</Pill>;
   if (a.status === "ASSIGNED") return <Pill tone="navy">To score</Pill>;
   if (a.status === "IN_PROGRESS") return <Pill tone="amber">In progress</Pill>;
   if (a.submissionStatus === "CERTIFIED") return <Pill tone="green">Certified</Pill>;

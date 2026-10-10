@@ -8,6 +8,7 @@ import {
   saveScore,
   startAssignment,
 } from "../controllers/examiner.controller.js";
+import { raiseAssignmentIntegrityConcern } from "../controllers/submissionFlag.controller.js";
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.get("/assignments/:id", getAssignment);
 router.put("/assignments/:id/start", startAssignment);
 router.put("/assignments/:id/score", saveScore);
 router.post("/assignments/:id/complete", completeScoring);
+router.post("/assignments/:id/integrity-concerns", raiseAssignmentIntegrityConcern);
 
 export default router;

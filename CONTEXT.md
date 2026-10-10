@@ -25,8 +25,12 @@ A student's request to create or resume one Submission. Retrying the same intent
 _Avoid_: Test initialization, restart request
 
 **Abandonment**:
-An explicit end of an Active Submission that preserves its retained evidence and permits a later Assessment start.
+The end of an Active Submission, by explicit action, by the student leaving the Assessment page, or by Heartbeat expiry, that preserves its retained evidence and permits a later Assessment start.
 _Avoid_: Deletion, purge, cancellation
+
+**Heartbeat**:
+A periodic signal from the Assessment page that keeps an Active Submission open; when none arrives within the grace period, the server abandons the Submission.
+_Avoid_: Ping, keepalive
 
 **Retained submission**:
 A Submission that has not been explicitly purged from FluentCheck, regardless of its completion, payment, or scoring state.
@@ -100,6 +104,10 @@ _Avoid_: Microphone permission, recording proof
 An Answer whose immutable media-object identity and required properties FluentCheck independently observed and bound to its Manifest entry.
 _Avoid_: Uploaded answer, client-confirmed answer
 
+**Answer video view**:
+The issuance of one signed, time-limited Answer video URL to an assigned Examiner or an Admin, recorded as an immutable audit event. The student never receives one after the Assessment.
+_Avoid_: Video download, playback log
+
 **Retired question**:
 A Question withdrawn from future delivery while retaining its identity and all references from retained Submission evidence. It may be explicitly restored if its original position is available.
 _Avoid_: Deleted question, soft-deleted question
@@ -168,6 +176,22 @@ _Avoid_: Connection error, generic server error
 The Submission manifest's identity-bearing record for one selected Question and its Delivered prompt snapshot; Answers and downstream interpretation attach to this entry rather than to the mutable Question bank.
 _Avoid_: Question assignment, current question link
 
+**Flag**:
+A technical-failure, camera-drop or Examiner integrity-concern record on a Submission. While any flag is open the Submission is in `FLAG_REVIEW` and is never assigned or scored.
+_Avoid_: Report, issue, alert
+
+**Voided submission**:
+A terminal Submission whose flag an Admin confirmed; it is never scored and grants its student one Retake credit.
+_Avoid_: Cancelled submission, failed submission
+
+**Retake credit**:
+One free retake owned by the student of a Voided submission, redeemed automatically as a system waiver on that student's next completed Submission. Not transferable.
+_Avoid_: Voucher, coupon, refund
+
+**Payment waiver**:
+An Admin's audited decision that one Submission awaiting payment needs no payment; the Submission becomes PAID and Assignment-ready. Made once per Submission. Distinct from the system waiver a Retake credit applies automatically.
+_Avoid_: Free retake, discount, refund
+
 **Payment attempt**:
 A single request to open a provider checkout for one Submission. It retains its own identity and outcome independently of earlier or later attempts.
 _Avoid_: Payment request, checkout
@@ -219,6 +243,10 @@ _Avoid_: Paid submission, unassigned submission
 **Payment reconciliation**:
 Reviewing recorded Payment attempts against provider records, including ambiguous outcomes or more than one successful attempt for the same Submission.
 _Avoid_: Payment repair, payment overwrite
+
+**Payment reconciliation queue**:
+The Admin-facing list of Payment attempts whose provider outcome is ambiguous and needs an Admin decision: stale pending attempts, duplicate successful attempts, and paid attempts on waived Submissions. It is read-only; nothing in it is resolved automatically.
+_Avoid_: Payment repair queue, payment failure list
 
 **Completed Examiner assignment**:
 An Examiner assignment whose required Answers have valid Scores and whose scoring submission is committed; it is no longer editable, and repeating completion is a successful no-op.

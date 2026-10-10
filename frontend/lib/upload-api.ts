@@ -59,18 +59,31 @@ export async function uploadToR2(presignedUrl: string, blob: Blob): Promise<void
   }
 }
 
+/** A capture failure recorded with the Answer; the server raises its flag (PRD FR-3.7, FR-4.3). */
+export interface AnswerTechnicalFailure {
+  type: "TECHNICAL_FAILURE" | "CAMERA_DROP";
+  reason: string;
+}
+
+export interface ConfirmUploadResult {
+  technicalFailure: boolean;
+  technicalFailureReason: string | null;
+}
+
 /**
- * Confirm to the backend that the upload completed successfully.
+ * Confirm to the backend that the upload completed successfully. A take with
+ * `technicalFailure` (possibly 0 bytes) is saved and flagged by the server.
  */
 export async function confirmUpload(
   submissionId: string,
   manifestEntryId: string,
-  metadata?: { sizeBytes?: number; durationSeconds?: number }
-): Promise<void> {
-  await api.post("/uploads/confirm", {
+  metadata?: { sizeBytes?: number; durationSeconds?: number; technicalFailure?: AnswerTechnicalFailure }
+): Promise<ConfirmUploadResult> {
+  return api.post<ConfirmUploadResult>("/uploads/confirm", {
     submissionId,
     manifestEntryId,
     sizeBytes: metadata?.sizeBytes,
     durationSeconds: metadata?.durationSeconds,
+    technicalFailure: metadata?.technicalFailure,
   });
 }

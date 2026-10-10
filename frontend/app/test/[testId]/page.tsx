@@ -23,24 +23,31 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { abandonSubmission, completeSubmission } from "@/lib/test-api";
+import { abandonSubmission, abandonSubmissionOnLeave, completeSubmission, sendHeartbeat } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
 import { initializePractice, initializeTest } from "@/lib/test-initialization";
 import { slotLabel } from "@/lib/assessment-slots";
 import { clearAssessmentStartIntent } from "@/lib/assessment-start-intent";
 import { clearConsent, readConsent } from "@/lib/consent";
-import { getPresignedUrl, uploadToR2, confirmUpload } from "@/lib/upload-api";
+import { getPresignedUrl, uploadToR2, confirmUpload, type AnswerTechnicalFailure } from "@/lib/upload-api";
 import type { Prompt, UploadStatus, QuestionUploadState } from "@/types/test";
 import { areAllManifestEntriesUploaded, initializeUploadStates } from "@/lib/recording-upload-state";
 import { entryMachinesReducer } from "@/lib/recording-state-machine";
 
-type TestPhase = "loading" | "preparation" | "recording" | "finalizing" | "media-paused" | "completed";
+type TestPhase = "loading" | "preparation" | "recording" | "finalizing" | "completed";
 
 /** Prompt audio plays per slot, autoplay included (PRD FR-3.4). */
 const PROMPT_MAX_PLAYS = 2;
 const UPLOAD_ATTEMPTS = 3;
 const UPLOAD_RETRY_DELAY_MS = 2000;
 const PENDING_UPLOAD: UploadStatus[] = ["blob-ready", "signing", "getting-url", "uploading", "verifying"];
+/** Takes below either bound are saved but flagged as possibly short or silent (PRD FR-3.8). */
+const MIN_TAKE_SECONDS = 2;
+const MIN_TAKE_BYTES = 8192;
+/** Keeps the IN_PROGRESS Submission alive; the server abandons it after 120 s of silence (PRD FR-2.7). */
+const HEARTBEAT_INTERVAL_MS = 15_000;
+const HEARTBEAT_RETRY_MS = 4_000;
+const HEARTBEAT_TIMEOUT_MS = 8_000;
 
 type UploadState = Record<string, QuestionUploadState>;
 
@@ -75,7 +82,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   // in the dashboard's consent + system check.
   const consentVersion = readConsent(studentId);
 
-  const { blob, duration: recDuration, error: recError, startRecording, stopRecording, resetRecording } = useRecording();
+  const { blob, duration: recDuration, failure: recFailure, startRecording, stopRecording, resetRecording } = useRecording();
 
   const [questions, setQuestions] = useState<Prompt[]>([]);
   const [fetchError, setFetchError] = useState<{
@@ -96,14 +103,25 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [completionPending, setCompletionPending] = useState(false);
   const [submissionCompleted, setSubmissionCompleted] = useState(false);
+  // Connection loss pauses the flow; a Submission the server already ended
+  // (heartbeat silence or a leave beacon) cannot continue (PRD FR-2.7/2.8).
+  const [connectionLost, setConnectionLost] = useState(false);
+  const [submissionEnded, setSubmissionEnded] = useState(false);
 
   // Upload state per manifest entry. Takes are kept in memory until verified
   // so a failed upload is retried without re-recording (one take per slot).
   const [uploadStates, setUploadStates] = useState<UploadState>({});
   const [, dispatchEntryMachine] = useReducer(entryMachinesReducer, {});
   const uploadRef = useRef<Map<string, Promise<void>>>(new Map());
-  const takesRef = useRef<Map<string, { blob: Blob; durationSeconds: number }>>(new Map());
+  const takesRef = useRef<Map<string, { blob: Blob; durationSeconds: number; failure: AnswerTechnicalFailure | null }>>(new Map());
   const submissionIdRef = useRef<string | null>(null);
+  // Capture failure of the current take. It travels with the upload, and the
+  // server flags the Answer so the Submission goes to flag review (FR-3.7, FR-4.3).
+  const takeFailureRef = useRef<AnswerTechnicalFailure | null>(null);
+
+  // Set once the Submission left IN_PROGRESS here (completed, abandoned, ended)
+  // so leaving the page does not abandon it again.
+  const leftRef = useRef(false);
 
   useEffect(() => {
     submissionIdRef.current = submissionId;
@@ -132,8 +150,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
           initialized.questions.map((question) => question.id),
           initialized.uploadedEntryIds,
         );
-        // ponytail: a reload resumes at the first slot without a verified
-        // Answer; network-loss-only resume and abandon-on-leave are #174.
+        // A reload normally starts a new Assessment (the leave beacon abandoned
+        // this one); a replayed intent resumes at the first unverified slot.
         const firstOpen = initialized.questions.findIndex((question) => states[question.id]?.status !== "uploaded");
         setSubmissionId(initialized.submissionId);
         setTestSetCode(initialized.testSet?.code ?? null);
@@ -151,13 +169,16 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     init();
   }, [consentVersion, mediaReady, practice, sessionPending, studentId]);
 
-  // Recording starts automatically when preparation ends (PRD FR-3.5).
+  // Recording starts automatically when preparation ends (PRD FR-3.5). With a
+  // device missing it still "starts": the hook hands back an empty failed take.
   const onPrepComplete = useCallback(() => {
-    if (stream && mediaReady && phase === "preparation" && currentQuestion) {
-      startRecording(stream, currentQuestion.recordingDuration);
-      setPhase("recording");
-    }
-  }, [stream, mediaReady, phase, startRecording, currentQuestion]);
+    if (phase !== "preparation" || connectionLost || !currentQuestion) return;
+    takeFailureRef.current = mediaReady ? null : !isVideoReady
+      ? { type: "CAMERA_DROP", reason: "Camera was unavailable when the answer should start recording" }
+      : { type: "TECHNICAL_FAILURE", reason: "Microphone was unavailable when the answer should start recording" };
+    startRecording(mediaReady ? stream : null, currentQuestion.recordingDuration);
+    setPhase("recording");
+  }, [stream, mediaReady, isVideoReady, phase, connectionLost, startRecording, currentQuestion]);
 
   const prepCountdown = useCountdown(currentQuestion?.prepTime ?? 0, onPrepComplete);
 
@@ -181,29 +202,117 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     void handleRecoverMedia();
   }, [phase, mediaReady, fetchError, sessionPending, studentId, consentVersion, mediaLoading, handleRecoverMedia]);
 
-  // Device loss. While recording, the take ends with whatever was captured and
-  // the flow advances as usual: it is never re-recorded. During preparation
-  // nothing is recorded yet, so the slot pauses until both devices return.
-  // ponytail: flagging the partial take as a technical failure is #173.
+  // Device or connection loss while recording ends the take with whatever was
+  // captured; it is uploaded, flagged and never re-recorded (PRD FR-3.7, FR-4.3).
+  // Loss during preparation does not pause the slot (#173).
+  const failTake = useCallback((failure: AnswerTechnicalFailure) => {
+    takeFailureRef.current ??= failure;
+    stopRecording();
+    setPhase("finalizing");
+  }, [stopRecording]);
+
   useEffect(() => {
-    if (mediaReady) {
-      if (phase === "media-paused") {
-        // Media readiness is an external subscription boundary.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setMediaRecoveryError(null);
-        setPhase("preparation");
+    if (mediaReady || phase !== "recording") return;
+    // Media readiness is an external subscription boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    failTake(isVideoReady
+      ? { type: "TECHNICAL_FAILURE", reason: "Microphone stopped while the answer was recording" }
+      : { type: "CAMERA_DROP", reason: "Camera stopped while the answer was recording" });
+  }, [mediaReady, phase, isVideoReady, failTake]);
+
+  // Recording needs no network; the upload retries once the connection returns.
+  useEffect(() => {
+    if (phase !== "recording") return;
+    const handleOffline = () =>
+      failTake({ type: "TECHNICAL_FAILURE", reason: "Connection lost while the answer was recording" });
+    window.addEventListener("offline", handleOffline);
+    return () => window.removeEventListener("offline", handleOffline);
+  }, [phase, failTake]);
+
+  useEffect(() => {
+    if (!connectionLost || phase !== "recording") return;
+    // A heartbeat failure is an external connectivity signal.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    failTake({ type: "TECHNICAL_FAILURE", reason: "Connection lost while the answer was recording" });
+  }, [connectionLost, phase, failTake]);
+
+  // Heartbeat while the real Submission is IN_PROGRESS. A network failure means
+  // the connection is lost (retry fast); 409/404 means the server ended it.
+  const heartbeatActive = !practice && Boolean(submissionId) && !submissionCompleted && !submissionEnded;
+  useEffect(() => {
+    if (!heartbeatActive || !submissionId) return;
+    let cancelled = false;
+    let inFlight = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const beat = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      clearTimeout(timer);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), HEARTBEAT_TIMEOUT_MS);
+      let next = HEARTBEAT_INTERVAL_MS;
+      try {
+        await sendHeartbeat(submissionId, controller.signal);
+        if (!cancelled) setConnectionLost(false);
+      } catch (err) {
+        // A 5xx usually means the proxy cannot reach the API: treat as lost.
+        if (err instanceof ApiError && err.statusCode < 500) {
+          // 401 already redirects to login; stop instead of looping.
+          if (err.statusCode === 401) cancelled = true;
+          if (err.statusCode === 409 || err.statusCode === 404) {
+            if (!cancelled) setSubmissionEnded(true);
+            cancelled = true;
+          }
+        } else if (!cancelled) {
+          setConnectionLost(true);
+          next = HEARTBEAT_RETRY_MS;
+        }
+      } finally {
+        clearTimeout(timeout);
+        inFlight = false;
       }
-      return;
-    }
-    if (phase === "recording") {
-      stopRecording();
-      setPhase("finalizing");
-    } else if (phase === "preparation") {
-      prepCountdown.pause();
-      setPhase("media-paused");
-      setMediaRecoveryError(null);
-    }
-  }, [mediaReady, phase, prepCountdown, stopRecording]);
+      if (!cancelled) timer = setTimeout(beat, next);
+    };
+    const handleOffline = () => setConnectionLost(true);
+    const handleOnline = () => void beat();
+
+    void beat();
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [heartbeatActive, submissionId]);
+
+  useEffect(() => {
+    if (!submissionEnded) return;
+    leftRef.current = true;
+    stopStream();
+    clearAssessmentStartIntent();
+  }, [submissionEnded, stopStream]);
+
+  // Closing, reloading or navigating away abandons the Submission (PRD FR-2.8).
+  // Unmount covers client-side navigation, which fires no pagehide; under
+  // StrictMode the dev remount happens before a Submission exists.
+  const abandonOnLeave = useCallback(() => {
+    const sid = submissionIdRef.current;
+    if (practice || !sid || leftRef.current) return;
+    leftRef.current = true;
+    abandonSubmissionOnLeave(sid);
+    clearAssessmentStartIntent();
+  }, [practice]);
+
+  useEffect(() => {
+    window.addEventListener("pagehide", abandonOnLeave);
+    return () => {
+      window.removeEventListener("pagehide", abandonOnLeave);
+      abandonOnLeave();
+    };
+  }, [abandonOnLeave]);
 
   // Guard: stop camera stream on any navigation away from the test page.
   useEffect(() => {
@@ -237,15 +346,17 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   }, [questions, mediaReady, phase]);
 
   // Preparation starts when the prompt audio ends. A slot without audio, or
-  // whose plays are used up (after a device pause), starts it immediately.
+  // whose plays are used up, starts it immediately. Connection loss pauses it;
+  // on reconnect it restarts from full prep time, at once if the prompt has
+  // already played (its `ended` will not come again).
   const playsLeftRef = useRef(playsLeft);
   useEffect(() => {
     playsLeftRef.current = playsLeft;
   }, [playsLeft]);
   useEffect(() => {
-    if (phase === "preparation") {
+    if (phase === "preparation" && !connectionLost) {
       prepCountdown.reset();
-      if (!currentQuestion?.audioUrl || playsLeftRef.current === 0) {
+      if (!currentQuestion?.audioUrl || playsLeftRef.current < PROMPT_MAX_PLAYS) {
         prepCountdown.start();
       }
     }
@@ -253,13 +364,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       prepCountdown.pause();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, currentQuestionIndex]);
+  }, [phase, currentQuestionIndex, connectionLost]);
 
   const handlePromptAudioEnded = useCallback(() => {
-    if (phase === "preparation" && !prepCountdown.isRunning && !prepCountdown.isComplete) {
+    if (phase === "preparation" && !connectionLost && !prepCountdown.isRunning && !prepCountdown.isComplete) {
       prepCountdown.start();
     }
-  }, [phase, prepCountdown]);
+  }, [phase, connectionLost, prepCountdown]);
 
   const handlePromptPlayStarted = useCallback(() => {
     const entryId = currentQuestion?.id;
@@ -282,19 +393,28 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         try {
           setEntryStatus(entryId, { status: "signing" });
           dispatchEntryMachine({ entryId, event: { type: "UPLOAD_STARTED" } });
-          const { presignedUrl } = await getPresignedUrl(currentSubmissionId, entryId, take.blob.type || "video/webm");
+          // A confirm whose response was lost already verified (and flagged)
+          // the Answer server-side; the retry's presign then reports it.
+          const signed = await getPresignedUrl(currentSubmissionId, entryId, take.blob.type || "video/webm")
+            .catch((err: unknown) => {
+              if (err instanceof Error && err.message === "Answer already uploaded") return null;
+              throw err;
+            });
 
-          setEntryStatus(entryId, { status: "uploading" });
-          dispatchEntryMachine({ entryId, event: { type: "SIGNED" } });
-          await uploadToR2(presignedUrl, take.blob);
+          if (signed) {
+            setEntryStatus(entryId, { status: "uploading" });
+            dispatchEntryMachine({ entryId, event: { type: "SIGNED" } });
+            await uploadToR2(signed.presignedUrl, take.blob);
 
-          // Server verification phase.
-          setEntryStatus(entryId, { status: "verifying" });
-          dispatchEntryMachine({ entryId, event: { type: "UPLOAD_FINISHED" } });
-          await confirmUpload(currentSubmissionId, entryId, {
-            sizeBytes: take.blob.size,
-            durationSeconds: take.durationSeconds,
-          });
+            // Server verification phase.
+            setEntryStatus(entryId, { status: "verifying" });
+            dispatchEntryMachine({ entryId, event: { type: "UPLOAD_FINISHED" } });
+            await confirmUpload(currentSubmissionId, entryId, {
+              sizeBytes: take.blob.size,
+              durationSeconds: take.durationSeconds,
+              technicalFailure: take.failure ?? undefined,
+            });
+          }
 
           setEntryStatus(entryId, { status: "uploaded" });
           dispatchEntryMachine({ entryId, event: { type: "VERIFIED" } });
@@ -325,29 +445,40 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     startUpload(entryId);
   }, [startUpload]);
 
-  // The take ends when MediaRecorder hands over its blob after the automatic
-  // stop: queue its upload and advance at once, with no preview.
+  // Failed uploads retry automatically when the connection returns.
   useEffect(() => {
-    if ((phase !== "recording" && phase !== "finalizing") || !currentQuestion) return;
+    const handleOnline = () => {
+      Object.entries(uploadStates).forEach(([entryId, state]) => {
+        if (state.status === "error") retryUpload(entryId);
+      });
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [uploadStates, retryUpload]);
+
+  // The take ends when MediaRecorder hands over its blob (possibly partial or
+  // empty): queue its upload and advance at once, with no preview or retry.
+  useEffect(() => {
+    if ((phase !== "recording" && phase !== "finalizing") || !currentQuestion || !blob) return;
     const entryId = currentQuestion.id;
-    if (practice && (blob || recError)) {
+    const failure: AnswerTechnicalFailure | null = takeFailureRef.current
+      ?? (recFailure ? { type: "TECHNICAL_FAILURE", reason: recFailure } : null)
+      ?? (recDuration < MIN_TAKE_SECONDS || blob.size < MIN_TAKE_BYTES
+        ? { type: "TECHNICAL_FAILURE", reason: "Recording is shorter than 2 seconds or 8 KB; it may be short or silent" }
+        : null);
+    takeFailureRef.current = null;
+    if (practice) {
       // ponytail: practice takes are dropped, never uploaded (PRD FR-3.3).
       // The blob arrives from MediaRecorder's asynchronous onstop callback.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setEntryStatus(entryId, { status: "uploaded" });
-    } else if (blob && blob.size > 0) {
-      takesRef.current.set(entryId, { blob, durationSeconds: recDuration });
+    } else {
+      takesRef.current.set(entryId, { blob, durationSeconds: recDuration, failure });
       setEntryStatus(entryId, { status: "blob-ready" });
       dispatchEntryMachine({ entryId, event: { type: "START_RECORDING" } });
       dispatchEntryMachine({ entryId, event: { type: "STOP_REQUESTED" } });
       dispatchEntryMachine({ entryId, event: { type: "BLOB_READY", blob } });
       startUpload(entryId);
-    } else if (recError) {
-      // No take to upload ("failure" is not retryable) and no re-record;
-      // ponytail: saving and flagging the partial take is #173.
-      setEntryStatus(entryId, { status: "failure", error: recError });
-    } else {
-      return;
     }
     resetRecording();
     if (currentQuestionIndex < totalQuestions - 1) {
@@ -356,7 +487,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     } else {
       setPhase("completed");
     }
-  }, [blob, recError, phase, practice, currentQuestion, currentQuestionIndex, totalQuestions, recDuration, resetRecording, setEntryStatus, startUpload]);
+  }, [blob, recFailure, phase, practice, currentQuestion, currentQuestionIndex, totalQuestions, recDuration, resetRecording, setEntryStatus, startUpload]);
 
   const allUploaded = areAllManifestEntriesUploaded(
     questions.map((question) => question.id),
@@ -373,7 +504,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     setCompletionPending(true);
     setCompletionError(null);
     completeSubmission(sid)
-      .then(() => setSubmissionCompleted(true))
+      .then(() => {
+        leftRef.current = true;
+        setSubmissionCompleted(true);
+      })
       .catch((err) => {
         const message = err instanceof Error ? err.message : "Failed to complete submission";
         setCompletionError(message);
@@ -404,6 +538,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     setAbandonError(null);
     try {
       await abandonSubmission(submissionId);
+      leftRef.current = true;
       clearAssessmentStartIntent();
       stopStream();
       window.location.href = "/dashboard";
@@ -413,12 +548,6 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       setAbandonPending(false);
     }
   };
-
-  const mediaFailureMessage = [
-    videoError ? `Webcam: ${videoError}` : null,
-    audioError ? `Microphone: ${audioError}` : null,
-  ].filter((message): message is string => message !== null).join(" ") ||
-    "Camera and microphone access is required to continue.";
 
   // Loading while the authenticated Student, media, and manifest are prepared.
   if (phase === "loading" && !fetchError && !sessionError && (sessionPending || (Boolean(studentId) && mediaReady && Boolean(consentVersion)))) {
@@ -438,6 +567,27 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
         {!fetchError.isSubmissionConflict && (
           <p className="mt-2 text-sm text-sn-muted">Please check your connection and try again.</p>
         )}
+        <button
+          type="button"
+          className={`${primaryButton} mt-6 w-full`}
+          onClick={() => {
+            window.location.href = "/dashboard";
+          }}
+        >
+          Return to dashboard
+        </button>
+      </PageState>
+    );
+  }
+
+  if (submissionEnded) {
+    return (
+      <PageState>
+        <h1 className={h3}>This Assessment has ended</h1>
+        <p className="mt-3 text-sn-muted">
+          The connection was lost for too long, so this Submission was closed. Answers already saved are
+          kept. You can start a new Assessment from your dashboard.
+        </p>
         <button
           type="button"
           className={`${primaryButton} mt-6 w-full`}
@@ -503,26 +653,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     );
   }
 
-  if (phase === "media-paused") {
-    return (
-      <PageState>
-        <h1 className={h3}>Camera or microphone disconnected</h1>
-        <p className="mt-3 text-sn-muted">
-          Your Submission is preserved. Reconnect both devices to continue this part&apos;s preparation.
-        </p>
-        <button
-          type="button"
-          className={`${primaryButton} mt-6 w-full`}
-          onClick={() => void handleRecoverMedia()}
-          disabled={mediaLoading}
-        >
-          {mediaLoading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-          Reconnect devices
-        </button>
-        <p className="mt-4 text-sm text-sn-danger">{mediaRecoveryError || mediaFailureMessage}</p>
-      </PageState>
-    );
-  }
+  const connectionBanner = connectionLost && (
+    <p className="mb-5 flex items-center gap-2 rounded-[10px] bg-sn-field-amber p-4 text-[15px]" role="alert">
+      <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+      Connection lost — reconnecting
+    </p>
+  );
 
   const screenTitle = practice
     ? "SPEAKNUSA PRACTICE TEST — NOT SCORED, NOTHING IS SAVED"
@@ -589,15 +725,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     }
 
     const verifiedCount = questions.filter((q) => uploadStates[q.id]?.status === "uploaded").length;
-    // "error": upload failed, take kept for retry. "failure": nothing captured.
-    const failedEntryIds = questions
-      .filter((q) => ["error", "failure"].includes(uploadStates[q.id]?.status ?? ""))
-      .map((q) => q.id);
-    const retryEntryIds = failedEntryIds.filter((id) => uploadStates[id]?.status === "error");
-    const retryable = retryEntryIds.length > 0;
+    // "error": upload failed, take kept on this device for retry.
+    const failedEntryIds = questions.filter((q) => uploadStates[q.id]?.status === "error").map((q) => q.id);
     return (
       <TestShell title={screenTitle}>
         <article className={card}>
+          {connectionBanner}
           <h2 className={h2}>Saving your answers</h2>
           <p className={`${meta} mt-2`}>Keep this page open</p>
           {failedEntryIds.length === 0 && !completionError && (
@@ -612,19 +745,15 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             <div className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]" role="alert">
               <p className="m-0">
                 {failedEntryIds.length} answer{failedEntryIds.length !== 1 ? "s" : ""} could not be saved.{" "}
-                {retryable
-                  ? "Check your connection and retry; your recordings stay on this device until they upload."
-                  : "Please contact support."}
+                Check your connection and retry; your recordings stay on this device until they upload.
               </p>
-              {retryable && (
-                <button
-                  type="button"
-                  className={`${secondaryButton} mt-3`}
-                  onClick={() => retryEntryIds.forEach(retryUpload)}
-                >
-                  Retry upload
-                </button>
-              )}
+              <button
+                type="button"
+                className={`${secondaryButton} mt-3`}
+                onClick={() => failedEntryIds.forEach(retryUpload)}
+              >
+                Retry upload
+              </button>
             </div>
           )}
           {completionError && (
@@ -661,6 +790,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       }
     >
       <section aria-labelledby="stage-head">
+        {connectionBanner}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-5">
           <h2 id="stage-head" className="m-0 text-[22px] font-semibold">
             {slotLabel(currentQuestion.category)}
@@ -731,12 +861,31 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
                 {phase === "finalizing" ? "Saving answer…" : "Stop and submit answer"}
               </button>
             )}
-            {preparing && !prepCountdown.isRunning && (
+            {preparing && !connectionLost && !prepCountdown.isRunning && (
               <p className="mt-3 mb-0 text-[15px] text-sn-muted">Preparation begins when the question audio ends.</p>
             )}
             <p className="sr-only" aria-live="assertive">
               {recording ? "Recording started." : preparing && prepCountdown.isRunning ? "Preparation started." : ""}
             </p>
+
+            {!mediaReady && (
+              // Non-blocking: the timers keep running; reconnecting saves the next takes.
+              <div className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]" role="alert">
+                <p className="m-0">
+                  {!isVideoReady ? "Camera" : "Microphone"} disconnected. The test continues; this answer is
+                  saved and flagged for review. Reconnect to record the next answers.
+                </p>
+                <button
+                  type="button"
+                  className={`${secondaryButton} mt-3`}
+                  onClick={() => void handleRecoverMedia()}
+                  disabled={mediaLoading}
+                >
+                  Reconnect devices
+                </button>
+                {mediaRecoveryError && <p className="mt-2 mb-0 text-sn-danger">{mediaRecoveryError}</p>}
+              </div>
+            )}
 
             {abandonError && (
               <p className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]">

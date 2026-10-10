@@ -34,6 +34,8 @@ export interface DashboardPagination {
 
 export interface DashboardStats {
   totalTests: number;
+  /** An unused free retake credit from a voided Submission. Absent on older backends. */
+  retakeCreditAvailable?: boolean;
   bestScore: ScaleAwareScore | null;
   submissions: SubmissionSummary[];
   pagination: DashboardPagination;
@@ -45,7 +47,6 @@ export interface AnswerDetail {
   questionCategory: string;
   audioUrl: string | null;
   durationSeconds: number | null;
-  videoUrl: string | null;
   score: number | null;
   rubric: RubricBreakdown | null;
   comments: string[];
@@ -62,6 +63,10 @@ export interface SubmissionDetail {
   comments: string[];
   createdAt: string;
   answers: AnswerDetail[];
+  /** VOIDED only: why the Submission was voided. */
+  voidReason?: string | null;
+  /** VOIDED only: the free retake from this void is still unused. */
+  retakeCreditAvailable?: boolean;
 }
 
 export interface SubmissionStatusSnapshot {

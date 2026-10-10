@@ -11,3 +11,5 @@ The client persists the key with the authenticated Student identity in per-tab s
 - A lost response is recoverable without selecting a second Question set.
 - An Active Submission remains the authoritative resume target across tabs and sessions without allowing multiple active attempts.
 - Abandonment is an explicit, idempotent lifecycle transition; clearing browser state alone cannot release the server-side active-attempt guard.
+
+> Amended by ADR-0021: Abandonment is also triggered by leaving the Assessment page (beacon) and by server-side Heartbeat expiry, not only by an explicit action.

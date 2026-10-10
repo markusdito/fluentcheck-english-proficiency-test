@@ -11,8 +11,9 @@ import { StatusPill } from "@/components/student/StatusPill";
 import { card, h2, h3, meta, primaryButton, secondaryButton, statNum } from "@/components/student/styles";
 import { empty, lead, tableWrap, td, th, tr } from "@/components/admin/styles";
 import { submissionRef } from "@/components/examiner/ExaminerDashboard";
+import { AdminQueues, ExaminerWorkload } from "@/components/admin/AdminQueues";
 
-const FLOW = ["IN_PROGRESS", "AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"] as const;
+const FLOW = ["IN_PROGRESS", "FLAG_REVIEW", "AWAITING_PAYMENT", "PAID", "SCORING", "SCORED", "CERTIFIED"] as const;
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (
@@ -112,6 +113,10 @@ export default function AdminOverviewPage() {
           </dl>
         </section>
       </div>
+
+      <AdminQueues />
+
+      <ExaminerWorkload />
 
       <section className="mt-14" aria-labelledby="recent-title">
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-4">

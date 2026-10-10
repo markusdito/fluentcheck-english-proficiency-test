@@ -9,7 +9,8 @@ import {
 } from "./examiner.service.js";
 import {
   createQuestionAudioViewUrlFromMetadata,
-  createVideoViewUrlFromMetadata,
+  issueAnswerVideoUrl,
+  type AnswerVideoViewer,
 } from "./upload.service.js";
 import {
   aggregateStoredScores,
@@ -32,6 +33,7 @@ import {
   type AccountTransitionResult,
   type AccountTransitionPreview,
 } from "./accountTransition.service.js";
+import { isReassignable } from "./adminOps.service.js";
 
 export interface ListUsersParams {
   page: number;
@@ -119,7 +121,7 @@ export async function listAdminSubmissions(params: ListSubmissionsParams) {
  * Fetch a complete read-only submission view for an authenticated admin.
  * Authorization is enforced by the admin router before this service is called.
  */
-export async function getAdminSubmissionDetail(submissionId: string) {
+export async function getAdminSubmissionDetail(submissionId: string, viewer: AnswerVideoViewer) {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     include: {
@@ -133,6 +135,7 @@ export async function getAdminSubmissionDetail(submissionId: string) {
             select: {
               id: true,
               category: true,
+              deliveryPosition: true,
               preparationSeconds: true,
               recordingSeconds: true,
               promptMediaStorageKey: true,
@@ -147,6 +150,29 @@ export async function getAdminSubmissionDetail(submissionId: string) {
       },
       student: {
         select: { id: true, username: true, email: true },
+      },
+      flags: {
+        orderBy: { raisedAt: "asc" },
+        select: {
+          id: true,
+          type: true,
+          source: true,
+          reason: true,
+          answerId: true,
+          manifestEntryId: true,
+          timestampSeconds: true,
+          raisedAt: true,
+          raisedBy: { select: { username: true } },
+          resolution: true,
+          resolutionNote: true,
+          resolvedAt: true,
+          resolvedBy: { select: { username: true } },
+        },
+      },
+      retakeCreditGranted: { select: { redeemedSubmissionId: true, redeemedAt: true } },
+      retakeCreditRedeemed: { select: { voidedSubmissionId: true } },
+      paymentWaiver: {
+        select: { reason: true, createdAt: true, admin: { select: { username: true } } },
       },
       payments: {
         orderBy: { createdAt: "desc" },
@@ -174,6 +200,19 @@ export async function getAdminSubmissionDetail(submissionId: string) {
           updatedAt: true,
           examiner: {
             select: { id: true, username: true, email: true },
+          },
+          _count: { select: { scores: true } },
+          reassignmentHistory: {
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            select: {
+              id: true,
+              reason: true,
+              note: true,
+              createdAt: true,
+              previousExaminer: { select: { username: true } },
+              newExaminer: { select: { username: true } },
+              actingAdmin: { select: { username: true } },
+            },
           },
           scores: {
             where: { answerId: null },
@@ -243,23 +282,17 @@ export async function getAdminSubmissionDetail(submissionId: string) {
   }
   if (!manifest) assertLegacySubmissionEvidence(manifest);
 
+  // Slot order; Submissions without a manifest keep recording order (stable sort).
+  const position = (manifestEntryId: string | null) =>
+    manifest?.entries.find((entry) => entry.id === manifestEntryId)?.deliveryPosition ?? 0;
+  const ordered = [...submission.answers].sort(
+    (left, right) => position(left.manifestEntryId) - position(right.manifestEntryId),
+  );
   const answers = await Promise.all(
-    submission.answers.map(async (answer) => {
+    ordered.map(async (answer) => {
       const manifestEntry = manifest?.entries.find((entry) => entry.id === answer.manifestEntryId);
       if (manifest && !manifestEntry) throw new Error("Manifest evidence unavailable");
       if (!manifest) assertLegacyAnswerQuestion(answer);
-      let videoUrl: string | null = null;
-      if (answer.uploadStatus === "UPLOADED") {
-        try {
-          videoUrl = await createVideoViewUrlFromMetadata(
-            answer.storageKey,
-            answer.bucket,
-            answer.mimeType,
-          );
-        } catch {
-          videoUrl = null;
-        }
-      }
 
       let audioUrl: string | null = null;
       const promptStorageKey = manifestEntry?.promptMediaStorageKey ?? answer.question?.audioStorageKey;
@@ -307,13 +340,17 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         id: answer.id,
         questionId: manifestEntry?.id ?? answer.questionId!,
         questionCategory: manifestEntry?.category ?? answer.question!.category,
+        deliveryPosition: manifestEntry?.deliveryPosition ?? null,
         tasks: manifestEntry
           ? manifestEntry.tasks.map((task) => ({ id: task.id, promptText: task.deliveredText, order: task.deliveredOrder }))
           : answer.question!.tasks,
         audioUrl,
         durationSeconds: answer.durationSeconds,
+        technicalFailure: answer.technicalFailure,
+        technicalFailureReason: answer.technicalFailureReason,
         uploadStatus: answer.uploadStatus,
-        videoUrl,
+        // Issued (and audited) only after every Answer's evidence checked out.
+        videoUrl: null as string | null,
         score: scoreSummary.score,
         rubric: scoreSummary.rubric,
         comments: scores.flatMap((score) =>
@@ -322,6 +359,12 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         scores,
       };
     })
+  );
+
+  await Promise.all(
+    answers.map(async (answer, index) => {
+      answer.videoUrl = await issueAnswerVideoUrl(ordered[index], viewer, { context: "ADMIN_SUBMISSION" });
+    }),
   );
 
   const result = submissionResult(submission.assignments, submission.scoringSystem);
@@ -372,6 +415,22 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         }
       : null,
     payments: submission.payments,
+    // Flag audit trail: who raised and who resolved each flag, and why.
+    flags: submission.flags.map((flag) => ({
+      ...flag,
+      raisedBy: flag.raisedBy?.username ?? null,
+      resolvedBy: flag.resolvedBy?.username ?? null,
+    })),
+    retakeCredit: submission.retakeCreditGranted,
+    // Audit of an Admin's per-Submission payment waiver (PRD FR-7.3).
+    paymentWaiver: submission.paymentWaiver
+      ? {
+          reason: submission.paymentWaiver.reason,
+          createdAt: submission.paymentWaiver.createdAt,
+          adminName: submission.paymentWaiver.admin.username,
+        }
+      : null,
+    waivedByRetakeCreditFrom: submission.retakeCreditRedeemed?.voidedSubmissionId ?? null,
     assignments: submission.assignments.map((assignment) => ({
       id: assignment.id,
       status: assignment.status,
@@ -382,6 +441,16 @@ export async function getAdminSubmissionDetail(submissionId: string) {
         name: assignment.examiner.username,
         email: assignment.examiner.email,
       },
+      reassignable: isReassignable(submission.status, assignment.status, assignment._count.scores),
+      reassignmentHistory: assignment.reassignmentHistory.map((entry) => ({
+        id: entry.id,
+        reason: entry.reason,
+        note: entry.note,
+        createdAt: entry.createdAt,
+        previousExaminerName: entry.previousExaminer.username,
+        newExaminerName: entry.newExaminer.username,
+        actingAdminName: entry.actingAdmin.username,
+      })),
       // Admin-only: this Examiner's whole-Submission Score (draft or final).
       score: assignment.scores[0]
         ? {
@@ -539,6 +608,7 @@ export async function getAdminStats() {
           status: { in: ["PAID", "SCORING"] },
         },
       }),
+
       prisma.submission.findMany({
         where: {
           retentionStatus: "RETAINED",

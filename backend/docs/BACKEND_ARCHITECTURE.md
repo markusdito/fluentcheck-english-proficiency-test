@@ -44,8 +44,8 @@ rejection, and the final error handler.
 ## 3. Persistence and domain vocabulary
 
 The main records are User, TestSet, Question, Task, Submission, SubmissionManifest,
-ManifestEntry, ManifestTask, Answer, Payment, ExaminerAssignment, Score, and
-Certificate. User roles are STUDENT, EXAMINER, and ADMIN.
+ManifestEntry, ManifestTask, Answer, AnswerMediaViewEvent, SubmissionFlag,
+RetakeCredit, Payment, ExaminerAssignment, Score, and Certificate. User roles are STUDENT, EXAMINER, and ADMIN.
 
 A new Submission has one immutable version 2 Submission manifest delivered
 from one Test Set. A Test Set holds at most one active Question per delivery
@@ -75,6 +75,16 @@ retain the older submission/question relationship. A Verified answer is
 server-observed R2 evidence bound to its manifest entry; a client declaration
 alone is not sufficient.
 
+Answer videos are viewable only by the Submission's two assigned Examiners
+(through their own assignment) and Admins; the student never receives an
+Answer video URL after the test (PRD FR-4.4). Every signed Answer video URL is
+issued through `issueAnswerVideoUrl` (backend/src/service/upload.service.ts),
+expires after 300 seconds, and writes one immutable `AnswerMediaViewEvent`
+(answer, Submission, viewer and role, context `EXAMINER_ASSIGNMENT`,
+`ADMIN_SUBMISSION` or `ADMIN_FLAG_REVIEW`, assignment or flag, storage key).
+A database trigger rejects UPDATE and DELETE; only `ON DELETE SET NULL` from
+an Answer purge or viewer removal may touch a row. See ADR-0022.
+
 Question eligibility for new manifest creation requires an active Question,
 available prompt audio metadata, and at least one active Task; a Part 3
 Question also needs all four options with verified icons. Prompt media
@@ -86,12 +96,14 @@ does not prove that a later browser request will play the object.
 | Status | Meaning and current transition |
 | --- | --- |
 | IN_PROGRESS | Manifest-backed recording is open. |
-| ABANDONED | The student explicitly abandons the open Submission. |
+| ABANDONED | The student explicitly abandons or leaves the open Submission, or the abandon sweep finds its heartbeat stale. |
 | AWAITING_PAYMENT | Completion evidence is valid and payment is required. |
 | PAID | At least one validated successful Payment attempt exists; assignment is separate and retryable. |
 | SCORING | Exactly two Examiner assignments exist and at least one remains incomplete. |
 | SCORED | Both assignments have been finalized with complete valid Scores. |
 | CERTIFIED | Schema-supported status; no current backend service or route issues a Certificate or performs this transition. |
+| FLAG_REVIEW | An open flag awaits an Admin. Entered on completion when a device flag exists (before payment) or from `SCORING` on an Examiner integrity concern. Blocks assignment and pauses both Examiner assignments: start, Score draft save, and finalization are rejected with `OPEN_FLAG`. |
+| VOIDED | Terminal. An Admin confirmed a flag; never scored. One `RetakeCredit` is granted and redeemed as a system waiver on the student's next completed Submission. |
 
 ### Retention status
 
@@ -102,7 +114,9 @@ does not prove that a later browser request will play the object.
 | PURGED | The purge has crossed its irreversible boundary after every captured Answer-media deletion was confirmed by storage; the Submission row is then removed and its audit remains. |
 
 The reachable primary path is IN_PROGRESS to AWAITING_PAYMENT to PAID to
-SCORING to SCORED. An open Submission can instead become ABANDONED. If
+SCORING to SCORED. An open Submission can instead become ABANDONED, either
+through the abandon route (explicit action or a leave beacon) or through the
+stale-heartbeat sweep. If
 payment is waived, valid completion enters the paid/assignment path without a
 provider checkout.
 
@@ -111,8 +125,10 @@ provider checkout.
 | Record | States or invariant |
 | --- | --- |
 | Payment | PENDING, PAID, FAILED, or REFUNDED. Every validated success is retained as its own attempt. |
+| SubmissionPaymentWaiver | At most one row per Submission (unique `submissionId`); records the waiving Admin, the reason and the time. It is the audit record of an Admin payment waiver. |
 | Answer upload | PENDING, UPLOADED, or FAILED. Only an R2-confirmed UPLOADED answer with verification evidence is complete. |
 | ExaminerAssignment | ASSIGNED, IN_PROGRESS, or COMPLETED. There are exactly two fixed slots, 1 and 2, with no ranking. |
+| ExaminerAssignmentReassignment | Immutable history row per assignment transfer. `reason` is an account transition or `ADMIN_REASSIGNMENT`; the nullable `note` holds the Admin's reason for a standalone reassignment. |
 | Score | RUBRIC_6 or LEGACY_100 scoring system; draft scores are mutable until assignment completion. |
 | Certificate | One optional record per Submission in the schema; issuance is not currently implemented. |
 
@@ -127,6 +143,9 @@ the middleware currently enforced at the route boundary.
 <!-- route: GET / | source=backend/src/server.ts -->
 | GET | / | Public | Returns the API identity object. |
 
+<!-- route: GET /api/health | source=backend/src/server.ts -->
+| GET | /api/health | Public | Liveness probe; returns `{ ok: true }`. |
+
 <!-- route: POST /api/auth/register | source=backend/src/routes/auth.routes.ts -->
 | POST | /api/auth/register | Public, auth validation, registration rate limits | Creates a local account and sets a session-only auth cookie. |
 
@@ -138,6 +157,9 @@ the middleware currently enforced at the route boundary.
 
 <!-- route: GET /api/auth/me | source=backend/src/routes/auth.routes.ts -->
 | GET | /api/auth/me | Authenticated | Returns the current active account. |
+
+<!-- route: PATCH /api/auth/me | source=backend/src/routes/auth.routes.ts -->
+| PATCH | /api/auth/me | Authenticated, auth validation | Sets the account's full name and Student ID (PRD FR-1.4). |
 
 Google routes are conditionally mounted inside the auth router when Google
 configuration is available.
@@ -223,6 +245,9 @@ calculated from the current page.
 <!-- route: POST /api/submissions | source=backend/src/routes/submission.routes.ts -->
 | POST | /api/submissions | Authenticated, creation rate limits | Creates or replays a manifest-backed Submission using Idempotency-Key; returns typed active-submission, closed-intent, or foreign-key conflicts. |
 
+<!-- route: GET /api/submissions/practice | source=backend/src/routes/submission.routes.ts -->
+| GET | /api/submissions/practice | Authenticated | Returns an unscored practice delivery; creates no Submission. |
+
 <!-- route: GET /api/submissions/active | source=backend/src/routes/submission.routes.ts -->
 | GET | /api/submissions/active | Authenticated | Resumes the student's active IN_PROGRESS Submission. |
 
@@ -233,10 +258,16 @@ calculated from the current page.
 | GET | /api/submissions/:id/status | Authenticated owner | Returns the current Submission status. |
 
 <!-- route: POST /api/submissions/:id/abandon | source=backend/src/routes/submission.routes.ts -->
-| POST | /api/submissions/:id/abandon | Authenticated owner | Explicitly abandons an open Submission under a row lock; repeated abandonment is an idempotent no-op and retained evidence is preserved. |
+| POST | /api/submissions/:id/abandon | Authenticated owner | Abandons an open Submission under a row lock; also accepts a `navigator.sendBeacon` empty text/plain body. Repeated abandonment is an idempotent no-op and retained evidence is preserved. |
+
+<!-- route: POST /api/submissions/:id/heartbeat | source=backend/src/routes/submission.routes.ts -->
+| POST | /api/submissions/:id/heartbeat | Authenticated owner | Stamps `lastHeartbeatAt` on an IN_PROGRESS Submission and returns `submissionId`, `status`, `lastHeartbeatAt`; returns 409 SUBMISSION_NOT_IN_PROGRESS with `submissionStatus` once it is closed. |
+
+<!-- route: POST /api/submissions/:id/flags | source=backend/src/routes/submission.routes.ts -->
+| POST | /api/submissions/:id/flags | Authenticated owner | Records a `TECHNICAL_FAILURE` or `CAMERA_DROP` flag while the Submission is `IN_PROGRESS`; completion then routes it to `FLAG_REVIEW` before payment. |
 
 <!-- route: GET /api/submissions/:id | source=backend/src/routes/submission.routes.ts -->
-| GET | /api/submissions/:id | Authenticated owner | Returns manifest-backed detail and authorized evidence URLs. |
+| GET | /api/submissions/:id | Authenticated owner | Returns manifest-backed detail and prompt audio URLs; Answer `videoUrl` is always null (PRD FR-4.4). |
 
 <!-- route: POST /api/submissions/:id/complete | source=backend/src/routes/submission.routes.ts -->
 | POST | /api/submissions/:id/complete | Authenticated owner, completion rate limits | Validates exactly one verified Answer per manifest entry and closes recording. |
@@ -257,16 +288,19 @@ All examiner routes require an authenticated EXAMINER or ADMIN account.
 | GET | /api/examiner/assignments | EXAMINER or ADMIN | Lists the caller's examiner assignments. |
 
 <!-- route: GET /api/examiner/assignments/:id | source=backend/src/routes/examiner.routes.ts -->
-| GET | /api/examiner/assignments/:id | EXAMINER or ADMIN | Returns assignment detail and the delivered prompt snapshots. |
+| GET | /api/examiner/assignments/:id | EXAMINER or ADMIN | The assigned Examiner only: Answers in slot order with `deliveryPosition`, the delivered prompt snapshot (tasks, `cueCard`, `options` with signed icons), audited (`EXAMINER_ASSIGNMENT`) video URLs, and `paused` while a flag is open. |
 
 <!-- route: PUT /api/examiner/assignments/:id/start | source=backend/src/routes/examiner.routes.ts -->
-| PUT | /api/examiner/assignments/:id/start | EXAMINER or ADMIN | Starts an assigned review. |
+| PUT | /api/examiner/assignments/:id/start | EXAMINER or ADMIN | Starts an assigned review; rejected with 409 `OPEN_FLAG` while a flag is open. |
 
 <!-- route: PUT /api/examiner/assignments/:id/score | source=backend/src/routes/examiner.routes.ts -->
-| PUT | /api/examiner/assignments/:id/score | EXAMINER or ADMIN | Saves the Examiner's mutable whole-Submission Score draft (4 criteria + overall band). |
+| PUT | /api/examiner/assignments/:id/score | EXAMINER or ADMIN | Saves the Examiner's mutable whole-Submission Score draft (4 criteria + overall band); rejected with 409 `OPEN_FLAG` while a flag is open. |
 
 <!-- route: POST /api/examiner/assignments/:id/complete | source=backend/src/routes/examiner.routes.ts -->
-| POST | /api/examiner/assignments/:id/complete | EXAMINER or ADMIN | Finalizes one assignment once its Score is saved. |
+| POST | /api/examiner/assignments/:id/complete | EXAMINER or ADMIN | Finalizes one assignment once its Score is saved; rejected with `OPEN_FLAG` while a flag is open. |
+
+<!-- route: POST /api/examiner/assignments/:id/integrity-concerns | source=backend/src/routes/examiner.routes.ts -->
+| POST | /api/examiner/assignments/:id/integrity-concerns | EXAMINER or ADMIN | Either assigned Examiner flags an Answer (timestamp + note); a `SCORING` Submission pauses in `FLAG_REVIEW`, pausing both assignments. Still allowed during `FLAG_REVIEW`. |
 
 ### Administrator routes
 
@@ -286,6 +320,12 @@ All administrator routes require an authenticated ADMIN account.
 
 <!-- route: POST /api/admin/submissions/:id/assign | source=backend/src/routes/admin.routes.ts -->
 | POST | /api/admin/submissions/:id/assign | ADMIN | Creates or retries the atomic two-slot assignment set. |
+
+<!-- route: POST /api/admin/submissions/:id/payment-waiver | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/submissions/:id/payment-waiver | ADMIN | Requires `reason`; waives payment for one `AWAITING_PAYMENT` Submission, records its audited `SubmissionPaymentWaiver`, sets it to `PAID`, then requests assignment. |
+
+<!-- route: POST /api/admin/assignments/:id/reassign | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/assignments/:id/reassign | ADMIN | Requires `examinerId` and `reason`; moves an untouched `ASSIGNED` assignment (no saved Score, Submission in `SCORING` or `FLAG_REVIEW`) to an active Examiner not already on the Submission. Repeating the same Examiner returns `ALREADY_APPLIED`. |
 
 <!-- route: POST /api/admin/submissions/:id/purge-request | source=backend/src/routes/admin.routes.ts -->
 | POST | /api/admin/submissions/:id/purge-request | ADMIN | Requests a policy-eligible Submission purge and records the requester and reason. |
@@ -312,10 +352,22 @@ All administrator routes require an authenticated ADMIN account.
 | GET | /api/admin/submissions | ADMIN | Lists submissions for administration. |
 
 <!-- route: GET /api/admin/submissions/:id | source=backend/src/routes/admin.routes.ts -->
-| GET | /api/admin/submissions/:id | ADMIN | Returns administrator submission detail. |
+| GET | /api/admin/submissions/:id | ADMIN | Returns administrator submission detail; Answers in slot order with audited (`ADMIN_SUBMISSION`) video URLs, `paymentWaiver`, and, per assignment, `reassignable` and `reassignmentHistory`. |
 
 <!-- route: GET /api/admin/stats | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/stats | ADMIN | Returns administrator statistics. |
+
+<!-- route: GET /api/admin/flags | source=backend/src/routes/admin.routes.ts -->
+| GET | /api/admin/flags | ADMIN | Lists open flags on `FLAG_REVIEW` Submissions with the flagged `answerId`, `manifestEntryId`, `timestampSeconds`, the flagged Answer's `videoUrl`, and `answers`: every Answer of the Submission in slot order with its prompt snapshot and audited (`ADMIN_FLAG_REVIEW`) video URL, issued once per Answer per response. |
+
+<!-- route: POST /api/admin/flags/:id/confirm | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/flags/:id/confirm | ADMIN | Requires a note; voids the Submission, supersedes its other open flags, and grants one non-transferable retake credit. |
+
+<!-- route: POST /api/admin/flags/:id/dismiss | source=backend/src/routes/admin.routes.ts -->
+| POST | /api/admin/flags/:id/dismiss | ADMIN | Requires a note; once no flag is open the Submission returns to `SCORING` or to the payment/waiver route. |
+
+<!-- route: GET /api/admin/queues | source=backend/src/routes/admin.routes.ts -->
+| GET | /api/admin/queues | ADMIN | Read-only `openFlags`, `paymentReconciliation` and `assignmentReady` queues; nothing is resolved automatically. |
 
 <!-- route: GET /api/admin/test-sets | source=backend/src/routes/admin.routes.ts -->
 | GET | /api/admin/test-sets | ADMIN | Lists Test Sets with per-slot readiness (DRAFT or DELIVERABLE). |
@@ -358,6 +410,17 @@ during graceful shutdown. The dashboard and alert rules live in ops/grafana,
 with the failure runbook at docs/runbooks/assessment-initialization-failures.md.
 The frontend's /active route rebuilds the experience from stored snapshots.
 
+While a Submission is IN_PROGRESS the test page posts to the heartbeat route,
+which stamps `Submission.lastHeartbeatAt`. startServer runs an abandon sweep
+every SUBMISSION_ABANDON_SWEEP_INTERVAL_SECONDS (default 30). One atomic
+UPDATE marks ABANDONED every IN_PROGRESS, RETAINED Submission whose
+COALESCE(lastHeartbeatAt, createdAt) is older than
+SUBMISSION_HEARTBEAT_GRACE_SECONDS (default 120; PRD §11 open question 8).
+The statement is safe to run on several instances and serializes with the
+upload presign/confirm row locks. A tab reopened within the grace window
+resumes the same Submission; after it, the start intent is closed and a new
+Assessment starts. See ADR-0021.
+
 ### Direct-to-R2 verified answers
 
 The answer flow has three server-visible stages:
@@ -373,15 +436,30 @@ verifiedAt. The backend ignores client-supplied size and duration as evidence.
 Concurrent confirmations of the same pending object converge on the one
 verified Answer; a late confirmer replays the committed verified state.
 The current path does not use Multer, a server-side FormData upload, a 500 MB
-limit, or an automatic three-attempt retry loop. A failed browser upload must
-be retried by obtaining a new recording in the current frontend.
+limit, or an automatic three-attempt retry loop.
+
+Re-recording is not allowed, so a failed, short or silent take is saved and
+flagged instead of retried (PRD FR-3.7, FR-3.8). Confirmation accepts an
+optional `technicalFailure: { type: "TECHNICAL_FAILURE" | "CAMERA_DROP",
+reason }` (reason trimmed, 1–1000 characters, else 400) for recorder errors
+and camera, microphone or connection loss. A zero-byte object is accepted only
+with that client failure. An observed object under 8 KB without one is treated
+as a TECHNICAL_FAILURE with reason "Recording is shorter than 8 KB; it may be
+short or silent". In the same transaction as the UPLOADED update the Answer is
+marked `technicalFailure` with the reason and exactly one open STUDENT_DEVICE
+SubmissionFlag bound to the Answer and Manifest entry is created. The response
+returns `technicalFailure` and `technicalFailureReason`; a replayed
+confirmation reports the stored values without a second flag. Presigning
+again resets both fields on a still-pending Answer.
 
 ### Completion and payment
 
 Completion locks the Submission and requires a version 2 manifest, exactly
 five manifest entries, exactly one Answer per entry, and verified media for
-each entry. The transition is AWAITING_PAYMENT when payment is required and
-PAID when payment is waived.
+each entry. A flagged verified Answer counts toward completion, and only a
+`technicalFailure` Answer may have zero bytes. An open flag sends the
+Submission to FLAG_REVIEW before payment. Otherwise the transition is
+AWAITING_PAYMENT when payment is required and PAID when payment is waived.
 
 The pay route creates a PENDING Payment with a unique FluentCheck merchant
 reference and opens an iPaymu hosted checkout. The notification route validates
@@ -389,6 +467,14 @@ the callback signature and exact merchant reference/provider identity before
 recording the outcome. Every validated successful attempt is retained. The
 first success transitions AWAITING_PAYMENT to PAID and requests assignment;
 later successes remain visible for Payment reconciliation.
+
+An Admin can instead waive payment for one AWAITING_PAYMENT Submission through
+the payment-waiver route. In one transaction the route writes the unique
+`SubmissionPaymentWaiver` row (Admin, reason, time), sets `paymentRequired` to
+false and the status to PAID, and then requests assignment. If assignment
+fails, the Submission stays PAID and is listed as assignment-ready. This audited
+Admin waiver is separate from the system waiver that a Retake credit applies
+automatically.
 
 ### Exactly-two assignment set
 
@@ -401,6 +487,15 @@ Insufficient examiner capacity leaves the Submission PAID. Assignment failure
 after successful payment is logged and can be retried through the administrator
 assignment route. There is no one-examiner intermediate success and no
 automatic queue or loop described as current behavior.
+
+An Admin can reassign one Examiner assignment through the reassign route. Only
+an `ASSIGNED` assignment with no saved Score moves, and only while its
+Submission is `SCORING` or `FLAG_REVIEW`; `IN_PROGRESS` and scored work stays
+with its Examiner. The replacement must be an active `EXAMINER` not already on
+the Submission. The assignment keeps its id and slot, and each move is written
+to `ExaminerAssignmentReassignment` with reason `ADMIN_REASSIGNMENT` and the
+Admin's note. The transaction uses the same lock order as account transitions
+and retries on serialization contention.
 
 ### Independent scoring finalization
 
@@ -421,6 +516,28 @@ mean of the two overall bands, each criterion = mean of the two Examiners'
 bands, unrounded to half-bands. Nothing is shown until both assignments are
 completed. Submissions scored per Answer before this change (and LEGACY_100)
 keep their original per-Answer aggregation.
+
+An open flag pauses scoring: while the Submission is `FLAG_REVIEW` or has an
+unresolved flag, start, Score draft save, and finalization are rejected with
+409 `OPEN_FLAG`. Either assigned Examiner may still raise an integrity concern.
+Dismissing the last open flag returns the Submission to `SCORING`.
+
+### Admin review queues
+
+`GET /api/admin/queues` returns three read-only lists, each capped and ordered
+oldest first:
+
+- `openFlags`: unresolved flags on `FLAG_REVIEW` Submissions.
+- `paymentReconciliation`: PENDING Payment attempts older than one hour, tagged
+  `CHECKOUT_UNCONFIRMED` when no provider session exists or
+  `NO_PROVIDER_OUTCOME` when a session exists but no final notification arrived;
+  `DUPLICATE_PAYMENT` for more than one PAID attempt on one Submission; and
+  `PAID_WHILE_WAIVED` for PAID attempts on a Submission that did not need payment.
+- `assignmentReady`: PAID Submissions with no Examiner assignment and no open
+  flag, including waived ones.
+
+Reading the queues changes nothing, and nothing in them is resolved
+automatically. Payment reconciliation items have no resolving route yet.
 
 ## 6. Authentication, authorization, and request protection
 
@@ -492,6 +609,7 @@ Focused tests that protect the main contracts include:
 | Auth identity and active account | backend/test/integration/authCurrentAccount.test.ts, backend/test/integration/authRateLimit.test.ts |
 | Login persistence modes | backend/test/integration/rememberMe.test.ts, frontend/components/auth/AuthForms.test.tsx |
 | Rate-limit behavior | backend/test/integration/nonAuthRateLimit.test.ts, backend/test/rateLimitStore.test.ts |
+| Flags, pause, and audited Answer video access | backend/test/integration/submissionFlags.test.ts, backend/test/integration/answerVideoAccess.test.ts |
 | Retention, purge, audit, and Prompt-media cleanup | backend/test/integration/submissionRetention.test.ts, backend/test/promptMediaCleanup.test.ts |
 
 When a route or lifecycle source changes, update this document and run

@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { API_BASE, api } from "./api";
 import type { ApiQuestion, CueCard, DeliveredOption, QuestionCategory, TestQuestionWithAudio, TestSetRef } from "@/types/test";
 
 interface QuestionsResponse {
@@ -86,6 +86,24 @@ export async function resumeActiveSubmission(): Promise<InitializedSubmission> {
 /** Explicitly abandon an unfinished attempt before starting another one. */
 export async function abandonSubmission(submissionId: string): Promise<void> {
   await api.post(`/submissions/${submissionId}/abandon`);
+}
+
+/**
+ * Keep an IN_PROGRESS Submission alive (PRD FR-2.7). The server abandons it
+ * after a silent grace period; a 409/404 means it already ended.
+ */
+export async function sendHeartbeat(submissionId: string, signal?: AbortSignal): Promise<void> {
+  await api.post(`/submissions/${submissionId}/heartbeat`, undefined, { signal });
+}
+
+/**
+ * Abandon from a `pagehide`/unmount, where an awaited fetch would be cut off
+ * (PRD FR-2.8). Same-origin, so the beacon carries the session cookie.
+ */
+export function abandonSubmissionOnLeave(submissionId: string): void {
+  const url = `${API_BASE}/submissions/${submissionId}/abandon`;
+  if (typeof navigator !== "undefined" && navigator.sendBeacon?.(url)) return;
+  void fetch(url, { method: "POST", keepalive: true, credentials: "include" }).catch(() => {});
 }
 
 /**
