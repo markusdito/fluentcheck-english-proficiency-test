@@ -77,7 +77,8 @@ The callback route will:
 - If `googleSubject` already exists, authenticate that user.
 - If no matching subject exists and the verified Google email is new, create a student account.
 - Derive a normalized, unique username from the Google name or email local-part, adding a deterministic suffix when needed.
-- If the email belongs to an existing local account, link only when Google is authoritative for that email (`@gmail.com` or a verified Google Workspace hosted domain).
+- If the email belongs to an existing account that has a local password, never auto-link: local registration does not verify email ownership, so the account may have been pre-registered by someone else. Return `account_conflict` and direct the user to sign in with email and password.
+- If the email belongs to an existing passwordless, unlinked account, link only when Google is authoritative for that email (`@gmail.com` or a verified Google Workspace hosted domain).
 - Otherwise return a safe account-conflict error and require the user to sign in locally before linking can be added.
 - Preserve an existing user’s role, username, email, and other account data when linking.
 - Treat local accounts with a nullable password as invalid for password login and return the same generic invalid-credentials response.
