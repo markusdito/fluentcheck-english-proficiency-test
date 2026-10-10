@@ -189,15 +189,26 @@ async function presign(
   return { response, body };
 }
 
+const FULL_TAKE_BYTES = 8192;
+
 async function confirm(
   fixture: Awaited<ReturnType<typeof createFixture>>,
   entryIndex = 0,
+  technicalFailure?: unknown,
 ) {
   return request("POST", "/uploads/confirm", fixture.student.id, {
     submissionId: fixture.submission.id,
     manifestEntryId: fixture.entries[entryIndex]!.id,
     sizeBytes: 1,
     durationSeconds: 999,
+    ...(technicalFailure === undefined ? {} : { technicalFailure }),
+  });
+}
+
+async function openFlags(submissionId: string) {
+  return prisma.submissionFlag.findMany({
+    where: { submissionId, resolution: null },
+    select: { type: true, source: true, reason: true, answerId: true, manifestEntryId: true },
   });
 }
 
@@ -264,20 +275,24 @@ test("confirmation rejects unproven objects and records server-observed metadata
   const fixture = await createFixture();
   const signed = await presign(fixture);
   storage.put(signed.body.data!.storageKey, {
-    contentLength: 17,
+    contentLength: FULL_TAKE_BYTES,
     contentType: "video/webm",
     etag: '"observed-etag"',
     versionId: "version-1",
   });
   const response = await confirm(fixture);
   assert.equal(response.status, 200);
+  const body = await response.json() as { technicalFailure: boolean; technicalFailureReason: string | null };
+  assert.equal(body.technicalFailure, false);
+  assert.equal(body.technicalFailureReason, null);
+  assert.deepEqual(await openFlags(fixture.submission.id), []);
 
   const answer = await prisma.answer.findUniqueOrThrow({
     where: { manifestEntryId: fixture.entries[0]!.id },
     select: { uploadStatus: true, sizeBytes: true, durationSeconds: true, observedMimeType: true, proofVersion: true, verifiedAt: true },
   });
   assert.equal(answer.uploadStatus, "UPLOADED");
-  assert.equal(answer.sizeBytes, 17);
+  assert.equal(answer.sizeBytes, FULL_TAKE_BYTES);
   assert.equal(answer.durationSeconds, null);
   assert.equal(answer.observedMimeType, "video/webm");
   assert.equal(answer.proofVersion, 1);
@@ -302,6 +317,8 @@ test("concurrent confirmations converge on one verified Answer", async () => {
   assert.equal(answer.uploadStatus, "UPLOADED");
   assert.equal(answer.proofVersion, 1);
   assert.ok(answer.verifiedAt);
+  // The 17-byte take is auto-flagged exactly once despite two confirmations.
+  assert.equal((await openFlags(fixture.submission.id)).length, 1);
 });
 
 test("pending retries receive a fresh storage key and verified Answers cannot be re-armed", async () => {
@@ -316,7 +333,7 @@ test("pending retries receive a fresh storage key and verified Answers cannot be
   );
 
   storage.put(second.body.data!.storageKey, {
-    contentLength: 4,
+    contentLength: FULL_TAKE_BYTES,
     contentType: "video/webm",
   });
   assert.equal((await confirm(fixture)).status, 200);
@@ -330,7 +347,7 @@ test("completion rejects a partially proven manifest instead of accepting one up
   const fixture = await createFixture();
   const signed = await presign(fixture);
   storage.put(signed.body.data!.storageKey, {
-    contentLength: 4,
+    contentLength: FULL_TAKE_BYTES,
     contentType: "video/webm",
   });
   assert.equal((await confirm(fixture)).status, 200);
@@ -345,6 +362,124 @@ test("completion rejects a partially proven manifest instead of accepting one up
     (await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).status,
     "IN_PROGRESS",
   );
+});
+
+test("a client-reported failure saves the partial Answer with one flag bound to it", async () => {
+  const fixture = await createFixture();
+  const signed = await presign(fixture, 2);
+  storage.put(signed.body.data!.storageKey, { contentLength: 3000, contentType: "video/webm" });
+
+  const failure = { type: "CAMERA_DROP", reason: "  Camera track ended while recording  " };
+  const response = await confirm(fixture, 2, failure);
+  assert.equal(response.status, 200);
+  const body = await response.json() as Record<string, unknown>;
+  assert.equal(body.technicalFailure, true);
+  assert.equal(body.technicalFailureReason, "Camera track ended while recording");
+
+  const answer = await prisma.answer.findUniqueOrThrow({
+    where: { manifestEntryId: fixture.entries[2]!.id },
+    select: { id: true, uploadStatus: true, sizeBytes: true, technicalFailure: true, technicalFailureReason: true },
+  });
+  assert.deepEqual(
+    { ...answer, id: undefined },
+    { id: undefined, uploadStatus: "UPLOADED", sizeBytes: 3000, technicalFailure: true, technicalFailureReason: "Camera track ended while recording" },
+  );
+  assert.deepEqual(await openFlags(fixture.submission.id), [{
+    type: "CAMERA_DROP",
+    source: "STUDENT_DEVICE",
+    reason: "Camera track ended while recording",
+    answerId: answer.id,
+    manifestEntryId: fixture.entries[2]!.id,
+  }]);
+
+  // A repeated confirmation is a no-op that reports the stored failure.
+  const retry = await confirm(fixture, 2, failure);
+  assert.equal(retry.status, 200);
+  assert.equal((await retry.json() as { technicalFailure: boolean }).technicalFailure, true);
+  assert.equal((await openFlags(fixture.submission.id)).length, 1);
+});
+
+test("an object under 8 KB is flagged by the server even without a client failure", async () => {
+  const fixture = await createFixture();
+  const signed = await presign(fixture);
+  storage.put(signed.body.data!.storageKey, { contentLength: FULL_TAKE_BYTES - 1, contentType: "video/webm" });
+
+  const response = await confirm(fixture);
+  assert.equal(response.status, 200);
+  const reason = "Recording is shorter than 8 KB; it may be short or silent";
+  assert.equal((await response.json() as { technicalFailureReason: string }).technicalFailureReason, reason);
+  const flags = await openFlags(fixture.submission.id);
+  assert.equal(flags.length, 1);
+  assert.equal(flags[0]!.type, "TECHNICAL_FAILURE");
+  assert.equal(flags[0]!.reason, reason);
+  assert.ok(flags[0]!.answerId);
+});
+
+test("a zero-byte take is rejected unless the client reports a failure", async () => {
+  const fixture = await createFixture();
+  const signed = await presign(fixture);
+  storage.put(signed.body.data!.storageKey, { contentLength: 0, contentType: "video/webm" });
+
+  assert.equal((await confirm(fixture)).status, 409);
+  assert.deepEqual(await openFlags(fixture.submission.id), []);
+
+  const accepted = await confirm(fixture, 0, { type: "TECHNICAL_FAILURE", reason: "MediaRecorder error" });
+  assert.equal(accepted.status, 200);
+  const answer = await prisma.answer.findUniqueOrThrow({
+    where: { manifestEntryId: fixture.entries[0]!.id },
+    select: { uploadStatus: true, sizeBytes: true, technicalFailure: true },
+  });
+  assert.deepEqual(answer, { uploadStatus: "UPLOADED", sizeBytes: 0, technicalFailure: true });
+  assert.equal((await openFlags(fixture.submission.id)).length, 1);
+});
+
+test("a malformed technicalFailure body is rejected before storage is inspected", async () => {
+  const fixture = await createFixture();
+  const signed = await presign(fixture);
+  storage.put(signed.body.data!.storageKey, { contentLength: FULL_TAKE_BYTES, contentType: "video/webm" });
+
+  for (const bad of [
+    "CAMERA_DROP",
+    [],
+    { type: "INTEGRITY_CONCERN", reason: "x" },
+    { type: "CAMERA_DROP" },
+    { type: "CAMERA_DROP", reason: "   " },
+    { type: "CAMERA_DROP", reason: "x".repeat(1001) },
+  ]) {
+    const response = await confirm(fixture, 0, bad);
+    assert.equal(response.status, 400, JSON.stringify(bad).slice(0, 60));
+  }
+  assert.equal(storage.requests.length, 0);
+  assert.equal(
+    (await prisma.answer.findUniqueOrThrow({ where: { manifestEntryId: fixture.entries[0]!.id } })).uploadStatus,
+    "PENDING",
+  );
+});
+
+test("a flagged partial Answer counts toward completion and sends the Submission to flag review", async () => {
+  const fixture = await createFixture();
+  for (const index of fixture.entries.keys()) {
+    const signed = await presign(fixture, index);
+    // Slot 4 lost the connection mid-take; nothing was captured.
+    storage.put(signed.body.data!.storageKey, {
+      contentLength: index === 3 ? 0 : FULL_TAKE_BYTES,
+      contentType: "video/webm",
+    });
+    const failure = index === 3 ? { type: "TECHNICAL_FAILURE", reason: "Connection lost while recording" } : undefined;
+    assert.equal((await confirm(fixture, index, failure)).status, 200);
+  }
+
+  const completion = await request("POST", `/submissions/${fixture.submission.id}/complete`, fixture.student.id);
+  assert.equal(completion.status, 200);
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).status,
+    "FLAG_REVIEW",
+  );
+
+  const detail = await request("GET", `/submissions/${fixture.submission.id}`, fixture.student.id);
+  assert.equal(detail.status, 200);
+  const text = await detail.text();
+  assert.match(text, /"technicalFailure":true,"technicalFailureReason":"Connection lost while recording"/u);
 });
 
 test("direct prompt media access remains outside the student's active manifest boundary", async () => {
