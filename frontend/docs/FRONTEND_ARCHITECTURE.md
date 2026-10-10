@@ -190,11 +190,16 @@ already-uploaded entry identities.
 
 The coordinator treats live camera and microphone tracks as the readiness
 authority. Device enumeration and the optional microphone level monitor are
-informational; their failure does not invalidate capture. If a required track
-ends, the test page pauses and discards the current incomplete recording,
-preserving the Submission and prior verified Answers until both devices are
-recovered. An explicit abandon action calls the server lifecycle endpoint,
-clears the start intent, and releases the stream.
+informational; their failure does not invalidate capture. A recorder error,
+camera or microphone loss, or a browser `offline` event while recording ends
+the take with the timeslice chunks captured so far. That partial (possibly
+empty) take is uploaded with a `technicalFailure` (`CAMERA_DROP` or
+`TECHNICAL_FAILURE` plus a reason) on upload confirmation; the server flags the
+Answer and sends the Submission to flag review. Takes under 2 seconds or 8 KB
+are uploaded and flagged the same way, never re-recorded. Device loss during
+preparation does not pause the slot: recording still starts on time and yields
+an empty flagged take if a device is missing. An explicit abandon action calls
+the server lifecycle endpoint, clears the start intent, and releases the stream.
 
 The test page and its layout coordinate these visible phases:
 
@@ -204,7 +209,7 @@ The test page and its layout coordinate these visible phases:
 4. Recording one response with MediaRecorder.
 5. Stopping and preparing the recorded Blob.
 6. Uploading and verifying the Answer.
-7. Pausing on required-track loss and recovering the same Submission when media is restored.
+7. Saving and flagging partial, short or device-lost takes instead of re-recording them.
 8. Advancing only after server confirmation, then completing or explicitly abandoning the Submission.
 
 The dynamic testId segment is retained for navigation compatibility. Current
@@ -226,10 +231,10 @@ request for the answer bytes, or treat a local Blob as proof that the object
 is durable. The backend independently HEADs the object and binds verification
 evidence to the Answer.
 
-The current UI has no automatic three-attempt upload retry. Once a recording
-has been consumed by the upload flow, retryUpload requires a new recording
-because the prior Blob is not retained as a durable retry queue. Upload
-failure remains visible as an error and does not advance the Assessment.
+Each take stays in memory until verified. An upload is tried three times in the
+background while the Assessment advances; after that the entry shows an error
+with a Retry upload action, and a browser `online` event retries it
+automatically. Takes are not persisted across a page reload.
 
 The backend's current media contract accepts video/webm, video/mp4, or
 video/quicktime and enforces an answer limit of 100 MB. Any browser-side
