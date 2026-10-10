@@ -7,6 +7,7 @@ import { once } from "node:events";
 import type { Server } from "node:http";
 import type { Express } from "express";
 import jwt from "jsonwebtoken";
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
@@ -341,6 +342,56 @@ test("pending retries receive a fresh storage key and verified Answers cannot be
   const rearm = await presign(fixture);
   assert.equal(rearm.response.status, 400);
   assert.equal(rearm.body.error, "Answer already uploaded");
+});
+
+test("confirmation does not verify an object whose storage key was superseded mid-verification", async () => {
+  const fixture = await createFixture();
+  const first = await presign(fixture);
+  const firstKey = first.body.data!.storageKey;
+  storage.put(firstKey, { contentLength: FULL_TAKE_BYTES, contentType: "video/webm" });
+
+  // A retry presign lands after confirm has read the answer's first key and
+  // before its update, so the verified object is no longer the Answer's key.
+  const { r2Client } = await import("../../src/config/r2.js");
+  const originalSend = r2Client.send;
+  let supersededKey: string | undefined;
+  r2Client.send = (async (command: unknown) => {
+    if (!supersededKey && command instanceof HeadObjectCommand && command.input.Key === firstKey) {
+      const retry = await presign(fixture);
+      supersededKey = retry.body.data!.storageKey;
+    }
+    return originalSend.call(r2Client, command as never);
+  }) as typeof r2Client.send;
+
+  let response: Response;
+  try {
+    response = await confirm(fixture);
+  } finally {
+    r2Client.send = originalSend;
+  }
+
+  assert.ok(supersededKey, "retry presign did not run during verification");
+  assert.notEqual(supersededKey, firstKey);
+  assert.equal(response.status, 409);
+  assert.equal((await response.json() as { error: string }).error, "Answer upload was superseded");
+
+  const answer = await prisma.answer.findUniqueOrThrow({
+    where: { manifestEntryId: fixture.entries[0]!.id },
+    select: { storageKey: true, uploadStatus: true, sizeBytes: true, verifiedAt: true, observedMimeType: true, proofVersion: true },
+  });
+  assert.deepEqual(answer, {
+    storageKey: supersededKey,
+    uploadStatus: "PENDING",
+    sizeBytes: null,
+    verifiedAt: null,
+    observedMimeType: null,
+    proofVersion: null,
+  });
+  assert.deepEqual(await openFlags(fixture.submission.id), []);
+
+  // The retry's own object is still confirmable once it is uploaded.
+  storage.put(supersededKey, { contentLength: FULL_TAKE_BYTES, contentType: "video/webm" });
+  assert.equal((await confirm(fixture)).status, 200);
 });
 
 test("completion rejects a partially proven manifest instead of accepting one uploaded Answer", async () => {
