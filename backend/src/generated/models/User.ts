@@ -251,6 +251,9 @@ export type UserWhereInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestListRelationFilter
   retentionAuditEvents?: Prisma.RetentionAuditEventListRelationFilter
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunListRelationFilter
+  flagsRaised?: Prisma.SubmissionFlagListRelationFilter
+  flagsResolved?: Prisma.SubmissionFlagListRelationFilter
+  retakeCredits?: Prisma.RetakeCreditListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -279,6 +282,9 @@ export type UserOrderByWithRelationInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestOrderByRelationAggregateInput
   retentionAuditEvents?: Prisma.RetentionAuditEventOrderByRelationAggregateInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunOrderByRelationAggregateInput
+  flagsRaised?: Prisma.SubmissionFlagOrderByRelationAggregateInput
+  flagsResolved?: Prisma.SubmissionFlagOrderByRelationAggregateInput
+  retakeCredits?: Prisma.RetakeCreditOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -310,6 +316,9 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestListRelationFilter
   retentionAuditEvents?: Prisma.RetentionAuditEventListRelationFilter
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunListRelationFilter
+  flagsRaised?: Prisma.SubmissionFlagListRelationFilter
+  flagsResolved?: Prisma.SubmissionFlagListRelationFilter
+  retakeCredits?: Prisma.RetakeCreditListRelationFilter
 }, "id" | "username" | "normalizedEmail" | "googleSubject">
 
 export type UserOrderByWithAggregationInput = {
@@ -374,6 +383,9 @@ export type UserCreateInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -402,6 +414,9 @@ export type UserUncheckedCreateInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserUpdateInput = {
@@ -430,6 +445,9 @@ export type UserUpdateInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -458,6 +476,9 @@ export type UserUncheckedUpdateInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -712,6 +733,52 @@ export type UserUpdateOneRequiredWithoutStartIntentsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutStartIntentsInput, Prisma.UserUpdateWithoutStartIntentsInput>, Prisma.UserUncheckedUpdateWithoutStartIntentsInput>
 }
 
+export type UserCreateNestedOneWithoutFlagsRaisedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutFlagsRaisedInput, Prisma.UserUncheckedCreateWithoutFlagsRaisedInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutFlagsRaisedInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserCreateNestedOneWithoutFlagsResolvedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutFlagsResolvedInput, Prisma.UserUncheckedCreateWithoutFlagsResolvedInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutFlagsResolvedInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutFlagsRaisedNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutFlagsRaisedInput, Prisma.UserUncheckedCreateWithoutFlagsRaisedInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutFlagsRaisedInput
+  upsert?: Prisma.UserUpsertWithoutFlagsRaisedInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutFlagsRaisedInput, Prisma.UserUpdateWithoutFlagsRaisedInput>, Prisma.UserUncheckedUpdateWithoutFlagsRaisedInput>
+}
+
+export type UserUpdateOneWithoutFlagsResolvedNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutFlagsResolvedInput, Prisma.UserUncheckedCreateWithoutFlagsResolvedInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutFlagsResolvedInput
+  upsert?: Prisma.UserUpsertWithoutFlagsResolvedInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutFlagsResolvedInput, Prisma.UserUpdateWithoutFlagsResolvedInput>, Prisma.UserUncheckedUpdateWithoutFlagsResolvedInput>
+}
+
+export type UserCreateNestedOneWithoutRetakeCreditsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutRetakeCreditsInput, Prisma.UserUncheckedCreateWithoutRetakeCreditsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutRetakeCreditsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutRetakeCreditsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutRetakeCreditsInput, Prisma.UserUncheckedCreateWithoutRetakeCreditsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutRetakeCreditsInput
+  upsert?: Prisma.UserUpsertWithoutRetakeCreditsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutRetakeCreditsInput, Prisma.UserUpdateWithoutRetakeCreditsInput>, Prisma.UserUncheckedUpdateWithoutRetakeCreditsInput>
+}
+
 export type UserCreateNestedOneWithoutAssignmentsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutAssignmentsInput, Prisma.UserUncheckedCreateWithoutAssignmentsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutAssignmentsInput
@@ -793,6 +860,9 @@ export type UserCreateWithoutQuestionsCreatedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutQuestionsCreatedInput = {
@@ -820,6 +890,9 @@ export type UserUncheckedCreateWithoutQuestionsCreatedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutQuestionsCreatedInput = {
@@ -863,6 +936,9 @@ export type UserUpdateWithoutQuestionsCreatedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutQuestionsCreatedInput = {
@@ -890,6 +966,9 @@ export type UserUncheckedUpdateWithoutQuestionsCreatedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserCreateWithoutSubmissionsInput = {
@@ -917,6 +996,9 @@ export type UserCreateWithoutSubmissionsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutSubmissionsInput = {
@@ -944,6 +1026,9 @@ export type UserUncheckedCreateWithoutSubmissionsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutSubmissionsInput = {
@@ -987,6 +1072,9 @@ export type UserUpdateWithoutSubmissionsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSubmissionsInput = {
@@ -1014,6 +1102,9 @@ export type UserUncheckedUpdateWithoutSubmissionsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserCreateWithoutRetentionHoldsCreatedInput = {
@@ -1041,6 +1132,9 @@ export type UserCreateWithoutRetentionHoldsCreatedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutRetentionHoldsCreatedInput = {
@@ -1068,6 +1162,9 @@ export type UserUncheckedCreateWithoutRetentionHoldsCreatedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutRetentionHoldsCreatedInput = {
@@ -1100,6 +1197,9 @@ export type UserCreateWithoutRetentionHoldsReleasedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutRetentionHoldsReleasedInput = {
@@ -1127,6 +1227,9 @@ export type UserUncheckedCreateWithoutRetentionHoldsReleasedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutRetentionHoldsReleasedInput = {
@@ -1170,6 +1273,9 @@ export type UserUpdateWithoutRetentionHoldsCreatedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRetentionHoldsCreatedInput = {
@@ -1197,6 +1303,9 @@ export type UserUncheckedUpdateWithoutRetentionHoldsCreatedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUpsertWithoutRetentionHoldsReleasedInput = {
@@ -1235,6 +1344,9 @@ export type UserUpdateWithoutRetentionHoldsReleasedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRetentionHoldsReleasedInput = {
@@ -1262,6 +1374,9 @@ export type UserUncheckedUpdateWithoutRetentionHoldsReleasedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserCreateWithoutPurgeRequestsRequestedInput = {
@@ -1289,6 +1404,9 @@ export type UserCreateWithoutPurgeRequestsRequestedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutPurgeRequestsRequestedInput = {
@@ -1316,6 +1434,9 @@ export type UserUncheckedCreateWithoutPurgeRequestsRequestedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutPurgeRequestsRequestedInput = {
@@ -1348,6 +1469,9 @@ export type UserCreateWithoutPurgeRequestsApprovedInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutRequestedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutPurgeRequestsApprovedInput = {
@@ -1375,6 +1499,9 @@ export type UserUncheckedCreateWithoutPurgeRequestsApprovedInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutRequestedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutPurgeRequestsApprovedInput = {
@@ -1418,6 +1545,9 @@ export type UserUpdateWithoutPurgeRequestsRequestedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPurgeRequestsRequestedInput = {
@@ -1445,6 +1575,9 @@ export type UserUncheckedUpdateWithoutPurgeRequestsRequestedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUpsertWithoutPurgeRequestsApprovedInput = {
@@ -1483,6 +1616,9 @@ export type UserUpdateWithoutPurgeRequestsApprovedInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUpdateManyWithoutRequestedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPurgeRequestsApprovedInput = {
@@ -1510,6 +1646,9 @@ export type UserUncheckedUpdateWithoutPurgeRequestsApprovedInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutRequestedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserCreateWithoutPromptMediaCleanupRunsInput = {
@@ -1537,6 +1676,9 @@ export type UserCreateWithoutPromptMediaCleanupRunsInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutRequestedByInput
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutPromptMediaCleanupRunsInput = {
@@ -1564,6 +1706,9 @@ export type UserUncheckedCreateWithoutPromptMediaCleanupRunsInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutRequestedByInput
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutPromptMediaCleanupRunsInput = {
@@ -1607,6 +1752,9 @@ export type UserUpdateWithoutPromptMediaCleanupRunsInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUpdateManyWithoutRequestedByNestedInput
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPromptMediaCleanupRunsInput = {
@@ -1634,6 +1782,9 @@ export type UserUncheckedUpdateWithoutPromptMediaCleanupRunsInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutRequestedByNestedInput
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserCreateWithoutRetentionAuditEventsInput = {
@@ -1661,6 +1812,9 @@ export type UserCreateWithoutRetentionAuditEventsInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutRequestedByInput
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutRetentionAuditEventsInput = {
@@ -1688,6 +1842,9 @@ export type UserUncheckedCreateWithoutRetentionAuditEventsInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutRequestedByInput
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutRetentionAuditEventsInput = {
@@ -1731,6 +1888,9 @@ export type UserUpdateWithoutRetentionAuditEventsInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUpdateManyWithoutRequestedByNestedInput
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRetentionAuditEventsInput = {
@@ -1758,6 +1918,9 @@ export type UserUncheckedUpdateWithoutRetentionAuditEventsInput = {
   purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutRequestedByNestedInput
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserCreateWithoutStartIntentsInput = {
@@ -1785,6 +1948,9 @@ export type UserCreateWithoutStartIntentsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutStartIntentsInput = {
@@ -1812,6 +1978,9 @@ export type UserUncheckedCreateWithoutStartIntentsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutStartIntentsInput = {
@@ -1855,6 +2024,9 @@ export type UserUpdateWithoutStartIntentsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutStartIntentsInput = {
@@ -1882,6 +2054,417 @@ export type UserUncheckedUpdateWithoutStartIntentsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+}
+
+export type UserCreateWithoutFlagsRaisedInput = {
+  id?: string
+  username: string
+  email: string
+  normalizedEmail: string
+  password?: string | null
+  googleSubject?: string | null
+  fullName?: string | null
+  studentNumber?: string | null
+  role?: $Enums.Role
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
+  startIntents?: Prisma.SubmissionStartIntentCreateNestedManyWithoutStudentInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutExaminerInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutPreviousExaminerInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutNewExaminerInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutActingAdminInput
+  questionsCreated?: Prisma.QuestionCreateNestedManyWithoutCreatedByInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutCreatedByInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutReleasedByInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutRequestedByInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+}
+
+export type UserUncheckedCreateWithoutFlagsRaisedInput = {
+  id?: string
+  username: string
+  email: string
+  normalizedEmail: string
+  password?: string | null
+  googleSubject?: string | null
+  fullName?: string | null
+  studentNumber?: string | null
+  role?: $Enums.Role
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
+  startIntents?: Prisma.SubmissionStartIntentUncheckedCreateNestedManyWithoutStudentInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutExaminerInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutPreviousExaminerInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutNewExaminerInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutActingAdminInput
+  questionsCreated?: Prisma.QuestionUncheckedCreateNestedManyWithoutCreatedByInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutCreatedByInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutReleasedByInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutRequestedByInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+}
+
+export type UserCreateOrConnectWithoutFlagsRaisedInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutFlagsRaisedInput, Prisma.UserUncheckedCreateWithoutFlagsRaisedInput>
+}
+
+export type UserCreateWithoutFlagsResolvedInput = {
+  id?: string
+  username: string
+  email: string
+  normalizedEmail: string
+  password?: string | null
+  googleSubject?: string | null
+  fullName?: string | null
+  studentNumber?: string | null
+  role?: $Enums.Role
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
+  startIntents?: Prisma.SubmissionStartIntentCreateNestedManyWithoutStudentInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutExaminerInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutPreviousExaminerInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutNewExaminerInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutActingAdminInput
+  questionsCreated?: Prisma.QuestionCreateNestedManyWithoutCreatedByInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutCreatedByInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutReleasedByInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutRequestedByInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
+}
+
+export type UserUncheckedCreateWithoutFlagsResolvedInput = {
+  id?: string
+  username: string
+  email: string
+  normalizedEmail: string
+  password?: string | null
+  googleSubject?: string | null
+  fullName?: string | null
+  studentNumber?: string | null
+  role?: $Enums.Role
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
+  startIntents?: Prisma.SubmissionStartIntentUncheckedCreateNestedManyWithoutStudentInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutExaminerInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutPreviousExaminerInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutNewExaminerInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutActingAdminInput
+  questionsCreated?: Prisma.QuestionUncheckedCreateNestedManyWithoutCreatedByInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutCreatedByInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutReleasedByInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutRequestedByInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
+}
+
+export type UserCreateOrConnectWithoutFlagsResolvedInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutFlagsResolvedInput, Prisma.UserUncheckedCreateWithoutFlagsResolvedInput>
+}
+
+export type UserUpsertWithoutFlagsRaisedInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutFlagsRaisedInput, Prisma.UserUncheckedUpdateWithoutFlagsRaisedInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutFlagsRaisedInput, Prisma.UserUncheckedCreateWithoutFlagsRaisedInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutFlagsRaisedInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutFlagsRaisedInput, Prisma.UserUncheckedUpdateWithoutFlagsRaisedInput>
+}
+
+export type UserUpdateWithoutFlagsRaisedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleSubject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  studentNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
+  startIntents?: Prisma.SubmissionStartIntentUpdateManyWithoutStudentNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutExaminerNestedInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutPreviousExaminerNestedInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutNewExaminerNestedInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutActingAdminNestedInput
+  questionsCreated?: Prisma.QuestionUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUpdateManyWithoutReleasedByNestedInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUpdateManyWithoutRequestedByNestedInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+}
+
+export type UserUncheckedUpdateWithoutFlagsRaisedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleSubject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  studentNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+  startIntents?: Prisma.SubmissionStartIntentUncheckedUpdateManyWithoutStudentNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutExaminerNestedInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutPreviousExaminerNestedInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutNewExaminerNestedInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutActingAdminNestedInput
+  questionsCreated?: Prisma.QuestionUncheckedUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutReleasedByNestedInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutRequestedByNestedInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+}
+
+export type UserUpsertWithoutFlagsResolvedInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutFlagsResolvedInput, Prisma.UserUncheckedUpdateWithoutFlagsResolvedInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutFlagsResolvedInput, Prisma.UserUncheckedCreateWithoutFlagsResolvedInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutFlagsResolvedInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutFlagsResolvedInput, Prisma.UserUncheckedUpdateWithoutFlagsResolvedInput>
+}
+
+export type UserUpdateWithoutFlagsResolvedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleSubject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  studentNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
+  startIntents?: Prisma.SubmissionStartIntentUpdateManyWithoutStudentNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutExaminerNestedInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutPreviousExaminerNestedInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutNewExaminerNestedInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutActingAdminNestedInput
+  questionsCreated?: Prisma.QuestionUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUpdateManyWithoutReleasedByNestedInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUpdateManyWithoutRequestedByNestedInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
+}
+
+export type UserUncheckedUpdateWithoutFlagsResolvedInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleSubject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  studentNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+  startIntents?: Prisma.SubmissionStartIntentUncheckedUpdateManyWithoutStudentNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutExaminerNestedInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutPreviousExaminerNestedInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutNewExaminerNestedInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutActingAdminNestedInput
+  questionsCreated?: Prisma.QuestionUncheckedUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutReleasedByNestedInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutRequestedByNestedInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
+}
+
+export type UserCreateWithoutRetakeCreditsInput = {
+  id?: string
+  username: string
+  email: string
+  normalizedEmail: string
+  password?: string | null
+  googleSubject?: string | null
+  fullName?: string | null
+  studentNumber?: string | null
+  role?: $Enums.Role
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  submissions?: Prisma.SubmissionCreateNestedManyWithoutStudentInput
+  startIntents?: Prisma.SubmissionStartIntentCreateNestedManyWithoutStudentInput
+  assignments?: Prisma.ExaminerAssignmentCreateNestedManyWithoutExaminerInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutPreviousExaminerInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutNewExaminerInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentCreateNestedManyWithoutActingAdminInput
+  questionsCreated?: Prisma.QuestionCreateNestedManyWithoutCreatedByInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutCreatedByInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldCreateNestedManyWithoutReleasedByInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutRequestedByInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+}
+
+export type UserUncheckedCreateWithoutRetakeCreditsInput = {
+  id?: string
+  username: string
+  email: string
+  normalizedEmail: string
+  password?: string | null
+  googleSubject?: string | null
+  fullName?: string | null
+  studentNumber?: string | null
+  role?: $Enums.Role
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  submissions?: Prisma.SubmissionUncheckedCreateNestedManyWithoutStudentInput
+  startIntents?: Prisma.SubmissionStartIntentUncheckedCreateNestedManyWithoutStudentInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedCreateNestedManyWithoutExaminerInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutPreviousExaminerInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutNewExaminerInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUncheckedCreateNestedManyWithoutActingAdminInput
+  questionsCreated?: Prisma.QuestionUncheckedCreateNestedManyWithoutCreatedByInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutCreatedByInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUncheckedCreateNestedManyWithoutReleasedByInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutRequestedByInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+}
+
+export type UserCreateOrConnectWithoutRetakeCreditsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutRetakeCreditsInput, Prisma.UserUncheckedCreateWithoutRetakeCreditsInput>
+}
+
+export type UserUpsertWithoutRetakeCreditsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutRetakeCreditsInput, Prisma.UserUncheckedUpdateWithoutRetakeCreditsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutRetakeCreditsInput, Prisma.UserUncheckedCreateWithoutRetakeCreditsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutRetakeCreditsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutRetakeCreditsInput, Prisma.UserUncheckedUpdateWithoutRetakeCreditsInput>
+}
+
+export type UserUpdateWithoutRetakeCreditsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleSubject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  studentNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  submissions?: Prisma.SubmissionUpdateManyWithoutStudentNestedInput
+  startIntents?: Prisma.SubmissionStartIntentUpdateManyWithoutStudentNestedInput
+  assignments?: Prisma.ExaminerAssignmentUpdateManyWithoutExaminerNestedInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutPreviousExaminerNestedInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutNewExaminerNestedInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUpdateManyWithoutActingAdminNestedInput
+  questionsCreated?: Prisma.QuestionUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUpdateManyWithoutReleasedByNestedInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUpdateManyWithoutRequestedByNestedInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutRetakeCreditsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  normalizedEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  googleSubject?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fullName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  studentNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  submissions?: Prisma.SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+  startIntents?: Prisma.SubmissionStartIntentUncheckedUpdateManyWithoutStudentNestedInput
+  assignments?: Prisma.ExaminerAssignmentUncheckedUpdateManyWithoutExaminerNestedInput
+  reassignmentsFrom?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutPreviousExaminerNestedInput
+  reassignmentsTo?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutNewExaminerNestedInput
+  reassignmentsActed?: Prisma.ExaminerAssignmentReassignmentUncheckedUpdateManyWithoutActingAdminNestedInput
+  questionsCreated?: Prisma.QuestionUncheckedUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsCreated?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutCreatedByNestedInput
+  retentionHoldsReleased?: Prisma.SubmissionRetentionHoldUncheckedUpdateManyWithoutReleasedByNestedInput
+  purgeRequestsRequested?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutRequestedByNestedInput
+  purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
+  retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
+  promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
 }
 
 export type UserCreateWithoutAssignmentsInput = {
@@ -1909,6 +2492,9 @@ export type UserCreateWithoutAssignmentsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutAssignmentsInput = {
@@ -1936,6 +2522,9 @@ export type UserUncheckedCreateWithoutAssignmentsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutAssignmentsInput = {
@@ -1979,6 +2568,9 @@ export type UserUpdateWithoutAssignmentsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssignmentsInput = {
@@ -2006,6 +2598,9 @@ export type UserUncheckedUpdateWithoutAssignmentsInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserCreateWithoutReassignmentsFromInput = {
@@ -2033,6 +2628,9 @@ export type UserCreateWithoutReassignmentsFromInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutReassignmentsFromInput = {
@@ -2060,6 +2658,9 @@ export type UserUncheckedCreateWithoutReassignmentsFromInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutReassignmentsFromInput = {
@@ -2092,6 +2693,9 @@ export type UserCreateWithoutReassignmentsToInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutReassignmentsToInput = {
@@ -2119,6 +2723,9 @@ export type UserUncheckedCreateWithoutReassignmentsToInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutReassignmentsToInput = {
@@ -2151,6 +2758,9 @@ export type UserCreateWithoutReassignmentsActedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditCreateNestedManyWithoutStudentInput
 }
 
 export type UserUncheckedCreateWithoutReassignmentsActedInput = {
@@ -2178,6 +2788,9 @@ export type UserUncheckedCreateWithoutReassignmentsActedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedCreateNestedManyWithoutApprovedByInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedCreateNestedManyWithoutActorInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedCreateNestedManyWithoutActorInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutRaisedByInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedCreateNestedManyWithoutResolvedByInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedCreateNestedManyWithoutStudentInput
 }
 
 export type UserCreateOrConnectWithoutReassignmentsActedInput = {
@@ -2221,6 +2834,9 @@ export type UserUpdateWithoutReassignmentsFromInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutReassignmentsFromInput = {
@@ -2248,6 +2864,9 @@ export type UserUncheckedUpdateWithoutReassignmentsFromInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUpsertWithoutReassignmentsToInput = {
@@ -2286,6 +2905,9 @@ export type UserUpdateWithoutReassignmentsToInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutReassignmentsToInput = {
@@ -2313,6 +2935,9 @@ export type UserUncheckedUpdateWithoutReassignmentsToInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUpsertWithoutReassignmentsActedInput = {
@@ -2351,6 +2976,9 @@ export type UserUpdateWithoutReassignmentsActedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUpdateManyWithoutStudentNestedInput
 }
 
 export type UserUncheckedUpdateWithoutReassignmentsActedInput = {
@@ -2378,6 +3006,9 @@ export type UserUncheckedUpdateWithoutReassignmentsActedInput = {
   purgeRequestsApproved?: Prisma.SubmissionPurgeRequestUncheckedUpdateManyWithoutApprovedByNestedInput
   retentionAuditEvents?: Prisma.RetentionAuditEventUncheckedUpdateManyWithoutActorNestedInput
   promptMediaCleanupRuns?: Prisma.PromptMediaCleanupRunUncheckedUpdateManyWithoutActorNestedInput
+  flagsRaised?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutRaisedByNestedInput
+  flagsResolved?: Prisma.SubmissionFlagUncheckedUpdateManyWithoutResolvedByNestedInput
+  retakeCredits?: Prisma.RetakeCreditUncheckedUpdateManyWithoutStudentNestedInput
 }
 
 
@@ -2399,6 +3030,9 @@ export type UserCountOutputType = {
   purgeRequestsApproved: number
   retentionAuditEvents: number
   promptMediaCleanupRuns: number
+  flagsRaised: number
+  flagsResolved: number
+  retakeCredits: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2415,6 +3049,9 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   purgeRequestsApproved?: boolean | UserCountOutputTypeCountPurgeRequestsApprovedArgs
   retentionAuditEvents?: boolean | UserCountOutputTypeCountRetentionAuditEventsArgs
   promptMediaCleanupRuns?: boolean | UserCountOutputTypeCountPromptMediaCleanupRunsArgs
+  flagsRaised?: boolean | UserCountOutputTypeCountFlagsRaisedArgs
+  flagsResolved?: boolean | UserCountOutputTypeCountFlagsResolvedArgs
+  retakeCredits?: boolean | UserCountOutputTypeCountRetakeCreditsArgs
 }
 
 /**
@@ -2518,6 +3155,27 @@ export type UserCountOutputTypeCountPromptMediaCleanupRunsArgs<ExtArgs extends r
   where?: Prisma.PromptMediaCleanupRunWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountFlagsRaisedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SubmissionFlagWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountFlagsResolvedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SubmissionFlagWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountRetakeCreditsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.RetakeCreditWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2545,6 +3203,9 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   purgeRequestsApproved?: boolean | Prisma.User$purgeRequestsApprovedArgs<ExtArgs>
   retentionAuditEvents?: boolean | Prisma.User$retentionAuditEventsArgs<ExtArgs>
   promptMediaCleanupRuns?: boolean | Prisma.User$promptMediaCleanupRunsArgs<ExtArgs>
+  flagsRaised?: boolean | Prisma.User$flagsRaisedArgs<ExtArgs>
+  flagsResolved?: boolean | Prisma.User$flagsResolvedArgs<ExtArgs>
+  retakeCredits?: boolean | Prisma.User$retakeCreditsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -2608,6 +3269,9 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   purgeRequestsApproved?: boolean | Prisma.User$purgeRequestsApprovedArgs<ExtArgs>
   retentionAuditEvents?: boolean | Prisma.User$retentionAuditEventsArgs<ExtArgs>
   promptMediaCleanupRuns?: boolean | Prisma.User$promptMediaCleanupRunsArgs<ExtArgs>
+  flagsRaised?: boolean | Prisma.User$flagsRaisedArgs<ExtArgs>
+  flagsResolved?: boolean | Prisma.User$flagsResolvedArgs<ExtArgs>
+  retakeCredits?: boolean | Prisma.User$retakeCreditsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -2629,6 +3293,9 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     purgeRequestsApproved: Prisma.$SubmissionPurgeRequestPayload<ExtArgs>[]
     retentionAuditEvents: Prisma.$RetentionAuditEventPayload<ExtArgs>[]
     promptMediaCleanupRuns: Prisma.$PromptMediaCleanupRunPayload<ExtArgs>[]
+    flagsRaised: Prisma.$SubmissionFlagPayload<ExtArgs>[]
+    flagsResolved: Prisma.$SubmissionFlagPayload<ExtArgs>[]
+    retakeCredits: Prisma.$RetakeCreditPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -3050,6 +3717,9 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   purgeRequestsApproved<T extends Prisma.User$purgeRequestsApprovedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$purgeRequestsApprovedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionPurgeRequestPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   retentionAuditEvents<T extends Prisma.User$retentionAuditEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$retentionAuditEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RetentionAuditEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   promptMediaCleanupRuns<T extends Prisma.User$promptMediaCleanupRunsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$promptMediaCleanupRunsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PromptMediaCleanupRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  flagsRaised<T extends Prisma.User$flagsRaisedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$flagsRaisedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionFlagPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  flagsResolved<T extends Prisma.User$flagsResolvedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$flagsResolvedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionFlagPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  retakeCredits<T extends Prisma.User$retakeCreditsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$retakeCreditsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RetakeCreditPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3793,6 +4463,78 @@ export type User$promptMediaCleanupRunsArgs<ExtArgs extends runtime.Types.Extens
   take?: number
   skip?: number
   distinct?: Prisma.PromptMediaCleanupRunScalarFieldEnum | Prisma.PromptMediaCleanupRunScalarFieldEnum[]
+}
+
+/**
+ * User.flagsRaised
+ */
+export type User$flagsRaisedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionFlag
+   */
+  select?: Prisma.SubmissionFlagSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionFlag
+   */
+  omit?: Prisma.SubmissionFlagOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionFlagInclude<ExtArgs> | null
+  where?: Prisma.SubmissionFlagWhereInput
+  orderBy?: Prisma.SubmissionFlagOrderByWithRelationInput | Prisma.SubmissionFlagOrderByWithRelationInput[]
+  cursor?: Prisma.SubmissionFlagWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SubmissionFlagScalarFieldEnum | Prisma.SubmissionFlagScalarFieldEnum[]
+}
+
+/**
+ * User.flagsResolved
+ */
+export type User$flagsResolvedArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubmissionFlag
+   */
+  select?: Prisma.SubmissionFlagSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubmissionFlag
+   */
+  omit?: Prisma.SubmissionFlagOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubmissionFlagInclude<ExtArgs> | null
+  where?: Prisma.SubmissionFlagWhereInput
+  orderBy?: Prisma.SubmissionFlagOrderByWithRelationInput | Prisma.SubmissionFlagOrderByWithRelationInput[]
+  cursor?: Prisma.SubmissionFlagWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SubmissionFlagScalarFieldEnum | Prisma.SubmissionFlagScalarFieldEnum[]
+}
+
+/**
+ * User.retakeCredits
+ */
+export type User$retakeCreditsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RetakeCredit
+   */
+  select?: Prisma.RetakeCreditSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the RetakeCredit
+   */
+  omit?: Prisma.RetakeCreditOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RetakeCreditInclude<ExtArgs> | null
+  where?: Prisma.RetakeCreditWhereInput
+  orderBy?: Prisma.RetakeCreditOrderByWithRelationInput | Prisma.RetakeCreditOrderByWithRelationInput[]
+  cursor?: Prisma.RetakeCreditWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.RetakeCreditScalarFieldEnum | Prisma.RetakeCreditScalarFieldEnum[]
 }
 
 /**

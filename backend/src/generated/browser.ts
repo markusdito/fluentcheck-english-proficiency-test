@@ -108,6 +108,16 @@ export type AppSettings = Prisma.AppSettingsModel
  */
 export type Answer = Prisma.AnswerModel
 /**
+ * Model SubmissionFlag
+ * 
+ */
+export type SubmissionFlag = Prisma.SubmissionFlagModel
+/**
+ * Model RetakeCredit
+ * 
+ */
+export type RetakeCredit = Prisma.RetakeCreditModel
+/**
  * Model Payment
  * 
  */

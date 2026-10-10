@@ -34,6 +34,25 @@ enum SubmissionStatus {
   SCORING // examiners are grading
   SCORED // all scores submitted
   CERTIFIED // certificate issued
+  FLAG_REVIEW // open flag awaits an Admin decision (PRD FR-2.2)
+  VOIDED // terminal: a confirmed flag; never scored (PRD FR-2.9)
+}
+
+enum SubmissionFlagType {
+  TECHNICAL_FAILURE
+  CAMERA_DROP
+  INTEGRITY_CONCERN
+}
+
+enum SubmissionFlagSource {
+  STUDENT_DEVICE // raised by the test client during the Assessment
+  EXAMINER
+}
+
+enum SubmissionFlagResolution {
+  CONFIRMED // voided the Submission
+  DISMISSED // false alarm; the Submission returned to its flow
+  SUPERSEDED // still open when another flag on the same Submission was confirmed
 }
 
 enum PaymentStatus {
@@ -166,6 +185,9 @@ model User {
   purgeRequestsApproved  SubmissionPurgeRequest[]         @relation("PurgeRequestApprover")
   retentionAuditEvents   RetentionAuditEvent[]
   promptMediaCleanupRuns PromptMediaCleanupRun[]
+  flagsRaised            SubmissionFlag[]                 @relation("FlagRaisedBy")
+  flagsResolved          SubmissionFlag[]                 @relation("FlagResolvedBy")
+  retakeCredits          RetakeCredit[]
 
   @@index([role])
 }
@@ -252,6 +274,11 @@ model Submission {
   // PRD FR-2.6: informed consent recorded before any capture. Null on legacy rows.
   consentedAt          DateTime?                 @db.Timestamptz()
   consentVersion       String?
+  // Where a dismissed flag returns the Submission (PRD FR-2.2). Set on entering FLAG_REVIEW.
+  flagReturnStatus     SubmissionStatus?
+  flags                SubmissionFlag[]
+  retakeCreditGranted  RetakeCredit?             @relation("RetakeCreditVoided")
+  retakeCreditRedeemed RetakeCredit?             @relation("RetakeCreditRedeemed")
   answers              Answer[]
   manifest             SubmissionManifest?
   payments             Payment[]
@@ -503,12 +530,55 @@ model Answer {
   proofVersion     Int?
 
   scores    Score[]
-  createdAt DateTime @default(now()) @db.Timestamptz()
-  updatedAt DateTime @updatedAt @db.Timestamptz()
+  flags     SubmissionFlag[]
+  createdAt DateTime         @default(now()) @db.Timestamptz()
+  updatedAt DateTime         @updatedAt @db.Timestamptz()
 
   @@unique([submissionId, questionId]) // one video per question per attempt
   @@unique([manifestEntryId]) // one video per Manifest entry
   @@index([questionId])
+}
+
+// A technical-failure, camera-drop or integrity flag (PRD FR-2.9, FR-9.9).
+// Resolution columns are written once; the row is the audit record.
+model SubmissionFlag {
+  id               String                    @id @default(uuid()) @db.Uuid
+  submissionId     String                    @db.Uuid
+  submission       Submission                @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  type             SubmissionFlagType
+  source           SubmissionFlagSource
+  reason           String
+  answerId         String?                   @db.Uuid // the flagged Answer, when known
+  answer           Answer?                   @relation(fields: [answerId], references: [id], onDelete: SetNull)
+  manifestEntryId  String?                   @db.Uuid // the slot being recorded, for flags raised before upload
+  timestampSeconds Int? // Examiner integrity concern: position in the Answer video
+  raisedById       String?                   @db.Uuid
+  raisedBy         User?                     @relation("FlagRaisedBy", fields: [raisedById], references: [id], onDelete: Restrict)
+  raisedAt         DateTime                  @default(now()) @db.Timestamptz()
+  resolution       SubmissionFlagResolution?
+  resolutionNote   String?
+  resolvedById     String?                   @db.Uuid
+  resolvedBy       User?                     @relation("FlagResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)
+  resolvedAt       DateTime?                 @db.Timestamptz()
+
+  @@index([submissionId, resolution])
+  @@index([resolution, raisedAt])
+}
+
+// One free retake per voided Submission, owned by that Submission's student
+// (PRD FR-2.9). Redeemed as a system waiver on the student's next Submission.
+model RetakeCredit {
+  id                   String      @id @default(uuid()) @db.Uuid
+  studentId            String      @db.Uuid
+  student              User        @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  voidedSubmissionId   String      @unique @db.Uuid
+  voidedSubmission     Submission  @relation("RetakeCreditVoided", fields: [voidedSubmissionId], references: [id], onDelete: Restrict)
+  redeemedSubmissionId String?     @unique @db.Uuid
+  redeemedSubmission   Submission? @relation("RetakeCreditRedeemed", fields: [redeemedSubmissionId], references: [id], onDelete: Restrict)
+  createdAt            DateTime    @default(now()) @db.Timestamptz()
+  redeemedAt           DateTime?   @db.Timestamptz()
+
+  @@index([studentId, redeemedSubmissionId])
 }
 
 model Payment {

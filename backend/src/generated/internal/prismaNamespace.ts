@@ -402,6 +402,8 @@ export const ModelName = {
   ManifestTask: 'ManifestTask',
   AppSettings: 'AppSettings',
   Answer: 'Answer',
+  SubmissionFlag: 'SubmissionFlag',
+  RetakeCredit: 'RetakeCredit',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
   ExaminerAssignmentReassignment: 'ExaminerAssignmentReassignment',
@@ -422,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
+    modelProps: "user" | "googleOAuthState" | "testSet" | "question" | "task" | "submission" | "submissionRetentionHold" | "submissionPurgeRequest" | "submissionPurgeObject" | "promptMediaCleanupRun" | "promptMediaCleanupObject" | "retentionAuditEvent" | "submissionStartIntent" | "submissionManifest" | "manifestEntry" | "manifestTask" | "appSettings" | "answer" | "submissionFlag" | "retakeCredit" | "payment" | "examinerAssignment" | "examinerAssignmentReassignment" | "score" | "certificate"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1758,6 +1760,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    SubmissionFlag: {
+      payload: Prisma.$SubmissionFlagPayload<ExtArgs>
+      fields: Prisma.SubmissionFlagFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SubmissionFlagFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SubmissionFlagFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        findFirst: {
+          args: Prisma.SubmissionFlagFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SubmissionFlagFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        findMany: {
+          args: Prisma.SubmissionFlagFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>[]
+        }
+        create: {
+          args: Prisma.SubmissionFlagCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        createMany: {
+          args: Prisma.SubmissionFlagCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SubmissionFlagCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>[]
+        }
+        delete: {
+          args: Prisma.SubmissionFlagDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        update: {
+          args: Prisma.SubmissionFlagUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        deleteMany: {
+          args: Prisma.SubmissionFlagDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SubmissionFlagUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SubmissionFlagUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>[]
+        }
+        upsert: {
+          args: Prisma.SubmissionFlagUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SubmissionFlagPayload>
+        }
+        aggregate: {
+          args: Prisma.SubmissionFlagAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSubmissionFlag>
+        }
+        groupBy: {
+          args: Prisma.SubmissionFlagGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionFlagGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SubmissionFlagCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SubmissionFlagCountAggregateOutputType> | number
+        }
+      }
+    }
+    RetakeCredit: {
+      payload: Prisma.$RetakeCreditPayload<ExtArgs>
+      fields: Prisma.RetakeCreditFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.RetakeCreditFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.RetakeCreditFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        findFirst: {
+          args: Prisma.RetakeCreditFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.RetakeCreditFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        findMany: {
+          args: Prisma.RetakeCreditFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>[]
+        }
+        create: {
+          args: Prisma.RetakeCreditCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        createMany: {
+          args: Prisma.RetakeCreditCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.RetakeCreditCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>[]
+        }
+        delete: {
+          args: Prisma.RetakeCreditDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        update: {
+          args: Prisma.RetakeCreditUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        deleteMany: {
+          args: Prisma.RetakeCreditDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.RetakeCreditUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.RetakeCreditUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>[]
+        }
+        upsert: {
+          args: Prisma.RetakeCreditUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$RetakeCreditPayload>
+        }
+        aggregate: {
+          args: Prisma.RetakeCreditAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateRetakeCredit>
+        }
+        groupBy: {
+          args: Prisma.RetakeCreditGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RetakeCreditGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.RetakeCreditCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.RetakeCreditCountAggregateOutputType> | number
+        }
+      }
+    }
     Payment: {
       payload: Prisma.$PaymentPayload<ExtArgs>
       fields: Prisma.PaymentFieldRefs
@@ -2250,6 +2400,7 @@ export const SubmissionScalarFieldEnum = {
   paymentRequired: 'paymentRequired',
   consentedAt: 'consentedAt',
   consentVersion: 'consentVersion',
+  flagReturnStatus: 'flagReturnStatus',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -2454,6 +2605,38 @@ export const AnswerScalarFieldEnum = {
 } as const
 
 export type AnswerScalarFieldEnum = (typeof AnswerScalarFieldEnum)[keyof typeof AnswerScalarFieldEnum]
+
+
+export const SubmissionFlagScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  type: 'type',
+  source: 'source',
+  reason: 'reason',
+  answerId: 'answerId',
+  manifestEntryId: 'manifestEntryId',
+  timestampSeconds: 'timestampSeconds',
+  raisedById: 'raisedById',
+  raisedAt: 'raisedAt',
+  resolution: 'resolution',
+  resolutionNote: 'resolutionNote',
+  resolvedById: 'resolvedById',
+  resolvedAt: 'resolvedAt'
+} as const
+
+export type SubmissionFlagScalarFieldEnum = (typeof SubmissionFlagScalarFieldEnum)[keyof typeof SubmissionFlagScalarFieldEnum]
+
+
+export const RetakeCreditScalarFieldEnum = {
+  id: 'id',
+  studentId: 'studentId',
+  voidedSubmissionId: 'voidedSubmissionId',
+  redeemedSubmissionId: 'redeemedSubmissionId',
+  createdAt: 'createdAt',
+  redeemedAt: 'redeemedAt'
+} as const
+
+export type RetakeCreditScalarFieldEnum = (typeof RetakeCreditScalarFieldEnum)[keyof typeof RetakeCreditScalarFieldEnum]
 
 
 export const PaymentScalarFieldEnum = {
@@ -2839,6 +3022,48 @@ export type ListEnumRetentionAuditActionFieldRefInput<$PrismaModel> = FieldRefIn
 
 
 /**
+ * Reference to a field of type 'SubmissionFlagType'
+ */
+export type EnumSubmissionFlagTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagType'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagType[]'
+ */
+export type ListEnumSubmissionFlagTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagType[]'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagSource'
+ */
+export type EnumSubmissionFlagSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagSource'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagSource[]'
+ */
+export type ListEnumSubmissionFlagSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagSource[]'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagResolution'
+ */
+export type EnumSubmissionFlagResolutionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagResolution'>
+    
+
+
+/**
+ * Reference to a field of type 'SubmissionFlagResolution[]'
+ */
+export type ListEnumSubmissionFlagResolutionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionFlagResolution[]'>
+    
+
+
+/**
  * Reference to a field of type 'PaymentStatus'
  */
 export type EnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentStatus'>
@@ -3021,6 +3246,8 @@ export type GlobalOmitConfig = {
   manifestTask?: Prisma.ManifestTaskOmit
   appSettings?: Prisma.AppSettingsOmit
   answer?: Prisma.AnswerOmit
+  submissionFlag?: Prisma.SubmissionFlagOmit
+  retakeCredit?: Prisma.RetakeCreditOmit
   payment?: Prisma.PaymentOmit
   examinerAssignment?: Prisma.ExaminerAssignmentOmit
   examinerAssignmentReassignment?: Prisma.ExaminerAssignmentReassignmentOmit

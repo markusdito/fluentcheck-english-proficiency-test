@@ -36,10 +36,38 @@ export const SubmissionStatus = {
   PAID: 'PAID',
   SCORING: 'SCORING',
   SCORED: 'SCORED',
-  CERTIFIED: 'CERTIFIED'
+  CERTIFIED: 'CERTIFIED',
+  FLAG_REVIEW: 'FLAG_REVIEW',
+  VOIDED: 'VOIDED'
 } as const
 
 export type SubmissionStatus = (typeof SubmissionStatus)[keyof typeof SubmissionStatus]
+
+
+export const SubmissionFlagType = {
+  TECHNICAL_FAILURE: 'TECHNICAL_FAILURE',
+  CAMERA_DROP: 'CAMERA_DROP',
+  INTEGRITY_CONCERN: 'INTEGRITY_CONCERN'
+} as const
+
+export type SubmissionFlagType = (typeof SubmissionFlagType)[keyof typeof SubmissionFlagType]
+
+
+export const SubmissionFlagSource = {
+  STUDENT_DEVICE: 'STUDENT_DEVICE',
+  EXAMINER: 'EXAMINER'
+} as const
+
+export type SubmissionFlagSource = (typeof SubmissionFlagSource)[keyof typeof SubmissionFlagSource]
+
+
+export const SubmissionFlagResolution = {
+  CONFIRMED: 'CONFIRMED',
+  DISMISSED: 'DISMISSED',
+  SUPERSEDED: 'SUPERSEDED'
+} as const
+
+export type SubmissionFlagResolution = (typeof SubmissionFlagResolution)[keyof typeof SubmissionFlagResolution]
 
 
 export const PaymentStatus = {

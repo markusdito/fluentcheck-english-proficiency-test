@@ -69,6 +69,8 @@ export const ModelName = {
   ManifestTask: 'ManifestTask',
   AppSettings: 'AppSettings',
   Answer: 'Answer',
+  SubmissionFlag: 'SubmissionFlag',
+  RetakeCredit: 'RetakeCredit',
   Payment: 'Payment',
   ExaminerAssignment: 'ExaminerAssignment',
   ExaminerAssignmentReassignment: 'ExaminerAssignmentReassignment',
@@ -175,6 +177,7 @@ export const SubmissionScalarFieldEnum = {
   paymentRequired: 'paymentRequired',
   consentedAt: 'consentedAt',
   consentVersion: 'consentVersion',
+  flagReturnStatus: 'flagReturnStatus',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -379,6 +382,38 @@ export const AnswerScalarFieldEnum = {
 } as const
 
 export type AnswerScalarFieldEnum = (typeof AnswerScalarFieldEnum)[keyof typeof AnswerScalarFieldEnum]
+
+
+export const SubmissionFlagScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  type: 'type',
+  source: 'source',
+  reason: 'reason',
+  answerId: 'answerId',
+  manifestEntryId: 'manifestEntryId',
+  timestampSeconds: 'timestampSeconds',
+  raisedById: 'raisedById',
+  raisedAt: 'raisedAt',
+  resolution: 'resolution',
+  resolutionNote: 'resolutionNote',
+  resolvedById: 'resolvedById',
+  resolvedAt: 'resolvedAt'
+} as const
+
+export type SubmissionFlagScalarFieldEnum = (typeof SubmissionFlagScalarFieldEnum)[keyof typeof SubmissionFlagScalarFieldEnum]
+
+
+export const RetakeCreditScalarFieldEnum = {
+  id: 'id',
+  studentId: 'studentId',
+  voidedSubmissionId: 'voidedSubmissionId',
+  redeemedSubmissionId: 'redeemedSubmissionId',
+  createdAt: 'createdAt',
+  redeemedAt: 'redeemedAt'
+} as const
+
+export type RetakeCreditScalarFieldEnum = (typeof RetakeCreditScalarFieldEnum)[keyof typeof RetakeCreditScalarFieldEnum]
 
 
 export const PaymentScalarFieldEnum = {
