@@ -5,7 +5,7 @@ FluentCheck manages English-proficiency assessments from a student's recorded su
 ## Language
 
 **Submission**:
-A student's complete assessment attempt, including its recorded answers and progression through payment, scoring, and certification.
+A student's complete assessment attempt, including its recorded answers and progression through payment, scoring, and certification. Only a `STUDENT` account starts or records a Submission.
 _Avoid_: Test, exam
 
 **Active Submission**:
@@ -221,7 +221,7 @@ An active account authorized to work on an existing Examiner assignment. An `EXA
 _Avoid_: Eligible examiner when referring to existing assignment access
 
 **Eligible examiner**:
-An Examiner whose account is active and authorized when a new Examiner assignment set is committed.
+An Examiner whose account is active and authorized when a new Examiner assignment set is committed. An account is never an Eligible examiner for a Submission it owns, whether for a new assignment set or a Reassignment.
 _Avoid_: Available examiner
 
 **Examiner assignment**:
