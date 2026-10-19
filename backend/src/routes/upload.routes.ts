@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { verifyToken } from "../middleware/auth.middleware.js";
+import { requireRole } from "../middleware/role.middleware.js";
 import { getPresignedUrl, confirmUploadHandler } from "../controllers/upload.controller.js";
 import {
   createAccountAndIpRateLimiters,
@@ -15,16 +16,18 @@ export function createUploadRouter(runtime?: RateLimitRuntime) {
     RATE_LIMIT_POLICIES.answerStorageIp,
   );
 
-  // All upload routes require authentication
+  // Answer uploads belong to an Assessment, which only a STUDENT takes
   router.post(
     "/presigned-url",
     verifyToken,
+    requireRole("STUDENT"),
     ...answerStorageLimiters,
     getPresignedUrl,
   );
   router.post(
     "/confirm",
     verifyToken,
+    requireRole("STUDENT"),
     ...answerStorageLimiters,
     confirmUploadHandler,
   );
