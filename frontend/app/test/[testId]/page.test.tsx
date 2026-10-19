@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CONSENT_TEXT_VERSION, clearConsent, storeConsent } from "@/lib/consent";
 import { ApiError } from "@/lib/api";
 import { ASSESSMENT_START_INTENT_STORAGE_KEY } from "@/lib/assessment-start-intent";
@@ -257,7 +257,9 @@ describe("TestPage strict exam flow", () => {
     expect(mocks.initializeTest).not.toHaveBeenCalled();
     expect(mocks.getPresignedUrl).not.toHaveBeenCalled();
     expect(mocks.completeSubmission).not.toHaveBeenCalled();
+    expect(mocks.stopStream).not.toHaveBeenCalled();
     window.dispatchEvent(new Event("pagehide"));
+    expect(mocks.stopStream).toHaveBeenCalled();
     view.unmount();
     expect(mocks.sendHeartbeat).not.toHaveBeenCalled();
     expect(mocks.abandonSubmissionOnLeave).not.toHaveBeenCalled();
@@ -384,8 +386,45 @@ describe("TestPage strict exam flow", () => {
     const beforeUnload = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(beforeUnload);
     expect(beforeUnload.defaultPrevented).toBe(true);
-    expect(mocks.stopStream).toHaveBeenCalled();
+    expect(mocks.stopStream).not.toHaveBeenCalled();
     presign.resolve({ answerId: "a", presignedUrl: "https://storage.example/upload", storageKey: "k" });
+  });
+
+  it("keeps the devices and the take when the student stays after the leave prompt", async () => {
+    // Like the real coordinator, stopping the stream drops media readiness.
+    mocks.stopStream.mockImplementation(() => {
+      Object.assign(mocks.assessmentStart, { mediaReady: false, isVideoReady: false, isAudioReady: false });
+    });
+    onTestFinished(() => mocks.stopStream.mockReset());
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+
+    const beforeUnload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(beforeUnload);
+    expect(beforeUnload.defaultPrevented).toBe(true);
+    expect(mocks.stopStream).not.toHaveBeenCalled();
+
+    // "Stay": no pagehide follows, so the take records to the end unflagged.
+    await rerenderPage(view);
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+    await setFinalizedBlob(view);
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 10_000,
+      durationSeconds: 12,
+      technicalFailure: undefined,
+    }));
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
+  });
+
+  it("releases the devices once the student actually leaves (pagehide)", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+    expect(mocks.stopStream).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event("pagehide"));
+    expect(mocks.stopStream).toHaveBeenCalled();
   });
 
   it("uploads a camera-dropped take flagged as CAMERA_DROP and keeps the test going (FR-4.3)", async () => {

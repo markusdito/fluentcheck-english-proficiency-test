@@ -214,7 +214,10 @@ replayed. On success the page resumes the next unfinished slot with full
 preparation time. A 409 or 404 shows "This Assessment has ended". `pagehide`
 and unmount (client navigation away) send the abandon request with
 `navigator.sendBeacon` (fetch `keepalive` fallback) and clear the start
-intent, so returning to the test route starts a new Assessment.
+intent, so returning to the test route starts a new Assessment. While a take
+records or an upload is pending, `beforeunload` shows the browser's leave
+prompt without touching the devices, so a student who chooses to stay keeps
+recording; `pagehide` releases the camera and microphone.
 
 The test page and its layout coordinate these visible phases:
 
