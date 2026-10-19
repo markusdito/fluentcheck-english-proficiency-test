@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CONSENT_TEXT_VERSION, clearConsent, storeConsent } from "@/lib/consent";
 import { ApiError } from "@/lib/api";
 import { ASSESSMENT_START_INTENT_STORAGE_KEY } from "@/lib/assessment-start-intent";
@@ -391,6 +391,11 @@ describe("TestPage strict exam flow", () => {
   });
 
   it("keeps the devices and the take when the student stays after the leave prompt", async () => {
+    // Like the real coordinator, stopping the stream drops media readiness.
+    mocks.stopStream.mockImplementation(() => {
+      Object.assign(mocks.assessmentStart, { mediaReady: false, isVideoReady: false, isAudioReady: false });
+    });
+    onTestFinished(() => mocks.stopStream.mockReset());
     const view = await renderPage();
     await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
     await startSlot(onComplete);
