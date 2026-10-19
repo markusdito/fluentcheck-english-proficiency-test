@@ -341,10 +341,15 @@ export async function createExaminerAssignmentSet(
               "Candidate selection must return two distinct examiners",
             );
           }
+          if (firstId === submission.studentId || secondId === submission.studentId) {
+            throw new AssignmentSetError(
+              "INVARIANT_VIOLATION",
+              "Candidate selection must not return the Submission's student",
+            );
+          }
 
           // Lock and revalidate both chosen accounts so a concurrent role
-          // change or soft delete cannot invalidate the selection mid-flight,
-          // and so no selection can hand the student their own Submission.
+          // change or soft delete cannot invalidate the selection mid-flight.
           const locked = await tx.$queryRaw<{ id: string; role: string; deletedAt: Date | null }[]>`
             SELECT "id", "role"::text AS "role", "deletedAt"
               FROM "User"
@@ -356,9 +361,7 @@ export async function createExaminerAssignmentSet(
             locked.length !== 2 ||
             locked.some(
               (account) =>
-                account.role !== "EXAMINER" ||
-                account.deletedAt !== null ||
-                account.id === submission.studentId,
+                account.role !== "EXAMINER" || account.deletedAt !== null,
             )
           ) {
             throw new AssignmentSetError(

@@ -318,7 +318,7 @@ test("a candidate selection that returns the submission's own student is rejecte
       }),
     (error: unknown) => {
       assert.ok(error instanceof AssignmentSetError);
-      assert.equal(error.code, "INSUFFICIENT_CAPACITY");
+      assert.equal(error.code, "INVARIANT_VIOLATION");
       return true;
     },
   );
