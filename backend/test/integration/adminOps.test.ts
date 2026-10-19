@@ -260,6 +260,23 @@ test("an Admin reassigns an untouched ASSIGNED assignment, keeping its identity 
   );
 });
 
+test("an Admin cannot reassign an assignment to the Examiner who owns the Submission", async () => {
+  const owner = await user("EXAMINER");
+  const admin = await user("ADMIN");
+  const [first, second] = [await user("EXAMINER"), await user("EXAMINER")];
+  const { assignments } = await scoringSubmission(owner.id, [first.id, second.id]);
+
+  const rejected = await request("POST", `/admin/assignments/${assignments[0].id}/reassign`, admin.id, {
+    examinerId: owner.id,
+    reason: "Workload",
+  });
+  assert.equal(rejected.status, 400);
+  assert.equal((await rejected.json()).code, "INVALID_EXAMINER");
+  const assignment = await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } });
+  assert.equal(assignment.examinerId, first.id);
+  assert.equal(await prisma.examinerAssignmentReassignment.count({ where: { assignmentId: assignments[0].id } }), 0);
+});
+
 test("the dashboard queues list open flags and ambiguous payment outcomes", async () => {
   const student = await user("STUDENT");
   const admin = await user("ADMIN");

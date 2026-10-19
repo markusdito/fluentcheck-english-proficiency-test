@@ -173,6 +173,7 @@ async function reassignInsideTransaction(
         select: {
           status: true,
           retentionStatus: true,
+          studentId: true,
           assignments: { select: { id: true, examinerId: true } },
         },
       },
@@ -207,10 +208,18 @@ async function reassignInsideTransaction(
   const takenBy = assignment.submission.assignments.some(
     (other) => other.id !== assignmentId && other.examinerId === examinerId,
   );
-  if (!replacement || replacement.role !== "EXAMINER" || replacement.deletedAt || takenBy) {
+  // An Examiner is never eligible to score their own Submission.
+  const ownsSubmission = examinerId === assignment.submission.studentId;
+  if (
+    !replacement ||
+    replacement.role !== "EXAMINER" ||
+    replacement.deletedAt ||
+    takenBy ||
+    ownsSubmission
+  ) {
     throw new AdminOpsError(
       "INVALID_EXAMINER",
-      "The new examiner must be an active Examiner not already assigned to this Submission",
+      "The new examiner must be an active Examiner who is neither the Submission's student nor already assigned to it",
     );
   }
 
