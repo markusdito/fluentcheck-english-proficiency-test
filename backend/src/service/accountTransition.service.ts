@@ -300,6 +300,7 @@ async function readTargetAssignments(
       status: true,
       createdAt: true,
       scores: { select: { id: true } },
+      submission: { select: { studentId: true } },
     },
   });
 }
@@ -684,11 +685,13 @@ async function transitionInsideTransaction(
         replacement.deletedAt !== null ||
         replacement.role !== "EXAMINER" ||
         replacementId === targetUserId ||
-        owners.has(replacementId)
+        owners.has(replacementId) ||
+        // An Examiner is never eligible to score their own Submission.
+        replacementId === assignment.submission.studentId
       ) {
         throw new AccountTransitionError(
           "INVALID_REASSIGNMENT",
-          "Replacement examiners must be active, distinct Examiners outside the assignment set",
+          "Replacement examiners must be active, distinct Examiners outside the assignment set and not the Submission's student",
           { assignmentIds: [assignment.id] },
         );
       }
@@ -868,6 +871,7 @@ export async function previewAccountRoleTransition(
       createdAt: true,
       examiner: { select: { id: true, username: true, email: true } },
       scores: { select: { id: true } },
+      submission: { select: { studentId: true } },
     },
   });
   const ownersBySubmission = new Map<string, Set<string>>();
@@ -916,6 +920,7 @@ export async function previewAccountRoleTransition(
           ? eligible.filter(
               (candidate) =>
                 candidate.id !== targetUserId &&
+                candidate.id !== assignment.submission.studentId &&
                 !ownersBySubmission.get(assignment.submissionId)?.has(candidate.id),
             )
           : [],
