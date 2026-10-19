@@ -73,3 +73,9 @@ describe("Next.js backend rewrite configuration", () => {
     ]);
   });
 });
+
+describe("Next.js image configuration", () => {
+  it("disables the /_next/image optimizer endpoint", () => {
+    expect(nextConfig.images).toEqual({ unoptimized: true });
+  });
+});

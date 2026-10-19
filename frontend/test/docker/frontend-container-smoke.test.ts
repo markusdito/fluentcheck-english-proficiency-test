@@ -117,4 +117,20 @@ describe("frontend production image", () => {
       url: "/api/ping",
     });
   });
+
+  it("does not serve the image optimizer", async () => {
+    // An enabled optimizer would answer with a 200 resized image as long as
+    // the source is served, so check that first: its 404 would pass through.
+    const source = await fetch(
+      `http://127.0.0.1:${frontendPort}/apple-icon.png`,
+    );
+    await source.body?.cancel();
+    expect(source.status).toBe(200);
+
+    const response = await fetch(
+      `http://127.0.0.1:${frontendPort}/_next/image?url=%2Fapple-icon.png&w=64&q=75`,
+    );
+    await response.body?.cancel();
+    expect(response.status).toBe(404);
+  });
 });
