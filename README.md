@@ -108,7 +108,7 @@ OAuth remain session-only, and logout clears the same cookie in either mode.
 
 | Area | Technologies |
 | --- | --- |
-| Frontend | Next.js 16.2.6, React 19.2.4, TypeScript 5, Tailwind CSS 4, Base UI and shadcn-style components |
+| Frontend | Next.js 16.4.2, React 19.2.4, TypeScript 5, Tailwind CSS 4, Base UI and shadcn-style components |
 | Backend | Node.js, Express 5.2.1, TypeScript 6, Prisma 7.8 |
 | Data | PostgreSQL, Prisma migrations |
 | Media | MediaRecorder API, Cloudflare R2, AWS S3-compatible SDK |
