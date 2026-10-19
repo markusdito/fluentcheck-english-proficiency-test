@@ -73,17 +73,19 @@ async function createExaminer(prefix: string) {
   });
 }
 
-async function createAssignmentReadySubmission() {
+async function createAssignmentReadySubmission(studentId?: string) {
   const email = `${crypto.randomUUID()}@example.test`;
-  const student = await prisma.user.create({
-    data: {
-      username: uniqueUsername("student"),
-      email,
-      normalizedEmail: email,
-      password: "unused",
-      role: "STUDENT",
-    },
-  });
+  const student = studentId
+    ? { id: studentId }
+    : await prisma.user.create({
+        data: {
+          username: uniqueUsername("student"),
+          email,
+          normalizedEmail: email,
+          password: "unused",
+          role: "STUDENT",
+        },
+      });
   // The manifest shape trigger is deferred to commit, so the Submission and
   // its complete version-2 manifest must be created in one transaction.
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -241,6 +243,82 @@ test("fewer than two Eligible examiners fails with a retryable capacity error an
       assert.equal(error.code, "INSUFFICIENT_CAPACITY");
       assert.equal(error.retryable, true);
       assert.equal(error.eligibleExaminerCount, 1);
+      return true;
+    },
+  );
+
+  assert.equal(
+    await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
+    0,
+  );
+  assert.equal(
+    (await prisma.submission.findUnique({ where: { id: submission.id } }))?.status,
+    "PAID",
+  );
+});
+
+test("an Examiner who owns the submission is not Eligible to score it", async () => {
+  const owner = await createExaminer("owner");
+  const other = await createExaminer("other");
+  const third = await createExaminer("third");
+  const submission = await createAssignmentReadySubmission(owner.id);
+  const offeredPools: string[][] = [];
+
+  const result = await createExaminerAssignmentSet(submission.id, {
+    selectCandidates: (eligibleExaminerIds) => {
+      offeredPools.push([...eligibleExaminerIds].sort());
+      return [eligibleExaminerIds[0], eligibleExaminerIds[1]];
+    },
+  });
+
+  assert.equal(result.outcome, "CREATED");
+  assert.deepEqual(offeredPools, [[other.id, third.id].sort()]);
+  assert.deepEqual(
+    result.assignedExaminers.map((examiner) => examiner.id).sort(),
+    [other.id, third.id].sort(),
+  );
+});
+
+test("an Examiner who owns the submission does not count toward capacity", async () => {
+  const owner = await createExaminer("owner");
+  await createExaminer("other");
+  const submission = await createAssignmentReadySubmission(owner.id);
+
+  await assert.rejects(
+    () => createExaminerAssignmentSet(submission.id),
+    (error: unknown) => {
+      assert.ok(error instanceof AssignmentSetError);
+      assert.equal(error.code, "INSUFFICIENT_CAPACITY");
+      assert.equal(error.retryable, true);
+      assert.equal(error.eligibleExaminerCount, 1);
+      return true;
+    },
+  );
+
+  assert.equal(
+    await prisma.examinerAssignment.count({ where: { submissionId: submission.id } }),
+    0,
+  );
+  assert.equal(
+    (await prisma.submission.findUnique({ where: { id: submission.id } }))?.status,
+    "PAID",
+  );
+});
+
+test("a candidate selection that returns the submission's own student is rejected", async () => {
+  const owner = await createExaminer("owner");
+  const other = await createExaminer("other");
+  await createExaminer("third");
+  const submission = await createAssignmentReadySubmission(owner.id);
+
+  await assert.rejects(
+    () =>
+      createExaminerAssignmentSet(submission.id, {
+        selectCandidates: () => [owner.id, other.id],
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AssignmentSetError);
+      assert.equal(error.code, "INSUFFICIENT_CAPACITY");
       return true;
     },
   );

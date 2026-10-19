@@ -284,7 +284,7 @@ export async function createExaminerAssignmentSet(
 
           const submission = await tx.submission.findUnique({
             where: { id: submissionId },
-            select: { status: true, retentionStatus: true },
+            select: { status: true, retentionStatus: true, studentId: true },
           });
           if (!submission) {
             throw new AssignmentSetError(
@@ -315,8 +315,13 @@ export async function createExaminerAssignmentSet(
             );
           }
 
+          // An Examiner is never eligible to score their own Submission.
           const eligible = await tx.user.findMany({
-            where: { role: "EXAMINER", deletedAt: null },
+            where: {
+              role: "EXAMINER",
+              deletedAt: null,
+              id: { not: submission.studentId },
+            },
             select: { id: true },
           });
           if (eligible.length < 2) {
@@ -338,7 +343,8 @@ export async function createExaminerAssignmentSet(
           }
 
           // Lock and revalidate both chosen accounts so a concurrent role
-          // change or soft delete cannot invalidate the selection mid-flight.
+          // change or soft delete cannot invalidate the selection mid-flight,
+          // and so no selection can hand the student their own Submission.
           const locked = await tx.$queryRaw<{ id: string; role: string; deletedAt: Date | null }[]>`
             SELECT "id", "role"::text AS "role", "deletedAt"
               FROM "User"
@@ -350,7 +356,9 @@ export async function createExaminerAssignmentSet(
             locked.length !== 2 ||
             locked.some(
               (account) =>
-                account.role !== "EXAMINER" || account.deletedAt !== null,
+                account.role !== "EXAMINER" ||
+                account.deletedAt !== null ||
+                account.id === submission.studentId,
             )
           ) {
             throw new AssignmentSetError(
