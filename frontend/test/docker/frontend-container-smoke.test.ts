@@ -117,4 +117,14 @@ describe("frontend production image", () => {
       url: "/api/ping",
     });
   });
+
+  it("does not serve the image optimizer", async () => {
+    // /apple-icon.png is served by the app, so an enabled optimizer would
+    // answer this with a 200 resized PNG.
+    const response = await fetch(
+      `http://127.0.0.1:${frontendPort}/_next/image?url=%2Fapple-icon.png&w=64&q=75`,
+    );
+    await response.body?.cancel();
+    expect(response.status).toBe(404);
+  });
 });
