@@ -314,14 +314,14 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     };
   }, [abandonOnLeave]);
 
-  // Guard: stop camera stream on any navigation away from the test page.
+  // Warn before leaving mid-take or with uploads pending. The prompt leaves the
+  // devices alone: a student who chooses "Stay" keeps recording.
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (recordingMutationPending) {
         event.preventDefault();
         event.returnValue = "";
       }
-      stopStream();
     };
     const handlePopState = () => {
       stopStream();

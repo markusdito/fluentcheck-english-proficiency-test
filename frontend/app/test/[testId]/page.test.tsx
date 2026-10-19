@@ -384,8 +384,30 @@ describe("TestPage strict exam flow", () => {
     const beforeUnload = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(beforeUnload);
     expect(beforeUnload.defaultPrevented).toBe(true);
-    expect(mocks.stopStream).toHaveBeenCalled();
+    expect(mocks.stopStream).not.toHaveBeenCalled();
     presign.resolve({ answerId: "a", presignedUrl: "https://storage.example/upload", storageKey: "k" });
+  });
+
+  it("keeps the devices and the take when the student stays after the leave prompt", async () => {
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+
+    const beforeUnload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(beforeUnload);
+    expect(beforeUnload.defaultPrevented).toBe(true);
+    expect(mocks.stopStream).not.toHaveBeenCalled();
+
+    // "Stay": no pagehide follows, so the take records to the end unflagged.
+    await rerenderPage(view);
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+    await setFinalizedBlob(view);
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 10_000,
+      durationSeconds: 12,
+      technicalFailure: undefined,
+    }));
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
   });
 
   it("uploads a camera-dropped take flagged as CAMERA_DROP and keeps the test going (FR-4.3)", async () => {
