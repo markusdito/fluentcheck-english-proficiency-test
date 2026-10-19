@@ -257,7 +257,9 @@ describe("TestPage strict exam flow", () => {
     expect(mocks.initializeTest).not.toHaveBeenCalled();
     expect(mocks.getPresignedUrl).not.toHaveBeenCalled();
     expect(mocks.completeSubmission).not.toHaveBeenCalled();
+    expect(mocks.stopStream).not.toHaveBeenCalled();
     window.dispatchEvent(new Event("pagehide"));
+    expect(mocks.stopStream).toHaveBeenCalled();
     view.unmount();
     expect(mocks.sendHeartbeat).not.toHaveBeenCalled();
     expect(mocks.abandonSubmissionOnLeave).not.toHaveBeenCalled();
@@ -408,6 +410,16 @@ describe("TestPage strict exam flow", () => {
       technicalFailure: undefined,
     }));
     expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
+  });
+
+  it("releases the devices once the student actually leaves (pagehide)", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+    expect(mocks.stopStream).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event("pagehide"));
+    expect(mocks.stopStream).toHaveBeenCalled();
   });
 
   it("uploads a camera-dropped take flagged as CAMERA_DROP and keeps the test going (FR-4.3)", async () => {

@@ -314,6 +314,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     };
   }, [abandonOnLeave]);
 
+  // pagehide fires only once the student has committed to leaving, practice
+  // included, so it is where the devices are released.
+  useEffect(() => {
+    window.addEventListener("pagehide", stopStream);
+    return () => window.removeEventListener("pagehide", stopStream);
+  }, [stopStream]);
+
   // Warn before leaving mid-take or with uploads pending. The prompt leaves the
   // devices alone: a student who chooses "Stay" keeps recording.
   useEffect(() => {
