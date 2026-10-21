@@ -111,6 +111,77 @@ export function classifyIpaymuCheckoutResponse(
   return { outcome: "SUCCESS", paymentUrl, providerSessionId };
 }
 
+export interface IpaymuTransactionExpectation {
+  merchantReference: string;
+  amount: number;
+  providerTransactionId: string;
+}
+
+export type IpaymuTransactionClassification =
+  | { outcome: "VERIFIED" }
+  | { outcome: "REJECTED"; reason: string }
+  | { outcome: "UNAVAILABLE" };
+
+const PAID_TRANSACTION_STATUSES = new Set([1, 6, 7]);
+
+function digitString(value: unknown) {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
+    return String(value);
+  }
+  if (typeof value === "string" && /^\d+$/.test(value)) return value;
+  return undefined;
+}
+
+/**
+ * Classifies iPaymu's check-transaction answer for a success callback. Only
+ * VERIFIED may mark a Payment attempt PAID; UNAVAILABLE is retryable.
+ */
+export function classifyIpaymuTransactionResponse(
+  httpStatus: number,
+  result: unknown,
+  expected: IpaymuTransactionExpectation,
+): IpaymuTransactionClassification {
+  if (httpStatus >= 500) return { outcome: "UNAVAILABLE" };
+
+  const resultRecord = isRecord(result) ? result : undefined;
+  if (
+    resultRecord?.Success === false ||
+    (httpStatus >= 400 && httpStatus < 500)
+  ) {
+    return { outcome: "REJECTED", reason: "iPaymu transaction not found" };
+  }
+
+  const data = isRecord(resultRecord?.Data) ? resultRecord.Data : undefined;
+  if (
+    httpStatus < 200 ||
+    httpStatus >= 300 ||
+    resultRecord?.Success !== true ||
+    !data
+  ) {
+    return { outcome: "UNAVAILABLE" };
+  }
+
+  if (digitString(data.TransactionId) !== expected.providerTransactionId) {
+    return { outcome: "REJECTED", reason: "iPaymu transaction ID mismatch" };
+  }
+  if (data.ReferenceId !== expected.merchantReference) {
+    return {
+      outcome: "REJECTED",
+      reason: "iPaymu transaction reference mismatch",
+    };
+  }
+  const amount = digitString(data.Amount);
+  if (amount === undefined || BigInt(amount) !== BigInt(expected.amount)) {
+    return { outcome: "REJECTED", reason: "iPaymu transaction amount mismatch" };
+  }
+  const status = digitString(data.Status);
+  if (status === undefined || !PAID_TRANSACTION_STATUSES.has(Number(status))) {
+    return { outcome: "REJECTED", reason: "iPaymu transaction is not paid" };
+  }
+
+  return { outcome: "VERIFIED" };
+}
+
 export function createIpaymuCheckoutTimeout(
   abortController: AbortController,
   timeoutMs = IPAYMU_CHECKOUT_TIMEOUT_MS,
