@@ -733,7 +733,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     }
 
     const verifiedCount = questions.filter((q) => uploadStates[q.id]?.status === "uploaded").length;
-    // "error": upload failed, take kept on this device for retry.
+    // "error": upload failed, take kept in page memory for retry.
     const failedEntryIds = questions.filter((q) => uploadStates[q.id]?.status === "error").map((q) => q.id);
     return (
       <TestShell title={screenTitle}>
@@ -753,7 +753,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             <div className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]" role="alert">
               <p className="m-0">
                 {failedEntryIds.length} answer{failedEntryIds.length !== 1 ? "s" : ""} could not be saved.{" "}
-                Check your connection and retry; your recordings stay on this device until they upload.
+                Check your connection and retry. These recordings are only on this page until they upload;
+                closing or reloading it loses them.
               </p>
               <button
                 type="button"
