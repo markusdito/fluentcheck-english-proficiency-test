@@ -178,6 +178,14 @@ async function startSlot(onComplete: () => void) {
   await waitFor(() => expect(mocks.startRecording.mock.calls.length).toBe(before + 1));
 }
 
+/** The page beats immediately on `online`; wait for that beat to settle. */
+async function beatNow() {
+  const before = mocks.sendHeartbeat.mock.calls.length;
+  await act(async () => window.dispatchEvent(new Event("online")));
+  await waitFor(() => expect(mocks.sendHeartbeat.mock.calls.length).toBeGreaterThan(before));
+  await act(async () => {});
+}
+
 /** Prep ends (mocked countdown fires onComplete), recording auto-starts, then auto-stops with a blob. */
 async function recordCurrentSlot(view: PageView, onComplete: () => void) {
   const before = mocks.startRecording.mock.calls.length;
@@ -289,16 +297,83 @@ describe("TestPage strict exam flow", () => {
     await startSlot(onComplete);
   });
 
-  it("treats a failed heartbeat as connection loss and ends a recording take", async () => {
+  it("pauses preparation on one failed heartbeat and resumes after the next succeeds", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+
+    mocks.sendHeartbeat.mockRejectedValueOnce(new ApiError("Service unavailable", 503));
+    await beatNow();
+    expect(screen.getByRole("alert")).toHaveTextContent("Connection lost — reconnecting");
+    await act(async () => onComplete());
+    expect(mocks.startRecording).not.toHaveBeenCalled();
+
+    await beatNow();
+    await waitFor(() => expect(screen.queryByText("Connection lost — reconnecting")).not.toBeInTheDocument());
+  });
+
+  it("does not end a take on one heartbeat timeout or 5xx", async () => {
     await renderPage();
     await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
     await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
     await startSlot(onComplete);
 
+    mocks.sendHeartbeat
+      .mockRejectedValueOnce(new DOMException("The operation was aborted.", "AbortError"))
+      .mockRejectedValueOnce(new ApiError("Bad gateway", 502));
+    await beatNow();
+    expect(screen.getByRole("alert")).toHaveTextContent("Connection lost — reconnecting");
+    await beatNow();
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+  });
+
+  it("ends a recording take after three consecutive failed heartbeats", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+    await startSlot(onComplete);
+
+    mocks.sendHeartbeat.mockRejectedValue(new TypeError("Failed to fetch"));
+    await beatNow();
+    await beatNow();
+    expect(screen.getByRole("alert")).toHaveTextContent("Connection lost — reconnecting");
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+
+    await beatNow();
+    await waitFor(() => expect(mocks.stopRecording).toHaveBeenCalled());
+  });
+
+  it("resets the failure count after a successful heartbeat", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+    await startSlot(onComplete);
+
+    mocks.sendHeartbeat
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await beatNow();
+    await beatNow();
+    await beatNow();
+    expect(screen.queryByText("Connection lost — reconnecting")).not.toBeInTheDocument();
+    await beatNow();
+    await beatNow();
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+  });
+
+  it("ends a recording take on one failed heartbeat when the browser is offline", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+    await startSlot(onComplete);
+
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     mocks.sendHeartbeat.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    await act(async () => window.dispatchEvent(new Event("online")));
-    expect(await screen.findByText("Connection lost — reconnecting")).toBeInTheDocument();
-    expect(mocks.stopRecording).toHaveBeenCalled();
+    await beatNow();
+    await waitFor(() => expect(mocks.stopRecording).toHaveBeenCalled());
   });
 
   it("shows an ended state when the server already ended the Submission", async () => {
