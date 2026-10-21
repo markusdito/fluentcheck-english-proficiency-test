@@ -93,7 +93,11 @@ export async function paySubmission(
  * POST /api/payments/ipaymu/notify
  * Receive and process iPaymu payment notifications.
  */
-export async function ipaymuNotification(req: Request, res: Response) {
+export async function ipaymuNotification(
+  req: Request,
+  res: Response,
+  transport: IpaymuTransport = fetchIpaymuTransport,
+) {
   try {
     if (!isIpaymuCallbackBody(req.body)) {
       res.status(400).json({ error: "Invalid iPaymu callback body" });
@@ -106,6 +110,7 @@ export async function ipaymuNotification(req: Request, res: Response) {
     await processIpaymuNotification(
       req.body as Record<string, unknown>,
       signature,
+      transport,
     );
     res.status(200).json({ status: "success" });
   } catch (error) {

@@ -43,8 +43,8 @@ to 6.0. Completed examiner scores are aggregated into the candidate's result.
 - **Human scoring model** — the backend validates rubric completeness, prevents
   duplicate or out-of-assignment scores, and calculates aggregate results without
   premature rounding.
-- **Payment integration** — iPaymu hosted checkout, signed callback validation,
-  payment reconciliation, and an administrator-controlled payment waiver are
+- **Payment integration** — iPaymu hosted checkout, signed callbacks whose
+  successes are confirmed with iPaymu's transaction API, payment reconciliation, and an administrator-controlled payment waiver are
   integrated into the submission flow.
 
 ## Assessment Workflow
@@ -313,8 +313,9 @@ Open [http://localhost:3000](http://localhost:3000). The API listens on
 
 The fast backend suite covers domain logic such as scoring and iPaymu signature
 canonicalization. The integration suite starts a disposable PostgreSQL container
-and exercises the Payment HTTP API, migrations, retries, callbacks, concurrency,
-and admin reconciliation history. Run the complete gate with:
+and exercises the Payment HTTP API, migrations, retries, callbacks (including
+check-transaction verification of every success), concurrency, and admin
+reconciliation history. Run the complete gate with:
 
 ```bash
 cd backend

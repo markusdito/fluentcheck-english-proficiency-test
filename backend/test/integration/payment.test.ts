@@ -17,6 +17,10 @@ import { SLOTS, createFixtureTestSet, manifestTestSetData } from "../fixtures/te
 
 const execFileAsync = promisify(execFile);
 const checkoutRequests: Array<{ url: string; init: RequestInit }> = [];
+const transactionCheckRequests: Array<{ url: string; init: RequestInit }> = [];
+// iPaymu's view of each transaction, answered by the check-transaction mock.
+const providerTransactions = new Map<string, Record<string, unknown>>();
+const ipaymuApiKey = "integration-api-key";
 const ipaymuVaNumber = "1179000899";
 let providerTransactionSequence = 10_000_000;
 
@@ -32,8 +36,32 @@ function uniqueUsername(prefix: string) {
   return `${prefix.replace(/[^a-z0-9_]/giu, "_")}_${crypto.randomUUID().replaceAll("-", "")}`;
 }
 
+function transactionCheckResponse(init: RequestInit) {
+  const { transactionId } = JSON.parse(String(init.body)) as { transactionId: unknown };
+  const transaction = providerTransactions.get(String(transactionId));
+  return new Response(
+    JSON.stringify(
+      transaction
+        ? { Status: 200, Success: true, Message: "success", Data: transaction }
+        : { Status: 400, Success: false, Message: "transaction not found" },
+    ),
+    {
+      status: transaction ? 200 : 400,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+}
+
+function isTransactionCheck(url: string) {
+  return url.endsWith("/api/v2/transaction");
+}
+
 function successfulCheckoutTransport(): IpaymuTransport {
   return async (url, init) => {
+    if (isTransactionCheck(url)) {
+      transactionCheckRequests.push({ url, init });
+      return transactionCheckResponse(init);
+    }
     checkoutRequests.push({ url, init });
     const attemptNumber = checkoutRequests.length;
     return new Response(
@@ -177,7 +205,7 @@ before(async () => {
   process.env.DATABASE_URL = container.getConnectionUri();
   process.env.JWT_SECRET = "payment-integration-secret";
   process.env.IPAYMU_VA_NUMBER = ipaymuVaNumber;
-  process.env.IPAYMU_API_KEY = "integration-api-key";
+  process.env.IPAYMU_API_KEY = ipaymuApiKey;
   process.env.IPAYMU_NOTIFY_URL = "https://api.example.test/api/payments/ipaymu/notify";
   process.env.IPAYMU_PAYMENT_AMOUNT = "150000";
   process.env.IPAYMU_CURRENCY = "IDR";
@@ -202,6 +230,8 @@ before(async () => {
 
 beforeEach(async () => {
   checkoutRequests.length = 0;
+  transactionCheckRequests.length = 0;
+  providerTransactions.clear();
   providerTransactionSequence = 10_000_000;
   ipaymuTransport = successfulCheckoutTransport();
   await prisma.examinerAssignment.deleteMany();
@@ -304,6 +334,27 @@ async function createPaymentAttempt() {
 }
 
 function successCallback(
+  payment: {
+    merchantReference: string | null;
+    providerSessionId: string | null;
+  },
+  overrides: Record<string, unknown> = {},
+) {
+  const body = forgedSuccessCallback(payment, overrides);
+  providerTransactions.set(String(body.trx_id), {
+    TransactionId: Number(body.trx_id),
+    SessionId: payment.providerSessionId,
+    ReferenceId: payment.merchantReference,
+    Amount: 150000,
+    Fee: 0,
+    Status: 1,
+    StatusDesc: "Berhasil",
+  });
+  return body;
+}
+
+// A correctly signed success callback for a transaction iPaymu never saw.
+function forgedSuccessCallback(
   payment: {
     merchantReference: string | null;
     providerSessionId: string | null;
@@ -1153,4 +1204,130 @@ test("database failure before commit returns a retryable server error", async ()
     (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
     "PAID",
   );
+});
+
+async function assertAttemptUnpaid(payment: { id: string; submissionId: string }) {
+  const current = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+  assert.equal(current.status, "PENDING");
+  assert.equal(current.providerTransactionId, null);
+  assert.equal(current.paidAt, null);
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: payment.submissionId } })).status,
+    "AWAITING_PAYMENT",
+  );
+  assert.equal(
+    await prisma.examinerAssignment.count({ where: { submissionId: payment.submissionId } }),
+    0,
+  );
+}
+
+test("a signed success callback unknown to iPaymu is rejected without paying", async () => {
+  const { payment } = await createPaymentAttempt();
+
+  const response = await postCallback(forgedSuccessCallback(payment));
+
+  assert.equal(response.status, 400);
+  assert.equal(transactionCheckRequests.length, 1);
+  await assertAttemptUnpaid(payment);
+});
+
+test("success callbacks are paid only when iPaymu reports the same transaction", async () => {
+  for (const provider of [
+    { ReferenceId: "FC-PAY-someone-else" },
+    { Amount: 1000 },
+    { Status: 0 },
+    { Status: -2 },
+    { TransactionId: 99999999 },
+  ]) {
+    const { payment } = await createPaymentAttempt();
+    const body = successCallback(payment);
+    const transactionId = String(body.trx_id);
+    providerTransactions.set(transactionId, {
+      ...providerTransactions.get(transactionId),
+      ...provider,
+    });
+
+    const response = await postCallback(body);
+
+    assert.equal(response.status, 400, JSON.stringify(provider));
+    await assertAttemptUnpaid(payment);
+  }
+});
+
+test("transaction verification requests are signed with the API key", async () => {
+  const { payment } = await createPaymentAttempt();
+  const body = successCallback(payment);
+
+  assert.equal((await postCallback(body)).status, 200);
+
+  assert.equal(transactionCheckRequests.length, 1);
+  const [{ url, init }] = transactionCheckRequests;
+  assert.equal(url, "https://sandbox.ipaymu.com/api/v2/transaction");
+  assert.equal(init.method, "POST");
+  const requestBody = String(init.body);
+  assert.deepEqual(JSON.parse(requestBody), { transactionId: Number(body.trx_id) });
+  const headers = new Headers(init.headers);
+  assert.equal(headers.get("va"), ipaymuVaNumber);
+  assert.match(headers.get("timestamp") ?? "", /^\d{14}$/);
+  const bodyHash = crypto.createHash("sha256").update(requestBody).digest("hex");
+  assert.equal(
+    headers.get("signature"),
+    crypto
+      .createHmac("sha256", ipaymuApiKey)
+      .update(`POST:${ipaymuVaNumber}:${bodyHash}:${ipaymuApiKey}`)
+      .digest("hex"),
+  );
+});
+
+test("unavailable transaction verification is retryable and changes nothing", async () => {
+  const unavailableAnswers: Array<() => Promise<Response>> = [
+    async () => {
+      throw new TypeError("fetch failed");
+    },
+    async () => new Response(JSON.stringify({ Status: 503, Success: false }), { status: 503 }),
+    async () => new Response(JSON.stringify({ Status: 200, Success: true }), { status: 200 }),
+    async () => new Response("<html>gateway</html>", { status: 200 }),
+  ];
+
+  for (const unavailableAnswer of unavailableAnswers) {
+    const { payment } = await createPaymentAttempt();
+    const body = successCallback(payment);
+    const healthyTransport = ipaymuTransport;
+    ipaymuTransport = (url, init) =>
+      isTransactionCheck(url) ? unavailableAnswer() : healthyTransport(url, init);
+
+    try {
+      const response = await postCallback(body);
+      assert.equal(response.status, 500);
+      assert.deepEqual(await response.json(), {
+        error: "Failed to process iPaymu notification",
+      });
+      await assertAttemptUnpaid(payment);
+    } finally {
+      ipaymuTransport = healthyTransport;
+    }
+
+    assert.equal((await postCallback(body)).status, 200);
+    assert.equal(
+      (await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status,
+      "PAID",
+    );
+  }
+});
+
+test("failed and pending callbacks do not call iPaymu", async () => {
+  const failed = await createPaymentAttempt();
+  assert.equal((await postCallback(failedCallback(failed.payment))).status, 200);
+
+  const pending = await createPaymentAttempt();
+  assert.equal(
+    (await postCallback(forgedSuccessCallback(pending.payment, {
+      status: "pending",
+      status_code: "0",
+      transaction_status_code: "0",
+    }))).status,
+    200,
+  );
+
+  assert.equal(transactionCheckRequests.length, 0);
 });
