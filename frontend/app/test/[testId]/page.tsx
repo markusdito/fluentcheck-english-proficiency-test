@@ -40,7 +40,8 @@ type TestPhase = "loading" | "preparation" | "recording" | "finalizing" | "compl
 const PROMPT_MAX_PLAYS = 2;
 const UPLOAD_ATTEMPTS = 3;
 const UPLOAD_RETRY_DELAY_MS = 2000;
-const PENDING_UPLOAD: UploadStatus[] = ["blob-ready", "signing", "getting-url", "uploading", "verifying"];
+/** Takes not yet verified live only in page memory, failed ones included: leaving loses them. */
+const PENDING_UPLOAD: UploadStatus[] = ["blob-ready", "signing", "getting-url", "uploading", "verifying", "error"];
 /** Takes below either bound are saved but flagged as possibly short or silent (PRD FR-3.8). */
 const MIN_TAKE_SECONDS = 2;
 const MIN_TAKE_BYTES = 8192;
@@ -336,11 +337,12 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     return () => window.removeEventListener("pagehide", stopStream);
   }, [stopStream]);
 
-  // Warn before leaving mid-take or with uploads pending. The prompt leaves the
-  // devices alone: a student who chooses "Stay" keeps recording.
+  // Warn before leaving mid-take or with uploads pending or failed. The prompt
+  // leaves the devices alone: a student who chooses "Stay" keeps recording.
+  // Once the server has ended the Submission nothing left can be saved.
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (recordingMutationPending) {
+      if (recordingMutationPending && !submissionEnded) {
         event.preventDefault();
         event.returnValue = "";
       }
@@ -356,7 +358,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [recordingMutationPending, stopStream]);
+  }, [recordingMutationPending, submissionEnded, stopStream]);
 
   // Transition from loading to preparation once questions and stream are ready
   useEffect(() => {
@@ -747,7 +749,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     }
 
     const verifiedCount = questions.filter((q) => uploadStates[q.id]?.status === "uploaded").length;
-    // "error": upload failed, take kept on this device for retry.
+    // "error": upload failed, take kept in page memory for retry.
     const failedEntryIds = questions.filter((q) => uploadStates[q.id]?.status === "error").map((q) => q.id);
     return (
       <TestShell title={screenTitle}>
@@ -767,7 +769,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             <div className="mt-5 rounded-[10px] bg-sn-field-amber p-4 text-[15px]" role="alert">
               <p className="m-0">
                 {failedEntryIds.length} answer{failedEntryIds.length !== 1 ? "s" : ""} could not be saved.{" "}
-                Check your connection and retry; your recordings stay on this device until they upload.
+                Check your connection and retry. These recordings are only on this page until they upload;
+                closing or reloading it loses them.
               </p>
               <button
                 type="button"

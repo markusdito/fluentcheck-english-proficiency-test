@@ -465,6 +465,63 @@ describe("TestPage strict exam flow", () => {
     presign.resolve({ answerId: "a", presignedUrl: "https://storage.example/upload", storageKey: "k" });
   });
 
+  it("warns before leaving and keeps Leave disabled while an upload has failed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.uploadToR2.mockRejectedValue(new Error("network down"));
+      const view = await renderPage();
+      await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+      await recordCurrentSlot(view, onComplete);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      // Slot 2 is only preparing; the failed take exists only in page memory.
+      expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
+      const beforeUnload = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(beforeUnload);
+      expect(beforeUnload.defaultPrevented).toBe(true);
+      expect(mocks.stopStream).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Leave assessment" })).toBeDisabled();
+
+      mocks.uploadToR2.mockResolvedValue(undefined);
+      await act(async () => {
+        window.dispatchEvent(new Event("online"));
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Leave assessment" })).toBeEnabled());
+      const afterRetry = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(afterRetry);
+      expect(afterRetry.defaultPrevented).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not warn about failed uploads once the server has ended the Submission", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.uploadToR2.mockRejectedValue(new Error("network down"));
+      const view = await renderPage();
+      await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+      await recordCurrentSlot(view, onComplete);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      mocks.sendHeartbeat.mockRejectedValue(new ApiError("Not in progress", 409, undefined, "SUBMISSION_NOT_IN_PROGRESS"));
+      await act(async () => window.dispatchEvent(new Event("online")));
+      expect(await screen.findByRole("heading", { name: "This Assessment has ended" })).toBeInTheDocument();
+
+      // The takes can no longer be saved, so "Return to dashboard" leaves without a prompt.
+      const beforeUnload = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(beforeUnload);
+      expect(beforeUnload.defaultPrevented).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the devices and the take when the student stays after the leave prompt", async () => {
     // Like the real coordinator, stopping the stream drops media readiness.
     mocks.stopStream.mockImplementation(() => {

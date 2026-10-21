@@ -216,9 +216,9 @@ preparation time. A 409 or 404 shows "This Assessment has ended". `pagehide`
 and unmount (client navigation away) send the abandon request with
 `navigator.sendBeacon` (fetch `keepalive` fallback) and clear the start
 intent, so returning to the test route starts a new Assessment. While a take
-records or an upload is pending, `beforeunload` shows the browser's leave
-prompt without touching the devices, so a student who chooses to stay keeps
-recording; `pagehide` releases the camera and microphone.
+records or an upload is pending or has failed, `beforeunload` shows the
+browser's leave prompt without touching the devices, so a student who chooses
+to stay keeps recording; `pagehide` releases the camera and microphone.
 
 The test page and its layout coordinate these visible phases:
 
@@ -254,7 +254,8 @@ evidence to the Answer.
 Each take stays in memory until verified. An upload is tried three times in the
 background while the Assessment advances; after that the entry shows an error
 with a Retry upload action, and a browser `online` event retries it
-automatically. Takes are not persisted across a page reload.
+automatically. Takes are not persisted across a page reload, so a failed upload
+keeps the leave prompt up and the Leave action disabled until it succeeds.
 
 The backend's current media contract accepts video/webm, video/mp4, or
 video/quicktime and enforces an answer limit of 100 MB. Any browser-side
