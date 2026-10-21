@@ -470,7 +470,9 @@ describe("TestPage strict exam flow", () => {
     mocks.stopStream.mockImplementation(() => {
       Object.assign(mocks.assessmentStart, { mediaReady: false, isVideoReady: false, isAudioReady: false });
     });
-    onTestFinished(() => mocks.stopStream.mockReset());
+    onTestFinished(() => {
+      mocks.stopStream.mockReset();
+    });
     const view = await renderPage();
     await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
     await startSlot(onComplete);
