@@ -49,6 +49,8 @@ const MIN_TAKE_BYTES = 8192;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const HEARTBEAT_RETRY_MS = 4_000;
 const HEARTBEAT_TIMEOUT_MS = 8_000;
+/** One proxy blip must not end a take: 3 × (8 s + 4 s) stays well inside the 120 s grace. */
+const HEARTBEAT_LOST_AFTER_FAILURES = 3;
 
 type UploadState = Record<string, QuestionUploadState>;
 
@@ -106,7 +108,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   const [submissionCompleted, setSubmissionCompleted] = useState(false);
   // Connection loss pauses the flow; a Submission the server already ended
   // (heartbeat silence or a leave beacon) cannot continue (PRD FR-2.7/2.8).
+  // Any failed heartbeat pauses; only a confirmed failure ends a recording take.
   const [connectionLost, setConnectionLost] = useState(false);
+  const [connectionFailed, setConnectionFailed] = useState(false);
   const [submissionEnded, setSubmissionEnded] = useState(false);
 
   // Upload state per manifest entry. Takes are kept in memory until verified
@@ -231,19 +235,21 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
   }, [phase, failTake]);
 
   useEffect(() => {
-    if (!connectionLost || phase !== "recording") return;
+    if (!connectionFailed || phase !== "recording") return;
     // A heartbeat failure is an external connectivity signal.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     failTake({ type: "TECHNICAL_FAILURE", reason: "Connection lost while the answer was recording" });
-  }, [connectionLost, phase, failTake]);
+  }, [connectionFailed, phase, failTake]);
 
   // Heartbeat while the real Submission is IN_PROGRESS. A network failure means
-  // the connection is lost (retry fast); 409/404 means the server ended it.
+  // the connection may be lost (retry fast); it is confirmed after
+  // HEARTBEAT_LOST_AFTER_FAILURES in a row or offline. 409/404 means the server ended it.
   const heartbeatActive = !practice && Boolean(submissionId) && !submissionCompleted && !submissionEnded;
   useEffect(() => {
     if (!heartbeatActive || !submissionId) return;
     let cancelled = false;
     let inFlight = false;
+    let failures = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const beat = async () => {
@@ -255,9 +261,13 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       let next = HEARTBEAT_INTERVAL_MS;
       try {
         await sendHeartbeat(submissionId, controller.signal);
-        if (!cancelled) setConnectionLost(false);
+        failures = 0;
+        if (!cancelled) {
+          setConnectionLost(false);
+          setConnectionFailed(false);
+        }
       } catch (err) {
-        // A 5xx usually means the proxy cannot reach the API: treat as lost.
+        // A 5xx usually means the proxy cannot reach the API: count it as a failure.
         if (err instanceof ApiError && err.statusCode < 500) {
           // 401 already redirects to login; stop instead of looping.
           if (err.statusCode === 401) cancelled = true;
@@ -266,7 +276,9 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
             cancelled = true;
           }
         } else if (!cancelled) {
+          failures += 1;
           setConnectionLost(true);
+          if (failures >= HEARTBEAT_LOST_AFTER_FAILURES || !navigator.onLine) setConnectionFailed(true);
           next = HEARTBEAT_RETRY_MS;
         }
       } finally {
@@ -275,7 +287,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       }
       if (!cancelled) timer = setTimeout(beat, next);
     };
-    const handleOffline = () => setConnectionLost(true);
+    const handleOffline = () => {
+      setConnectionLost(true);
+      setConnectionFailed(true);
+    };
     const handleOnline = () => void beat();
 
     void beat();
