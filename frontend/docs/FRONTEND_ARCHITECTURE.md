@@ -207,10 +207,11 @@ an empty flagged take if a device is missing. An explicit abandon action calls
 the server lifecycle endpoint, clears the start intent, and releases the stream.
 
 For a real (not practice) Submission the page posts a heartbeat every 15
-seconds with an 8-second timeout. A network failure, 5xx, or `offline` event
-shows "Connection lost — reconnecting", pauses preparation, and retries every
-4 seconds; a take recording during the loss is ended and flagged as above, not
-replayed. On success the page resumes the next unfinished slot with full
+seconds with an 8-second timeout. Any network failure, timeout, 5xx, or
+`offline` event shows "Connection lost — reconnecting", pauses preparation, and
+retries every 4 seconds. A take that is recording keeps going until the loss is
+confirmed by three consecutive failed heartbeats or the browser reporting
+offline; it is then ended and flagged as above, not replayed. On success the page resumes the next unfinished slot with full
 preparation time. A 409 or 404 shows "This Assessment has ended". `pagehide`
 and unmount (client navigation away) send the abandon request with
 `navigator.sendBeacon` (fetch `keepalive` fallback) and clear the start
