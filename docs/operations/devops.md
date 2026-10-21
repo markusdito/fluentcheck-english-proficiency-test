@@ -290,7 +290,7 @@ rules before anything else.
 | Cloudflare R2 | Answer videos, prompt audio, option icons | `R2_*` in `backend.env` |
 | Grafana Cloud (Loki) | Assessment-initialization telemetry, dashboard, alerts | `OBSERVABILITY_*` in `backend.env`, `ops/grafana/` |
 | Google Cloud Console | OAuth client. The redirect URI must be exactly `https://fluentcheck.duckdns.org/backend-api/auth/google/callback`. | `GOOGLE_*` in `backend.env`, `backend/docs/GOOGLE_AUTH.md` |
-| iPaymu | Payment checkout and callbacks | `IPAYMU_*` in `backend.env` |
+| iPaymu | Payment checkout and callbacks. Every success callback triggers an outbound `POST /api/v2/transaction` check, so production needs the server's outbound IP registered in the iPaymu dashboard, the same as checkout. | `IPAYMU_*` in `backend.env` |
 | DuckDNS | The `fluentcheck.duckdns.org` → VPS IP record. **Update it if the VPS IP changes.** | DuckDNS dashboard |
 
 ## Troubleshooting
@@ -304,6 +304,7 @@ rules before anything else.
 | Frontend loads but API calls fail | Check `BACKEND_URL` in `.env`. The frontend logs `entrypoint: pointed N rewrite(s) at …` at startup. |
 | Prompt media / assessment start failures | `docs/runbooks/assessment-initialization-failures.md` |
 | `no space left on device` | [Disk space](#disk-space) |
+| Payment stays PENDING after the student paid | `dc logs backend \| grep -i "transaction verification"`. `unavailable` means the check-transaction call failed (network, outbound IP not registered, wrong `IPAYMU_ENV`/key); iPaymu retries the callback. `failed transaction verification` with a reason means iPaymu reported a different transaction, reference, amount, or an unpaid status. |
 
 ## Offboarding and key rotation
 
