@@ -275,7 +275,7 @@ calculated from the current page.
 ### Payments
 
 <!-- route: POST /api/payments/ipaymu/notify | source=backend/src/routes/payment.routes.ts -->
-| POST | /api/payments/ipaymu/notify | Provider callback, IP rate limit | Validates and records an iPaymu notification. |
+| POST | /api/payments/ipaymu/notify | Provider callback, IP rate limit | Validates an iPaymu notification, confirms a success with the iPaymu check-transaction API, and records it. |
 
 <!-- route: POST /api/payments/submissions/:id/pay | source=backend/src/routes/payment.routes.ts -->
 | POST | /api/payments/submissions/:id/pay | Authenticated owner, account/IP rate limits | Opens an iPaymu hosted checkout for an AWAITING_PAYMENT Submission. |
@@ -464,7 +464,16 @@ AWAITING_PAYMENT when payment is required and PAID when payment is waived.
 The pay route creates a PENDING Payment with a unique FluentCheck merchant
 reference and opens an iPaymu hosted checkout. The notification route validates
 the callback signature and exact merchant reference/provider identity before
-recording the outcome. Every validated successful attempt is retained. The
+recording the outcome. The callback signature is keyed with the VA number,
+which is not a secret, so a success callback is not trusted on its own: before
+setting PAID the service calls iPaymu's `POST /api/v2/transaction`, signed with
+the API key, and requires the reported transaction ID, merchant reference,
+amount, and a paid status (1, 6, or 7) to match. A mismatch or an unknown
+transaction returns 400 and changes nothing. An unreachable, timed-out,
+throttled, or unauthorized (credentials/environment) check, or an
+unverifiable answer, returns 500 and changes nothing, so iPaymu retries the
+callback. Failure, expiry, and pending callbacks never set PAID and are not
+checked with the API. Every validated successful attempt is retained. The
 first success transitions AWAITING_PAYMENT to PAID and requests assignment;
 later successes remain visible for Payment reconciliation.
 

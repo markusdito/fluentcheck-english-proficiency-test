@@ -135,8 +135,9 @@ async function requestRole(
 async function createLegacyScoringAssignment(
   examinerId: string,
   secondExaminerId: string,
+  studentId?: string,
 ) {
-  const student = await createUser("student", "STUDENT");
+  const student = studentId ? { id: studentId } : await createUser("student", "STUDENT");
   const { submission, answers } = await createManifestSubmission(
     student.id,
     "SCORING",
@@ -716,6 +717,48 @@ test("replacement maps reject missing, extra, duplicate, deleted, and non-Examin
   );
   assert.equal(duplicateTarget.status, 400);
   assert.equal((await duplicateTarget.json()).code, "INVALID_REASSIGNMENT");
+  assert.equal(await prisma.examinerAssignmentReassignment.count(), 0);
+});
+
+test("an Examiner who owns the Submission is never a replacement for its assignment", async () => {
+  const admin = await createUser("admin", "ADMIN");
+  const target = await createUser("target", "EXAMINER");
+  const currentPeer = await createUser("current_peer", "EXAMINER");
+  const owner = await createUser("owner", "EXAMINER");
+  const replacement = await createUser("replacement", "EXAMINER");
+  const { assignments } = await createLegacyScoringAssignment(
+    target.id,
+    currentPeer.id,
+    owner.id,
+  );
+
+  const previewResponse = await fetch(
+    `${baseUrl}/api/admin/users/${target.id}/role-transition-preview?role=STUDENT`,
+    { headers: { Cookie: cookieFor(admin.id) } },
+  );
+  assert.equal(previewResponse.status, 200);
+  const candidateIds = (await previewResponse.json()).data.assignments[0].candidates.map(
+    (candidate: { id: string }) => candidate.id,
+  );
+  assert.deepEqual(candidateIds, [replacement.id]);
+
+  const response = await requestRole(
+    target.id,
+    "STUDENT",
+    cookieFor(admin.id),
+    { [assignments[0].id]: owner.id },
+  );
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).code, "INVALID_REASSIGNMENT");
+  assert.equal(
+    (await prisma.user.findUniqueOrThrow({ where: { id: target.id } })).role,
+    "EXAMINER",
+  );
+  assert.equal(
+    (await prisma.examinerAssignment.findUniqueOrThrow({ where: { id: assignments[0].id } }))
+      .examinerId,
+    target.id,
+  );
   assert.equal(await prisma.examinerAssignmentReassignment.count(), 0);
 });
 

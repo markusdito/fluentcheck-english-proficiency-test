@@ -221,7 +221,7 @@ Manage users/roles, Test Sets A–F + prompt audio + Part 3 option icons, paymen
 ### FR-7 Payment (if enabled)
 
 - FR-7.1 iPaymu hosted checkout per **Payment attempt** (own identity, `merchantReference`, provider session/transaction IDs).
-- FR-7.2 Signed callback validation; every validated success recorded; ambiguous outcomes surfaced for **payment reconciliation** (never silently overwritten).
+- FR-7.2 Signed callback validation, with each success confirmed against iPaymu's check-transaction API before it counts; every validated success recorded; ambiguous outcomes surfaced for **payment reconciliation** (never silently overwritten).
 - FR-7.3 Admin global payment toggle + per-Submission waiver. Waived submissions skip to assignment-ready. A free retake credit from a voided Submission (FR-2.9) is applied as an automatic waiver.
 - FR-7.4 Payment is per Submission. A retake started while an earlier Submission is unpaid or in scoring needs its own payment or waiver; payments never transfer between Submissions.
 

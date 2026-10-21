@@ -24,7 +24,7 @@ export function createPaymentRouter(
   router.post(
     "/ipaymu/notify",
     ...createIpRateLimiters(runtime, RATE_LIMIT_POLICIES.ipaymuCallback),
-    ipaymuNotification,
+    (req, res) => ipaymuNotification(req, res, ipaymuTransport),
   );
   router.post(
     "/submissions/:id/pay",

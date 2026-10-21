@@ -34,6 +34,9 @@ const backendUrl = resolveBackendUrl(process.env.BACKEND_URL);
 const nextConfig: NextConfig = {
   output: "standalone",
   allowedDevOrigins: ["illusion-extinct-unripe.ngrok-free.dev"],
+  // The app does not use next/image, so /_next/image would only be attack
+  // surface (SSRF advisories); unoptimized makes the server answer it with 404.
+  images: { unoptimized: true },
   async rewrites() {
     return [
       {

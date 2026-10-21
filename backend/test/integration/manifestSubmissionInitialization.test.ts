@@ -937,6 +937,68 @@ test("http start requires informed consent and records it on the Submission", as
   assert.ok(stored.consentedAt && stored.consentedAt.getTime() >= before - 1000);
 });
 
+test("only a STUDENT takes an Assessment, while a promoted former student keeps reading their Submission", async () => {
+  const student = await createStudent();
+  const [examiner, admin] = await Promise.all(
+    (["EXAMINER", "ADMIN"] as const).map(async (role) => {
+      const email = `${crypto.randomUUID()}@example.test`;
+      return prisma.user.create({
+        data: { username: uniqueUsername(role.toLowerCase()), email, normalizedEmail: email, password: "unused", role },
+      });
+    }),
+  );
+  await createUploadedBank("role gating task");
+  const cookie = (id: string) => `jwt=${jwt.sign({ id }, process.env.JWT_SECRET!)}`;
+  const start = (id: string) =>
+    fetch(`${baseUrl}/api/submissions`, {
+      method: "POST",
+      headers: { Cookie: cookie(id), "Idempotency-Key": crypto.randomUUID(), "Content-Type": "application/json" },
+      body: JSON.stringify({ consentVersion: CONSENT_TEXT_VERSION }),
+    });
+
+  const started = await start(student.id);
+  assert.equal(started.status, 201);
+  const { submissionId } = (await started.json()).data;
+
+  const assessmentRoutes: Array<[method: "GET" | "POST", path: string]> = [
+    ["GET", "/api/submissions/active"],
+    ["GET", "/api/submissions/practice"],
+    ["GET", `/api/submissions/${submissionId}/prompts/${crypto.randomUUID()}`],
+    ["POST", `/api/submissions/${submissionId}/abandon`],
+    ["POST", `/api/submissions/${submissionId}/heartbeat`],
+    ["POST", `/api/submissions/${submissionId}/flags`],
+    ["POST", `/api/submissions/${submissionId}/complete`],
+    ["POST", "/api/uploads/presigned-url"],
+    ["POST", "/api/uploads/confirm"],
+  ];
+  for (const nonStudent of [examiner, admin]) {
+    const refused = await start(nonStudent.id);
+    assert.equal(refused.status, 403);
+    assert.deepEqual(await refused.json(), { error: "Insufficient permissions" });
+    for (const [method, path] of assessmentRoutes) {
+      const response = await fetch(`${baseUrl}${path}`, {
+        method,
+        headers: { Cookie: cookie(nonStudent.id), "Content-Type": "application/json" },
+        ...(method === "POST" && { body: "{}" }),
+      });
+      assert.equal(response.status, 403, `${nonStudent.role} ${method} ${path}`);
+    }
+    assert.equal(await prisma.submission.count({ where: { studentId: nonStudent.id } }), 0);
+  }
+
+  // Promotion ends test-taking but not the former student's access to their own results.
+  await prisma.user.update({ where: { id: student.id }, data: { role: "EXAMINER" } });
+  const heartbeat = await fetch(`${baseUrl}/api/submissions/${submissionId}/heartbeat`, {
+    method: "POST",
+    headers: { Cookie: cookie(student.id) },
+  });
+  assert.equal(heartbeat.status, 403);
+  for (const path of ["/api/submissions", `/api/submissions/${submissionId}`, `/api/submissions/${submissionId}/status`]) {
+    const response = await fetch(`${baseUrl}${path}`, { headers: { Cookie: cookie(student.id) } });
+    assert.equal(response.status, 200, path);
+  }
+});
+
 test("the Practice Test Set is never delivered as a real Assessment and serves practice without a Submission", async () => {
   await prisma.question.updateMany({ data: { deletedAt: new Date() } });
   const practice = await prisma.testSet.upsert({

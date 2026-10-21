@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CONSENT_TEXT_VERSION, clearConsent, storeConsent } from "@/lib/consent";
 import { ApiError } from "@/lib/api";
 import { ASSESSMENT_START_INTENT_STORAGE_KEY } from "@/lib/assessment-start-intent";
@@ -178,6 +178,14 @@ async function startSlot(onComplete: () => void) {
   await waitFor(() => expect(mocks.startRecording.mock.calls.length).toBe(before + 1));
 }
 
+/** The page beats immediately on `online`; wait for that beat to settle. */
+async function beatNow() {
+  const before = mocks.sendHeartbeat.mock.calls.length;
+  await act(async () => window.dispatchEvent(new Event("online")));
+  await waitFor(() => expect(mocks.sendHeartbeat.mock.calls.length).toBeGreaterThan(before));
+  await act(async () => {});
+}
+
 /** Prep ends (mocked countdown fires onComplete), recording auto-starts, then auto-stops with a blob. */
 async function recordCurrentSlot(view: PageView, onComplete: () => void) {
   const before = mocks.startRecording.mock.calls.length;
@@ -257,7 +265,9 @@ describe("TestPage strict exam flow", () => {
     expect(mocks.initializeTest).not.toHaveBeenCalled();
     expect(mocks.getPresignedUrl).not.toHaveBeenCalled();
     expect(mocks.completeSubmission).not.toHaveBeenCalled();
+    expect(mocks.stopStream).not.toHaveBeenCalled();
     window.dispatchEvent(new Event("pagehide"));
+    expect(mocks.stopStream).toHaveBeenCalled();
     view.unmount();
     expect(mocks.sendHeartbeat).not.toHaveBeenCalled();
     expect(mocks.abandonSubmissionOnLeave).not.toHaveBeenCalled();
@@ -287,16 +297,83 @@ describe("TestPage strict exam flow", () => {
     await startSlot(onComplete);
   });
 
-  it("treats a failed heartbeat as connection loss and ends a recording take", async () => {
+  it("pauses preparation on one failed heartbeat and resumes after the next succeeds", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+
+    mocks.sendHeartbeat.mockRejectedValueOnce(new ApiError("Service unavailable", 503));
+    await beatNow();
+    expect(screen.getByRole("alert")).toHaveTextContent("Connection lost — reconnecting");
+    await act(async () => onComplete());
+    expect(mocks.startRecording).not.toHaveBeenCalled();
+
+    await beatNow();
+    await waitFor(() => expect(screen.queryByText("Connection lost — reconnecting")).not.toBeInTheDocument());
+  });
+
+  it("does not end a take on one heartbeat timeout or 5xx", async () => {
     await renderPage();
     await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
     await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
     await startSlot(onComplete);
 
+    mocks.sendHeartbeat
+      .mockRejectedValueOnce(new DOMException("The operation was aborted.", "AbortError"))
+      .mockRejectedValueOnce(new ApiError("Bad gateway", 502));
+    await beatNow();
+    expect(screen.getByRole("alert")).toHaveTextContent("Connection lost — reconnecting");
+    await beatNow();
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+  });
+
+  it("ends a recording take after three consecutive failed heartbeats", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+    await startSlot(onComplete);
+
+    mocks.sendHeartbeat.mockRejectedValue(new TypeError("Failed to fetch"));
+    await beatNow();
+    await beatNow();
+    expect(screen.getByRole("alert")).toHaveTextContent("Connection lost — reconnecting");
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+
+    await beatNow();
+    await waitFor(() => expect(mocks.stopRecording).toHaveBeenCalled());
+  });
+
+  it("resets the failure count after a successful heartbeat", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+    await startSlot(onComplete);
+
+    mocks.sendHeartbeat
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await beatNow();
+    await beatNow();
+    await beatNow();
+    expect(screen.queryByText("Connection lost — reconnecting")).not.toBeInTheDocument();
+    await beatNow();
+    await beatNow();
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+  });
+
+  it("ends a recording take on one failed heartbeat when the browser is offline", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await waitFor(() => expect(mocks.sendHeartbeat).toHaveBeenCalled());
+    await startSlot(onComplete);
+
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     mocks.sendHeartbeat.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-    await act(async () => window.dispatchEvent(new Event("online")));
-    expect(await screen.findByText("Connection lost — reconnecting")).toBeInTheDocument();
-    expect(mocks.stopRecording).toHaveBeenCalled();
+    await beatNow();
+    await waitFor(() => expect(mocks.stopRecording).toHaveBeenCalled());
   });
 
   it("shows an ended state when the server already ended the Submission", async () => {
@@ -384,8 +461,104 @@ describe("TestPage strict exam flow", () => {
     const beforeUnload = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(beforeUnload);
     expect(beforeUnload.defaultPrevented).toBe(true);
-    expect(mocks.stopStream).toHaveBeenCalled();
+    expect(mocks.stopStream).not.toHaveBeenCalled();
     presign.resolve({ answerId: "a", presignedUrl: "https://storage.example/upload", storageKey: "k" });
+  });
+
+  it("warns before leaving and keeps Leave disabled while an upload has failed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.uploadToR2.mockRejectedValue(new Error("network down"));
+      const view = await renderPage();
+      await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+      await recordCurrentSlot(view, onComplete);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      // Slot 2 is only preparing; the failed take exists only in page memory.
+      expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
+      const beforeUnload = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(beforeUnload);
+      expect(beforeUnload.defaultPrevented).toBe(true);
+      expect(mocks.stopStream).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Leave assessment" })).toBeDisabled();
+
+      mocks.uploadToR2.mockResolvedValue(undefined);
+      await act(async () => {
+        window.dispatchEvent(new Event("online"));
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      await waitFor(() => expect(screen.getByRole("button", { name: "Leave assessment" })).toBeEnabled());
+      const afterRetry = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(afterRetry);
+      expect(afterRetry.defaultPrevented).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not warn about failed uploads once the server has ended the Submission", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.uploadToR2.mockRejectedValue(new Error("network down"));
+      const view = await renderPage();
+      await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+      await recordCurrentSlot(view, onComplete);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      mocks.sendHeartbeat.mockRejectedValue(new ApiError("Not in progress", 409, undefined, "SUBMISSION_NOT_IN_PROGRESS"));
+      await act(async () => window.dispatchEvent(new Event("online")));
+      expect(await screen.findByRole("heading", { name: "This Assessment has ended" })).toBeInTheDocument();
+
+      // The takes can no longer be saved, so "Return to dashboard" leaves without a prompt.
+      const beforeUnload = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(beforeUnload);
+      expect(beforeUnload.defaultPrevented).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the devices and the take when the student stays after the leave prompt", async () => {
+    // Like the real coordinator, stopping the stream drops media readiness.
+    mocks.stopStream.mockImplementation(() => {
+      Object.assign(mocks.assessmentStart, { mediaReady: false, isVideoReady: false, isAudioReady: false });
+    });
+    onTestFinished(() => {
+      mocks.stopStream.mockReset();
+    });
+    const view = await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+
+    const beforeUnload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(beforeUnload);
+    expect(beforeUnload.defaultPrevented).toBe(true);
+    expect(mocks.stopStream).not.toHaveBeenCalled();
+
+    // "Stay": no pagehide follows, so the take records to the end unflagged.
+    await rerenderPage(view);
+    expect(mocks.stopRecording).not.toHaveBeenCalled();
+    await setFinalizedBlob(view);
+    await waitFor(() => expect(mocks.confirmUpload).toHaveBeenCalledWith("submission-1", "entry-1", {
+      sizeBytes: 10_000,
+      durationSeconds: 12,
+      technicalFailure: undefined,
+    }));
+    expect(await screen.findByRole("heading", { name: "Part 1 · Task 1B" })).toBeInTheDocument();
+  });
+
+  it("releases the devices once the student actually leaves (pagehide)", async () => {
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    await startSlot(onComplete);
+    expect(mocks.stopStream).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event("pagehide"));
+    expect(mocks.stopStream).toHaveBeenCalled();
   });
 
   it("uploads a camera-dropped take flagged as CAMERA_DROP and keeps the test going (FR-4.3)", async () => {

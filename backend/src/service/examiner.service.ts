@@ -284,7 +284,7 @@ export async function createExaminerAssignmentSet(
 
           const submission = await tx.submission.findUnique({
             where: { id: submissionId },
-            select: { status: true, retentionStatus: true },
+            select: { status: true, retentionStatus: true, studentId: true },
           });
           if (!submission) {
             throw new AssignmentSetError(
@@ -315,8 +315,13 @@ export async function createExaminerAssignmentSet(
             );
           }
 
+          // An Examiner is never eligible to score their own Submission.
           const eligible = await tx.user.findMany({
-            where: { role: "EXAMINER", deletedAt: null },
+            where: {
+              role: "EXAMINER",
+              deletedAt: null,
+              id: { not: submission.studentId },
+            },
             select: { id: true },
           });
           if (eligible.length < 2) {
@@ -334,6 +339,12 @@ export async function createExaminerAssignmentSet(
             throw new AssignmentSetError(
               "INVARIANT_VIOLATION",
               "Candidate selection must return two distinct examiners",
+            );
+          }
+          if (firstId === submission.studentId || secondId === submission.studentId) {
+            throw new AssignmentSetError(
+              "INVARIANT_VIOLATION",
+              "Candidate selection must not return the Submission's student",
             );
           }
 

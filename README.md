@@ -43,8 +43,8 @@ to 6.0. Completed examiner scores are aggregated into the candidate's result.
 - **Human scoring model** — the backend validates rubric completeness, prevents
   duplicate or out-of-assignment scores, and calculates aggregate results without
   premature rounding.
-- **Payment integration** — iPaymu hosted checkout, signed callback validation,
-  payment reconciliation, and an administrator-controlled payment waiver are
+- **Payment integration** — iPaymu hosted checkout, signed callbacks whose
+  successes are confirmed with iPaymu's transaction API, payment reconciliation, and an administrator-controlled payment waiver are
   integrated into the submission flow.
 
 ## Assessment Workflow
@@ -108,7 +108,7 @@ OAuth remain session-only, and logout clears the same cookie in either mode.
 
 | Area | Technologies |
 | --- | --- |
-| Frontend | Next.js 16.2.6, React 19.2.4, TypeScript 5, Tailwind CSS 4, Base UI and shadcn-style components |
+| Frontend | Next.js 16.4.2, React 19.2.4, TypeScript 5, Tailwind CSS 4, Base UI and shadcn-style components |
 | Backend | Node.js, Express 5.2.1, TypeScript 6, Prisma 7.8 |
 | Data | PostgreSQL, Prisma migrations |
 | Media | MediaRecorder API, Cloudflare R2, AWS S3-compatible SDK |
@@ -313,8 +313,9 @@ Open [http://localhost:3000](http://localhost:3000). The API listens on
 
 The fast backend suite covers domain logic such as scoring and iPaymu signature
 canonicalization. The integration suite starts a disposable PostgreSQL container
-and exercises the Payment HTTP API, migrations, retries, callbacks, concurrency,
-and admin reconciliation history. Run the complete gate with:
+and exercises the Payment HTTP API, migrations, retries, callbacks (including
+check-transaction verification of every success), concurrency, and admin
+reconciliation history. Run the complete gate with:
 
 ```bash
 cd backend
