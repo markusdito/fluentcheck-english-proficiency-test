@@ -40,7 +40,8 @@ type TestPhase = "loading" | "preparation" | "recording" | "finalizing" | "compl
 const PROMPT_MAX_PLAYS = 2;
 const UPLOAD_ATTEMPTS = 3;
 const UPLOAD_RETRY_DELAY_MS = 2000;
-const PENDING_UPLOAD: UploadStatus[] = ["blob-ready", "signing", "getting-url", "uploading", "verifying"];
+/** Takes not yet verified live only in page memory, failed ones included: leaving loses them. */
+const PENDING_UPLOAD: UploadStatus[] = ["blob-ready", "signing", "getting-url", "uploading", "verifying", "error"];
 /** Takes below either bound are saved but flagged as possibly short or silent (PRD FR-3.8). */
 const MIN_TAKE_SECONDS = 2;
 const MIN_TAKE_BYTES = 8192;
@@ -321,8 +322,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     return () => window.removeEventListener("pagehide", stopStream);
   }, [stopStream]);
 
-  // Warn before leaving mid-take or with uploads pending. The prompt leaves the
-  // devices alone: a student who chooses "Stay" keeps recording.
+  // Warn before leaving mid-take or with uploads pending or failed. The prompt
+  // leaves the devices alone: a student who chooses "Stay" keeps recording.
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (recordingMutationPending) {
