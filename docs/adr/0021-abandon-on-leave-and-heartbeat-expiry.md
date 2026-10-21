@@ -9,7 +9,7 @@ PRD FR-2.7 and FR-2.8 require that a student who leaves the Assessment cannot re
 - The test page posts `POST /api/submissions/:id/heartbeat` every 15 seconds while a real Submission is `IN_PROGRESS`; the server stamps `Submission.lastHeartbeatAt`.
 - `pagehide` and client navigation away send the existing abandon route with `navigator.sendBeacon` (fetch `keepalive` fallback) and clear the start intent.
 - A server sweep (every `SUBMISSION_ABANDON_SWEEP_INTERVAL_SECONDS`, default 30) abandons `IN_PROGRESS`, `RETAINED` Submissions whose `COALESCE(lastHeartbeatAt, createdAt)` is older than `SUBMISSION_HEARTBEAT_GRACE_SECONDS` (default 120) in one atomic UPDATE.
-- A failed heartbeat shows a reconnecting state and pauses preparation; a recording interrupted by the loss is flagged `TECHNICAL_FAILURE` (#173), not replayed. A successful retry resumes the next unfinished slot with full preparation time.
+- A failed heartbeat shows a reconnecting state and pauses preparation. A recording is ended only once the loss is confirmed (three consecutive failed heartbeats, or the browser reports offline) and is flagged `TECHNICAL_FAILURE` (#173), not replayed; one timeout or 5xx never ends a take. A successful retry resumes the next unfinished slot with full preparation time.
 
 ## Considered Options
 
