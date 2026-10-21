@@ -469,8 +469,9 @@ which is not a secret, so a success callback is not trusted on its own: before
 setting PAID the service calls iPaymu's `POST /api/v2/transaction`, signed with
 the API key, and requires the reported transaction ID, merchant reference,
 amount, and a paid status (1, 6, or 7) to match. A mismatch or an unknown
-transaction returns 400 and changes nothing. An unreachable, timed-out, or
-unverifiable check returns 500 and changes nothing, so iPaymu retries the
+transaction returns 400 and changes nothing. An unreachable, timed-out,
+throttled, or unauthorized (credentials/environment) check, or an
+unverifiable answer, returns 500 and changes nothing, so iPaymu retries the
 callback. Failure, expiry, and pending callbacks never set PAID and are not
 checked with the API. Every validated successful attempt is retained. The
 first success transitions AWAITING_PAYMENT to PAID and requests assignment;

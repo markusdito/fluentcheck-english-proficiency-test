@@ -139,6 +139,7 @@ test("rejects check-transaction results that do not match the callback", () => {
     [200, paidTransaction({ Status: null }), "iPaymu transaction is not paid"],
     [400, { Status: 400, Success: false, Message: "transaction not found" }, "iPaymu transaction not found"],
     [200, { Status: 200, Success: false }, "iPaymu transaction not found"],
+    [404, { Status: 404, Success: false }, "iPaymu transaction not found"],
   ];
 
   for (const [httpStatus, result, reason] of cases) {
@@ -156,6 +157,14 @@ test("treats unavailable or malformed check-transaction results as retryable", (
     [200, "not a JSON object"],
     [200, { Status: 200, Success: true }],
     [302, paidTransaction()],
+    // Our credentials, environment or rate are wrong; nothing says the
+    // callback was forged, so the callback must stay retryable.
+    [401, { Status: 401, Success: false, Message: "unauthorized" }],
+    [403, { Status: 403, Success: false, Message: "forbidden" }],
+    [408, { Status: 408, Success: false }],
+    [429, { Status: 429, Success: false, Message: "too many requests" }],
+    [200, { Status: 401, Success: false, Message: "unauthorized" }],
+    [200, { Status: 500, Success: false }],
   ];
 
   for (const [httpStatus, result] of cases) {

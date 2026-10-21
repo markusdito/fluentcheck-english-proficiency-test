@@ -148,7 +148,20 @@ export function classifyIpaymuTransactionResponse(
     resultRecord?.Success === false ||
     (httpStatus >= 400 && httpStatus < 500)
   ) {
-    return { outcome: "REJECTED", reason: "iPaymu transaction not found" };
+    // iPaymu may mirror its error status in the body of a 200. Only a
+    // lookup failure (400/404) proves the transaction is unknown; auth,
+    // throttling and server errors mean the check itself did not run.
+    const providerStatus =
+      httpStatus >= 300 || typeof resultRecord?.Status !== "number"
+        ? httpStatus
+        : resultRecord.Status;
+    const transactionUnknown =
+      providerStatus === 400 ||
+      providerStatus === 404 ||
+      (providerStatus >= 200 && providerStatus < 300);
+    return transactionUnknown
+      ? { outcome: "REJECTED", reason: "iPaymu transaction not found" }
+      : { outcome: "UNAVAILABLE" };
   }
 
   const data = isRecord(resultRecord?.Data) ? resultRecord.Data : undefined;
