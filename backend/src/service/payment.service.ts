@@ -10,9 +10,11 @@ import {
 import {
   canonicalizeIpaymuCallback,
   classifyIpaymuCheckoutResponse,
+  classifyIpaymuTransactionResponse,
   createIpaymuCheckoutTimeout,
   IpaymuCheckoutError,
   type IpaymuCallback,
+  type IpaymuTransactionClassification,
 } from "./ipaymu.protocol.js";
 
 const IPAYMU_SANDBOX_URL = "https://sandbox.ipaymu.com";
@@ -232,6 +234,81 @@ function validateCallbackReconciliation(
   return { providerSessionId, providerTransactionId };
 }
 
+/**
+ * The callback signature is keyed with the VA number, which is not a secret,
+ * so a success callback is only trusted once iPaymu's check-transaction API
+ * (signed with the API key) reports the same paid transaction.
+ */
+async function verifyIpaymuTransaction(
+  transport: IpaymuTransport,
+  payment: { id: string; merchantReference: string; amount: number },
+  providerTransactionId: string,
+) {
+  const bodyJson = JSON.stringify({
+    transactionId: Number(providerTransactionId),
+  });
+  const abortController = new AbortController();
+  const verificationTimeout = createIpaymuCheckoutTimeout(abortController);
+
+  const logContext = {
+    paymentId: payment.id,
+    merchantReference: payment.merchantReference,
+  };
+  let classification: IpaymuTransactionClassification;
+  try {
+    const providerResult = Promise.resolve().then(async () => {
+      const response = await transport(
+        `${getIpaymuBaseUrl()}/api/v2/transaction`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            va: env.IPAYMU_VA_NUMBER!,
+            signature: createRequestSignature("POST", bodyJson),
+            timestamp: createTimestamp(),
+          },
+          body: bodyJson,
+          signal: abortController.signal,
+        },
+      );
+      const result: unknown = await response.json();
+      return { response, result };
+    });
+    const { response, result } = await Promise.race([
+      providerResult,
+      verificationTimeout.promise,
+    ]);
+    classification = classifyIpaymuTransactionResponse(response.status, result, {
+      merchantReference: payment.merchantReference,
+      amount: payment.amount,
+      providerTransactionId,
+    });
+  } catch (error) {
+    console.error("iPaymu transaction verification unavailable", {
+      ...logContext,
+      error: error instanceof Error ? error.message : "Unknown transport error",
+    });
+    throw new Error("iPaymu transaction verification is unavailable");
+  } finally {
+    verificationTimeout.cancel();
+  }
+
+  if (classification.outcome === "REJECTED") {
+    console.error("iPaymu callback failed transaction verification", {
+      ...logContext,
+      reason: classification.reason,
+    });
+    throw new IpaymuCallbackError(classification.reason);
+  }
+  if (classification.outcome === "UNAVAILABLE") {
+    console.error("iPaymu transaction verification unavailable", {
+      ...logContext,
+      error: "Unverifiable provider response",
+    });
+    throw new Error("iPaymu transaction verification is unavailable");
+  }
+}
+
 export async function createIpaymuCheckout(
   submissionId: string,
   userId: string,
@@ -386,6 +463,7 @@ export async function createIpaymuCheckout(
 export async function processIpaymuNotification(
   body: IpaymuCallback,
   headerSignature: string | undefined,
+  transport: IpaymuTransport = fetchIpaymuTransport,
 ): Promise<void> {
   resolveReceivedSignature(body, headerSignature);
   const merchantReference = resolveMerchantReference(body);
@@ -422,6 +500,12 @@ export async function processIpaymuNotification(
     });
     return;
   }
+
+  await verifyIpaymuTransaction(
+    transport,
+    { id: payment.id, merchantReference, amount: payment.amount },
+    identifiers.providerTransactionId,
+  );
 
   let shouldAssignExaminers = false;
   try {
