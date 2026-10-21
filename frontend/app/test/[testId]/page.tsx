@@ -324,9 +324,10 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
 
   // Warn before leaving mid-take or with uploads pending or failed. The prompt
   // leaves the devices alone: a student who chooses "Stay" keeps recording.
+  // Once the server has ended the Submission nothing left can be saved.
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (recordingMutationPending) {
+      if (recordingMutationPending && !submissionEnded) {
         event.preventDefault();
         event.returnValue = "";
       }
@@ -342,7 +343,7 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [recordingMutationPending, stopStream]);
+  }, [recordingMutationPending, submissionEnded, stopStream]);
 
   // Transition from loading to preparation once questions and stream are ready
   useEffect(() => {

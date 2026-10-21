@@ -423,6 +423,30 @@ describe("TestPage strict exam flow", () => {
     }
   });
 
+  it("does not warn about failed uploads once the server has ended the Submission", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.uploadToR2.mockRejectedValue(new Error("network down"));
+      const view = await renderPage();
+      await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+      await recordCurrentSlot(view, onComplete);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      mocks.sendHeartbeat.mockRejectedValue(new ApiError("Not in progress", 409, undefined, "SUBMISSION_NOT_IN_PROGRESS"));
+      await act(async () => window.dispatchEvent(new Event("online")));
+      expect(await screen.findByRole("heading", { name: "This Assessment has ended" })).toBeInTheDocument();
+
+      // The takes can no longer be saved, so "Return to dashboard" leaves without a prompt.
+      const beforeUnload = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(beforeUnload);
+      expect(beforeUnload.defaultPrevented).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the devices and the take when the student stays after the leave prompt", async () => {
     // Like the real coordinator, stopping the stream drops media readiness.
     mocks.stopStream.mockImplementation(() => {
