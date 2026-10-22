@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { QuestionAudioPlayer } from "@/components/QuestionAudioPlayer";
 
 describe("QuestionAudioPlayer", () => {
@@ -12,6 +12,10 @@ describe("QuestionAudioPlayer", () => {
     pause.mockReset();
     vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(play);
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(pause);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("shows only Play/Pause and Replay controls in test autoplay mode", async () => {
@@ -116,5 +120,172 @@ describe("QuestionAudioPlayer", () => {
     rerender(<QuestionAudioPlayer audioUrl="https://example.com/b.webm" autoPlay playsLeft={2} locked />);
     expect(play).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Play question" })).toBeDisabled();
+  });
+  describe("recovery when the prompt cannot play", () => {
+    const PROMPT = "https://example.com/prompt.webm";
+    const FAILURE = "The question audio could not be played. Read the question on screen instead.";
+
+    function setMediaError(audio: HTMLAudioElement, code: number) {
+      Object.defineProperty(audio, "error", { configurable: true, value: { code } });
+    }
+
+    function audioEl(container: HTMLElement) {
+      return container.querySelector("audio")!;
+    }
+
+    it("refreshes an expired URL on a media error and resumes without using a play", async () => {
+      const onPlayStarted = vi.fn();
+      const onFailed = vi.fn();
+      const refreshAudioUrl = vi.fn().mockResolvedValue("https://example.com/fresh.webm");
+      const { container } = render(
+        <QuestionAudioPlayer
+          audioUrl={PROMPT}
+          autoPlay
+          playsLeft={2}
+          onPlayStarted={onPlayStarted}
+          onFailed={onFailed}
+          refreshAudioUrl={refreshAudioUrl}
+        />,
+      );
+      const audio = audioEl(container);
+      fireEvent.play(audio);
+      audio.currentTime = 7;
+      setMediaError(audio, 2);
+      fireEvent.error(audio);
+
+      await waitFor(() => expect(audioEl(container)).toHaveAttribute("src", "https://example.com/fresh.webm"));
+      const fresh = audioEl(container);
+      fireEvent.loadedMetadata(fresh);
+      expect(fresh.currentTime).toBe(7);
+      expect(play).toHaveBeenCalledTimes(2);
+      fireEvent.play(fresh);
+      expect(onPlayStarted).toHaveBeenCalledTimes(1);
+      expect(onFailed).not.toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("refreshes before any play without counting a play", async () => {
+      const onPlayStarted = vi.fn();
+      const refreshAudioUrl = vi.fn().mockResolvedValue("https://example.com/fresh.webm");
+      const { container } = render(
+        <QuestionAudioPlayer
+          audioUrl={PROMPT}
+          autoPlay
+          playsLeft={2}
+          onPlayStarted={onPlayStarted}
+          refreshAudioUrl={refreshAudioUrl}
+        />,
+      );
+      const audio = audioEl(container);
+      setMediaError(audio, 4);
+      fireEvent.error(audio);
+
+      await waitFor(() => expect(audioEl(container)).toHaveAttribute("src", "https://example.com/fresh.webm"));
+      const fresh = audioEl(container);
+      fireEvent.loadedMetadata(fresh);
+      expect(play).toHaveBeenCalledTimes(2);
+      expect(onPlayStarted).not.toHaveBeenCalled();
+      fireEvent.play(fresh);
+      expect(onPlayStarted).toHaveBeenCalledTimes(1);
+    });
+
+    it("starts the fallback when the refresh fails", async () => {
+      const onFailed = vi.fn();
+      const refreshAudioUrl = vi.fn().mockRejectedValue(new Error("offline"));
+      const { container } = render(
+        <QuestionAudioPlayer audioUrl={PROMPT} autoPlay playsLeft={2} onFailed={onFailed} refreshAudioUrl={refreshAudioUrl} />,
+      );
+      const audio = audioEl(container);
+      setMediaError(audio, 2);
+      fireEvent.error(audio);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(FAILURE);
+      expect(onFailed).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Play question" })).toBeDisabled();
+    });
+
+    it("falls back at once without a refresher", async () => {
+      const onFailed = vi.fn();
+      const { container } = render(
+        <QuestionAudioPlayer audioUrl={PROMPT} autoPlay playsLeft={2} onFailed={onFailed} />,
+      );
+      const audio = audioEl(container);
+      setMediaError(audio, 4);
+      fireEvent.error(audio);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(FAILURE);
+      expect(onFailed).toHaveBeenCalledTimes(1);
+    });
+
+    it("gives up after two refreshes", async () => {
+      const onFailed = vi.fn();
+      const refreshAudioUrl = vi
+        .fn()
+        .mockResolvedValueOnce("https://example.com/fresh-1.webm")
+        .mockResolvedValueOnce("https://example.com/fresh-2.webm");
+      const { container } = render(
+        <QuestionAudioPlayer audioUrl={PROMPT} autoPlay playsLeft={2} onFailed={onFailed} refreshAudioUrl={refreshAudioUrl} />,
+      );
+      for (const next of ["https://example.com/fresh-1.webm", "https://example.com/fresh-2.webm"]) {
+        const audio = audioEl(container);
+        setMediaError(audio, 2);
+        fireEvent.error(audio);
+        await waitFor(() => expect(audioEl(container)).toHaveAttribute("src", next));
+      }
+      const last = audioEl(container);
+      setMediaError(last, 2);
+      fireEvent.error(last);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(FAILURE);
+      expect(refreshAudioUrl).toHaveBeenCalledTimes(2);
+      expect(onFailed).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not report autoplay blocked when the source failed", async () => {
+      // jsdom has no MediaError; every element reports an unsupported source.
+      Object.defineProperty(HTMLMediaElement.prototype, "error", { configurable: true, get: () => ({ code: 4 }) });
+      onTestFinished(() => {
+        delete (HTMLMediaElement.prototype as { error?: unknown }).error;
+      });
+      play.mockRejectedValueOnce(new DOMException("no supported source", "NotSupportedError"));
+      render(<QuestionAudioPlayer audioUrl={PROMPT} autoPlay playsLeft={2} />);
+
+      await act(async () => {});
+      expect(screen.queryByText(/Autoplay blocked/)).not.toBeInTheDocument();
+    });
+
+    it("ignores errors once locked", async () => {
+      const onFailed = vi.fn();
+      const refreshAudioUrl = vi.fn().mockResolvedValue("https://example.com/fresh.webm");
+      const { container } = render(
+        <QuestionAudioPlayer audioUrl={PROMPT} autoPlay playsLeft={1} locked onFailed={onFailed} refreshAudioUrl={refreshAudioUrl} />,
+      );
+      const audio = audioEl(container);
+      setMediaError(audio, 2);
+      fireEvent.error(audio);
+
+      await act(async () => {});
+      expect(refreshAudioUrl).not.toHaveBeenCalled();
+      expect(onFailed).not.toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("ignores a refresh that resolves after the prompt changed", async () => {
+      const onFailed = vi.fn();
+      let resolveRefresh!: (url: string) => void;
+      const refreshAudioUrl = vi.fn(() => new Promise<string>((resolve) => { resolveRefresh = resolve; }));
+      const props = { autoPlay: true, playsLeft: 2, onFailed, refreshAudioUrl };
+      const { container, rerender } = render(<QuestionAudioPlayer audioUrl={PROMPT} {...props} />);
+      const audio = audioEl(container);
+      setMediaError(audio, 2);
+      fireEvent.error(audio);
+      expect(refreshAudioUrl).toHaveBeenCalledTimes(1);
+
+      rerender(<QuestionAudioPlayer audioUrl="https://example.com/next.webm" {...props} />);
+      await act(async () => resolveRefresh("https://example.com/stale.webm"));
+
+      expect(audioEl(container)).toHaveAttribute("src", "https://example.com/next.webm");
+      expect(onFailed).not.toHaveBeenCalled();
+    });
   });
 });
