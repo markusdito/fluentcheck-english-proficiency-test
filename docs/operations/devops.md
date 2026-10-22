@@ -25,8 +25,8 @@ adding GitHub secrets), see [`ops/deploy/README.md`](../../ops/deploy/README.md)
   |     |                                                    |
   |     v                                                    |
   |  127.0.0.1:3000  frontend container (Next.js standalone) |
-  |     |  /backend-api/*  -> rewrite -> BACKEND_URL/api/*   |
-  |     v                                                    |
+  |     |  /backend-api/* -> rewrite -> backend:5001/api/*   |
+  |     v       (compose network 172.31.250.0/24)            |
   |  127.0.0.1:5001  backend container (Express + Prisma)    |
   +----------------------------------------------------------+
         |              |               |              |
@@ -43,6 +43,13 @@ adding GitHub secrets), see [`ops/deploy/README.md`](../../ops/deploy/README.md)
   `DATABASE_URL`.
 - Both containers bind to `127.0.0.1` only. The host's nginx terminates TLS
   and is the only public listener. Docker never handles TLS or domains.
+- The frontend's `/backend-api` rewrite goes straight to `http://backend:5001`
+  on the compose network, so the backend sees one proxy hop. The compose file
+  pins that network to `172.31.250.0/24` and sets the backend's
+  `RATE_LIMIT_TRUST_PROXY` to the same range. That range covers the frontend
+  container and the gateway that carries nginx traffic to `127.0.0.1:5001`.
+  nginx must send `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`
+  on every location, or all users share one IP and one rate-limit bucket.
 - Images come from GitHub Container Registry:
   `ghcr.io/markusdito/fluentcheck-backend` and
   `ghcr.io/markusdito/fluentcheck-frontend`.
@@ -111,8 +118,8 @@ curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:3001/login
 | `<VPS_DEPLOY_DIR>/` | The deploy directory. Run every `docker compose` command from here. | — |
 | `<VPS_DEPLOY_DIR>/docker-compose.prod.yml` | Production topology. A copy of `ops/compose/docker-compose.prod.yml`. | **CI, every deploy.** Local edits are overwritten. Change it in the repo. |
 | `<VPS_DEPLOY_DIR>/deploy.sh` | Deploy, migrate and rollback script. A copy of `ops/deploy/deploy.sh`. | **CI, every deploy.** Same as above. |
-| `<VPS_DEPLOY_DIR>/.env` | Compose variables: `BACKEND_URL`, `BACKEND_IMAGE`, `FRONTEND_IMAGE`. The image tags show which commit is live. | Humans (`BACKEND_URL`). `deploy.sh` (image tags). |
-| `<VPS_DEPLOY_DIR>/backend.env` | **All backend secrets and runtime config**: `DATABASE_URL`, `JWT_SECRET`, `R2_*`, `GOOGLE_*`, `IPAYMU_*`, `RATE_LIMIT_*`, `OBSERVABILITY_*`, `FRONTEND_URL`. | Humans only. CI never touches it. |
+| `<VPS_DEPLOY_DIR>/.env` | Compose variables: `BACKEND_IMAGE`, `FRONTEND_IMAGE`, and a legacy `BACKEND_URL`. The image tags show which commit is live. The current compose file ignores `BACKEND_URL` (it sets `http://backend:5001`), but keep the line: older compose files require it, so a redeploy of an older commit needs it. | `deploy.sh` (image tags). Humans (`BACKEND_URL`). |
+| `<VPS_DEPLOY_DIR>/backend.env` | **All backend secrets and runtime config**: `DATABASE_URL`, `JWT_SECRET`, `R2_*`, `GOOGLE_*`, `IPAYMU_*`, `RATE_LIMIT_*`, `OBSERVABILITY_*`, `FRONTEND_URL`. `RATE_LIMIT_TRUST_PROXY` here is overridden by the compose file. | Humans only. CI never touches it. |
 | `<VPS_DEPLOY_DIR>/.env.previous` | The pre-deploy `.env`. It only exists during a deploy, or if a rollback was interrupted. | `deploy.sh` |
 | `~<VPS_USER>/.ssh/authorized_keys` | The CI deploy key plus every human's public key. | Humans |
 | `~<VPS_USER>/.docker/config.json` | The `ghcr.io` login, needed only while the packages are private. | `docker login` |
@@ -174,6 +181,11 @@ What `deploy.sh` does, in order:
 6. Calls `curl http://127.0.0.1:5001/api/health`.
 7. If any step fails, it restores `.env.previous`, brings the old containers
    back up, and exits non-zero. The Actions run goes red.
+
+The rollback restores `.env` only, never the compose file, so it cannot undo
+a compose-level failure. The deploy that first pins the compose network subnet
+is one: check for overlapping networks first, as described in
+[`ops/deploy/README.md`](../../ops/deploy/README.md#first-deploy-of-the-pinned-compose-network).
 
 GitHub Actions secrets (Settings → Secrets and variables → Actions):
 `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_PORT`, `VPS_DEPLOY_DIR`.
@@ -240,8 +252,9 @@ This runs the same health-gated swap, with automatic rollback if it fails.
    values in production.
 5. Delete the `.bak` file once the backend is healthy. It holds secrets.
 
-To change `BACKEND_URL`, edit `.env` and then run
-`dc up -d --force-recreate --wait frontend`.
+`BACKEND_URL` and `RATE_LIMIT_TRUST_PROXY` are not settings here: the compose
+file fixes them to the internal backend and the pinned network subnet. Change
+them in the repo, and change the subnet and the trust value together.
 
 ### Disk space
 
@@ -301,7 +314,8 @@ rules before anything else.
 | `pull access denied` / `unauthorized` from ghcr | The packages are private and the VPS login expired. Run `docker login ghcr.io` with a token that has `read:packages`, or make the packages public. |
 | Backend container keeps restarting | `dc logs --tail=200 backend`. Usually a config validation error at startup (see [Changing a secret or setting](#changing-a-secret-or-setting)) or an unreachable `DATABASE_URL`. |
 | Site returns 502 / 504 | `dc ps` (are both containers healthy?), then the nginx error log. |
-| Frontend loads but API calls fail | Check `BACKEND_URL` in `.env`. The frontend logs `entrypoint: pointed N rewrite(s) at …` at startup. |
+| Frontend loads but API calls fail | `dc logs frontend`. It should log `entrypoint: pointed N rewrite(s) at http://backend:5001` at startup, and `dc ps` should show the backend healthy. |
+| Many users get 429 at once / rate limits feel global | `dc logs backend \| grep "Client IP check"`. `passed` means `req.ip` resolves to real clients. `failed` names the proxy address the backend saw: check that nginx appends `X-Forwarded-For` and that the compose subnet still matches `RATE_LIMIT_TRUST_PROXY`. The backend also logs `Rate-limit trust proxy: …` at startup. |
 | Prompt media / assessment start failures | `docs/runbooks/assessment-initialization-failures.md` |
 | `no space left on device` | [Disk space](#disk-space) |
 | Payment stays PENDING after the student paid | `dc logs backend \| grep -i "transaction verification"`. `unavailable` means the check-transaction call failed (network, outbound IP not registered, wrong `IPAYMU_ENV`/key); iPaymu retries the callback. `failed transaction verification` with a reason means iPaymu reported a different transaction, reference, amount, or an unpaid status. |

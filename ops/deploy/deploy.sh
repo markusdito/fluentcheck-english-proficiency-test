@@ -4,7 +4,7 @@
 #
 # Usage: ./deploy.sh <deploy-dir> <backend-image> <frontend-image>
 #
-# The deploy dir must contain docker-compose.prod.yml, .env (with BACKEND_URL,
+# The deploy dir must contain docker-compose.prod.yml, .env (with
 # BACKEND_IMAGE, FRONTEND_IMAGE) and backend.env (DATABASE_URL and the rest of
 # the backend runtime configuration).
 #
