@@ -5,7 +5,7 @@ This runbook implements the accepted policy in ADR-0015. It is intentionally con
 ## Policy
 
 - Every Submission is `RETAINED` by default. There is no automatic age-based purge.
-- Only `IN_PROGRESS`, `ABANDONED`, and `AWAITING_PAYMENT` Submissions with no active Retention hold and no payment, assignment, or certificate obligation may enter purge quarantine.
+- Only `IN_PROGRESS`, `ABANDONED`, and `AWAITING_PAYMENT` Submissions with no active Retention hold, no payment, assignment, or certificate obligation, and no Submission flag, Retake credit, or Payment waiver record may enter purge quarantine. Those records are audit evidence: purge never deletes them, so their presence blocks it.
 - `PAID`, `SCORING`, `SCORED`, and `CERTIFIED` Submissions are blocked in v1. A future policy revision must define their legal/business retention before code may loosen this gate.
 - A purge request records the target identity, requester, reason, policy version, and timestamp. A different active `ADMIN` must approve it.
 - Approval moves the Submission to quarantine for 30 days and blocks student, examiner, and administrator evidence access. Recovery is a cancellation before finalization; cancellation never rewrites or fabricates evidence.
@@ -26,7 +26,7 @@ The inventory is not a bucket scan. Invalid or missing identities, storage failu
 
 ## Purge request and approval
 
-The service boundary requires an active administrator, a non-empty reason, and a distinct approving active administrator. The request and approval create immutable Retention audit events. An active hold or an ineligible Submission state fails closed; it never creates a partial purge.
+The service boundary requires an active administrator, a non-empty reason, and a distinct approving active administrator. The request and approval create immutable Retention audit events. An active hold or an ineligible Submission state fails closed; it never creates a partial purge. Finalization re-checks every blocker before any storage call, so a blocker that appears during quarantine stops the purge with no Answer media deleted.
 
 The approved request captures Answer-media identities before quarantine and reserves those identities against new Answer writes. A request may be cancelled while all captured objects remain quarantined and no final deletion attempt has started. Once finalization begins, cancellation is rejected. A pre-existing identity shared by another non-purged Submission blocks approval and finalization.
 

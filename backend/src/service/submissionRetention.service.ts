@@ -283,6 +283,24 @@ function evidenceRecordBlockers(snapshot: SubmissionPolicySnapshot): string[] {
   return blockers;
 }
 
+/**
+ * Blockers re-checked on a QUARANTINED Submission before any storage call and
+ * again before its relational evidence is removed.
+ */
+function finalizationBlockers(snapshot: SubmissionPolicySnapshot): string[] {
+  return [
+    ...activeHoldBlockers(snapshot),
+    ...(snapshot.payments.some(
+      (payment) => payment.status !== "FAILED" && payment.status !== "REFUNDED",
+    )
+      ? ["A payment obligation appeared during purge finalization"]
+      : []),
+    ...(snapshot.assignments.length > 0 ? ["Examiner assignments appeared during purge finalization"] : []),
+    ...(snapshot.certificate ? ["A certificate appeared during purge finalization"] : []),
+    ...evidenceRecordBlockers(snapshot),
+  ];
+}
+
 async function findSharedAnswerMedia(
   transaction: Prisma.TransactionClient,
   targetSubmissionId: string,
@@ -704,9 +722,9 @@ async function preparePurgeObjectAttempt(
       request.targetSubmissionId,
     );
     if (!submission || submission.retentionStatus !== "QUARANTINED") return null;
-    const holdBlockers = activeHoldBlockers(submission);
-    if (holdBlockers.length > 0) {
-      throw new SubmissionPurgeNotEligibleError(holdBlockers);
+    const blockers = finalizationBlockers(submission);
+    if (blockers.length > 0) {
+      throw new SubmissionPurgeNotEligibleError(blockers);
     }
     const object = await transaction.submissionPurgeObject.findUnique({
       where: { id: objectId },
@@ -794,9 +812,9 @@ async function confirmPurgeObjectAttempt(
       if (!submission || submission.retentionStatus !== "QUARANTINED") {
         return { attempted: false, failed: false };
       }
-      const holdBlockers = activeHoldBlockers(submission);
-      if (holdBlockers.length > 0) {
-        throw new SubmissionPurgeNotEligibleError(holdBlockers);
+      const blockers = finalizationBlockers(submission);
+      if (blockers.length > 0) {
+        throw new SubmissionPurgeNotEligibleError(blockers);
       }
       const object = await transaction.submissionPurgeObject.findUnique({
         where: { id: attempt.id },
@@ -986,16 +1004,7 @@ async function completeSubmissionPurge(
       request.targetSubmissionId,
     );
     if (!submission) return;
-    const blockers = [
-      ...activeHoldBlockers(submission),
-      ...(submission.payments.some(
-        (payment) => payment.status !== "FAILED" && payment.status !== "REFUNDED",
-      )
-        ? ["A payment obligation appeared during purge finalization"]
-        : []),
-      ...(submission.assignments.length > 0 ? ["Examiner assignments appeared during purge finalization"] : []),
-      ...(submission.certificate ? ["A certificate appeared during purge finalization"] : []),
-    ];
+    const blockers = finalizationBlockers(submission);
     if (blockers.length > 0) throw new SubmissionPurgeNotEligibleError(blockers);
 
     // This setting is transaction-local and is accepted only while this
@@ -1096,6 +1105,12 @@ export async function finalizeSubmissionPurge(
         { quarantineUntil: request.quarantineUntil },
       );
     }
+    // Relational blockers are checked before any storage call: a blocked
+    // Submission must keep its Answer media rather than fail on a foreign key
+    // after the media is gone.
+    const submission = await loadSubmissionPolicy(transaction, request.targetSubmissionId);
+    const blockers = submission ? finalizationBlockers(submission) : [];
+    if (blockers.length > 0) throw new SubmissionPurgeNotEligibleError(blockers);
   });
 
   const request = await database.submissionPurgeRequest.findUniqueOrThrow({
