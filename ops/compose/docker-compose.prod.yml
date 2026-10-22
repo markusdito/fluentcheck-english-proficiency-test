@@ -11,9 +11,16 @@
 # and forwards to 127.0.0.1:3000 (frontend) and 127.0.0.1:5001 (backend).
 # Containers are never exposed directly.
 #
-# BACKEND_URL is the public browser-facing backend origin (e.g.
-# https://example.com/backend-api or https://api.example.com). The frontend
-# entrypoint patches it into the Next.js rewrite manifest at startup.
+# Client IPs and rate limits: the frontend's /backend-api rewrite goes straight
+# to http://backend:5001 on this project's network, so the backend sees exactly
+# one proxy hop in front of it. Requests that host nginx sends to the published
+# 127.0.0.1:5001 arrive from the network gateway. Both addresses sit in the
+# pinned subnet below, which is the backend's only trusted proxy range. Keep
+# the subnet and RATE_LIMIT_TRUST_PROXY identical, or every user shares one
+# req.ip and one rate-limit bucket. Host nginx must append the client with
+# `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, and anything
+# on the host that can reach 127.0.0.1:5001 is trusted to set that header.
+# The compose value overrides RATE_LIMIT_TRUST_PROXY in backend.env.
 
 name: fluentcheck
 
@@ -22,6 +29,8 @@ services:
     image: ${BACKEND_IMAGE:-ghcr.io/markusdito/fluentcheck-backend:latest}
     pull_policy: always
     env_file: backend.env
+    environment:
+      RATE_LIMIT_TRUST_PROXY: 172.31.250.0/24
     ports:
       - "127.0.0.1:5001:5001"
     restart: unless-stopped
@@ -36,7 +45,7 @@ services:
     image: ${FRONTEND_IMAGE:-ghcr.io/markusdito/fluentcheck-frontend:latest}
     pull_policy: always
     environment:
-      BACKEND_URL: ${BACKEND_URL:?BACKEND_URL must be set in .env}
+      BACKEND_URL: http://backend:5001
     ports:
       - "127.0.0.1:3000:3000"
     restart: unless-stopped
@@ -46,3 +55,9 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
