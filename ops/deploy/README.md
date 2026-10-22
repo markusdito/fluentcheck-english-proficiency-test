@@ -42,9 +42,12 @@ VPS** workflow SSHes in and runs `deploy.sh`.
      ```
 
      The image variables get rewritten to `sha-<short>` tags on the first
-     deploy. `BACKEND_URL` is not set here: the compose file points the
-     Next.js rewrite at the internal `http://backend:5001` (patched in by
-     `frontend/docker/entrypoint.mjs`), and an old value in `.env` is ignored.
+     deploy. The compose file points the Next.js rewrite at the internal
+     `http://backend:5001` (patched in by `frontend/docker/entrypoint.mjs`),
+     so it ignores any `BACKEND_URL` here. Keep an existing
+     `BACKEND_URL=https://<public origin>` line anyway: compose files from
+     before the single-hop change require it, so deleting it breaks a
+     redeploy of an older commit.
 
    - `backend.env` — the backend runtime configuration: `DATABASE_URL`
      (managed PostgreSQL), `JWT_SECRET`, `FRONTEND_URL`, the `R2_*` media
@@ -94,8 +97,31 @@ VPS** workflow SSHes in and runs `deploy.sh`.
    `passed`; a `failed` line names the address the backend resolved instead.
    Docker never handles TLS or domains.
 
-   The first deploy that pins the compose network subnet recreates the
-   network, so both containers stop briefly while compose rebuilds it.
+### First deploy of the pinned compose network
+
+The deploy that first pins the compose network to `172.31.250.0/24` makes
+compose stop both containers, remove the old network and create the new one.
+If that subnet overlaps an existing Docker network or a host route, creation
+fails and the containers stay stopped. The automatic rollback re-runs the same
+compose file, so it fails the same way and the site stays down. Before merging
+that change to `main`, check on the VPS:
+
+```
+docker network inspect $(docker network ls -q) \
+  --format '{{.Name}} {{range .IPAM.Config}}{{.Subnet}} {{end}}'
+ip route
+```
+
+Nothing may overlap `172.31.250.0/24`. If something does, pick a free /24 and
+change both the `networks.default` subnet and `RATE_LIMIT_TRUST_PROXY` in
+`ops/compose/docker-compose.prod.yml`, plus the expected values in
+`backend/test/proxyTopology.test.ts`, which keeps the two equal. If a deploy still leaves the site down with
+`Pool overlaps with other one on this address space`, recover by hand in the
+deploy dir: remove or move the conflicting network, then run
+`docker compose -f docker-compose.prod.yml --env-file .env up -d --wait`.
+
+After the deploy, `docker compose logs backend | grep "Client IP check"`
+should show `passed`.
 
 ## Day-to-day operation
 

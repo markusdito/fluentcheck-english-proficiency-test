@@ -118,7 +118,7 @@ curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:3001/login
 | `<VPS_DEPLOY_DIR>/` | The deploy directory. Run every `docker compose` command from here. | — |
 | `<VPS_DEPLOY_DIR>/docker-compose.prod.yml` | Production topology. A copy of `ops/compose/docker-compose.prod.yml`. | **CI, every deploy.** Local edits are overwritten. Change it in the repo. |
 | `<VPS_DEPLOY_DIR>/deploy.sh` | Deploy, migrate and rollback script. A copy of `ops/deploy/deploy.sh`. | **CI, every deploy.** Same as above. |
-| `<VPS_DEPLOY_DIR>/.env` | Compose variables: `BACKEND_IMAGE`, `FRONTEND_IMAGE`. The image tags show which commit is live. A leftover `BACKEND_URL` is ignored; the compose file sets it to `http://backend:5001`. | `deploy.sh` (image tags). |
+| `<VPS_DEPLOY_DIR>/.env` | Compose variables: `BACKEND_IMAGE`, `FRONTEND_IMAGE`, and a legacy `BACKEND_URL`. The image tags show which commit is live. The current compose file ignores `BACKEND_URL` (it sets `http://backend:5001`), but keep the line: older compose files require it, so a redeploy of an older commit needs it. | `deploy.sh` (image tags). Humans (`BACKEND_URL`). |
 | `<VPS_DEPLOY_DIR>/backend.env` | **All backend secrets and runtime config**: `DATABASE_URL`, `JWT_SECRET`, `R2_*`, `GOOGLE_*`, `IPAYMU_*`, `RATE_LIMIT_*`, `OBSERVABILITY_*`, `FRONTEND_URL`. `RATE_LIMIT_TRUST_PROXY` here is overridden by the compose file. | Humans only. CI never touches it. |
 | `<VPS_DEPLOY_DIR>/.env.previous` | The pre-deploy `.env`. It only exists during a deploy, or if a rollback was interrupted. | `deploy.sh` |
 | `~<VPS_USER>/.ssh/authorized_keys` | The CI deploy key plus every human's public key. | Humans |
@@ -181,6 +181,11 @@ What `deploy.sh` does, in order:
 6. Calls `curl http://127.0.0.1:5001/api/health`.
 7. If any step fails, it restores `.env.previous`, brings the old containers
    back up, and exits non-zero. The Actions run goes red.
+
+The rollback restores `.env` only, never the compose file, so it cannot undo
+a compose-level failure. The deploy that first pins the compose network subnet
+is one: check for overlapping networks first, as described in
+[`ops/deploy/README.md`](../../ops/deploy/README.md#first-deploy-of-the-pinned-compose-network).
 
 GitHub Actions secrets (Settings → Secrets and variables → Actions):
 `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_PORT`, `VPS_DEPLOY_DIR`.
