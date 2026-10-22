@@ -102,8 +102,13 @@ export function QuestionAudioPlayer({
     if (attempt !== undefined) {
       attempt.catch(() => {
         setPlayingUrl(null);
-        // A broken source is handled by `onError`; only a policy refusal is "blocked".
-        if (audio.error) return;
+        // A broken source is recovered by `onError`; only a policy refusal is
+        // "blocked". Its error event may predate the listener (e.g. before
+        // hydration), so replay it; recovery ignores the duplicate.
+        if (audio.error) {
+          if (audio === audioRef.current) audio.dispatchEvent(new Event("error"));
+          return;
+        }
         playWantedRef.current = false;
         setBlockedUrl(audioUrl);
       });

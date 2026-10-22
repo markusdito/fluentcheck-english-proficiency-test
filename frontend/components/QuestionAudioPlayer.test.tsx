@@ -254,6 +254,19 @@ describe("QuestionAudioPlayer", () => {
       expect(screen.queryByText(/Autoplay blocked/)).not.toBeInTheDocument();
     });
 
+    it("recovers when play fails on a source whose error event was missed", async () => {
+      // jsdom has no MediaError; every element reports a failed source.
+      Object.defineProperty(HTMLMediaElement.prototype, "error", { configurable: true, get: () => ({ code: 2 }) });
+      onTestFinished(() => {
+        delete (HTMLMediaElement.prototype as { error?: unknown }).error;
+      });
+      play.mockRejectedValueOnce(new DOMException("network error", "NotSupportedError"));
+      const refreshAudioUrl = vi.fn(() => new Promise<string>(() => {}));
+      render(<QuestionAudioPlayer audioUrl={PROMPT} autoPlay playsLeft={2} refreshAudioUrl={refreshAudioUrl} />);
+
+      await waitFor(() => expect(refreshAudioUrl).toHaveBeenCalledTimes(1));
+    });
+
     it("ignores errors once locked", async () => {
       const onFailed = vi.fn();
       const refreshAudioUrl = vi.fn().mockResolvedValue("https://example.com/fresh.webm");
