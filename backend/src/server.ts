@@ -31,6 +31,11 @@ import {
   type RateLimitRuntimeOptions,
 } from "./middleware/rate-limit.middleware.js";
 import { requestIdMiddleware } from "./middleware/request-id.middleware.js";
+import {
+  createClientIpCheck,
+  describeTrustProxy,
+  type ClientIpCheckOptions,
+} from "./middleware/client-ip-check.middleware.js";
 import { abandonStaleSubmissions } from "./service/submission.service.js";
 import { flushAssessmentInitializationObservability, getAssessmentInitializationObservabilityConfig } from "./service/assessmentInitializationObservability.service.js";
 
@@ -88,6 +93,7 @@ export interface AppDependencies {
   ipaymuTransport?: IpaymuTransport;
   googleAuth?: GoogleAuthRouteHandlers;
   rateLimit?: RateLimitRuntimeOptions;
+  clientIpCheck?: Omit<ClientIpCheckOptions, "trustProxy">;
 }
 
 export const unhandledRequestError: ErrorRequestHandler = (
@@ -156,6 +162,14 @@ export function createApp(dependencies: AppDependencies = {}) {
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
   });
+  if (app.locals.rateLimit && dependencies.clientIpCheck) {
+    app.use(
+      createClientIpCheck({
+        ...dependencies.clientIpCheck,
+        trustProxy: (app.locals.rateLimit as RateLimitRuntime).config.trustProxy,
+      }),
+    );
+  }
   const generalRateLimit = app.locals.rateLimit?.createLimiter(
     RATE_LIMIT_POLICIES.generalApi,
     undefined,
@@ -215,6 +229,9 @@ function closeServer(
 async function startServer() {
   getAssessmentInitializationObservabilityConfig();
   const rateLimitConfig = createRateLimitConfig();
+  console.log(
+    `Rate-limit trust proxy: ${describeTrustProxy(rateLimitConfig.trustProxy)}`,
+  );
   const rateLimitStoreFactory =
     createConfiguredRateLimitStoreFactory(rateLimitConfig);
   const googleOAuthConfig = getGoogleOAuthConfig();
@@ -227,6 +244,9 @@ async function startServer() {
       config: rateLimitConfig,
       storeFactory: rateLimitStoreFactory,
     },
+    // Local `next dev` forwards loopback addresses, so only production checks
+    // that req.ip resolves to real clients behind the proxy.
+    clientIpCheck: env.NODE_ENV === "production" ? {} : undefined,
   });
   const rateLimitRuntime = app.locals.rateLimit as RateLimitRuntime;
   const port = process.env.PORT || 5001;
