@@ -96,6 +96,19 @@ export async function sendHeartbeat(submissionId: string, signal?: AbortSignal):
   await api.post(`/submissions/${submissionId}/heartbeat`, undefined, { signal });
 }
 
+/** Fresh signed URL for one prompt; the URLs from initialization expire after 300 s. */
+export async function getPromptAudioUrl(
+  submissionId: string,
+  manifestEntryId: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const res = await api.get<{ status: string; data: { url: string } }>(
+    `/submissions/${submissionId}/prompts/${manifestEntryId}`,
+    { signal },
+  );
+  return res.data.url;
+}
+
 /**
  * Abandon from a `pagehide`/unmount, where an awaited fetch would be cut off
  * (PRD FR-2.8). Same-origin, so the beacon carries the session cookie.
