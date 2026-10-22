@@ -288,4 +288,53 @@ describe("QuestionAudioPlayer", () => {
       expect(onFailed).not.toHaveBeenCalled();
     });
   });
+  describe("stalled playback", () => {
+    const PROMPT = "https://example.com/prompt.webm";
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function renderPlaying(playsLeft = 2) {
+      const refreshAudioUrl = vi.fn(() => new Promise<string>(() => {}));
+      const { container } = render(
+        <QuestionAudioPlayer audioUrl={PROMPT} autoPlay playsLeft={playsLeft} refreshAudioUrl={refreshAudioUrl} />,
+      );
+      return { audio: container.querySelector("audio")!, refreshAudioUrl };
+    }
+
+    it("treats a 10 s stall mid-playback as an error", () => {
+      const { audio, refreshAudioUrl } = renderPlaying();
+      fireEvent.play(audio);
+      fireEvent.waiting(audio);
+
+      act(() => vi.advanceTimersByTime(9_999));
+      expect(refreshAudioUrl).not.toHaveBeenCalled();
+      act(() => vi.advanceTimersByTime(1));
+      expect(refreshAudioUrl).toHaveBeenCalledTimes(1);
+    });
+
+    it("progress cancels the stall watchdog", () => {
+      const { audio, refreshAudioUrl } = renderPlaying();
+      fireEvent.play(audio);
+      fireEvent.waiting(audio);
+      act(() => vi.advanceTimersByTime(5_000));
+      fireEvent.timeUpdate(audio);
+
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(refreshAudioUrl).not.toHaveBeenCalled();
+    });
+
+    it("ignores stalls while nothing is playing", () => {
+      const { audio, refreshAudioUrl } = renderPlaying(0);
+      fireEvent.stalled(audio);
+
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(refreshAudioUrl).not.toHaveBeenCalled();
+    });
+  });
 });

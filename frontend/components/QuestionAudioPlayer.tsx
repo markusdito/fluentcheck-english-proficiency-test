@@ -31,6 +31,8 @@ interface QuestionAudioPlayerProps {
 
 /** Fresh URLs fetched per prompt before giving up on it. */
 const MAX_AUDIO_REFRESHES = 2;
+/** Playback waiting this long for data is treated as a failed load. */
+const PROMPT_STALL_TIMEOUT_MS = 10_000;
 
 interface Recovery {
   forUrl: string;
@@ -51,8 +53,8 @@ interface Recovery {
  *
  * A prompt that fails to load or play (its signed URL expired, the network
  * dropped) is re-signed through `refreshAudioUrl` and resumes where it stopped
- * without using a play. Once that is exhausted it reports `onFailed` so the
- * slot can go on without it.
+ * without using a play; playback stalled for 10 s counts as a failed load.
+ * Once that is exhausted it reports `onFailed` so the slot can go on without it.
  */
 export function QuestionAudioPlayer({
   audioUrl,
@@ -79,6 +81,7 @@ export function QuestionAudioPlayer({
   const resumeAtRef = useRef<number | null>(null);
   const refreshingUrlRef = useRef<string | null>(null);
   const failedUrlRef = useRef<string | null>(null);
+  const stallTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const currentUrlRef = useRef(audioUrl);
   const lockedRef = useRef(locked);
   useEffect(() => {
@@ -119,8 +122,13 @@ export function QuestionAudioPlayer({
   useEffect(() => {
     if (!locked) return;
     playWantedRef.current = false;
+    clearTimeout(stallTimerRef.current);
     audioRef.current?.pause();
   }, [locked]);
+
+  // A new element (question change or refreshed URL) starts without a stall.
+  const elementSrc = rawRecovery?.forUrl === audioUrl ? rawRecovery.src : audioUrl;
+  useEffect(() => () => clearTimeout(stallTimerRef.current), [elementSrc]);
 
   if (!audioUrl) {
     return (
@@ -176,6 +184,13 @@ export function QuestionAudioPlayer({
     );
   };
 
+  const clearStall = () => clearTimeout(stallTimerRef.current);
+  const watchStall = () => {
+    clearStall();
+    if (!playWantedRef.current || locked) return;
+    stallTimerRef.current = setTimeout(recover, PROMPT_STALL_TIMEOUT_MS);
+  };
+
   const resumeAfterRefresh = (audio: HTMLAudioElement) => {
     const resumeAt = resumeAtRef.current;
     if (resumeAt === null || recovery.src === audioUrl) return;
@@ -195,7 +210,13 @@ export function QuestionAudioPlayer({
         ref={audioRef}
         src={recovery.src}
         controls={!autoPlay}
-        onTimeUpdate={(e) => trackProgress(e.currentTarget)}
+        onTimeUpdate={(e) => {
+          clearStall();
+          trackProgress(e.currentTarget);
+        }}
+        onWaiting={watchStall}
+        onStalled={watchStall}
+        onPlaying={clearStall}
         onLoadedMetadata={(e) => {
           trackProgress(e.currentTarget);
           resumeAfterRefresh(e.currentTarget);
@@ -206,8 +227,12 @@ export function QuestionAudioPlayer({
           playCountedRef.current = true;
           onPlayStarted?.();
         }}
-        onPause={() => setPlayingUrl(null)}
+        onPause={() => {
+          clearStall();
+          setPlayingUrl(null);
+        }}
         onEnded={() => {
+          clearStall();
           playWantedRef.current = false;
           setPlayingUrl(null);
           onEnded?.();
