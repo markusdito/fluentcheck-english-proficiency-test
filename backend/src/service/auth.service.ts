@@ -1,17 +1,23 @@
+import { randomBytes } from "node:crypto";
 import { prisma } from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { normalizeEmail } from "../schemas/auth.schema.js";
 
-// A valid precomputed hash keeps credential work structurally uniform when no
-// active local account or password is available for the requested identity.
-const DUMMY_PASSWORD_HASH =
-    "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+const BCRYPT_ROUNDS = 10;
+
+// Keeps credential work structurally uniform when no active local account or
+// password is available for the requested identity. Generated per process from
+// random bytes at the same cost as real hashes, so it has no known plaintext.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
+    randomBytes(32).toString("hex"),
+    BCRYPT_ROUNDS,
+);
 
 export async function createUser(username: string, email: string, password: string) {
     const displayEmail = email.trim();
     const canonicalUsername = username.trim().toLowerCase();
     const normalizedEmail = normalizeEmail(displayEmail);
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     return prisma.user.create({
         data: {

@@ -59,7 +59,7 @@ export async function login(req: Request, res: Response) {
 
     const isPasswordValid = await authenticateUser(password, user?.password);
 
-    if (!user || !isPasswordValid) {
+    if (!user || !user.password || !isPasswordValid) {
         return res.status(401).json({
             error: "Invalid email or password",
         });

@@ -32,6 +32,15 @@ function assertAuthenticationCookieSet(response: Response) {
   assert.doesNotMatch(setCookie ?? "", /Expires=/);
 }
 
+// The widely copied example hash the timing dummy used to be hard-coded to.
+const LEGACY_DUMMY_PASSWORD_HASH =
+  "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
+function assertGeneratedDummyHash(hash: string | undefined) {
+  assert.match(hash ?? "", /^\$2[aby]\$10\$/);
+  assert.notEqual(hash, LEGACY_DUMMY_PASSWORD_HASH);
+}
+
 async function migrateDatabase(databaseUrl: string) {
   await execFileAsync(
     "npx",
@@ -277,8 +286,6 @@ test("login uses normalized identity and keeps all invalid credential outcomes g
   const originalCompare = bcrypt.compare;
   let comparisonCount = 0;
   const comparedHashes: string[] = [];
-  const dummyPasswordHash =
-    "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
   bcrypt.compare = async (candidate, hash) => {
     comparisonCount += 1;
     comparedHashes.push(hash);
@@ -297,10 +304,49 @@ test("login uses normalized identity and keeps all invalid credential outcomes g
     bcrypt.compare = originalCompare;
   }
   assert.equal(comparisonCount, 4);
-  assert.equal(
-    comparedHashes.filter((hash) => hash === dummyPasswordHash).length,
-    3,
-  );
+  const dummyHashes = comparedHashes.filter((hash) => hash !== active.password);
+  assert.equal(dummyHashes.length, 3);
+  assert.equal(new Set(dummyHashes).size, 1);
+  assertGeneratedDummyHash(dummyHashes[0]);
+  for (const response of attempts) {
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { error: "Invalid email or password" });
+    assert.equal(response.headers.get("set-cookie"), null);
+  }
+});
+
+test("password login is rejected for accounts without a stored password even when the compare succeeds", async () => {
+  await prisma.user.create({
+    data: {
+      username: "google_only_student",
+      email: "google-only-student@example.com",
+      normalizedEmail: "google-only-student@example.com",
+      password: null,
+    },
+  });
+  await prisma.user.create({
+    data: {
+      username: "google_only_admin",
+      email: "google-only-admin@example.com",
+      normalizedEmail: "google-only-admin@example.com",
+      password: null,
+      role: "ADMIN",
+    },
+  });
+
+  // Stands in for a caller who knows the plaintext behind the timing dummy.
+  const originalCompare = bcrypt.compare;
+  bcrypt.compare = async () => true;
+
+  let attempts: Response[];
+  try {
+    attempts = await Promise.all([
+      request("/auth/login", { email: "google-only-student@example.com", password: "any-password" }),
+      request("/auth/login", { email: "google-only-admin@example.com", password: "any-password" }),
+    ]);
+  } finally {
+    bcrypt.compare = originalCompare;
+  }
   for (const response of attempts) {
     assert.equal(response.status, 401);
     assert.deepEqual(await response.json(), { error: "Invalid email or password" });
@@ -336,8 +382,6 @@ test("authentication database failures use the generic 500 contract", async () =
   const originalFindFirst = prisma.user.findFirst;
   let comparisonCount = 0;
   const comparedHashes: string[] = [];
-  const dummyPasswordHash =
-    "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
   bcrypt.compare = async (candidate, hash) => {
     comparisonCount += 1;
     comparedHashes.push(hash);
@@ -360,7 +404,7 @@ test("authentication database failures use the generic 500 contract", async () =
     (prisma.user as { findFirst: typeof originalFindFirst }).findFirst = originalFindFirst;
   }
   assert.equal(comparisonCount, 1);
-  assert.deepEqual(comparedHashes, [dummyPasswordHash]);
+  assertGeneratedDummyHash(comparedHashes[0]);
   for (const response of responses) {
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), { error: "Internal server error" });
