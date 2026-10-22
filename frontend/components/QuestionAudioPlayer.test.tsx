@@ -241,6 +241,26 @@ describe("QuestionAudioPlayer", () => {
       expect(onFailed).toHaveBeenCalledTimes(1);
     });
 
+    it("gives up when a refresh returns the URL that already failed", async () => {
+      // Presigned URLs signed within the same second are identical strings.
+      const onFailed = vi.fn();
+      const refreshAudioUrl = vi.fn().mockResolvedValue("https://example.com/fresh.webm");
+      const { container } = render(
+        <QuestionAudioPlayer audioUrl={PROMPT} autoPlay playsLeft={2} onFailed={onFailed} refreshAudioUrl={refreshAudioUrl} />,
+      );
+      const audio = audioEl(container);
+      setMediaError(audio, 2);
+      fireEvent.error(audio);
+      await waitFor(() => expect(audioEl(container)).toHaveAttribute("src", "https://example.com/fresh.webm"));
+      const fresh = audioEl(container);
+      setMediaError(fresh, 4);
+      fireEvent.error(fresh);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(FAILURE);
+      expect(refreshAudioUrl).toHaveBeenCalledTimes(2);
+      expect(onFailed).toHaveBeenCalledTimes(1);
+    });
+
     it("does not report autoplay blocked when the source failed", async () => {
       // jsdom has no MediaError; every element reports an unsupported source.
       Object.defineProperty(HTMLMediaElement.prototype, "error", { configurable: true, get: () => ({ code: 4 }) });

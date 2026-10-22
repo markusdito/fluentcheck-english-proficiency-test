@@ -181,7 +181,11 @@ export function QuestionAudioPlayer({
     };
     refreshAudioUrl().then(
       (src) => {
-        if (settle()) setRawRecovery({ forUrl: audioUrl, src, refreshes: recovery.refreshes + 1, failed: false });
+        if (!settle()) return;
+        // The same URL (signed within the same second) would keep the failed
+        // element, which fires nothing more: treat it as a failed refresh.
+        if (src === recovery.src) fail();
+        else setRawRecovery({ forUrl: audioUrl, src, refreshes: recovery.refreshes + 1, failed: false });
       },
       () => {
         if (settle()) fail();
