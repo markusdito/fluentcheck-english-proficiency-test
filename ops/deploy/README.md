@@ -37,21 +37,23 @@ VPS** workflow SSHes in and runs `deploy.sh`.
    - `.env` — compose variables:
 
      ```
-     BACKEND_URL=https://<public backend origin>
      BACKEND_IMAGE=ghcr.io/markusdito/fluentcheck-backend:latest
      FRONTEND_IMAGE=ghcr.io/markusdito/fluentcheck-frontend:latest
      ```
 
-     `BACKEND_URL` is the browser-facing origin the Next.js rewrites point
-     at (see `frontend/docker/entrypoint.mjs`). The image variables get
-     rewritten to `sha-<short>` tags on the first deploy.
+     The image variables get rewritten to `sha-<short>` tags on the first
+     deploy. `BACKEND_URL` is not set here: the compose file points the
+     Next.js rewrite at the internal `http://backend:5001` (patched in by
+     `frontend/docker/entrypoint.mjs`), and an old value in `.env` is ignored.
 
    - `backend.env` — the backend runtime configuration: `DATABASE_URL`
      (managed PostgreSQL), `JWT_SECRET`, `FRONTEND_URL`, the `R2_*` media
      credentials, the Google OAuth variables, the `RATE_LIMIT_*` topology
      settings, and the observability variables. See the env notes in the
      backend README and `docs/adr/0010-rate-limit-topology-and-failure-mode.md`
-     for the rate-limit constraints.
+     for the rate-limit constraints. `RATE_LIMIT_TRUST_PROXY` is set by the
+     compose file to its pinned network subnet (`172.31.250.0/24`) and
+     overrides any value here.
 
 3. **Give the VPS read access to ghcr.io.** Either flip both packages to
    public (Packages → fluentcheck-backend/frontend → Package settings), or
@@ -84,8 +86,16 @@ VPS** workflow SSHes in and runs `deploy.sh`.
    so the workflow never needs root.
 
 6. **Verify the reverse proxy** still points at `127.0.0.1:3000` and
-   `127.0.0.1:5001`. Docker never handles TLS or domains; the existing
-   proxy config keeps working unchanged.
+   `127.0.0.1:5001`, and that every location appends the client address:
+   `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`. The
+   backend trusts only the compose subnet, so without that header every user
+   shares one IP and one rate-limit bucket. After a deploy,
+   `docker compose logs backend | grep "Client IP check"` should show
+   `passed`; a `failed` line names the address the backend resolved instead.
+   Docker never handles TLS or domains.
+
+   The first deploy that pins the compose network subnet recreates the
+   network, so both containers stop briefly while compose rebuilds it.
 
 ## Day-to-day operation
 

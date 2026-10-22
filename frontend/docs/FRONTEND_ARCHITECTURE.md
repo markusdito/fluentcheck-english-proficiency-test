@@ -15,8 +15,9 @@ boundaries, while recording, session queries, and interactive forms are
 client-side features.
 
 frontend/next.config.ts rewrites /backend-api/:path* to the configured backend
-URL under /api. The default backend is local development on port 5001. The
-rewrite is the browser boundary; frontend API modules should use relative
+URL under /api. The default backend is local development on port 5001; the
+production compose file sets BACKEND_URL to the internal http://backend:5001.
+The rewrite is the browser boundary; frontend API modules should use relative
 /backend-api paths and credentialed fetch.
 
 The backend owns authentication, manifest selection, upload verification,

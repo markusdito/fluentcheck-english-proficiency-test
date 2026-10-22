@@ -72,6 +72,20 @@ request identity or provider error text.
   different from `JWT_SECRET`.
 - `RATE_LIMIT_TRUST_PROXY` is `none` or an explicit comma-separated CIDR
   allowlist. Production requires the setting to be explicit.
+- Production topology: host nginx forwards to the frontend container, whose
+  `/backend-api` rewrite targets `http://backend:5001` on the compose network.
+  `ops/compose/docker-compose.prod.yml` pins that network to
+  `172.31.250.0/24` and sets `RATE_LIMIT_TRUST_PROXY` to the same range, which
+  covers the frontend container and the gateway that carries nginx traffic to
+  `127.0.0.1:5001`. nginx appends the client to `X-Forwarded-For`, and Next
+  passes the header through, so `req.ip` is the rightmost untrusted address.
+  `test/proxyTopology.test.ts` checks the compose values and the resolution.
+- The backend logs `Rate-limit trust proxy: <setting>` at startup. In
+  production, a request that resolves to a non-public address logs
+  `Client IP check failed` with that address (at most every five minutes),
+  and the first request that resolves to a public address logs
+  `Client IP check passed`. The failure line prints only proxy or container
+  addresses; client addresses are never logged.
 - `RATE_LIMIT_IPV6_SUBNET` is an integer from 1 through 128 and defaults to
   56.
 - `RATE_LIMIT_TOPOLOGY` is required in production and must be one of

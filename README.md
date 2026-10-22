@@ -231,7 +231,9 @@ BACKEND_URL="http://localhost:5001"
 ```
 
 `BACKEND_URL` is used by the Next.js rewrite that proxies browser requests from
-`/backend-api/*` to the Express API.
+`/backend-api/*` to the Express API. In production the compose file sets it to
+the internal `http://backend:5001`, so the backend sees one trusted proxy hop
+(see `ops/deploy/README.md`).
 
 ### 4. Prepare the database
 
