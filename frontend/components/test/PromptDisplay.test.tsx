@@ -2,7 +2,14 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PromptDisplay } from "@/components/test/PromptDisplay";
 
-vi.mock("@/components/QuestionAudioPlayer", () => ({ QuestionAudioPlayer: () => null }));
+const player = vi.hoisted(() => ({ props: {} as Record<string, unknown> }));
+
+vi.mock("@/components/QuestionAudioPlayer", () => ({
+  QuestionAudioPlayer: (props: Record<string, unknown>) => {
+    player.props = props;
+    return null;
+  },
+}));
 
 describe("PromptDisplay", () => {
   it("renders the Part 2 cue card topic and its three points", () => {
@@ -37,5 +44,22 @@ describe("PromptDisplay", () => {
       expect(item).toHaveTextContent(`Con ${index + 1}`);
     });
     expect(container.querySelectorAll("img")).toHaveLength(4);
+  });
+
+  it("forwards audio recovery props to the player", () => {
+    const refreshAudioUrl = vi.fn();
+    const onAudioFailed = vi.fn();
+    render(
+      <PromptDisplay
+        questionNumber={1}
+        totalQuestions={5}
+        audioUrl="https://r2.example/p1.webm"
+        autoPlay
+        refreshAudioUrl={refreshAudioUrl}
+        onAudioFailed={onAudioFailed}
+      />,
+    );
+    expect(player.props.refreshAudioUrl).toBe(refreshAudioUrl);
+    expect(player.props.onFailed).toBe(onAudioFailed);
   });
 });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { abandonSubmissionOnLeave } from "./test-api";
+import { abandonSubmissionOnLeave, getPromptAudioUrl } from "./test-api";
 
 describe("abandonSubmissionOnLeave", () => {
   afterEach(() => {
@@ -29,5 +29,27 @@ describe("abandonSubmissionOnLeave", () => {
       keepalive: true,
       credentials: "include",
     });
+  });
+});
+
+describe("getPromptAudioUrl", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("re-signs one prompt through the owner-scoped endpoint", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: "success", data: { url: "https://r2.example/fresh.webm" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(getPromptAudioUrl("sub-1", "entry-1")).resolves.toBe("https://r2.example/fresh.webm");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/backend-api/submissions/sub-1/prompts/entry-1",
+      expect.objectContaining({ method: "GET" }),
+    );
   });
 });
