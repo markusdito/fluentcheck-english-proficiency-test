@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, use, useRef, useReducer } from "react";
+import { useEffect, useState, useCallback, use, useMemo, useRef, useReducer } from "react";
 import { useAssessmentStart } from "@/components/providers/AssessmentStartProvider";
 import { useRecording } from "@/hooks/useRecording";
 import { useCountdown } from "@/hooks/useCountdown";
@@ -23,7 +23,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { abandonSubmission, abandonSubmissionOnLeave, completeSubmission, sendHeartbeat } from "@/lib/test-api";
+import { abandonSubmission, abandonSubmissionOnLeave, completeSubmission, getPromptAudioUrl, sendHeartbeat } from "@/lib/test-api";
 import { ApiError } from "@/lib/api";
 import { initializePractice, initializeTest } from "@/lib/test-initialization";
 import { slotLabel } from "@/lib/assessment-slots";
@@ -38,6 +38,8 @@ type TestPhase = "loading" | "preparation" | "recording" | "finalizing" | "compl
 
 /** Prompt audio plays per slot, autoplay included (PRD FR-3.4). */
 const PROMPT_MAX_PLAYS = 2;
+/** A prompt URL re-sign that takes longer gives up, and preparation starts without the audio. */
+const PROMPT_REFRESH_TIMEOUT_MS = 8_000;
 const UPLOAD_ATTEMPTS = 3;
 const UPLOAD_RETRY_DELAY_MS = 2000;
 /** Takes not yet verified live only in page memory, failed ones included: leaving loses them. */
@@ -369,8 +371,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
     }
   }, [questions, mediaReady, phase]);
 
-  // Preparation starts when the prompt audio ends. A slot without audio, or
-  // whose plays are used up, starts it immediately. Connection loss pauses it;
+  // Preparation starts when the prompt audio ends or cannot be played. A slot
+  // without audio, or whose plays are used up, starts it immediately. Connection loss pauses it;
   // on reconnect it restarts from full prep time, at once if the prompt has
   // already played (its `ended` will not come again).
   const playsLeftRef = useRef(playsLeft);
@@ -395,6 +397,17 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
       prepCountdown.start();
     }
   }, [phase, connectionLost, prepCountdown]);
+
+  // The prompt URLs from initialization expire after 300 s; later slots re-sign theirs.
+  // Practice has no Submission to sign against, so its audio just falls back.
+  const promptEntryId = currentQuestion?.id;
+  const refreshPromptAudio = useMemo(
+    () =>
+      practice || !submissionId || !promptEntryId
+        ? undefined
+        : () => getPromptAudioUrl(submissionId, promptEntryId, AbortSignal.timeout(PROMPT_REFRESH_TIMEOUT_MS)),
+    [practice, submissionId, promptEntryId],
+  );
 
   const handlePromptPlayStarted = useCallback(() => {
     const entryId = currentQuestion?.id;
@@ -851,6 +864,8 @@ export default function TestPage({ params }: { params: Promise<{ testId: string 
               onPlayStarted={handlePromptPlayStarted}
               audioLocked={!preparing}
               onAudioEnded={handlePromptAudioEnded}
+              refreshAudioUrl={refreshPromptAudio}
+              onAudioFailed={handlePromptAudioEnded}
             />
             {currentQuestion.category === "PART_2" && (
               <p className="mt-4 mb-0 text-[15px] text-sn-muted">

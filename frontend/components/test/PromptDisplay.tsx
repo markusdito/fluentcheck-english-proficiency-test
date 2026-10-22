@@ -18,6 +18,9 @@ interface PromptDisplayProps {
   onPlayStarted?: () => void;
   audioLocked?: boolean;
   onAudioEnded?: () => void;
+  /** Re-signs an expired prompt URL; see QuestionAudioPlayer. */
+  refreshAudioUrl?: () => Promise<string>;
+  onAudioFailed?: () => void;
 }
 
 /** Part 2 cue card: the talk topic and the three points to include. */
@@ -83,6 +86,8 @@ export function PromptDisplay({
   onPlayStarted,
   audioLocked,
   onAudioEnded,
+  refreshAudioUrl,
+  onAudioFailed,
 }: PromptDisplayProps) {
   return (
     <div>
@@ -98,6 +103,8 @@ export function PromptDisplay({
           onPlayStarted={onPlayStarted}
           locked={audioLocked}
           onEnded={onAudioEnded}
+          refreshAudioUrl={refreshAudioUrl}
+          onFailed={onAudioFailed}
         />
       </div>
       {cueCard && <div className="mb-5"><CueCardPanel cueCard={cueCard} /></div>}

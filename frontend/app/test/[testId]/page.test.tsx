@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   completeSubmission: vi.fn(),
   confirmUpload: vi.fn(),
   getPresignedUrl: vi.fn(),
+  getPromptAudioUrl: vi.fn(),
+  promptDisplayProps: {} as { refreshAudioUrl?: () => Promise<string>; onAudioFailed?: () => void },
   initializeTest: vi.fn(),
   initializePractice: vi.fn(),
   requestPermissions: vi.fn(),
@@ -91,6 +93,7 @@ vi.mock("@/lib/test-api", () => ({
   abandonSubmission: mocks.abandonSubmission,
   abandonSubmissionOnLeave: mocks.abandonSubmissionOnLeave,
   completeSubmission: mocks.completeSubmission,
+  getPromptAudioUrl: mocks.getPromptAudioUrl,
   sendHeartbeat: mocks.sendHeartbeat,
 }));
 
@@ -101,9 +104,15 @@ vi.mock("@/lib/upload-api", () => ({
 }));
 
 vi.mock("@/components/test/PromptDisplay", () => ({
-  PromptDisplay: ({ questionNumber, totalQuestions }: { questionNumber: number; totalQuestions: number }) => (
-    <div>Question {questionNumber} of {totalQuestions}</div>
-  ),
+  PromptDisplay: (props: {
+    questionNumber: number;
+    totalQuestions: number;
+    refreshAudioUrl?: () => Promise<string>;
+    onAudioFailed?: () => void;
+  }) => {
+    mocks.promptDisplayProps = props;
+    return <div>Question {props.questionNumber} of {props.totalQuestions}</div>;
+  },
 }));
 
 vi.mock("@/components/test/WebcamPreview", () => ({
@@ -121,6 +130,11 @@ const questions = ["PART_1A", "PART_1B", "PART_2", "PART_3", "PART_4"].map((cate
   category,
   cueCard: null,
   options: null,
+}));
+
+const questionsWithAudio = questions.map((question, index) => ({
+  ...question,
+  audioUrl: `https://r2.example/p${index + 1}.webm`,
 }));
 
 let params = Promise.resolve({ testId: "test-1" });
@@ -271,6 +285,52 @@ describe("TestPage strict exam flow", () => {
     view.unmount();
     expect(mocks.sendHeartbeat).not.toHaveBeenCalled();
     expect(mocks.abandonSubmissionOnLeave).not.toHaveBeenCalled();
+  });
+
+  it("starts preparation when the prompt audio cannot be played", async () => {
+    mocks.initializeTest.mockResolvedValue({
+      submissionId: "submission-1",
+      testSet: { id: "set-a", code: "A" },
+      questions: questionsWithAudio,
+      uploadedEntryIds: [],
+    });
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+    expect(mocks.countdown.start).not.toHaveBeenCalled();
+
+    await act(async () => mocks.promptDisplayProps.onAudioFailed?.());
+    expect(mocks.countdown.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-signs prompt audio through the Submission's prompt endpoint", async () => {
+    mocks.initializeTest.mockResolvedValue({
+      submissionId: "submission-1",
+      testSet: { id: "set-a", code: "A" },
+      questions: questionsWithAudio,
+      uploadedEntryIds: [],
+    });
+    mocks.getPromptAudioUrl.mockResolvedValue("https://r2.example/fresh.webm");
+    await renderPage();
+    await screen.findByRole("heading", { name: "Part 1 · Task 1A" });
+
+    await expect(mocks.promptDisplayProps.refreshAudioUrl?.()).resolves.toBe("https://r2.example/fresh.webm");
+    expect(mocks.getPromptAudioUrl).toHaveBeenCalledWith("submission-1", "entry-1", expect.any(AbortSignal));
+  });
+
+  it("practice falls back without a refresh", async () => {
+    params = Promise.resolve({ testId: "practice" });
+    mocks.initializePractice.mockResolvedValue({
+      submissionId: null,
+      testSet: { id: "set-practice", code: "Practice_Question" },
+      questions: questionsWithAudio,
+      uploadedEntryIds: [],
+    });
+    await renderPage();
+    await screen.findByRole("heading", { name: "SPEAKNUSA PRACTICE TEST — NOT SCORED, NOTHING IS SAVED" });
+
+    expect(mocks.promptDisplayProps.refreshAudioUrl).toBeUndefined();
+    await act(async () => mocks.promptDisplayProps.onAudioFailed?.());
+    expect(mocks.countdown.start).toHaveBeenCalledTimes(1);
   });
 
   it("sends a heartbeat once the Submission exists (FR-2.7)", async () => {
