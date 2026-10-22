@@ -343,7 +343,7 @@ All administrator routes require an authenticated ADMIN account.
 | POST | /api/admin/submissions/purge-requests/:id/cancel | ADMIN | Recovers a quarantined purge before storage deletion begins. |
 
 <!-- route: POST /api/admin/submissions/purge-requests/:id/finalize | source=backend/src/routes/admin.routes.ts -->
-| POST | /api/admin/submissions/purge-requests/:id/finalize | ADMIN | Explicitly finalizes a due purge after storage confirms every captured Answer-media deletion. |
+| POST | /api/admin/submissions/purge-requests/:id/finalize | ADMIN | Explicitly finalizes a due purge after storage confirms every captured Answer-media deletion. Re-checks purge blockers (holds, obligations, flags, Retake credits, Payment waivers) before any storage deletion; returns 409 `PURGE_NOT_ELIGIBLE` with `blockers`. |
 
 <!-- route: POST /api/admin/retention-holds/:id/release | source=backend/src/routes/admin.routes.ts -->
 | POST | /api/admin/retention-holds/:id/release | ADMIN | Releases an existing hold with an immutable audit event. |

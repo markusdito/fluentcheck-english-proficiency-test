@@ -74,6 +74,9 @@ beforeEach(async () => {
   await prisma.submissionRetentionHold.deleteMany();
   await prisma.score.deleteMany();
   await prisma.examinerAssignment.deleteMany();
+  await prisma.submissionFlag.deleteMany();
+  await prisma.retakeCredit.deleteMany();
+  await prisma.submissionPaymentWaiver.deleteMany();
   await prisma.answer.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "ManifestEntry_immutable" ON "ManifestEntry"`);
@@ -189,6 +192,52 @@ async function createPurgeFixture(withAnswer = true) {
     where: { submissionId: submission.id },
   });
   return { requester, approver, student, question, submission, answer };
+}
+
+type EvidenceRecordKind = "flag" | "resolvedFlag" | "waiver" | "redeemedCredit";
+
+/** Add a Restrict-FK audit record to the fixture Submission; returns its blocker. */
+async function addEvidenceRecord(
+  kind: EvidenceRecordKind,
+  fixture: Awaited<ReturnType<typeof createPurgeFixture>>,
+): Promise<string> {
+  const submissionId = fixture.submission.id;
+  switch (kind) {
+    case "flag":
+    case "resolvedFlag":
+      await prisma.submissionFlag.create({
+        data: {
+          submissionId,
+          type: "TECHNICAL_FAILURE",
+          source: "STUDENT_DEVICE",
+          reason: "Camera dropped",
+          ...(kind === "resolvedFlag"
+            ? { resolution: "DISMISSED", resolvedById: fixture.approver.id, resolvedAt: new Date() }
+            : {}),
+        },
+      });
+      return "Submission flag records exist";
+    case "waiver":
+      await prisma.submissionPaymentWaiver.create({
+        data: { submissionId, adminId: fixture.approver.id, reason: "Hardship" },
+      });
+      return "A payment waiver exists";
+    case "redeemedCredit": {
+      const voided = await prisma.submission.update({
+        where: { id: (await createPurgeFixture(false)).submission.id },
+        data: { status: "VOIDED" },
+      });
+      await prisma.retakeCredit.create({
+        data: {
+          studentId: fixture.student.id,
+          voidedSubmissionId: voided.id,
+          redeemedSubmissionId: submissionId,
+          redeemedAt: new Date(),
+        },
+      });
+      return "A retake credit was redeemed by this Submission";
+    }
+  }
 }
 
 async function createRetiredPromptQuestion() {
@@ -352,6 +401,160 @@ test("purge approval fails closed when an Answer-media identity is shared", asyn
     (await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).retentionStatus,
     "RETAINED",
   );
+});
+
+test("purge request is refused while flag, retake credit or waiver records exist", async () => {
+  for (const kind of ["flag", "waiver", "redeemedCredit"] as const) {
+    const fixture = await createPurgeFixture();
+    const expectedBlocker = await addEvidenceRecord(kind, fixture);
+    await assert.rejects(
+      requestSubmissionPurge(
+        fixture.submission.id,
+        fixture.requester.id,
+        { reason: "Remove abandoned attempt" },
+        { database: prisma },
+      ),
+      (error: unknown) =>
+        error instanceof SubmissionPurgeNotEligibleError &&
+        error.blockers.includes(expectedBlocker),
+      kind,
+    );
+    assert.equal(
+      await prisma.submissionPurgeRequest.count({ where: { targetSubmissionId: fixture.submission.id } }),
+      0,
+      kind,
+    );
+  }
+});
+
+test("a resolved flag still blocks purge request", async () => {
+  const fixture = await createPurgeFixture();
+  await addEvidenceRecord("resolvedFlag", fixture);
+  await assert.rejects(
+    requestSubmissionPurge(
+      fixture.submission.id,
+      fixture.requester.id,
+      { reason: "Remove abandoned attempt" },
+      { database: prisma },
+    ),
+    (error: unknown) =>
+      error instanceof SubmissionPurgeNotEligibleError &&
+      error.blockers.includes("Submission flag records exist"),
+  );
+});
+
+test("purge approval is refused when a flag appears after the request", async () => {
+  const fixture = await createPurgeFixture();
+  const request = await requestSubmissionPurge(
+    fixture.submission.id,
+    fixture.requester.id,
+    { reason: "Remove abandoned attempt" },
+    { database: prisma },
+  );
+  await addEvidenceRecord("flag", fixture);
+  await assert.rejects(
+    approveSubmissionPurge(
+      request.id,
+      fixture.approver.id,
+      { reason: "Independent approval" },
+      { database: prisma },
+    ),
+    (error: unknown) =>
+      error instanceof SubmissionPurgeNotEligibleError &&
+      error.blockers.includes("Submission flag records exist"),
+  );
+  assert.equal(
+    (await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).retentionStatus,
+    "RETAINED",
+  );
+  assert.equal(await prisma.submissionPurgeObject.count({ where: { requestId: request.id } }), 0);
+});
+
+async function approvedPurge(fixture: Awaited<ReturnType<typeof createPurgeFixture>>) {
+  const request = await requestSubmissionPurge(
+    fixture.submission.id,
+    fixture.requester.id,
+    { reason: "Remove abandoned attempt" },
+    { database: prisma, now: () => new Date("2026-01-01T00:00:00.000Z") },
+  );
+  await approveSubmissionPurge(
+    request.id,
+    fixture.approver.id,
+    { reason: "Independent approval" },
+    { database: prisma, now: () => new Date("2026-01-01T00:00:00.000Z") },
+  );
+  return request;
+}
+
+function countingStorage() {
+  const storage = {
+    deletes: 0,
+    deleteObject: async (): Promise<StorageDeleteConfirmation> => {
+      storage.deletes += 1;
+      return { outcome: "DELETED" };
+    },
+  };
+  return storage;
+}
+
+test("purge finalization re-checks flag, retake credit and waiver records before storage access", async () => {
+  for (const kind of ["flag", "waiver", "redeemedCredit"] as const) {
+    const fixture = await createPurgeFixture();
+    const request = await approvedPurge(fixture);
+    const expectedBlocker = await addEvidenceRecord(kind, fixture);
+    const storage = countingStorage();
+    await assert.rejects(
+      finalizeSubmissionPurge(
+        request.id,
+        fixture.approver.id,
+        { reason: "Finalize", authorizationId: "change-1" },
+        { database: prisma, enabled: true, now: () => new Date("2026-02-01T00:00:00.000Z"), storage },
+      ),
+      (error: unknown) =>
+        error instanceof SubmissionPurgeNotEligibleError &&
+        error.blockers.includes(expectedBlocker),
+      kind,
+    );
+    assert.equal(storage.deletes, 0, kind);
+    assert.equal(
+      (await prisma.submission.findUniqueOrThrow({ where: { id: fixture.submission.id } })).retentionStatus,
+      "QUARANTINED",
+      kind,
+    );
+    assert.ok(await prisma.answer.findUnique({ where: { id: fixture.answer!.id } }), kind);
+    const objects = await prisma.submissionPurgeObject.findMany({ where: { requestId: request.id } });
+    assert.ok(objects.length > 0, kind);
+    assert.ok(objects.every((object) => object.status === "QUARANTINED"), kind);
+  }
+});
+
+test("finalize retry of a stuck purge reports the flag blocker", async () => {
+  const fixture = await createPurgeFixture();
+  const request = await approvedPurge(fixture);
+  await addEvidenceRecord("flag", fixture);
+  // The state an earlier finalize left behind: media deleted, FK failure.
+  await prisma.submissionPurgeObject.updateMany({
+    where: { requestId: request.id },
+    data: { status: "DELETED" },
+  });
+  await prisma.submissionPurgeRequest.update({
+    where: { id: request.id },
+    data: { status: "FAILED" },
+  });
+  const storage = countingStorage();
+  await assert.rejects(
+    finalizeSubmissionPurge(
+      request.id,
+      fixture.approver.id,
+      { reason: "Retry", authorizationId: "change-2" },
+      { database: prisma, enabled: true, now: () => new Date("2026-02-01T00:00:00.000Z"), storage },
+    ),
+    (error: unknown) =>
+      error instanceof SubmissionPurgeNotEligibleError &&
+      error.blockers.includes("Submission flag records exist"),
+  );
+  assert.equal(storage.deletes, 0);
+  assert.ok(await prisma.submission.findUnique({ where: { id: fixture.submission.id } }));
 });
 
 test("purge storage failures remain visible and retryable until absence is confirmed", async () => {

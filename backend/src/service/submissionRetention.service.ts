@@ -84,6 +84,10 @@ interface SubmissionPolicySnapshot {
   assignments: Array<{ id: string }>;
   certificate: { id: string } | null;
   retentionHolds: Array<{ id: string; type: RetentionHoldType; reason: string }>;
+  flags: Array<{ id: string }>;
+  retakeCreditGranted: { id: string } | null;
+  retakeCreditRedeemed: { id: string } | null;
+  paymentWaiver: { id: string } | null;
 }
 
 interface AuditInput {
@@ -218,6 +222,10 @@ async function loadSubmissionPolicy(
         where: { releasedAt: null },
         select: { id: true, type: true, reason: true },
       },
+      flags: { select: { id: true } },
+      retakeCreditGranted: { select: { id: true } },
+      retakeCreditRedeemed: { select: { id: true } },
+      paymentWaiver: { select: { id: true } },
     },
   });
 }
@@ -242,6 +250,7 @@ function purgeBlockers(snapshot: SubmissionPolicySnapshot): string[] {
   if (snapshot.certificate) {
     blockers.push("A certificate exists");
   }
+  blockers.push(...evidenceRecordBlockers(snapshot));
   for (const hold of snapshot.retentionHolds) {
     blockers.push(`Active ${hold.type} Retention hold: ${hold.reason}`);
   }
@@ -252,6 +261,44 @@ function activeHoldBlockers(snapshot: SubmissionPolicySnapshot): string[] {
   return snapshot.retentionHolds.map(
     (hold) => `Active ${hold.type} Retention hold: ${hold.reason}`,
   );
+}
+
+// Flags, Retake credits and Payment waivers are audit records that reference
+// the Submission with onDelete: Restrict. Purge never removes them, so their
+// presence blocks it before any Answer media is touched.
+function evidenceRecordBlockers(snapshot: SubmissionPolicySnapshot): string[] {
+  const blockers: string[] = [];
+  if (snapshot.flags.length > 0) {
+    blockers.push("Submission flag records exist");
+  }
+  if (snapshot.retakeCreditGranted) {
+    blockers.push("A retake credit was granted from this Submission");
+  }
+  if (snapshot.retakeCreditRedeemed) {
+    blockers.push("A retake credit was redeemed by this Submission");
+  }
+  if (snapshot.paymentWaiver) {
+    blockers.push("A payment waiver exists");
+  }
+  return blockers;
+}
+
+/**
+ * Blockers re-checked on a QUARANTINED Submission before any storage call and
+ * again before its relational evidence is removed.
+ */
+function finalizationBlockers(snapshot: SubmissionPolicySnapshot): string[] {
+  return [
+    ...activeHoldBlockers(snapshot),
+    ...(snapshot.payments.some(
+      (payment) => payment.status !== "FAILED" && payment.status !== "REFUNDED",
+    )
+      ? ["A payment obligation appeared during purge finalization"]
+      : []),
+    ...(snapshot.assignments.length > 0 ? ["Examiner assignments appeared during purge finalization"] : []),
+    ...(snapshot.certificate ? ["A certificate appeared during purge finalization"] : []),
+    ...evidenceRecordBlockers(snapshot),
+  ];
 }
 
 async function findSharedAnswerMedia(
@@ -675,9 +722,9 @@ async function preparePurgeObjectAttempt(
       request.targetSubmissionId,
     );
     if (!submission || submission.retentionStatus !== "QUARANTINED") return null;
-    const holdBlockers = activeHoldBlockers(submission);
-    if (holdBlockers.length > 0) {
-      throw new SubmissionPurgeNotEligibleError(holdBlockers);
+    const blockers = finalizationBlockers(submission);
+    if (blockers.length > 0) {
+      throw new SubmissionPurgeNotEligibleError(blockers);
     }
     const object = await transaction.submissionPurgeObject.findUnique({
       where: { id: objectId },
@@ -765,9 +812,9 @@ async function confirmPurgeObjectAttempt(
       if (!submission || submission.retentionStatus !== "QUARANTINED") {
         return { attempted: false, failed: false };
       }
-      const holdBlockers = activeHoldBlockers(submission);
-      if (holdBlockers.length > 0) {
-        throw new SubmissionPurgeNotEligibleError(holdBlockers);
+      const blockers = finalizationBlockers(submission);
+      if (blockers.length > 0) {
+        throw new SubmissionPurgeNotEligibleError(blockers);
       }
       const object = await transaction.submissionPurgeObject.findUnique({
         where: { id: attempt.id },
@@ -957,16 +1004,7 @@ async function completeSubmissionPurge(
       request.targetSubmissionId,
     );
     if (!submission) return;
-    const blockers = [
-      ...activeHoldBlockers(submission),
-      ...(submission.payments.some(
-        (payment) => payment.status !== "FAILED" && payment.status !== "REFUNDED",
-      )
-        ? ["A payment obligation appeared during purge finalization"]
-        : []),
-      ...(submission.assignments.length > 0 ? ["Examiner assignments appeared during purge finalization"] : []),
-      ...(submission.certificate ? ["A certificate appeared during purge finalization"] : []),
-    ];
+    const blockers = finalizationBlockers(submission);
     if (blockers.length > 0) throw new SubmissionPurgeNotEligibleError(blockers);
 
     // This setting is transaction-local and is accepted only while this
@@ -1067,6 +1105,12 @@ export async function finalizeSubmissionPurge(
         { quarantineUntil: request.quarantineUntil },
       );
     }
+    // Relational blockers are checked before any storage call: a blocked
+    // Submission must keep its Answer media rather than fail on a foreign key
+    // after the media is gone.
+    const submission = await loadSubmissionPolicy(transaction, request.targetSubmissionId);
+    const blockers = submission ? finalizationBlockers(submission) : [];
+    if (blockers.length > 0) throw new SubmissionPurgeNotEligibleError(blockers);
   });
 
   const request = await database.submissionPurgeRequest.findUniqueOrThrow({
